@@ -1,0 +1,30 @@
+# Datasets
+Attain/
+GAPs v2/
+RDD/
+data/
+
+# Generated outputs
+outputs/
+eval_results/
+adapters/
+*.npy
+
+# Environment
+venv/
+.env
+__pycache__/
+*.pyc
+
+# Docs (not pushing)
+*.md
+
+# Claude config
+.claude/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Cloudflare
+cloudflared.exe

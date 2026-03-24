@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Expert Review — Pavement Distress</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <style>
+        @font-face {
+            font-family: 'SK Modernist';
+            src: url('https://cdn.jsdelivr.net/gh/nicholasgasior/gfonts@master/fonts/sk-modernist/Sk-Modernist-Regular.woff2') format('woff2');
+            font-weight: 400;
+        }
+        @font-face {
+            font-family: 'SK Modernist';
+            src: url('https://cdn.jsdelivr.net/gh/nicholasgasior/gfonts@master/fonts/sk-modernist/Sk-Modernist-Bold.woff2') format('woff2');
+            font-weight: 700;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #f5f5f4;
+            --surface: #ffffff;
+            --surface-hover: #fafaf9;
+            --border: #e7e5e4;
+            --border-strong: #d6d3d1;
+            --text: #1c1917;
+            --text-secondary: #78716c;
+            --text-tertiary: #a8a29e;
+            --accent: #1c1917;
+            --red: #dc2626;
+            --red-light: #fef2f2;
+            --amber: #d97706;
+            --amber-light: #fffbeb;
+            --green: #16a34a;
+            --green-light: #f0fdf4;
+            --tag-bg: #f5f5f4;
+            --radius: 12px;
+            --radius-lg: 16px;
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+            --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+            --transition: 0.15s ease;
+        }
+
+        body {
+            font-family: 'SK Modernist', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ======== HEADER ======== */
+        .header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+        .header-inner {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 0 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 64px;
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 32px;
+        }
+        .logo {
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+            white-space: nowrap;
+        }
+
+        /* ======== TABS ======== */
+        .tabs {
+            display: flex;
+            gap: 4px;
+            background: var(--tag-bg);
+            padding: 3px;
+            border-radius: 10px;
+        }
+        .tab {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 16px;
+            border: none;
+            border-radius: 8px;
+            background: transparent;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all var(--transition);
+            white-space: nowrap;
+        }
+        .tab:hover { color: var(--text); }
+        .tab.active {
+            background: var(--surface);
+            color: var(--text);
+            box-shadow: var(--shadow-sm);
+        }
+        .tab-count {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 20px;
+            height: 20px;
+            padding: 0 6px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 700;
+            background: var(--border);
+            color: var(--text-secondary);
+            transition: all var(--transition);
+        }
+        .tab.active .tab-count {
+            background: var(--text);
+            color: var(--surface);
+        }
+
+        /* ======== AUTH ======== */
+        .header-right { display: flex; align-items: center; gap: 12px; }
+        .user-pill {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px 6px 10px;
+            background: var(--tag-bg);
+            border-radius: 20px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+        .user-dot {
+            width: 7px; height: 7px;
+            border-radius: 50%;
+            background: var(--green);
+            flex-shrink: 0;
+        }
+        .user-email {
+            max-width: 160px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* ======== LOGIN OVERLAY ======== */
+        .login-overlay {
+            position: fixed; inset: 0; z-index: 300;
+            background: rgba(28,25,23,0.5);
+            backdrop-filter: blur(8px);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .login-card {
+            background: var(--surface);
+            border-radius: var(--radius-lg);
+            padding: 48px 40px 40px;
+            max-width: 380px; width: 90%;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+        }
+        .login-card h2 { font-size: 20px; margin-bottom: 6px; letter-spacing: -0.3px; }
+        .login-card .subtitle { font-size: 13px; color: var(--text-secondary); margin-bottom: 28px; line-height: 1.5; }
+        .login-card input {
+            width: 100%; padding: 11px 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-family: inherit; font-size: 13px;
+            margin-bottom: 12px;
+            transition: border-color var(--transition);
+        }
+        .login-card input:focus { outline: none; border-color: var(--text); }
+        .login-status { font-size: 12px; color: var(--text-secondary); margin-top: 12px; min-height: 18px; }
+        .dev-note {
+            font-size: 11px; color: var(--text-tertiary);
+            margin-top: 20px; padding-top: 20px;
+            border-top: 1px solid var(--border);
+            line-height: 1.6;
+        }
+
+        /* ======== BUTTONS ======== */
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center;
+            padding: 9px 18px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--surface);
+            color: var(--text);
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all var(--transition);
+            white-space: nowrap;
+        }
+        .btn:hover { background: var(--text); color: var(--surface); border-color: var(--text); }
+        .btn-primary { background: var(--text); color: var(--surface); border-color: var(--text); }
+        .btn-primary:hover { opacity: 0.85; }
+        .btn-sm { padding: 5px 12px; font-size: 12px; border-radius: 6px; }
+        .btn-ghost { border-color: transparent; background: transparent; color: var(--text-secondary); }
+        .btn-ghost:hover { background: var(--tag-bg); color: var(--text); border-color: transparent; }
+        .btn:disabled { opacity: 0.35; cursor: not-allowed; pointer-events: none; }
+
+        /* ======== MAIN CONTENT ======== */
+        .main {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 24px 32px 96px;
+        }
+
+        /* ======== BENTO GRID ======== */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+        @media (max-width: 1200px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 720px) { .grid { grid-template-columns: 1fr; } }
+
+        /* ======== CARD ======== */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+            transition: border-color var(--transition), box-shadow var(--transition);
+        }
+        .card:hover { border-color: var(--border-strong); box-shadow: var(--shadow); }
+        .card-img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            display: block;
+            background: var(--tag-bg);
+        }
+        .card-body { padding: 16px; }
+
+        .card-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+        .card-id {
+            font-size: 11px;
+            color: var(--text-tertiary);
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            letter-spacing: 0.3px;
+        }
+        .badge {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.2px;
+        }
+        .badge-low { background: var(--red-light); color: var(--red); }
+        .badge-mid { background: var(--amber-light); color: var(--amber); }
+        .badge-high { background: var(--green-light); color: var(--green); }
+
+        .field { margin-bottom: 12px; }
+        .field:last-child { margin-bottom: 0; }
+        .field-label {
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-tertiary);
+            margin-bottom: 5px;
+        }
+        .field-value { font-size: 13px; font-weight: 600; }
+
+        .tags { display: flex; flex-wrap: wrap; gap: 5px; }
+        .tag {
+            padding: 4px 10px;
+            background: var(--tag-bg);
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text);
+        }
+        .tag-dark {
+            background: var(--text);
+            color: var(--surface);
+        }
+
+        /* ======== DIVIDER ======== */
+        .card-divider {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 14px 0;
+        }
+
+        /* ======== CORRECTION FORM ======== */
+        .form-group { margin-bottom: 10px; }
+        .form-group:last-of-type { margin-bottom: 14px; }
+        .form-group label {
+            display: block;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-tertiary);
+            margin-bottom: 5px;
+        }
+
+        .pill-select {
+            display: flex; flex-wrap: wrap; gap: 5px;
+            padding: 6px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            min-height: 36px;
+            align-items: center;
+        }
+        .pill {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 3px 8px;
+            background: var(--text);
+            color: var(--surface);
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .pill-x { cursor: pointer; opacity: 0.6; font-size: 14px; line-height: 1; }
+        .pill-x:hover { opacity: 1; }
+        .pill-empty { font-size: 12px; color: var(--text-tertiary); padding: 2px 4px; }
+
+        select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 13px;
+            background: var(--surface);
+            appearance: none;
+            cursor: pointer;
+            color: var(--text);
+        }
+        select:focus { outline: none; border-color: var(--text); }
+
+        textarea {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 13px;
+            resize: none;
+            color: var(--text);
+        }
+        textarea:focus { outline: none; border-color: var(--text); }
+
+        .card-actions { display: flex; gap: 8px; }
+        .card-actions .btn { flex: 1; }
+
+        /* ======== REVIEWED CARD META ======== */
+        .expert-row {
+            display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+        }
+        .expert-note {
+            font-size: 12px; color: var(--text-secondary);
+            font-style: italic; margin-top: 8px; line-height: 1.5;
+        }
+        .reviewed-stamp {
+            font-size: 11px;
+            color: var(--text-tertiary);
+            margin-top: 8px;
+        }
+
+        /* ======== EMPTY STATE ======== */
+        .empty {
+            text-align: center;
+            padding: 80px 24px;
+            color: var(--text-secondary);
+        }
+        .empty h3 { font-size: 17px; color: var(--text); margin-bottom: 6px; }
+        .empty p { font-size: 13px; color: var(--text-tertiary); }
+
+        /* ======== RETRAIN BAR ======== */
+        .retrain-bar {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            z-index: 100;
+        }
+        .retrain-inner {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 14px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .retrain-info { font-size: 13px; color: var(--text-secondary); }
+        .retrain-info strong { color: var(--text); }
+        .progress-wrap { flex: 1; margin: 0 24px; display: none; }
+        .progress-track {
+            width: 100%; height: 4px;
+            background: var(--tag-bg);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: var(--text);
+            border-radius: 2px;
+            width: 0%;
+            transition: width 0.4s ease;
+        }
+        .progress-label { font-size: 11px; color: var(--text-tertiary); margin-top: 4px; }
+
+        /* ======== TOAST ======== */
+        .toast {
+            position: fixed; top: 20px; right: 20px;
+            padding: 10px 18px;
+            background: var(--text);
+            color: var(--surface);
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            z-index: 200;
+            opacity: 0;
+            transform: translateY(-8px);
+            transition: all 0.25s ease;
+            pointer-events: none;
+        }
+        .toast.visible { opacity: 1; transform: translateY(0); }
+    </style>
+</head>
+<body>
+
+<!-- ======== HEADER ======== -->
+<header class="header">
+    <div class="header-inner">
+        <div class="header-left">
+            <span class="logo">Expert Review</span>
+            <div class="tabs" id="tabs">
+                <button class="tab active" data-tab="pending" onclick="switchTab('pending')">
+                    Pending <span class="tab-count" id="pendingBadge">0</span>
+                </button>
+                <button class="tab" data-tab="reviewed" onclick="switchTab('reviewed')">
+                    Reviewed <span class="tab-count" id="reviewedBadge">0</span>
+                </button>
+            </div>
+        </div>
+        <div class="header-right" id="authArea"></div>
+    </div>
+</header>
+
+<!-- ======== LOGIN ======== -->
+<div class="login-overlay" id="loginOverlay" style="display:none;">
+    <div class="login-card">
+        <h2>Expert Login</h2>
+        <p class="subtitle">Sign in with your email to review and correct AI pavement assessments.</p>
+        <input type="email" id="loginEmail" placeholder="you@example.com" autocomplete="email">
+        <button class="btn btn-primary" style="width:100%;padding:11px;" id="loginBtn" onclick="handleLogin()">Send Magic Link</button>
+        <div class="login-status" id="loginStatus"></div>
+        <div class="dev-note" id="devNote" style="display:none;">
+            No database connected — running in demo mode.
+            <br><button class="btn btn-sm" style="margin-top:10px;" onclick="devModeBypass()">Continue with demo data</button>
+        </div>
+    </div>
+</div>
+
+<!-- ======== CONTENT ======== -->
+<main class="main">
+    <!-- Pending Tab -->
+    <div id="panelPending">
+        <div class="grid" id="pendingGrid"></div>
+        <div class="empty" id="pendingEmpty" style="display:none;">
+            <h3>All caught up</h3>
+            <p>No assessments need expert review right now.</p>
+        </div>
+    </div>
+
+    <!-- Reviewed Tab -->
+    <div id="panelReviewed" style="display:none;">
+        <div class="grid" id="reviewedGrid"></div>
+        <div class="empty" id="reviewedEmpty" style="display:none;">
+            <h3>No reviews yet</h3>
+            <p>Assessments you review will appear here.</p>
+        </div>
+    </div>
+</main>
+
+<!-- ======== RETRAIN BAR ======== -->
+<div class="retrain-bar">
+    <div class="retrain-inner">
+        <div class="retrain-info">
+            <strong id="correctionCount">0</strong> corrections ready
+        </div>
+        <div class="progress-wrap" id="progressWrap">
+            <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+            <div class="progress-label" id="progressLabel">Preparing...</div>
+        </div>
+        <button class="btn btn-primary btn-sm" id="retrainBtn" onclick="startRetrain()">Retrain Model</button>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// CONFIG
+// ============================================================
+const API_BASE = 'http://localhost:8000';
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';
+const API_KEY = '';
+
+// ============================================================
+// STATE
+// ============================================================
+let sb = null;
+let currentUser = null;
+let assessments = [];
+let reviewedAssessments = [];
+let distressTypes = [];
+let correctionsMade = 0;
+let activeTab = 'pending';
+const selectedTypes = {};
+
+// ============================================================
+// HELPERS
+// ============================================================
+const isDbConnected = () => SUPABASE_URL !== 'YOUR_SUPABASE_URL' && SUPABASE_URL.startsWith('http');
+
+const sbHeaders = () => ({
+    'apikey': SUPABASE_KEY,
+    'Authorization': `Bearer ${SUPABASE_KEY}`,
+    'Content-Type': 'application/json'
+});
+
+function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('visible');
+    setTimeout(() => t.classList.remove('visible'), 2500);
+}
+
+function badgeClass(v) {
+    if (v >= 0.8) return 'badge-high';
+    if (v >= 0.5) return 'badge-mid';
+    return 'badge-low';
+}
+
+function pct(v) { return (v * 100).toFixed(1) + '%'; }
+
+function fmtDate(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+         + ', ' + d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+}
+
+// ============================================================
+// TABS
+// ============================================================
+function switchTab(tab) {
+    activeTab = tab;
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+    document.getElementById('panelPending').style.display = tab === 'pending' ? 'block' : 'none';
+    document.getElementById('panelReviewed').style.display = tab === 'reviewed' ? 'block' : 'none';
+}
+
+// ============================================================
+// AUTH
+// ============================================================
+function initAuth() {
+    if (!isDbConnected()) {
+        document.getElementById('loginOverlay').style.display = 'flex';
+        document.getElementById('devNote').style.display = 'block';
+        document.getElementById('loginEmail').style.display = 'none';
+        document.getElementById('loginBtn').style.display = 'none';
+        renderAuth(null);
+        return;
+    }
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    sb.auth.onAuthStateChange((_, session) => {
+        if (session?.user) { onLogin(session.user); }
+        else { onLogout(); }
+    });
+    sb.auth.getSession().then(({ data: { session } }) => {
+        if (session?.user) onLogin(session.user);
+        else document.getElementById('loginOverlay').style.display = 'flex';
+    });
+}
+
+function onLogin(user) {
+    currentUser = user;
+    document.getElementById('loginOverlay').style.display = 'none';
+    renderAuth(user);
+    loadAll();
+}
+
+function onLogout() {
+    currentUser = null;
+    document.getElementById('loginOverlay').style.display = 'flex';
+    document.getElementById('devNote').style.display = isDbConnected() ? 'none' : 'block';
+    renderAuth(null);
+}
+
+async function handleLogin() {
+    const email = document.getElementById('loginEmail').value.trim();
+    const status = document.getElementById('loginStatus');
+    const btn = document.getElementById('loginBtn');
+    if (!email || !email.includes('@')) { status.textContent = 'Enter a valid email.'; return; }
+    btn.disabled = true; btn.textContent = 'Sending...'; status.textContent = '';
+    const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.href } });
+    if (error) { status.textContent = error.message; btn.disabled = false; btn.textContent = 'Send Magic Link'; }
+    else { status.textContent = 'Check your inbox for the login link.'; btn.textContent = 'Link Sent'; }
+}
+
+async function handleLogout() {
+    if (sb) await sb.auth.signOut();
+    currentUser = null; assessments = []; reviewedAssessments = [];
+    renderAuth(null); renderPending(); renderReviewed();
+    document.getElementById('loginOverlay').style.display = 'flex';
+}
+
+function devModeBypass() {
+    document.getElementById('loginOverlay').style.display = 'none';
+    currentUser = { id: 'dev-user', email: 'demo@localhost' };
+    renderAuth(currentUser);
+    loadAll();
+}
+
+function renderAuth(user) {
+    const el = document.getElementById('authArea');
+    if (user) {
+        el.innerHTML = `
+            <div class="user-pill"><span class="user-dot"></span><span class="user-email">${user.email}</span></div>
+            <button class="btn btn-ghost btn-sm" onclick="handleLogout()">Sign out</button>`;
+    } else {
+        el.innerHTML = '';
+    }
+}
+
+// ============================================================
+// MOCK DATA
+// ============================================================
+const TYPES_DEFAULT = [
+    'Longitudinal Crack (D00)', 'Transverse Crack (D10)', 'Alligator Crack (D20)',
+    'Pothole (D40)', 'Block Crack (D43)', 'Inlaid Patch (D44)',
+    'Open Joint (D50)', 'Rutting', 'Raveling', 'Bleeding', 'Edge Crack', 'Depression'
+];
+
+const MOCK_PENDING = [
+    { id:'demo-a1f8c3', image_url:'https://placehold.co/420x280/e7e5e4/78716c?text=Crack+Sample', stage1_label:'Distress', stage1_confidence:0.72, distress_types:['Longitudinal Crack (D00)'], severity:'Low', stage2_confidence:0.58, description:'Possible longitudinal crack detected along the wheel path.', created_at:new Date().toISOString() },
+    { id:'demo-b2d9e4', image_url:'https://placehold.co/420x280/e7e5e4/78716c?text=Pothole+Sample', stage1_label:'Distress', stage1_confidence:0.91, distress_types:['Pothole (D40)','Alligator Crack (D20)'], severity:'High', stage2_confidence:0.65, description:'Multiple distress types with medium model confidence.', created_at:new Date().toISOString() },
+    { id:'demo-c3e0f5', image_url:'https://placehold.co/420x280/e7e5e4/78716c?text=Unknown+Sample', stage1_label:'Distress', stage1_confidence:0.55, distress_types:['Unknown'], severity:'Unknown', stage2_confidence:0.31, description:'Model could not confidently determine distress type.', created_at:new Date().toISOString() },
+];
+
+const MOCK_REVIEWED = [
+    { id:'demo-r1a2b3', image_url:'https://placehold.co/420x280/d6d3d1/78716c?text=Reviewed+1', stage1_label:'Distress', stage1_confidence:0.88, distress_types:['Pothole (D40)'], severity:'High', stage2_confidence:0.72, expert_reviewed:true, expert_corrected_types:['Pothole (D40)'], expert_corrected_severity:'High', expert_notes:'Confirmed deep pothole, needs immediate repair.', reviewed_at:new Date(Date.now()-3600000).toISOString(), created_at:new Date(Date.now()-7200000).toISOString() },
+    { id:'demo-r4c5d6', image_url:'https://placehold.co/420x280/d6d3d1/78716c?text=Reviewed+2', stage1_label:'Distress', stage1_confidence:0.65, distress_types:['Alligator Crack (D20)'], severity:'Medium', stage2_confidence:0.51, expert_reviewed:true, expert_corrected_types:['Alligator Crack (D20)','Transverse Crack (D10)'], expert_corrected_severity:'Medium', expert_notes:'', reviewed_at:new Date(Date.now()-7200000).toISOString(), created_at:new Date(Date.now()-14400000).toISOString() },
+];
+
+// ============================================================
+// DATA LOADING
+// ============================================================
+async function loadAll() { await Promise.all([loadPending(), loadReviewed()]); }
+
+async function loadPending() {
+    if (isDbConnected()) {
+        try {
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/assessments?needs_expert_review=eq.true&expert_reviewed=eq.false&order=created_at.desc`, { headers: sbHeaders() });
+            if (!r.ok) throw new Error(r.status);
+            assessments = await r.json();
+            const tr = await fetch(`${SUPABASE_URL}/rest/v1/custom_distress_types?order=name.asc`, { headers: sbHeaders() });
+            distressTypes = tr.ok ? (await tr.json()).map(d => d.name) : [...TYPES_DEFAULT];
+        } catch (e) { assessments = []; distressTypes = [...TYPES_DEFAULT]; showToast('Load failed: ' + e.message); }
+    } else {
+        assessments = JSON.parse(JSON.stringify(MOCK_PENDING));
+        distressTypes = [...TYPES_DEFAULT];
+    }
+    renderPending();
+    document.getElementById('pendingBadge').textContent = assessments.length;
+}
+
+async function loadReviewed() {
+    if (isDbConnected()) {
+        try {
+            const r = await fetch(`${SUPABASE_URL}/rest/v1/assessments?expert_reviewed=eq.true&order=reviewed_at.desc&limit=50`, { headers: sbHeaders() });
+            if (!r.ok) throw new Error(r.status);
+            reviewedAssessments = await r.json();
+        } catch { reviewedAssessments = []; }
+    } else {
+        reviewedAssessments = JSON.parse(JSON.stringify(MOCK_REVIEWED));
+    }
+    document.getElementById('reviewedBadge').textContent = reviewedAssessments.length;
+    renderReviewed();
+}
+
+// ============================================================
+// RENDER — PENDING
+// ============================================================
+function renderPending() {
+    const grid = document.getElementById('pendingGrid');
+    const empty = document.getElementById('pendingEmpty');
+    if (!assessments.length) { grid.style.display = 'none'; empty.style.display = 'block'; return; }
+    grid.style.display = 'grid'; empty.style.display = 'none';
+    grid.innerHTML = assessments.map((a, i) => `
+        <div class="card" id="card-${a.id}">
+            <img class="card-img" src="${a.image_url}" alt="" onerror="this.src='https://placehold.co/420x280/e7e5e4/a8a29e?text=No+Image'">
+            <div class="card-body">
+                <div class="card-top">
+                    <span class="card-id">${a.id.substring(0,10)}</span>
+                    <span class="badge ${badgeClass(a.stage2_confidence||a.stage1_confidence)}">${pct(a.stage2_confidence||a.stage1_confidence)}</span>
+                </div>
+                <div class="field">
+                    <div class="field-label">AI Classification</div>
+                    <div class="tags">${(a.distress_types||[]).map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+                </div>
+                <div class="field">
+                    <div class="field-label">AI Severity</div>
+                    <div class="field-value">${a.severity||'Unknown'}</div>
+                </div>
+                ${a.description ? `<div class="field"><div class="field-label">AI Description</div><div style="font-size:12px;color:var(--text-secondary);line-height:1.5;">${a.description}</div></div>` : ''}
+                <hr class="card-divider">
+                <div class="form-group">
+                    <label>Expert Classification</label>
+                    <div class="pill-select" id="types-${i}">
+                        ${(a.distress_types||[]).filter(t=>t!=='Unknown').map(t=>`<span class="pill">${t}<span class="pill-x" onclick="event.stopPropagation();removeType(${i},'${t}')">&times;</span></span>`).join('')}
+                    </div>
+                </div>
+                <div class="form-group">
+                    <select onchange="addType(${i},this.value);this.value='';">
+                        <option value="">+ Add distress type...</option>
+                        ${distressTypes.map(t=>`<option value="${t}">${t}</option>`).join('')}
+                        <option value="__new__">+ Custom type...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Severity</label>
+                    <select id="sev-${i}">
+                        <option value="Low" ${a.severity==='Low'?'selected':''}>Low</option>
+                        <option value="Medium" ${a.severity==='Medium'?'selected':''}>Medium</option>
+                        <option value="High" ${a.severity==='High'?'selected':''}>High</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea id="note-${i}" rows="2" placeholder="Optional observations..."></textarea>
+                </div>
+                <div class="card-actions">
+                    <button class="btn btn-sm" onclick="skipCard('${a.id}')">Skip</button>
+                    <button class="btn btn-primary btn-sm" onclick="submitCorrection(${i},'${a.id}')">Confirm</button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+// ============================================================
+// RENDER — REVIEWED
+// ============================================================
+function renderReviewed() {
+    const grid = document.getElementById('reviewedGrid');
+    const empty = document.getElementById('reviewedEmpty');
+    if (!reviewedAssessments.length) { grid.style.display = 'none'; empty.style.display = 'block'; return; }
+    grid.style.display = 'grid'; empty.style.display = 'none';
+    grid.innerHTML = reviewedAssessments.map(a => `
+        <div class="card">
+            <img class="card-img" src="${a.image_url}" alt="" onerror="this.src='https://placehold.co/420x280/e7e5e4/a8a29e?text=No+Image'">
+            <div class="card-body">
+                <div class="card-top">
+                    <span class="card-id">${a.id.substring(0,10)}</span>
+                    <span class="badge ${badgeClass(a.stage2_confidence||a.stage1_confidence)}">${pct(a.stage2_confidence||a.stage1_confidence)}</span>
+                </div>
+                <div class="field">
+                    <div class="field-label">AI Classification</div>
+                    <div class="tags">${(a.distress_types||[]).map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+                </div>
+                <div class="field">
+                    <div class="field-label">AI Severity</div>
+                    <div class="field-value">${a.severity||'Unknown'}</div>
+                </div>
+                <hr class="card-divider">
+                <div class="field">
+                    <div class="field-label">Expert Classification</div>
+                    <div class="tags">${(a.expert_corrected_types||a.distress_types||[]).map(t=>`<span class="tag tag-dark">${t}</span>`).join('')}</div>
+                </div>
+                <div class="expert-row">
+                    <div class="field" style="margin-bottom:0;">
+                        <div class="field-label">Expert Severity</div>
+                        <div class="field-value">${a.expert_corrected_severity||a.severity||'—'}</div>
+                    </div>
+                </div>
+                ${a.expert_notes ? `<div class="expert-note">"${a.expert_notes}"</div>` : ''}
+                <div class="reviewed-stamp">${fmtDate(a.reviewed_at)}</div>
+            </div>
+        </div>
+    `).join('');
+}
+
+// ============================================================
+// INTERACTIONS
+// ============================================================
+function getTypes(i) {
+    if (!selectedTypes[i]) selectedTypes[i] = [...(assessments[i].distress_types||[])].filter(t=>t!=='Unknown');
+    return selectedTypes[i];
+}
+
+function addType(i, type) {
+    if (type === '__new__') {
+        const name = prompt('Enter new distress type:');
+        if (!name) return;
+        distressTypes.push(name);
+        type = name;
+        if (isDbConnected()) fetch(`${SUPABASE_URL}/rest/v1/custom_distress_types`, { method:'POST', headers:sbHeaders(), body:JSON.stringify({name,description:''}) });
+    }
+    if (!type) return;
+    const t = getTypes(i);
+    if (!t.includes(type)) { t.push(type); renderPills(i); }
+}
+
+function removeType(i, type) {
+    const t = getTypes(i);
+    const x = t.indexOf(type);
+    if (x > -1) { t.splice(x, 1); renderPills(i); }
+}
+
+function renderPills(i) {
+    const el = document.getElementById(`types-${i}`);
+    const t = getTypes(i);
+    el.innerHTML = t.length
+        ? t.map(v => `<span class="pill">${v}<span class="pill-x" onclick="event.stopPropagation();removeType(${i},'${v}')">&times;</span></span>`).join('')
+        : '<span class="pill-empty">No types selected</span>';
+}
+
+async function submitCorrection(i, id) {
+    const types = getTypes(i);
+    const severity = document.getElementById(`sev-${i}`).value;
+    const notes = document.getElementById(`note-${i}`).value;
+    if (!types.length) { showToast('Select at least one distress type.'); return; }
+
+    const patch = {
+        needs_expert_review: false,
+        expert_reviewed: true,
+        expert_corrected_types: types,
+        expert_corrected_severity: severity,
+        expert_notes: notes,
+        reviewed_at: new Date().toISOString()
+    };
+    if (currentUser?.id && currentUser.id !== 'dev-user') patch.reviewed_by = currentUser.id;
+
+    if (isDbConnected()) {
+        await fetch(`${SUPABASE_URL}/rest/v1/assessments?id=eq.${id}`, { method:'PATCH', headers:sbHeaders(), body:JSON.stringify(patch) });
+    }
+
+    const item = assessments.find(a => a.id === id);
+    if (item) { Object.assign(item, patch); reviewedAssessments.unshift(item); }
+
+    const card = document.getElementById(`card-${id}`);
+    card.style.opacity = '0'; card.style.transform = 'scale(0.97)'; card.style.transition = 'all 0.25s ease';
+    setTimeout(() => {
+        assessments = assessments.filter(a => a.id !== id);
+        delete selectedTypes[i];
+        renderPending(); renderReviewed();
+        document.getElementById('pendingBadge').textContent = assessments.length;
+        document.getElementById('reviewedBadge').textContent = reviewedAssessments.length;
+    }, 250);
+
+    correctionsMade++;
+    document.getElementById('correctionCount').textContent = correctionsMade;
+    showToast('Correction saved');
+}
+
+function skipCard(id) {
+    assessments = assessments.filter(a => a.id !== id);
+    renderPending();
+    document.getElementById('pendingBadge').textContent = assessments.length;
+}
+
+// ============================================================
+// RETRAIN
+// ============================================================
+let retrainInterval = null;
+
+async function startRetrain() {
+    if (!correctionsMade) { showToast('No corrections to retrain on.'); return; }
+    const btn = document.getElementById('retrainBtn');
+    btn.disabled = true; btn.textContent = 'Retraining...';
+    document.getElementById('progressWrap').style.display = 'block';
+    try {
+        const h = { 'Content-Type': 'application/json' };
+        if (API_KEY) h['X-API-Key'] = API_KEY;
+        const r = await fetch(`${API_BASE}/retrain/start`, { method:'POST', headers:h });
+        if (!r.ok) { showToast('Failed: ' + (await r.text())); btn.disabled=false; btn.textContent='Retrain Model'; document.getElementById('progressWrap').style.display='none'; return; }
+        retrainInterval = setInterval(pollRetrain, 3000);
+    } catch(e) { showToast(e.message); btn.disabled=false; btn.textContent='Retrain Model'; document.getElementById('progressWrap').style.display='none'; }
+}
+
+async function pollRetrain() {
+    try {
+        const h = {}; if (API_KEY) h['X-API-Key'] = API_KEY;
+        const r = await fetch(`${API_BASE}/retrain/status`, { headers:h });
+        const d = await r.json();
+        document.getElementById('progressFill').style.width = d.progress_pct + '%';
+        document.getElementById('progressLabel').textContent = d.eta_seconds > 0
+            ? `Step ${d.current_step}/${d.total_steps} — ${Math.ceil(d.eta_seconds/60)}m left`
+            : `Step ${d.current_step}/${d.total_steps}`;
+        if (!d.is_running) {
+            clearInterval(retrainInterval);
+            document.getElementById('retrainBtn').disabled = false;
+            document.getElementById('retrainBtn').textContent = 'Retrain Model';
+            document.getElementById('progressWrap').style.display = 'none';
+            correctionsMade = 0;
+            document.getElementById('correctionCount').textContent = '0';
+            showToast('Model updated.');
+        }
+    } catch {}
+}
+
+// ============================================================
+// INIT
+// ============================================================
+initAuth();
+</script>
+</body>
+</html>

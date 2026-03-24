@@ -1,0 +1,49 @@
+# ============================================================
+# Pavement Distress Classification - Qwen2.5-VL Fine-Tuning
+# ============================================================
+# Install PyTorch first with CUDA:
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+# Install LLaMA-Factory separately:
+#   git clone https://github.com/hiyouga/LLaMA-Factory.git
+#   cd LLaMA-Factory && pip install -e ".[torch,metrics]"
+# ============================================================
+
+# Core ML
+transformers>=4.49.0
+accelerate>=0.27.0
+bitsandbytes>=0.43.0
+peft>=0.13.0
+
+# Qwen2.5-VL
+qwen-vl-utils
+
+# Attention acceleration (install separately if build fails):
+#   pip install flash-attn --no-build-isolation
+# flash-attn>=2.5.0
+
+# Training acceleration
+liger-kernel>=0.2.0
+
+# Dataset
+numpy
+Pillow
+tqdm
+
+# System resource detection
+psutil>=5.9.0
+
+# Evaluation
+scikit-learn
+matplotlib
+seaborn
+
+# API server
+fastapi>=0.110.0
+sse-starlette>=1.6.0
+uvicorn[standard]>=0.27.0
+python-multipart
+slowapi>=0.1.9
+python-dotenv>=1.0.0
+
+# Interactive UI
+gradio>=4.0.0

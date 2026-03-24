@@ -1,0 +1,88 @@
+### ============================================================
+### Qwen2.5-VL-7B QLoRA Fine-Tuning Config for LLaMA-Factory
+### Pavement Distress Classification (GAPs + RDD combined)
+###
+### Hardware: NVIDIA A6000 (48GB VRAM)
+### Expected training time: ~12-24 hours
+###
+### BEFORE RUNNING:
+###   1. Copy the Capstone/ project to the A6000 machine
+###   2. Run data prep ON that machine:
+###        cd /path/to/Capstone
+###        python scripts/01_convert_gaps_to_images.py
+###        python scripts/02_build_training_data.py
+###        python scripts/05_setup_training_config.py
+###   3. The last script auto-fills dataset_dir and output_dir below.
+###
+### Usage:
+###   llamafactory-cli train /path/to/Capstone/configs/qwen25vl_qlora_sft.yaml
+### ============================================================
+
+### Model
+model_name_or_path: Qwen/Qwen2.5-VL-7B-Instruct
+trust_remote_code: true
+
+### Method
+stage: sft
+do_train: true
+finetuning_type: lora
+lora_target: all
+lora_rank: 64
+lora_alpha: 128
+lora_dropout: 0.1
+
+### Quantization (QLoRA - 4-bit)
+quantization_bit: 4
+quantization_method: bitsandbytes
+
+### Dataset
+### >>> Auto-filled by scripts/05_setup_training_config.py <<<
+dataset_dir: MUST_UPDATE_TO_ABSOLUTE_PATH/data
+dataset: combined_train
+eval_dataset: combined_valid
+template: qwen2_5_vl
+cutoff_len: 2048
+overwrite_cache: true
+preprocessing_num_workers: 8
+
+### Output
+output_dir: MUST_UPDATE_TO_ABSOLUTE_PATH/outputs/qwen25vl-qlora-gaps-rdd
+logging_steps: 50
+save_steps: 500
+save_total_limit: 3
+plot_loss: true
+overwrite_output_dir: true
+
+### Training hyperparameters
+per_device_train_batch_size: 4
+per_device_eval_batch_size: 4
+gradient_accumulation_steps: 8
+learning_rate: 1.0e-4
+num_train_epochs: 2
+lr_scheduler_type: cosine
+warmup_ratio: 0.1
+bf16: true
+
+### Evaluation + early stopping
+eval_strategy: steps
+eval_steps: 500
+save_strategy: steps
+load_best_model_at_end: true
+metric_for_best_model: eval_loss
+greater_is_better: false
+
+### Regularization (prevents overfitting)
+weight_decay: 0.05
+label_smoothing_factor: 0.1
+neftune_noise_alpha: 5.0
+
+### Freeze vision tower (standard for VLM LoRA fine-tuning)
+freeze_vision_tower: true
+
+### Performance & Acceleration
+flash_attn: fa2
+enable_liger_kernel: true
+gradient_checkpointing: true
+optim: adamw_8bit
+ddp_timeout: 1800
+report_to: none
