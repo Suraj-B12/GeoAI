@@ -114,9 +114,20 @@ class PavementClassifier:
             # known peft bug #2586 produces broken weights when merging
             # QLoRA adapters onto a 4-bit base. Keep as PeftModel for inference.
 
+        # Cap visual tokens at the processor level. RoadSide / Cloudinary photos
+        # can be 3000x3000+ — without this, attention O(n^2) blows past 24GB VRAM
+        # for high-res inputs (confirmed empirically with a 3456x3456 image).
+        # ~2200px max dim keeps inference under 7s/img on A5000 4-bit.
+        # Match the values used in scripts/03_baseline_eval.py for consistency.
+        max_pixels = int(os.environ.get("MAX_IMAGE_PIXELS", str(2200 * 2200)))
+        min_pixels = int(os.environ.get("MIN_IMAGE_PIXELS", str(256 * 28)))
         self._processor = AutoProcessor.from_pretrained(
-            self.model_path, trust_remote_code=True
+            self.model_path,
+            trust_remote_code=True,
+            min_pixels=min_pixels,
+            max_pixels=max_pixels,
         )
+        print(f"[PavementClassifier] Processor pixel limits: min={min_pixels}, max={max_pixels}")
         self._model.eval()
         self._device = str(next(self._model.parameters()).device)
         self._loaded = True

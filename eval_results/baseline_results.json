@@ -1,0 +1,170 @@
+{
+  "stage1": {
+    "stage": "stage1_binary",
+    "total_samples": 10000,
+    "total_available": 10000,
+    "partial": false,
+    "accuracy": 0.7653,
+    "precision_macro": 0.8436153079832698,
+    "recall_macro": 0.7092083333333333,
+    "f1_macro": 0.7143596792898147,
+    "unparseable_responses": 0,
+    "avg_inference_time_sec": 2.0769534883022307,
+    "classification_report": {
+      "Normal": {
+        "precision": 0.7221208804572541,
+        "recall": 0.9896666666666667,
+        "f1-score": 0.834985586725726,
+        "support": 6000.0
+      },
+      "Distress": {
+        "precision": 0.9651097355092854,
+        "recall": 0.42875,
+        "f1-score": 0.5937337718539034,
+        "support": 4000.0
+      },
+      "accuracy": 0.7653,
+      "macro avg": {
+        "precision": 0.8436153079832698,
+        "recall": 0.7092083333333333,
+        "f1-score": 0.7143596792898147,
+        "support": 10000.0
+      },
+      "weighted avg": {
+        "precision": 0.8193164224780665,
+        "recall": 0.7653,
+        "f1-score": 0.7384848607769969,
+        "support": 10000.0
+      }
+    },
+    "confusion_matrix": [
+      [
+        5938,
+        62
+      ],
+      [
+        2285,
+        1715
+      ]
+    ]
+  },
+  "stage2": {
+    "stage": "stage2_type_classification",
+    "total_samples": 5758,
+    "total_available": 5758,
+    "partial": false,
+    "primary_accuracy": 0.4866273011462313,
+    "f1_macro": 0.20711191200520787,
+    "exact_match_rate": 0.34404307051059396,
+    "avg_inference_time_sec": 5.31988890662132,
+    "classification_report": {
+      "Unparseable/Normal": {
+        "precision": 0.5818767249310027,
+        "recall": 0.6411556006082109,
+        "f1-score": 0.610079575596817,
+        "support": 1973.0
+      },
+      "Longitudinal Crack (D00)": {
+        "precision": 0.45163222521713087,
+        "recall": 0.725,
+        "f1-score": 0.5565602509688135,
+        "support": 2080.0
+      },
+      "Transverse Crack (D10)": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 464.0
+      },
+      "Alligator Crack (D20)": {
+        "precision": 0.6451612903225806,
+        "recall": 0.02570694087403599,
+        "f1-score": 0.049443757725587144,
+        "support": 778.0
+      },
+      "Pothole (D40)": {
+        "precision": 0.04205607476635514,
+        "recall": 0.019438444924406047,
+        "f1-score": 0.026587887740029542,
+        "support": 463.0
+      },
+      "Other Distress": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1-score": 0.0,
+        "support": 0.0
+      },
+      "accuracy": 0.4866273011462313,
+      "macro avg": {
+        "precision": 0.28678771920617824,
+        "recall": 0.23521683106777547,
+        "f1-score": 0.20711191200520787,
+        "support": 5758.0
+      },
+      "weighted avg": {
+        "precision": 0.453081843214361,
+        "recall": 0.4866273011462313,
+        "f1-score": 0.4189145120183731,
+        "support": 5758.0
+      }
+    },
+    "confusion_matrix": [
+      [
+        1265,
+        615,
+        0,
+        0,
+        93,
+        0
+      ],
+      [
+        504,
+        1508,
+        0,
+        10,
+        58,
+        0
+      ],
+      [
+        111,
+        344,
+        0,
+        1,
+        8,
+        0
+      ],
+      [
+        119,
+        593,
+        0,
+        20,
+        46,
+        0
+      ],
+      [
+        175,
+        279,
+        0,
+        0,
+        9,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    ],
+    "label_order": [
+      "-1",
+      "0",
+      "1",
+      "2",
+      "3",
+      "4"
+    ]
+  }
+}

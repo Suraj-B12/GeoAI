@@ -37,7 +37,7 @@ quantization_method: bitsandbytes
 
 ### Dataset
 ### >>> Auto-filled by scripts/05_setup_training_config.py <<<
-dataset_dir: MUST_UPDATE_TO_ABSOLUTE_PATH/data
+dataset_dir: C:/Users/PRO-LAB-3/Documents/Capstone/data
 dataset: combined_train
 eval_dataset: combined_valid
 template: qwen2_5_vl
@@ -46,7 +46,7 @@ overwrite_cache: true
 preprocessing_num_workers: 8
 
 ### Output
-output_dir: MUST_UPDATE_TO_ABSOLUTE_PATH/outputs/qwen25vl-qlora-gaps-rdd
+output_dir: C:/Users/PRO-LAB-3/Documents/Capstone/outputs/qwen25vl-qlora-gaps-rdd
 logging_steps: 50
 save_steps: 500
 save_total_limit: 3

@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Expert Review — Pavement Distress</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <style>
         @font-face {
             font-family: 'SK Modernist';
@@ -239,9 +238,88 @@
         .card-img {
             width: 100%;
             height: 200px;
-            object-fit: cover;
+            object-fit: cover;              /* fill the card; full image is in lightbox */
             display: block;
             background: var(--tag-bg);
+            cursor: zoom-in;
+            transition: filter 0.15s ease;
+        }
+        .card-img:hover { filter: brightness(1.05); }
+
+        /* ====== LIGHTBOX ====== */
+        .lightbox {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 14, 12, 0.92);
+            display: none;
+            z-index: 1000;
+            user-select: none;
+            touch-action: none;
+        }
+        .lightbox.open { display: block; }
+        .lightbox-canvas {
+            position: absolute;
+            inset: 0;
+            overflow: hidden;
+            cursor: grab;
+        }
+        .lightbox-canvas.grabbing { cursor: grabbing; }
+        .lightbox-img {
+            position: absolute;             /* JS controls full position */
+            top: 0;
+            left: 0;
+            transform-origin: 0 0;          /* JS applies translate+scale from origin */
+            will-change: transform;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            pointer-events: none;            /* let canvas handle wheel/drag */
+            user-select: none;
+            -webkit-user-drag: none;
+        }
+        .lightbox-close {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: rgba(28, 25, 23, 0.85);
+            border: 1px solid rgba(255,255,255,0.15);
+            color: white;
+            font-size: 22px;
+            font-weight: 700;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1010;
+            transition: background 0.15s ease, transform 0.15s ease;
+        }
+        .lightbox-close:hover {
+            background: var(--red);
+            transform: scale(1.05);
+        }
+        .lightbox-info {
+            position: absolute;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(28, 25, 23, 0.85);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            pointer-events: none;
+        }
+        .lightbox-info kbd {
+            background: rgba(255,255,255,0.12);
+            padding: 1px 6px;
+            border-radius: 3px;
+            font-size: 11px;
         }
         .card-body { padding: 16px; }
 
@@ -459,18 +537,14 @@
     </div>
 </header>
 
-<!-- ======== LOGIN ======== -->
-<div class="login-overlay" id="loginOverlay" style="display:none;">
+<!-- ======== REVIEWER NAME PROMPT ======== -->
+<div class="login-overlay" id="nameOverlay" style="display:none;">
     <div class="login-card">
-        <h2>Expert Login</h2>
-        <p class="subtitle">Sign in with your email to review and correct AI pavement assessments.</p>
-        <input type="email" id="loginEmail" placeholder="you@example.com" autocomplete="email">
-        <button class="btn btn-primary" style="width:100%;padding:11px;" id="loginBtn" onclick="handleLogin()">Send Magic Link</button>
+        <h2>Welcome, Reviewer</h2>
+        <p class="subtitle">Enter your name so we know who reviewed each assessment. Saved on this device only.</p>
+        <input type="text" id="reviewerInput" placeholder="Your name" autocomplete="name" maxlength="60">
+        <button class="btn btn-primary" style="width:100%;padding:11px;" id="reviewerBtn" onclick="setReviewer()">Continue</button>
         <div class="login-status" id="loginStatus"></div>
-        <div class="dev-note" id="devNote" style="display:none;">
-            No database connected — running in demo mode.
-            <br><button class="btn btn-sm" style="margin-top:10px;" onclick="devModeBypass()">Continue with demo data</button>
-        </div>
     </div>
 </div>
 
@@ -509,6 +583,18 @@
     </div>
 </div>
 
+<!-- ======== LIGHTBOX (full image with scroll-zoom) ======== -->
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Full image">
+    <button class="lightbox-close" id="lightboxClose" aria-label="Close">&times;</button>
+    <div class="lightbox-canvas" id="lightboxCanvas">
+        <img class="lightbox-img" id="lightboxImg" src="" alt="">
+    </div>
+    <div class="lightbox-info">
+        <span id="lightboxZoom">100%</span>
+        <span><kbd>scroll</kbd> zoom &nbsp; <kbd>drag</kbd> pan &nbsp; <kbd>esc</kbd>/<kbd>×</kbd> close</span>
+    </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -516,15 +602,14 @@
 // CONFIG
 // ============================================================
 const API_BASE = 'http://localhost:8000';
-const SUPABASE_URL = 'YOUR_SUPABASE_URL';
-const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';
+const SUPABASE_URL = 'https://vtlkitpoffudiefuoijb.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0bGtpdHBvZmZ1ZGllZnVvaWpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyMDAzMjIsImV4cCI6MjA4OTc3NjMyMn0.wLrwTky4k8iAELOvFbNeo063Z1rjQKOzzq3QYFqR6CU';
 const API_KEY = '';
 
 // ============================================================
 // STATE
 // ============================================================
-let sb = null;
-let currentUser = null;
+let reviewerName = '';                 // identity-by-name (no auth)
 let assessments = [];
 let reviewedAssessments = [];
 let distressTypes = [];
@@ -535,8 +620,6 @@ const selectedTypes = {};
 // ============================================================
 // HELPERS
 // ============================================================
-const isDbConnected = () => SUPABASE_URL !== 'YOUR_SUPABASE_URL' && SUPABASE_URL.startsWith('http');
-
 const sbHeaders = () => ({
     'apikey': SUPABASE_KEY,
     'Authorization': `Bearer ${SUPABASE_KEY}`,
@@ -576,80 +659,77 @@ function switchTab(tab) {
 }
 
 // ============================================================
-// AUTH
+// REVIEWER IDENTITY (no auth — just a saved name)
 // ============================================================
-function initAuth() {
-    if (!isDbConnected()) {
-        document.getElementById('loginOverlay').style.display = 'flex';
-        document.getElementById('devNote').style.display = 'block';
-        document.getElementById('loginEmail').style.display = 'none';
-        document.getElementById('loginBtn').style.display = 'none';
-        renderAuth(null);
+const REVIEWER_KEY = 'expert_reviewer_name';
+
+function initReviewer() {
+    reviewerName = (localStorage.getItem(REVIEWER_KEY) || '').trim();
+    if (!reviewerName) {
+        showNamePrompt();
+    } else {
+        document.getElementById('reviewerInput').value = reviewerName;
+        renderReviewerPill();
+        loadAll();
+    }
+}
+
+function showNamePrompt() {
+    document.getElementById('nameOverlay').style.display = 'flex';
+    document.getElementById('loginStatus').textContent = '';
+    setTimeout(() => document.getElementById('reviewerInput').focus(), 50);
+}
+
+function setReviewer() {
+    const v = document.getElementById('reviewerInput').value.trim();
+    const status = document.getElementById('loginStatus');
+    if (v.length < 2) {
+        status.textContent = 'Please enter at least 2 characters.';
         return;
     }
-    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    sb.auth.onAuthStateChange((_, session) => {
-        if (session?.user) { onLogin(session.user); }
-        else { onLogout(); }
-    });
-    sb.auth.getSession().then(({ data: { session } }) => {
-        if (session?.user) onLogin(session.user);
-        else document.getElementById('loginOverlay').style.display = 'flex';
-    });
-}
-
-function onLogin(user) {
-    currentUser = user;
-    document.getElementById('loginOverlay').style.display = 'none';
-    renderAuth(user);
+    reviewerName = v;
+    localStorage.setItem(REVIEWER_KEY, v);
+    document.getElementById('nameOverlay').style.display = 'none';
+    renderReviewerPill();
     loadAll();
 }
 
-function onLogout() {
-    currentUser = null;
-    document.getElementById('loginOverlay').style.display = 'flex';
-    document.getElementById('devNote').style.display = isDbConnected() ? 'none' : 'block';
-    renderAuth(null);
+function changeReviewer() {
+    document.getElementById('reviewerInput').value = reviewerName;
+    showNamePrompt();
 }
 
-async function handleLogin() {
-    const email = document.getElementById('loginEmail').value.trim();
-    const status = document.getElementById('loginStatus');
-    const btn = document.getElementById('loginBtn');
-    if (!email || !email.includes('@')) { status.textContent = 'Enter a valid email.'; return; }
-    btn.disabled = true; btn.textContent = 'Sending...'; status.textContent = '';
-    const { error } = await sb.auth.signInWithOtp({ email, options: { emailRedirectTo: location.href } });
-    if (error) { status.textContent = error.message; btn.disabled = false; btn.textContent = 'Send Magic Link'; }
-    else { status.textContent = 'Check your inbox for the login link.'; btn.textContent = 'Link Sent'; }
-}
-
-async function handleLogout() {
-    if (sb) await sb.auth.signOut();
-    currentUser = null; assessments = []; reviewedAssessments = [];
-    renderAuth(null); renderPending(); renderReviewed();
-    document.getElementById('loginOverlay').style.display = 'flex';
-}
-
-function devModeBypass() {
-    document.getElementById('loginOverlay').style.display = 'none';
-    currentUser = { id: 'dev-user', email: 'demo@localhost' };
-    renderAuth(currentUser);
-    loadAll();
-}
-
-function renderAuth(user) {
+function renderReviewerPill() {
     const el = document.getElementById('authArea');
-    if (user) {
+    if (reviewerName) {
         el.innerHTML = `
-            <div class="user-pill"><span class="user-dot"></span><span class="user-email">${user.email}</span></div>
-            <button class="btn btn-ghost btn-sm" onclick="handleLogout()">Sign out</button>`;
+            <div class="user-pill"><span class="user-dot"></span><span class="user-email">${escapeHtml(reviewerName)}</span></div>
+            <button class="btn btn-ghost btn-sm" onclick="changeReviewer()">Change name</button>`;
     } else {
         el.innerHTML = '';
     }
 }
 
+// HTML-escape helper for the reviewer name (defensive — name comes from
+// untrusted local input but is rendered into the DOM)
+function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[c]));
+}
+
+// Submit on Enter in the name input
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' &&
+        document.getElementById('nameOverlay').style.display === 'flex' &&
+        document.activeElement?.id === 'reviewerInput') {
+        e.preventDefault();
+        setReviewer();
+    }
+});
+
 // ============================================================
-// MOCK DATA
+// FALLBACK DISTRESS TYPES (used if custom_distress_types fetch fails)
 // ============================================================
 const TYPES_DEFAULT = [
     'Longitudinal Crack (D00)', 'Transverse Crack (D10)', 'Alligator Crack (D20)',
@@ -657,16 +737,76 @@ const TYPES_DEFAULT = [
     'Open Joint (D50)', 'Rutting', 'Raveling', 'Bleeding', 'Edge Crack', 'Depression'
 ];
 
-const MOCK_PENDING = [
-    { id:'demo-a1f8c3', image_url:'https://placehold.co/420x280/e7e5e4/78716c?text=Crack+Sample', stage1_label:'Distress', stage1_confidence:0.72, distress_types:['Longitudinal Crack (D00)'], severity:'Low', stage2_confidence:0.58, description:'Possible longitudinal crack detected along the wheel path.', created_at:new Date().toISOString() },
-    { id:'demo-b2d9e4', image_url:'https://placehold.co/420x280/e7e5e4/78716c?text=Pothole+Sample', stage1_label:'Distress', stage1_confidence:0.91, distress_types:['Pothole (D40)','Alligator Crack (D20)'], severity:'High', stage2_confidence:0.65, description:'Multiple distress types with medium model confidence.', created_at:new Date().toISOString() },
-    { id:'demo-c3e0f5', image_url:'https://placehold.co/420x280/e7e5e4/78716c?text=Unknown+Sample', stage1_label:'Distress', stage1_confidence:0.55, distress_types:['Unknown'], severity:'Unknown', stage2_confidence:0.31, description:'Model could not confidently determine distress type.', created_at:new Date().toISOString() },
-];
+// ============================================================
+// CACHE LAYER (prevents re-fetching the same Supabase data + images)
+// ============================================================
+// 1) Supabase response cache: in-memory, expires after 30s. Anything older
+//    triggers a fresh fetch. Survives tab navigation but not page reload.
+// 2) sessionStorage backup: lets the page reopen quickly without a network
+//    round-trip if the data is fresh.
+// 3) Image hint: we add Cloudinary's `f_auto,q_auto` transforms so each
+//    browser cache entry stays small AND the browser HTTP cache can do its
+//    job (Cloudinary already returns long Cache-Control on these URLs).
+const CACHE_TTL_MS = 30_000;
+const sbCache = new Map(); // key -> { data, ts }
 
-const MOCK_REVIEWED = [
-    { id:'demo-r1a2b3', image_url:'https://placehold.co/420x280/d6d3d1/78716c?text=Reviewed+1', stage1_label:'Distress', stage1_confidence:0.88, distress_types:['Pothole (D40)'], severity:'High', stage2_confidence:0.72, expert_reviewed:true, expert_corrected_types:['Pothole (D40)'], expert_corrected_severity:'High', expert_notes:'Confirmed deep pothole, needs immediate repair.', reviewed_at:new Date(Date.now()-3600000).toISOString(), created_at:new Date(Date.now()-7200000).toISOString() },
-    { id:'demo-r4c5d6', image_url:'https://placehold.co/420x280/d6d3d1/78716c?text=Reviewed+2', stage1_label:'Distress', stage1_confidence:0.65, distress_types:['Alligator Crack (D20)'], severity:'Medium', stage2_confidence:0.51, expert_reviewed:true, expert_corrected_types:['Alligator Crack (D20)','Transverse Crack (D10)'], expert_corrected_severity:'Medium', expert_notes:'', reviewed_at:new Date(Date.now()-7200000).toISOString(), created_at:new Date(Date.now()-14400000).toISOString() },
-];
+function cacheGet(key) {
+    const cached = sbCache.get(key);
+    if (cached && (Date.now() - cached.ts) < CACHE_TTL_MS) {
+        return cached.data;
+    }
+    // Fall back to sessionStorage for cross-reload survival
+    try {
+        const raw = sessionStorage.getItem('sbcache:' + key);
+        if (raw) {
+            const parsed = JSON.parse(raw);
+            if ((Date.now() - parsed.ts) < CACHE_TTL_MS) {
+                sbCache.set(key, parsed); // promote to memory
+                return parsed.data;
+            }
+        }
+    } catch {}
+    return null;
+}
+function cacheSet(key, data) {
+    const entry = { data, ts: Date.now() };
+    sbCache.set(key, entry);
+    try { sessionStorage.setItem('sbcache:' + key, JSON.stringify(entry)); } catch {}
+}
+function cacheInvalidate(prefix) {
+    // Drop everything beginning with `prefix` (used after a write so the
+    // next read pulls fresh data — eventual consistency is fine here).
+    for (const k of [...sbCache.keys()]) if (k.startsWith(prefix)) sbCache.delete(k);
+    try {
+        for (let i = sessionStorage.length - 1; i >= 0; i--) {
+            const k = sessionStorage.key(i);
+            if (k && k.startsWith('sbcache:' + prefix)) sessionStorage.removeItem(k);
+        }
+    } catch {}
+}
+
+// Fetch with cache awareness. Returns parsed JSON.
+async function cachedFetch(cacheKey, url, opts = {}) {
+    const hit = cacheGet(cacheKey);
+    if (hit !== null) return hit;
+    const r = await fetch(url, opts);
+    if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
+    const data = await r.json();
+    cacheSet(cacheKey, data);
+    return data;
+}
+
+// Cloudinary auto-format/quality transform — added to <img src>. Adds
+// `f_auto,q_auto` after `/upload/`. Returns the URL unchanged for non-Cloudinary.
+function optimizedImageUrl(url, mode = 'thumb') {
+    if (!url || !url.includes('res.cloudinary.com')) return url;
+    if (url.includes('/upload/f_auto')) return url; // already optimized
+    // Thumb = ~600px wide for cards; full = no width cap, full quality
+    const transform = mode === 'thumb'
+        ? 'f_auto,q_auto,w_900,c_limit/'
+        : 'f_auto,q_auto/';
+    return url.replace('/upload/', '/upload/' + transform);
+}
 
 // ============================================================
 // DATA LOADING
@@ -674,31 +814,45 @@ const MOCK_REVIEWED = [
 async function loadAll() { await Promise.all([loadPending(), loadReviewed()]); }
 
 async function loadPending() {
-    if (isDbConnected()) {
+    try {
+        assessments = await cachedFetch(
+            'pending',
+            `${SUPABASE_URL}/rest/v1/assessments` +
+                `?needs_expert_review=eq.true&expert_reviewed=eq.false` +
+                `&order=created_at.desc`,
+            { headers: sbHeaders() }
+        );
         try {
-            const r = await fetch(`${SUPABASE_URL}/rest/v1/assessments?needs_expert_review=eq.true&expert_reviewed=eq.false&order=created_at.desc`, { headers: sbHeaders() });
-            if (!r.ok) throw new Error(r.status);
-            assessments = await r.json();
-            const tr = await fetch(`${SUPABASE_URL}/rest/v1/custom_distress_types?order=name.asc`, { headers: sbHeaders() });
-            distressTypes = tr.ok ? (await tr.json()).map(d => d.name) : [...TYPES_DEFAULT];
-        } catch (e) { assessments = []; distressTypes = [...TYPES_DEFAULT]; showToast('Load failed: ' + e.message); }
-    } else {
-        assessments = JSON.parse(JSON.stringify(MOCK_PENDING));
+            const types = await cachedFetch(
+                'types',
+                `${SUPABASE_URL}/rest/v1/custom_distress_types?order=name.asc`,
+                { headers: sbHeaders() }
+            );
+            distressTypes = types.map(d => d.name);
+        } catch {
+            distressTypes = [...TYPES_DEFAULT];
+        }
+    } catch (e) {
+        assessments = [];
         distressTypes = [...TYPES_DEFAULT];
+        showToast('Load failed: ' + e.message);
+        console.error('loadPending error:', e);
     }
     renderPending();
     document.getElementById('pendingBadge').textContent = assessments.length;
 }
 
 async function loadReviewed() {
-    if (isDbConnected()) {
-        try {
-            const r = await fetch(`${SUPABASE_URL}/rest/v1/assessments?expert_reviewed=eq.true&order=reviewed_at.desc&limit=50`, { headers: sbHeaders() });
-            if (!r.ok) throw new Error(r.status);
-            reviewedAssessments = await r.json();
-        } catch { reviewedAssessments = []; }
-    } else {
-        reviewedAssessments = JSON.parse(JSON.stringify(MOCK_REVIEWED));
+    try {
+        reviewedAssessments = await cachedFetch(
+            'reviewed',
+            `${SUPABASE_URL}/rest/v1/assessments` +
+                `?expert_reviewed=eq.true&order=reviewed_at.desc&limit=50`,
+            { headers: sbHeaders() }
+        );
+    } catch (e) {
+        reviewedAssessments = [];
+        console.error('loadReviewed error:', e);
     }
     document.getElementById('reviewedBadge').textContent = reviewedAssessments.length;
     renderReviewed();
@@ -707,144 +861,162 @@ async function loadReviewed() {
 // ============================================================
 // RENDER — PENDING
 // ============================================================
-function renderPending() {
-    const grid = document.getElementById('pendingGrid');
-    const empty = document.getElementById('pendingEmpty');
-    if (!assessments.length) { grid.style.display = 'none'; empty.style.display = 'block'; return; }
-    grid.style.display = 'grid'; empty.style.display = 'none';
-    grid.innerHTML = assessments.map((a, i) => `
+// Build the editable card body (used by BOTH Pending and Reviewed tabs).
+// The only difference: Reviewed cards are pre-populated with the prior
+// expert correction, and the action button label changes from "Confirm"
+// to "Update". Saving from either tab persists the same patch shape.
+function buildCardHTML(a, i, mode /* 'pending' | 'reviewed' */) {
+    const conf = a.stage2_confidence || a.stage1_confidence || 0;
+    const reviewedTypes = (a.expert_corrected_types && a.expert_corrected_types.length)
+        ? a.expert_corrected_types
+        : (a.distress_types || []).filter(t => t !== 'Unknown');
+    const reviewedSeverity = a.expert_corrected_severity || a.severity || 'Low';
+    const reviewedNotes = a.expert_notes || '';
+    const thumbUrl = optimizedImageUrl(a.image_url, 'thumb');
+
+    return `
         <div class="card" id="card-${a.id}">
-            <img class="card-img" src="${a.image_url}" alt="" onerror="this.src='https://placehold.co/420x280/e7e5e4/a8a29e?text=No+Image'">
+            <img class="card-img" src="${escapeAttr(thumbUrl)}" alt="" loading="lazy"
+                 onclick="openLightbox('${escapeAttr(a.image_url)}', '${escapeAttr(a.id)}')"
+                 onerror="this.src='https://placehold.co/420x280/e7e5e4/a8a29e?text=No+Image'">
             <div class="card-body">
                 <div class="card-top">
                     <span class="card-id">${a.id.substring(0,10)}</span>
-                    <span class="badge ${badgeClass(a.stage2_confidence||a.stage1_confidence)}">${pct(a.stage2_confidence||a.stage1_confidence)}</span>
+                    <span class="badge ${badgeClass(conf)}">${pct(conf)}</span>
                 </div>
                 <div class="field">
                     <div class="field-label">AI Classification</div>
-                    <div class="tags">${(a.distress_types||[]).map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+                    <div class="tags">${(a.distress_types||[]).map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>
                 </div>
                 <div class="field">
                     <div class="field-label">AI Severity</div>
-                    <div class="field-value">${a.severity||'Unknown'}</div>
+                    <div class="field-value">${escapeHtml(a.severity||'Unknown')}</div>
                 </div>
-                ${a.description ? `<div class="field"><div class="field-label">AI Description</div><div style="font-size:12px;color:var(--text-secondary);line-height:1.5;">${a.description}</div></div>` : ''}
+                ${a.description ? `<div class="field"><div class="field-label">AI Description</div><div style="font-size:12px;color:var(--text-secondary);line-height:1.5;">${escapeHtml(a.description)}</div></div>` : ''}
                 <hr class="card-divider">
                 <div class="form-group">
                     <label>Expert Classification</label>
-                    <div class="pill-select" id="types-${i}">
-                        ${(a.distress_types||[]).filter(t=>t!=='Unknown').map(t=>`<span class="pill">${t}<span class="pill-x" onclick="event.stopPropagation();removeType(${i},'${t}')">&times;</span></span>`).join('')}
+                    <div class="pill-select" id="types-${i}-${mode}">
+                        ${reviewedTypes.map(t=>`<span class="pill">${escapeHtml(t)}<span class="pill-x" onclick="event.stopPropagation();removeType(${i},'${escapeAttr(t)}','${mode}')">&times;</span></span>`).join('')}
                     </div>
                 </div>
                 <div class="form-group">
-                    <select onchange="addType(${i},this.value);this.value='';">
+                    <select onchange="addType(${i},this.value,'${mode}');this.value='';">
                         <option value="">+ Add distress type...</option>
-                        ${distressTypes.map(t=>`<option value="${t}">${t}</option>`).join('')}
+                        ${distressTypes.map(t=>`<option value="${escapeAttr(t)}">${escapeHtml(t)}</option>`).join('')}
                         <option value="__new__">+ Custom type...</option>
                     </select>
                 </div>
                 <div class="form-group">
                     <label>Severity</label>
-                    <select id="sev-${i}">
-                        <option value="Low" ${a.severity==='Low'?'selected':''}>Low</option>
-                        <option value="Medium" ${a.severity==='Medium'?'selected':''}>Medium</option>
-                        <option value="High" ${a.severity==='High'?'selected':''}>High</option>
+                    <select id="sev-${i}-${mode}">
+                        <option value="Low"    ${reviewedSeverity==='Low'   ?'selected':''}>Low</option>
+                        <option value="Medium" ${reviewedSeverity==='Medium'?'selected':''}>Medium</option>
+                        <option value="High"   ${reviewedSeverity==='High'  ?'selected':''}>High</option>
                     </select>
                 </div>
                 <div class="form-group">
                     <label>Notes</label>
-                    <textarea id="note-${i}" rows="2" placeholder="Optional observations..."></textarea>
+                    <textarea id="note-${i}-${mode}" rows="2" placeholder="Optional observations...">${escapeHtml(reviewedNotes)}</textarea>
                 </div>
+                ${mode === 'reviewed' && a.reviewer_name
+                    ? `<div class="reviewed-stamp">Last reviewed by <strong>${escapeHtml(a.reviewer_name)}</strong> · ${fmtDate(a.reviewed_at)}</div>`
+                    : (mode === 'reviewed' ? `<div class="reviewed-stamp">${fmtDate(a.reviewed_at)}</div>` : '')}
                 <div class="card-actions">
-                    <button class="btn btn-sm" onclick="skipCard('${a.id}')">Skip</button>
-                    <button class="btn btn-primary btn-sm" onclick="submitCorrection(${i},'${a.id}')">Confirm</button>
+                    ${mode === 'pending'
+                        ? `<button class="btn btn-sm" onclick="skipCard('${escapeAttr(a.id)}')">Skip</button>
+                           <button class="btn btn-primary btn-sm" onclick="submitCorrection(${i},'${escapeAttr(a.id)}','${mode}')">Confirm</button>`
+                        : `<button class="btn btn-primary btn-sm" onclick="submitCorrection(${i},'${escapeAttr(a.id)}','${mode}')">Update Review</button>`}
                 </div>
             </div>
         </div>
-    `).join('');
+    `;
 }
 
-// ============================================================
-// RENDER — REVIEWED
-// ============================================================
+// HTML attribute escape (single/double quotes — used inside onclick="...")
+function escapeAttr(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[c]));
+}
+
+function renderPending() {
+    const grid = document.getElementById('pendingGrid');
+    const empty = document.getElementById('pendingEmpty');
+    if (!assessments.length) { grid.style.display = 'none'; empty.style.display = 'block'; return; }
+    grid.style.display = 'grid'; empty.style.display = 'none';
+    grid.innerHTML = assessments.map((a, i) => buildCardHTML(a, i, 'pending')).join('');
+}
+
 function renderReviewed() {
     const grid = document.getElementById('reviewedGrid');
     const empty = document.getElementById('reviewedEmpty');
     if (!reviewedAssessments.length) { grid.style.display = 'none'; empty.style.display = 'block'; return; }
     grid.style.display = 'grid'; empty.style.display = 'none';
-    grid.innerHTML = reviewedAssessments.map(a => `
-        <div class="card">
-            <img class="card-img" src="${a.image_url}" alt="" onerror="this.src='https://placehold.co/420x280/e7e5e4/a8a29e?text=No+Image'">
-            <div class="card-body">
-                <div class="card-top">
-                    <span class="card-id">${a.id.substring(0,10)}</span>
-                    <span class="badge ${badgeClass(a.stage2_confidence||a.stage1_confidence)}">${pct(a.stage2_confidence||a.stage1_confidence)}</span>
-                </div>
-                <div class="field">
-                    <div class="field-label">AI Classification</div>
-                    <div class="tags">${(a.distress_types||[]).map(t=>`<span class="tag">${t}</span>`).join('')}</div>
-                </div>
-                <div class="field">
-                    <div class="field-label">AI Severity</div>
-                    <div class="field-value">${a.severity||'Unknown'}</div>
-                </div>
-                <hr class="card-divider">
-                <div class="field">
-                    <div class="field-label">Expert Classification</div>
-                    <div class="tags">${(a.expert_corrected_types||a.distress_types||[]).map(t=>`<span class="tag tag-dark">${t}</span>`).join('')}</div>
-                </div>
-                <div class="expert-row">
-                    <div class="field" style="margin-bottom:0;">
-                        <div class="field-label">Expert Severity</div>
-                        <div class="field-value">${a.expert_corrected_severity||a.severity||'—'}</div>
-                    </div>
-                </div>
-                ${a.expert_notes ? `<div class="expert-note">"${a.expert_notes}"</div>` : ''}
-                <div class="reviewed-stamp">${fmtDate(a.reviewed_at)}</div>
-            </div>
-        </div>
-    `).join('');
+    grid.innerHTML = reviewedAssessments.map((a, i) => buildCardHTML(a, i, 'reviewed')).join('');
 }
 
 // ============================================================
 // INTERACTIONS
 // ============================================================
-function getTypes(i) {
-    if (!selectedTypes[i]) selectedTypes[i] = [...(assessments[i].distress_types||[])].filter(t=>t!=='Unknown');
-    return selectedTypes[i];
+// Per-card edit state is keyed by `mode:i` so Pending and Reviewed never
+// collide (they have independent index spaces).
+function srcArray(mode) { return mode === 'reviewed' ? reviewedAssessments : assessments; }
+function selKey(i, mode) { return `${mode}:${i}`; }
+
+function getTypes(i, mode) {
+    const key = selKey(i, mode);
+    if (!selectedTypes[key]) {
+        const a = srcArray(mode)[i];
+        if (!a) return [];
+        // Reviewed cards seed from the prior expert correction; Pending seeds from AI output.
+        const seed = (mode === 'reviewed' && a.expert_corrected_types && a.expert_corrected_types.length)
+            ? [...a.expert_corrected_types]
+            : [...(a.distress_types || [])].filter(t => t !== 'Unknown');
+        selectedTypes[key] = seed;
+    }
+    return selectedTypes[key];
 }
 
-function addType(i, type) {
+function addType(i, type, mode) {
     if (type === '__new__') {
         const name = prompt('Enter new distress type:');
         if (!name) return;
         distressTypes.push(name);
         type = name;
-        if (isDbConnected()) fetch(`${SUPABASE_URL}/rest/v1/custom_distress_types`, { method:'POST', headers:sbHeaders(), body:JSON.stringify({name,description:''}) });
+        // Persist the new type so it shows up for other reviewers / future loads.
+        // RLS policy 'Anon insert custom distress types' (migration 003) permits this.
+        fetch(`${SUPABASE_URL}/rest/v1/custom_distress_types`, {
+            method: 'POST',
+            headers: sbHeaders(),
+            body: JSON.stringify({ name, description: '' })
+        }).then(() => cacheInvalidate('types'))
+          .catch(e => console.warn('Failed to persist new distress type:', e));
     }
     if (!type) return;
-    const t = getTypes(i);
-    if (!t.includes(type)) { t.push(type); renderPills(i); }
+    const t = getTypes(i, mode);
+    if (!t.includes(type)) { t.push(type); renderPills(i, mode); }
 }
 
-function removeType(i, type) {
-    const t = getTypes(i);
+function removeType(i, type, mode) {
+    const t = getTypes(i, mode);
     const x = t.indexOf(type);
-    if (x > -1) { t.splice(x, 1); renderPills(i); }
+    if (x > -1) { t.splice(x, 1); renderPills(i, mode); }
 }
 
-function renderPills(i) {
-    const el = document.getElementById(`types-${i}`);
-    const t = getTypes(i);
+function renderPills(i, mode) {
+    const el = document.getElementById(`types-${i}-${mode}`);
+    if (!el) return;
+    const t = getTypes(i, mode);
     el.innerHTML = t.length
-        ? t.map(v => `<span class="pill">${v}<span class="pill-x" onclick="event.stopPropagation();removeType(${i},'${v}')">&times;</span></span>`).join('')
+        ? t.map(v => `<span class="pill">${escapeHtml(v)}<span class="pill-x" onclick="event.stopPropagation();removeType(${i},'${escapeAttr(v)}','${mode}')">&times;</span></span>`).join('')
         : '<span class="pill-empty">No types selected</span>';
 }
 
-async function submitCorrection(i, id) {
-    const types = getTypes(i);
-    const severity = document.getElementById(`sev-${i}`).value;
-    const notes = document.getElementById(`note-${i}`).value;
+async function submitCorrection(i, id, mode) {
+    const types = getTypes(i, mode);
+    const severity = document.getElementById(`sev-${i}-${mode}`).value;
+    const notes = document.getElementById(`note-${i}-${mode}`).value;
     if (!types.length) { showToast('Select at least one distress type.'); return; }
 
     const patch = {
@@ -853,30 +1025,61 @@ async function submitCorrection(i, id) {
         expert_corrected_types: types,
         expert_corrected_severity: severity,
         expert_notes: notes,
+        reviewer_name: reviewerName,                 // attribution by name (no auth)
         reviewed_at: new Date().toISOString()
     };
-    if (currentUser?.id && currentUser.id !== 'dev-user') patch.reviewed_by = currentUser.id;
 
-    if (isDbConnected()) {
-        await fetch(`${SUPABASE_URL}/rest/v1/assessments?id=eq.${id}`, { method:'PATCH', headers:sbHeaders(), body:JSON.stringify(patch) });
+    try {
+        const r = await fetch(
+            `${SUPABASE_URL}/rest/v1/assessments?id=eq.${id}`,
+            { method: 'PATCH', headers: sbHeaders(), body: JSON.stringify(patch) }
+        );
+        if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
+    } catch (e) {
+        showToast('Save failed: ' + e.message);
+        console.error('submitCorrection error:', e);
+        return;  // bail before mutating local state on a failed write
     }
 
-    const item = assessments.find(a => a.id === id);
-    if (item) { Object.assign(item, patch); reviewedAssessments.unshift(item); }
+    // Invalidate the affected list caches — next reload pulls fresh.
+    cacheInvalidate('pending');
+    cacheInvalidate('reviewed');
 
-    const card = document.getElementById(`card-${id}`);
-    card.style.opacity = '0'; card.style.transform = 'scale(0.97)'; card.style.transition = 'all 0.25s ease';
-    setTimeout(() => {
-        assessments = assessments.filter(a => a.id !== id);
-        delete selectedTypes[i];
-        renderPending(); renderReviewed();
-        document.getElementById('pendingBadge').textContent = assessments.length;
-        document.getElementById('reviewedBadge').textContent = reviewedAssessments.length;
-    }, 250);
+    if (mode === 'pending') {
+        // Move from Pending list into Reviewed list (top of feed).
+        const item = assessments.find(a => a.id === id);
+        if (item) { Object.assign(item, patch); reviewedAssessments.unshift(item); }
+        const card = document.getElementById(`card-${id}`);
+        if (card) {
+            card.style.opacity = '0';
+            card.style.transform = 'scale(0.97)';
+            card.style.transition = 'all 0.25s ease';
+        }
+        setTimeout(() => {
+            assessments = assessments.filter(a => a.id !== id);
+            delete selectedTypes[selKey(i, mode)];
+            renderPending(); renderReviewed();
+            document.getElementById('pendingBadge').textContent = assessments.length;
+            document.getElementById('reviewedBadge').textContent = reviewedAssessments.length;
+        }, 250);
+    } else {
+        // Reviewed → update in place. Stay on Reviewed tab; refresh the card.
+        const item = reviewedAssessments[i];
+        if (item) Object.assign(item, patch);
+        // Refresh just this card so the "Last reviewed by" stamp updates with new name/time.
+        const card = document.getElementById(`card-${id}`);
+        if (card) {
+            card.style.transition = 'background 0.4s ease';
+            card.style.background = 'var(--green-light)';
+            setTimeout(() => { card.style.background = ''; }, 600);
+        }
+        delete selectedTypes[selKey(i, mode)];
+        renderReviewed();
+    }
 
     correctionsMade++;
     document.getElementById('correctionCount').textContent = correctionsMade;
-    showToast('Correction saved');
+    showToast(mode === 'reviewed' ? 'Review updated' : 'Correction saved');
 }
 
 function skipCard(id) {
@@ -926,9 +1129,193 @@ async function pollRetrain() {
 }
 
 // ============================================================
+// LIGHTBOX (smooth scroll-zoom around cursor + drag-pan + close)
+// ============================================================
+// Position model: the <img> is `position: absolute; top:0; left:0` and is
+// fully positioned by a CSS transform `translate(tx, ty) scale(s)` with
+// `transform-origin: 0 0`. tx/ty are in canvas pixels and represent the
+// top-left corner of the rendered image.
+//
+// On open / load: compute initial scale so the natural-size image fits in
+// the canvas with a small margin, then center it via tx, ty.
+//
+// On wheel: anchor the zoom on the cursor — solving so the world-point
+// under the mouse is fixed yields:
+//     tx_new = mouse - (mouse - tx) * (s_new / s)
+//
+// On pan: just add the pointer delta to tx, ty.
+//
+// Click-vs-drag: every pointerdown records a starting client position;
+// pointermove sets `dragMoved=true` when distance > DRAG_THRESHOLD_PX.
+// Backdrop click only closes if NOT dragMoved. Without this, releasing
+// a drag on the canvas would close the lightbox.
+const DRAG_THRESHOLD_PX = 4;
+
+const LB = {
+    el: null, canvas: null, img: null, closeBtn: null, zoomLabel: null,
+    scale: 1, tx: 0, ty: 0,
+    minScale: 0.05, maxScale: 12,
+    isDragging: false, dragStart: null, dragMoved: false,
+    natW: 0, natH: 0,
+    open: false,
+};
+
+function setupLightbox() {
+    LB.el = document.getElementById('lightbox');
+    LB.canvas = document.getElementById('lightboxCanvas');
+    LB.img = document.getElementById('lightboxImg');
+    LB.closeBtn = document.getElementById('lightboxClose');
+    LB.zoomLabel = document.getElementById('lightboxZoom');
+
+    // Close button always closes
+    LB.closeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        closeLightbox();
+    });
+
+    // Backdrop click closes — UNLESS the user just finished dragging
+    LB.el.addEventListener('click', (e) => {
+        if (LB.dragMoved) { LB.dragMoved = false; return; }
+        if (e.target === LB.el || e.target === LB.canvas) closeLightbox();
+    });
+
+    // Wheel zoom anchored on cursor
+    LB.canvas.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        if (!LB.open) return;
+        const cRect = LB.canvas.getBoundingClientRect();
+        const mx = e.clientX - cRect.left;
+        const my = e.clientY - cRect.top;
+        const factor = Math.exp(-e.deltaY * 0.0015);
+        const newScale = Math.max(LB.minScale, Math.min(LB.maxScale, LB.scale * factor));
+        if (newScale === LB.scale) return;
+        LB.tx = mx - (mx - LB.tx) * (newScale / LB.scale);
+        LB.ty = my - (my - LB.ty) * (newScale / LB.scale);
+        LB.scale = newScale;
+        applyTransform();
+    }, { passive: false });
+
+    // Drag-to-pan with click-vs-drag discrimination
+    LB.canvas.addEventListener('pointerdown', (e) => {
+        if (!LB.open) return;
+        LB.isDragging = true;
+        LB.dragMoved = false;
+        LB.dragStart = { x: e.clientX, y: e.clientY, tx: LB.tx, ty: LB.ty };
+        LB.canvas.classList.add('grabbing');
+        try { LB.canvas.setPointerCapture(e.pointerId); } catch {}
+    });
+    LB.canvas.addEventListener('pointermove', (e) => {
+        if (!LB.isDragging) return;
+        const dx = e.clientX - LB.dragStart.x;
+        const dy = e.clientY - LB.dragStart.y;
+        if (!LB.dragMoved && (Math.abs(dx) > DRAG_THRESHOLD_PX || Math.abs(dy) > DRAG_THRESHOLD_PX)) {
+            LB.dragMoved = true;
+        }
+        if (LB.dragMoved) {
+            LB.tx = LB.dragStart.tx + dx;
+            LB.ty = LB.dragStart.ty + dy;
+            applyTransform();
+        }
+    });
+    const endDrag = (e) => {
+        if (!LB.isDragging) return;
+        LB.isDragging = false;
+        LB.canvas.classList.remove('grabbing');
+        try { LB.canvas.releasePointerCapture(e.pointerId); } catch {}
+        // dragMoved stays true through the synthesized click event so the
+        // backdrop-click handler knows to skip closing. It's reset there.
+    };
+    LB.canvas.addEventListener('pointerup', endDrag);
+    LB.canvas.addEventListener('pointercancel', endDrag);
+
+    // Double-click resets to fit-to-screen + centered
+    LB.canvas.addEventListener('dblclick', (e) => {
+        e.preventDefault();
+        fitAndCenter();
+    });
+
+    // Esc closes
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && LB.open) closeLightbox();
+    });
+
+    // Re-center on window resize
+    window.addEventListener('resize', () => {
+        if (LB.open) fitAndCenter();
+    });
+}
+
+function applyTransform() {
+    LB.img.style.transform = `translate(${LB.tx}px, ${LB.ty}px) scale(${LB.scale})`;
+    LB.zoomLabel.textContent = Math.round(LB.scale * 100) + '%';
+}
+
+// Compute initial scale (fit natural image in 90% of canvas) and center it.
+// Called when the image's natural size becomes known and on resize.
+function fitAndCenter() {
+    const cRect = LB.canvas.getBoundingClientRect();
+    const w = LB.natW || LB.img.naturalWidth || 1;
+    const h = LB.natH || LB.img.naturalHeight || 1;
+    if (!w || !h || !cRect.width || !cRect.height) return;
+    const margin = 0.92;
+    const fitScale = Math.min(
+        (cRect.width  * margin) / w,
+        (cRect.height * margin) / h,
+        1  // don't upscale tiny images on first open
+    );
+    LB.scale = fitScale;
+    // Center: image rendered size = w*scale, h*scale. Place top-left so
+    // the image is visually centered in the canvas.
+    LB.tx = (cRect.width  - w * fitScale) / 2;
+    LB.ty = (cRect.height - h * fitScale) / 2;
+    applyTransform();
+}
+
+function openLightbox(url) {
+    if (!url) return;
+    const fullUrl = optimizedImageUrl(url, 'full');
+
+    // Show immediately (so the dark backdrop covers behind the loading image)
+    LB.el.classList.add('open');
+    LB.open = true;
+    document.body.style.overflow = 'hidden';
+    LB.dragMoved = false;
+    LB.natW = 0; LB.natH = 0;
+
+    // If the new src is identical to the old one and image is already loaded,
+    // skip the load handler — just refit.
+    const sameSrc = (LB.img.src === fullUrl);
+    if (!sameSrc) LB.img.src = fullUrl;
+
+    const onReady = () => {
+        LB.natW = LB.img.naturalWidth;
+        LB.natH = LB.img.naturalHeight;
+        fitAndCenter();
+    };
+
+    if (LB.img.complete && LB.img.naturalWidth > 0) {
+        onReady();
+    } else {
+        LB.img.onload = onReady;
+        LB.img.onerror = () => {
+            LB.zoomLabel.textContent = 'failed';
+            console.warn('Lightbox image failed to load:', fullUrl);
+        };
+    }
+}
+
+function closeLightbox() {
+    LB.el.classList.remove('open');
+    LB.open = false;
+    document.body.style.overflow = '';
+    // Don't clear src — keeps it cached for the next open of the same image
+}
+
+// ============================================================
 // INIT
 // ============================================================
-initAuth();
+setupLightbox();
+initReviewer();
 </script>
 </body>
 </html>

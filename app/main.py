@@ -9,6 +9,15 @@ Endpoints:
   POST /retrain/start   - Trigger incremental retraining
   GET  /retrain/status  - Check retraining progress
 
+Operator pipeline (autonomous batch processor for the RoadSide app queue):
+  GET  /operator                 - HTML dashboard (Start/Stop + live metrics)
+  POST /operator/start           - Begin polling Supabase for pending images
+  POST /operator/stop            - Graceful drain + stop
+  GET  /operator/status          - JSON snapshot of worker state
+  GET  /operator/metrics         - Aggregate Supabase metrics + worker counters
+  GET  /operator/metrics/stream  - SSE stream of metrics (auto-refresh)
+  GET  /operator/recent          - Recent processed images for activity feed
+
 Security:
   - API Key auth via X-API-Key header (disabled if API_KEYS env var not set)
   - Rate limiting: 10 req/min on classify, 60 req/min on health
@@ -21,6 +30,10 @@ Usage:
 
     # With security:
     API_KEYS="mykey123" CORS_ORIGINS="https://myapp.com" uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+    # With operator pipeline (set Supabase env vars before starting):
+    SUPABASE_URL=https://xxx.supabase.co SUPABASE_SERVICE_KEY=sb_secret_xxx \\
+      uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
 """
 
 import asyncio
@@ -34,6 +47,7 @@ from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, JSONResponse
 from PIL import Image
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
@@ -52,9 +66,38 @@ from app.security import (
     validate_image,
     verify_api_key,
 )
+from app.supabase_client import (
+    build_image_client,
+    build_supabase_client,
+    get_assessment_by_id,
+    get_class_distribution,
+    get_pipeline_metrics,
+    get_recent_processed,
+)
+from app.worker import (
+    PipelineWorker,
+    clear_worker,
+    get_worker,
+    set_worker,
+)
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from scripts.utils import CONFIDENCE_THRESHOLD
+
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+OPERATOR_UI_HTML = PROJECT_ROOT / "operator_ui" / "index.html"
+TEST_FIXTURES_DIR = PROJECT_ROOT / "test_fixtures"
+
+
+def _has_supabase_env() -> bool:
+    """Operator pipeline only activates if both env vars are set."""
+    return bool(os.environ.get("SUPABASE_URL")) and bool(os.environ.get("SUPABASE_SERVICE_KEY"))
+
+
+def _test_fixtures_enabled() -> bool:
+    """Static test images mounted only when explicitly opted-in (smoke testing)."""
+    return os.environ.get("ENABLE_TEST_FIXTURES", "").lower() in ("1", "true", "yes")
 
 # ============================================================
 # Rate Limiter
@@ -67,12 +110,64 @@ limiter = Limiter(key_func=get_remote_address)
 # ============================================================
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Load model on startup."""
+    """
+    Startup: load model, build Supabase clients (if env vars present),
+             create PipelineWorker singleton (does NOT auto-start).
+    Shutdown: gracefully stop worker, close HTTP clients.
+
+    The worker is built but not started — operator must explicitly POST
+    /operator/start. This prevents accidental autonomous batch processing
+    in dev environments.
+    """
     print("[API] Loading model on startup...")
-    get_classifier()
-    print("[API] Model ready. Server accepting requests.")
+    classifier = get_classifier()
+    print("[API] Model ready.")
+
+    if _has_supabase_env():
+        print("[API] Supabase env vars detected — initializing operator pipeline...")
+        try:
+            supabase_client = build_supabase_client()
+            image_client = build_image_client()
+            worker = PipelineWorker(
+                supabase_client=supabase_client,
+                image_client=image_client,
+                classifier=classifier,
+            )
+            set_worker(worker)
+            # Stash clients on app.state so we can close them on shutdown
+            app.state.supabase_client = supabase_client
+            app.state.image_client = image_client
+            print(f"[API] Operator pipeline ready. Worker ID: {worker.worker_id}")
+            print("[API] POST /operator/start to begin processing the queue.")
+        except Exception as e:
+            print(f"[API] WARNING: Failed to initialize operator pipeline: {e}")
+            traceback.print_exc()
+            app.state.supabase_client = None
+            app.state.image_client = None
+    else:
+        print("[API] Supabase env vars not set — operator pipeline disabled.")
+        print("[API] Set SUPABASE_URL and SUPABASE_SERVICE_KEY to enable.")
+        app.state.supabase_client = None
+        app.state.image_client = None
+
+    print("[API] Server accepting requests.")
     yield
-    print("[API] Shutting down.")
+
+    print("[API] Shutting down...")
+    worker = get_worker()
+    if worker and worker.is_running:
+        print("[API] Stopping pipeline worker (graceful drain)...")
+        try:
+            await worker.stop(drain_timeout_seconds=60.0)
+        except Exception as e:
+            print(f"[API] Error stopping worker: {e}")
+    clear_worker()
+
+    if getattr(app.state, "supabase_client", None):
+        await app.state.supabase_client.aclose()
+    if getattr(app.state, "image_client", None):
+        await app.state.image_client.aclose()
+    print("[API] Shutdown complete.")
 
 
 # ============================================================
@@ -107,6 +202,18 @@ app.add_middleware(
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
+
+# Test fixtures static mount — used by smoke tests so the worker can download
+# real RDD images from localhost without external dependencies.
+# Only mounted when ENABLE_TEST_FIXTURES=1 — never expose in production.
+if _test_fixtures_enabled() and TEST_FIXTURES_DIR.exists():
+    from fastapi.staticfiles import StaticFiles
+    app.mount(
+        "/test_fixtures",
+        StaticFiles(directory=str(TEST_FIXTURES_DIR)),
+        name="test_fixtures",
+    )
+    print(f"[API] TEST FIXTURES enabled — serving {TEST_FIXTURES_DIR} at /test_fixtures")
 
 
 # ============================================================
@@ -404,3 +511,168 @@ async def retrain_start(request: Request):
 async def retrain_status(request: Request):
     """Check the status of the current or last retraining job."""
     return RetrainStatusResponse(**_retrain_state)
+
+
+# ============================================================
+# Operator Pipeline Endpoints
+# ============================================================
+# These endpoints control the autonomous batch processor that pulls
+# pending images from Supabase and writes back classification results.
+# All require Supabase env vars to be set at server startup.
+
+
+def _require_worker() -> PipelineWorker:
+    """Return the worker singleton, or 503 if pipeline isn't initialized."""
+    worker = get_worker()
+    if worker is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Operator pipeline not initialized. "
+                   "Set SUPABASE_URL and SUPABASE_SERVICE_KEY env vars and restart the server.",
+        )
+    return worker
+
+
+@app.get("/operator", include_in_schema=False)
+async def operator_dashboard():
+    """Serve the operator dashboard HTML."""
+    if not OPERATOR_UI_HTML.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=f"Operator UI not found at {OPERATOR_UI_HTML}",
+        )
+    return FileResponse(str(OPERATOR_UI_HTML), media_type="text/html")
+
+
+@app.post("/operator/start", dependencies=[Depends(verify_api_key)])
+@limiter.limit("10/minute")
+async def operator_start(request: Request):
+    """Begin the worker loop. Idempotent — returns current state if already running."""
+    worker = _require_worker()
+    result = await worker.start()
+    return JSONResponse(result)
+
+
+@app.post("/operator/stop", dependencies=[Depends(verify_api_key)])
+@limiter.limit("10/minute")
+async def operator_stop(request: Request):
+    """
+    Signal the worker to stop. Current image finishes, then loop exits.
+    Drain timeout is 60s; after that, the task is force-cancelled.
+    """
+    worker = _require_worker()
+    result = await worker.stop(drain_timeout_seconds=60.0)
+    return JSONResponse(result)
+
+
+@app.get("/operator/status", dependencies=[Depends(verify_api_key)])
+@limiter.limit("60/minute")
+async def operator_status(request: Request):
+    """In-memory worker state snapshot (counters, current image, last error)."""
+    worker = _require_worker()
+    return JSONResponse(worker.metrics_snapshot())
+
+
+@app.get("/operator/metrics", dependencies=[Depends(verify_api_key)])
+@limiter.limit("60/minute")
+async def operator_metrics(request: Request):
+    """
+    Combined metrics for the dashboard:
+      - worker      : in-memory counters
+      - queue       : Supabase queue depth (pending/processing/done/failed)
+      - distribution: per-class counts (last 24h)
+    """
+    worker = _require_worker()
+    supabase = request.app.state.supabase_client
+
+    out = {"worker": worker.metrics_snapshot()}
+
+    # Queue + throughput from the pipeline_metrics view (best-effort)
+    try:
+        out["queue"] = await get_pipeline_metrics(supabase)
+    except Exception as e:
+        out["queue"] = {"error": str(e)}
+
+    # Per-class distribution
+    try:
+        out["distribution"] = await get_class_distribution(supabase)
+    except Exception as e:
+        out["distribution"] = {"error": str(e)}
+
+    return JSONResponse(out)
+
+
+@app.get("/operator/recent", dependencies=[Depends(verify_api_key)])
+@limiter.limit("60/minute")
+async def operator_recent(request: Request, limit: int = 20):
+    """Recent processed images for the dashboard activity feed."""
+    _require_worker()
+    supabase = request.app.state.supabase_client
+    limit = max(1, min(100, limit))
+    try:
+        rows = await get_recent_processed(supabase, limit=limit)
+        return JSONResponse({"items": rows})
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Supabase fetch failed: {e}")
+
+
+@app.get("/operator/inflight", dependencies=[Depends(verify_api_key)])
+@limiter.limit("120/minute")
+async def operator_inflight(request: Request, id: str):
+    """
+    Fetch metadata for the currently-processing image (live preview card).
+
+    The dashboard calls this when worker.current_image_id changes — gives it
+    the image_url for the thumbnail, GPS coords, and any partial results.
+
+    Returns 404 if the row no longer exists (e.g., already moved to done).
+    """
+    _require_worker()
+    supabase = request.app.state.supabase_client
+    try:
+        row = await get_assessment_by_id(supabase, id)
+        if not row:
+            raise HTTPException(status_code=404, detail="assessment not found")
+        return JSONResponse(row)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Supabase fetch failed: {e}")
+
+
+@app.get("/operator/metrics/stream", dependencies=[Depends(verify_api_key)])
+async def operator_metrics_stream(request: Request, interval_seconds: float = 2.0):
+    """
+    SSE stream that pushes a metrics snapshot every `interval_seconds`.
+    Dashboard subscribes once and updates the UI as events arrive.
+    """
+    worker = _require_worker()
+    supabase = request.app.state.supabase_client
+    interval = max(1.0, min(30.0, float(interval_seconds)))
+
+    async def event_generator():
+        while True:
+            if await request.is_disconnected():
+                return
+
+            try:
+                payload = {"worker": worker.metrics_snapshot()}
+                try:
+                    payload["queue"] = await get_pipeline_metrics(supabase)
+                except Exception as e:
+                    payload["queue"] = {"error": str(e)}
+                try:
+                    payload["distribution"] = await get_class_distribution(supabase)
+                except Exception as e:
+                    payload["distribution"] = {"error": str(e)}
+
+                yield {"event": "metrics", "data": json.dumps(payload)}
+            except Exception as e:
+                yield {"event": "error", "data": json.dumps({"error": str(e)})}
+
+            try:
+                await asyncio.sleep(interval)
+            except asyncio.CancelledError:
+                return
+
+    return EventSourceResponse(event_generator())

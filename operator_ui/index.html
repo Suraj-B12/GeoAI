@@ -1,0 +1,1464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>GeoAI — Operator Dashboard</title>
+<style>
+@font-face {
+  font-family: 'SK Modernist';
+  src: url('https://cdn.jsdelivr.net/npm/@fontsource/inter/files/inter-latin-400-normal.woff2') format('woff2');
+  font-weight: 400; font-display: swap;
+}
+
+:root {
+  --bg: #f5f5f4;
+  --surface: #ffffff;
+  --surface-hover: #fafaf9;
+  --border: #e7e5e4;
+  --border-strong: #d6d3d1;
+  --text: #1c1917;
+  --text-secondary: #78716c;
+  --text-tertiary: #a8a29e;
+  --accent: #1c1917;
+  --red: #dc2626;
+  --red-light: #fef2f2;
+  --amber: #d97706;
+  --amber-light: #fffbeb;
+  --green: #16a34a;
+  --green-light: #f0fdf4;
+  --blue: #2563eb;
+  --blue-light: #eff6ff;
+  --tag-bg: #f5f5f4;
+  --radius: 12px;
+  --radius-lg: 16px;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --transition: 0.15s ease;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'SK Modernist', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+/* ============ HEADER ============ */
+.header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+.header-inner {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+}
+.header-left { display: flex; align-items: center; gap: 24px; }
+.logo {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+.tag {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--tag-bg);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.header-right { display: flex; gap: 12px; align-items: center; }
+
+/* ============ STATUS PILL ============ */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.status-pill.running { background: var(--green-light); color: var(--green); }
+.status-pill.stopped { background: var(--red-light); color: var(--red); }
+.status-pill.unknown { background: var(--tag-bg); color: var(--text-secondary); }
+
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: currentColor;
+}
+.status-pill.running .status-dot {
+  animation: pulse 1.5s infinite ease-in-out;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* ============ BUTTONS ============ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+.btn:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--text-secondary);
+}
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-primary {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+.btn-primary:hover:not(:disabled) { background: #000; }
+.btn-success { background: var(--green); color: white; border-color: var(--green); }
+.btn-success:hover:not(:disabled) { background: #15803d; }
+.btn-danger { background: var(--red); color: white; border-color: var(--red); }
+.btn-danger:hover:not(:disabled) { background: #b91c1c; }
+
+/* ============ MAIN ============ */
+.main {
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 24px 32px;
+}
+
+.section {
+  margin-bottom: 24px;
+}
+.section-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-bottom: 12px;
+}
+
+/* ============ CONFIG BAR (API + worker) ============ */
+.config-bar {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 16px;
+  align-items: center;
+  box-shadow: var(--shadow-sm);
+}
+.config-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.config-field label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.config-field input {
+  padding: 8px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--surface);
+  outline: none;
+  transition: border-color var(--transition);
+}
+.config-field input:focus { border-color: var(--text); }
+
+.controls {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+/* ============ METRICS GRID ============ */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+.metric {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
+}
+.metric-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+.metric-value {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: var(--text);
+}
+.metric-value.muted { color: var(--text-tertiary); }
+.metric-value.green { color: var(--green); }
+.metric-value.red { color: var(--red); }
+.metric-value.amber { color: var(--amber); }
+.metric-value.blue { color: var(--blue); }
+
+.metric-sub {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+/* ============ TWO-COLUMN LAYOUT ============ */
+.cols {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 16px;
+  margin-top: 12px;
+}
+@media (max-width: 1024px) { .cols { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+}
+.panel-title {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* ============ ACTIVITY FEED ============ */
+.activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.activity-item {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: 80px 1fr auto auto;
+  gap: 12px;
+  align-items: center;
+  font-size: 12px;
+}
+.activity-item:last-child { border-bottom: none; }
+.activity-time {
+  color: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+}
+.activity-class {
+  color: var(--text);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.activity-conf {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.activity-conf.high { background: var(--green-light); color: var(--green); }
+.activity-conf.low { background: var(--amber-light); color: var(--amber); }
+.activity-conf.fail { background: var(--red-light); color: var(--red); }
+.activity-status {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+  background: var(--tag-bg);
+  color: var(--text-secondary);
+}
+.activity-status.classified { background: var(--green-light); color: var(--green); }
+.activity-status.expert_review { background: var(--amber-light); color: var(--amber); }
+.activity-status.failed { background: var(--red-light); color: var(--red); }
+
+/* ============ DISTRIBUTION BARS ============ */
+.distribution {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dist-row {
+  display: grid;
+  grid-template-columns: 140px 1fr 40px;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+}
+.dist-label {
+  color: var(--text);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dist-bar-bg {
+  background: var(--tag-bg);
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.dist-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+.dist-count {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* ============ EMPTY STATES ============ */
+.empty {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+
+/* ============ TOAST ============ */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 100;
+}
+.toast {
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  font-size: 13px;
+  max-width: 360px;
+  animation: slideIn 0.2s ease;
+}
+.toast.error { border-color: var(--red); color: var(--red); }
+.toast.success { border-color: var(--green); color: var(--green); }
+@keyframes slideIn {
+  from { transform: translateX(20px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* ============ FOOTER INFO ============ */
+.footer-info {
+  margin-top: 24px;
+  padding: 12px 16px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  text-align: center;
+}
+.footer-info code {
+  background: var(--tag-bg);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-family: ui-monospace, SF Mono, Menlo, monospace;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+/* ============ TOOLTIPS ============ */
+.label-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.help-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--tag-bg);
+  color: var(--text-tertiary);
+  font-size: 9px;
+  font-weight: 700;
+  cursor: help;
+  position: relative;
+  transition: all var(--transition);
+  border: 1px solid var(--border);
+}
+.help-icon:hover {
+  background: var(--text-secondary);
+  color: white;
+}
+.help-icon[data-tip]:hover::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--text);
+  color: white;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 400;
+  white-space: normal;
+  width: 240px;
+  text-align: left;
+  z-index: 100;
+  line-height: 1.5;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  pointer-events: none;
+}
+.help-icon[data-tip]:hover::before {
+  content: "";
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-top-color: var(--text);
+  z-index: 100;
+}
+
+/* ============ CURRENT IMAGE PREVIEW ============ */
+.current-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 20px;
+}
+@media (max-width: 768px) { .current-card { grid-template-columns: 1fr; } }
+
+.current-card.idle {
+  opacity: 0.6;
+}
+
+.current-image-wrap {
+  background: var(--tag-bg);
+  border-radius: 10px;
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+}
+.current-image-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: opacity 0.2s;
+}
+.current-image-wrap .placeholder {
+  color: var(--text-tertiary);
+  font-size: 12px;
+  text-align: center;
+  padding: 16px;
+}
+
+.current-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.current-meta-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.current-meta-row .key {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.current-meta-row .val {
+  font-size: 13px;
+  color: var(--text);
+  font-weight: 500;
+  word-break: break-all;
+}
+.current-meta-row .val.muted { color: var(--text-tertiary); }
+
+/* Stage progress — stepped dots + elapsed timer */
+.stage-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+.stage-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  background: var(--tag-bg);
+  border-radius: 8px;
+  transition: background 0.2s ease;
+}
+.stage-row.active {
+  background: #eaf2ff;
+}
+.stage-row.done {
+  background: #ecfdf5;
+}
+.stage-row.failed {
+  background: #fef2f2;
+}
+.stage-row.skipped {
+  background: var(--tag-bg);
+  opacity: 0.6;
+}
+.stage-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  position: relative;
+  background: white;
+  border: 2px solid #d6d3d1;
+  transition: all 0.2s ease;
+}
+.stage-dot.active {
+  border-color: var(--blue);
+  background: var(--blue);
+  animation: dotPulse 1.2s ease-in-out infinite;
+  box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.5);
+}
+.stage-dot.done {
+  border-color: var(--green);
+  background: var(--green);
+}
+.stage-dot.done::after {
+  content: "✓";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 9px;
+  font-weight: 900;
+  line-height: 1;
+}
+.stage-dot.failed {
+  border-color: var(--red);
+  background: var(--red);
+}
+.stage-dot.failed::after {
+  content: "×";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+}
+.stage-dot.skipped {
+  border-color: #d6d3d1;
+  background: white;
+  border-style: dashed;
+}
+@keyframes dotPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.45); }
+  50% { box-shadow: 0 0 0 6px rgba(37, 99, 235, 0); }
+}
+.stage-label {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.stage-row.active .stage-label { color: var(--blue); }
+.stage-row.done .stage-label { color: #065f46; }
+.stage-row.failed .stage-label { color: var(--red); }
+.stage-timer {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  font-family: ui-monospace, SF Mono, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+  min-width: 56px;
+  text-align: right;
+}
+.stage-row.active .stage-timer { color: var(--blue); }
+.stage-row.done .stage-timer { color: #065f46; }
+
+/* ============ HELP PANEL OVERVIEW ============ */
+.overview-panel {
+  background: var(--blue-light);
+  border: 1px solid #c7d7f5;
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  font-size: 13px;
+  color: #1e3a8a;
+  line-height: 1.6;
+  display: none;
+}
+.overview-panel.shown { display: block; }
+.overview-panel h3 {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: #1e3a8a;
+}
+.overview-panel ul { margin-left: 20px; margin-top: 4px; }
+.overview-panel code {
+  background: white;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: ui-monospace, SF Mono, Menlo, monospace;
+  font-size: 12px;
+}
+.help-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.help-toggle:hover { color: var(--text); border-color: var(--text-secondary); }
+.help-toggle.active { background: var(--text); color: white; border-color: var(--text); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <div class="header-left">
+      <div class="logo">GeoAI</div>
+      <span class="tag">Operator Dashboard</span>
+    </div>
+    <div class="header-right">
+      <button id="btn-help" class="help-toggle" type="button">? Help</button>
+      <span id="connection-status" class="status-pill unknown">
+        <span class="status-dot"></span>
+        <span id="connection-text">Connecting...</span>
+      </span>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- Config + Controls -->
+  <div class="config-bar">
+    <div class="config-field">
+      <label for="api-base">API Base URL</label>
+      <input id="api-base" type="text" placeholder="http://localhost:8000" />
+    </div>
+    <div class="config-field">
+      <label for="api-key">API Key (optional)</label>
+      <input id="api-key" type="password" placeholder="Leave empty if auth is disabled" />
+    </div>
+    <div class="controls">
+      <button id="btn-start" class="btn btn-success">Start Pipeline</button>
+      <button id="btn-stop" class="btn btn-danger" disabled>Stop</button>
+    </div>
+  </div>
+
+  <!-- Help Overview Panel (toggleable) -->
+  <div id="overview" class="overview-panel section">
+    <h3>What this dashboard does</h3>
+    <p>
+      The operator pipeline is an autonomous worker that pulls citizen-submitted road images
+      from Supabase, runs them through the two-stage GeoAI classifier, and writes results back.
+      <strong>You control when it runs</strong> — the worker only processes images when you click <em>Start</em>.
+    </p>
+    <h3 style="margin-top:14px;">Status flow per image</h3>
+    <ul>
+      <li><code>pending</code> — Image uploaded by citizen, waiting in queue</li>
+      <li><code>processing</code> — Worker has claimed it and is running inference</li>
+      <li><code>classified</code> — AI is confident (≥80%) — saved as final result</li>
+      <li><code>expert_review</code> — AI is uncertain (&lt;80%) — needs human review in the Expert UI</li>
+      <li><code>done</code> — Expert has reviewed and confirmed</li>
+      <li><code>failed</code> — Worker exhausted retries (network errors, corrupt image, etc.)</li>
+    </ul>
+    <h3 style="margin-top:14px;">Hover the <span class="help-icon" data-tip="You're hovering one right now. Each metric has its own explanation.">?</span> icons</h3>
+    <p>Every metric has a tooltip explaining what it means and why it matters. Hover any <code>?</code> icon to read it.</p>
+  </div>
+
+  <!-- Currently Processing Card -->
+  <div class="section">
+    <div class="section-title">
+      <span class="label-row">
+        Currently Processing
+        <span class="help-icon" data-tip="Live preview of the image the worker is running inference on right now. The thumbnail is loaded from the same URL that's stored in Supabase (typically Cloudinary). Refreshes every 2 seconds via the SSE stream.">?</span>
+      </span>
+    </div>
+    <div id="current-card" class="current-card idle">
+      <div class="current-image-wrap">
+        <img id="current-image" alt="" style="display: none;" />
+        <div id="current-placeholder" class="placeholder">
+          Worker idle — no image being processed
+        </div>
+      </div>
+      <div class="current-meta">
+        <div class="current-meta-row">
+          <span class="key">Image ID</span>
+          <span class="val muted" id="cur-id">—</span>
+        </div>
+        <div class="current-meta-row">
+          <span class="key">Location</span>
+          <span class="val muted" id="cur-loc">—</span>
+        </div>
+        <div class="current-meta-row">
+          <span class="key">URL</span>
+          <span class="val muted" id="cur-url" style="font-size: 11px; font-family: ui-monospace, SF Mono, Menlo, monospace;">—</span>
+        </div>
+        <div class="current-meta-row">
+          <span class="key">Stage Progress</span>
+          <div class="stage-progress">
+            <div id="row-download" class="stage-row">
+              <span class="stage-dot" id="dot-download"></span>
+              <span class="stage-label">Downloading image</span>
+              <span class="stage-timer" id="timer-download">—</span>
+            </div>
+            <div id="row-stage1" class="stage-row">
+              <span class="stage-dot" id="dot-stage1"></span>
+              <span class="stage-label">Stage 1 — Detection</span>
+              <span class="stage-timer" id="timer-stage1">—</span>
+            </div>
+            <div id="row-stage2" class="stage-row">
+              <span class="stage-dot" id="dot-stage2"></span>
+              <span class="stage-label">Stage 2 — Classification</span>
+              <span class="stage-timer" id="timer-stage2">—</span>
+            </div>
+          </div>
+        </div>
+        <div class="current-meta-row">
+          <span class="key">Last Result</span>
+          <span class="val" id="cur-last-result">no completed images yet</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Worker state pill row -->
+  <div class="section" style="margin-top: 16px;">
+    <div class="section-title">Worker</div>
+    <div class="metrics-grid">
+      <div class="metric">
+        <div class="metric-label"><span class="label-row">Worker State <span class="help-icon" data-tip="Whether the asyncio worker loop is running and polling Supabase for new images. Click Start/Stop to control. The worker is graceful — Stop waits for the in-flight image to finish (up to 60s) before exiting.">?</span></span></div>
+        <div class="metric-value" id="m-worker-state">—</div>
+        <div class="metric-sub" id="m-worker-id">No worker</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label"><span class="label-row">Last Heartbeat <span class="help-icon" data-tip="The worker writes a heartbeat to the worker_state table every 30 seconds. If this gets old (e.g. >2 min), the worker has likely crashed or the GPU is wedged. Stale claims (>5 min) are auto-released back to pending so another worker can pick them up.">?</span></span></div>
+        <div class="metric-value muted" id="m-heartbeat">—</div>
+        <div class="metric-sub" id="m-heartbeat-sub">never</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label"><span class="label-row">Currently Processing <span class="help-icon" data-tip="Short ID of the image the worker is running inference on right now. 'idle' means the worker is between images (polling for the next batch). See the live thumbnail card above for the actual image.">?</span></span></div>
+        <div class="metric-value blue" id="m-current">—</div>
+        <div class="metric-sub" id="m-current-sub">idle</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label"><span class="label-row">Last Error <span class="help-icon" data-tip="Most recent error from the worker. Common causes: image URL unreachable (Cloudinary down), Supabase API rate-limited, model crashed mid-inference. Cleared on next successful image.">?</span></span></div>
+        <div class="metric-value" id="m-last-error" style="font-size: 13px; color: var(--text-secondary);">—</div>
+        <div class="metric-sub">most recent failure</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Queue depth -->
+  <div class="section">
+    <div class="section-title">Queue (Status Counts)</div>
+    <div class="metrics-grid">
+      <div class="metric">
+        <div class="metric-label"><span class="label-row">Pending <span class="help-icon" data-tip="Images uploaded by citizens but not yet processed by the worker. The worker claims these in batches of 5 every 10 seconds (configurable).">?</span></span></div>
+        <div class="metric-value amber" id="m-pending">0</div>
+        <div class="metric-sub">awaiting processing</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label"><span class="label-row">Processing <span class="help-icon" data-tip="Images currently claimed by a worker but not yet finished. Should be small (≤ batch_size). If this grows large, something is stuck — check Last Error.">?</span></span></div>
+        <div class="metric-value blue" id="m-processing">0</div>
+        <div class="metric-sub">claimed by workers</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label"><span class="label-row">Classified <span class="help-icon" data-tip="Successfully processed images where both Stage 1 and Stage 2 reached ≥80% confidence. These do NOT need expert review — the AI decision stands.">?</span></span></div>
+        <div class="metric-value green" id="m-classified">0</div>
+        <div class="metric-sub">≥80% confidence</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label"><span class="label-row">Expert Review <span class="help-icon" data-tip="Images where confidence fell below 80% on either stage. These appear in the Expert UI for human review. Reviewing them produces correction data for the next LoRA retrain.">?</span></span></div>
+        <div class="metric-value amber" id="m-expert-review">0</div>
+        <div class="metric-sub">low confidence</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label"><span class="label-row">Done <span class="help-icon" data-tip="Images that went through expert review and have been finalized by a human. The expert's correction is the ground truth for these.">?</span></span></div>
+        <div class="metric-value green" id="m-done">0</div>
+        <div class="metric-sub">expert reviewed</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label"><span class="label-row">Failed <span class="help-icon" data-tip="Images where the worker exhausted all retries (default: 3 attempts with exponential backoff). Common causes: image URL 404, model crash, corrupt JPEG. Investigate via Supabase: SELECT image_url, error_message FROM assessments WHERE status='failed'.">?</span></span></div>
+        <div class="metric-value red" id="m-failed">0</div>
+        <div class="metric-sub">exceeded retries</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Performance row -->
+  <div class="section">
+    <div class="section-title">Performance</div>
+    <div class="metrics-grid">
+      <div class="metric">
+        <div class="metric-label"><span class="label-row">Throughput (1 hr) <span class="help-icon" data-tip="Number of images that finished processing in the last 60 minutes. Sliding window — recalculated every refresh. Realistic ceiling on the A5000 with 7B fp16: ~100-200 images/hour for Stage 1 + Stage 2 combined.">?</span></span></div>
+        <div class="metric-value" id="m-throughput-hr">0</div>
+        <div class="metric-sub">images / hour</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label"><span class="label-row">Throughput (1 min) <span class="help-icon" data-tip="Sliding-window count of images completed in the last 60 seconds. Useful for spotting sudden slowdowns (GPU thermal throttling, network issues, etc.).">?</span></span></div>
+        <div class="metric-value" id="m-throughput-min">0</div>
+        <div class="metric-sub">images / minute</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label"><span class="label-row">Avg Stage 1 <span class="help-icon" data-tip="Rolling average of Stage 1 inference time (last 50 images). Stage 1 is the binary 'distress vs normal' detector — should be fast (~2s on A5000).">?</span></span></div>
+        <div class="metric-value" id="m-avg-s1">—</div>
+        <div class="metric-sub">last 50 images</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label"><span class="label-row">Avg Stage 2 <span class="help-icon" data-tip="Rolling average of Stage 2 inference time (last 50 images). Stage 2 generates the structured distress-type response — slower than Stage 1 (~5-30s) because it generates more tokens.">?</span></span></div>
+        <div class="metric-value" id="m-avg-s2">—</div>
+        <div class="metric-sub">last 50 images</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label"><span class="label-row">Avg Confidence S1 <span class="help-icon" data-tip="Average Stage 1 confidence over the last hour. Computed from raw model logits via softmax over 'Normal' vs 'Distress' first-token probabilities. Higher = model is more decisive.">?</span></span></div>
+        <div class="metric-value" id="m-conf-s1">—</div>
+        <div class="metric-sub">last hour</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label"><span class="label-row">Avg Confidence S2 <span class="help-icon" data-tip="Average Stage 2 confidence over the last hour. Geometric mean of per-token probabilities across the entire generated response. Lower than S1 typically because it's averaging over many tokens, not just one.">?</span></span></div>
+        <div class="metric-value" id="m-conf-s2">—</div>
+        <div class="metric-sub">last hour</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Activity + Distribution -->
+  <div class="cols">
+    <div class="panel">
+      <div class="panel-title">
+        <span class="label-row">
+          Recent Activity
+          <span class="help-icon" data-tip="Last 20 processed images. The colored badges show: confidence (green ≥80%, amber &lt;80%, red on failure) and final status (classified / expert_review / failed). Refreshes every 5 seconds.">?</span>
+        </span>
+        <span class="tag" id="activity-count">0 items</span>
+      </div>
+      <div id="activity-list" class="activity-list">
+        <div class="empty">No images processed yet.</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">
+        <span class="label-row">
+          Per-Class Distribution (24h)
+          <span class="help-icon" data-tip="Count of each distress type detected in the last 24 hours. Multi-label aware: an image with both Longitudinal Crack AND Pothole increments both bars. The bar widths are relative to the highest-count class.">?</span>
+        </span>
+      </div>
+      <div id="distribution" class="distribution">
+        <div class="empty">No classifications yet.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-info">
+    Worker config: poll every <code id="cfg-poll">—</code>s, batch size <code id="cfg-batch">—</code>,
+    max retries <code id="cfg-retries">—</code>,
+    confidence threshold <code id="cfg-threshold">—</code>
+  </div>
+
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+'use strict';
+
+// ============================================================
+// Config
+// ============================================================
+const DEFAULTS = {
+  apiBase: window.location.origin,  // same origin if served from FastAPI
+  apiKey: '',
+};
+const POLL_INTERVAL_FALLBACK_MS = 3000;  // used if SSE fails
+const RECENT_REFRESH_MS = 5000;
+
+const apiBaseInput = document.getElementById('api-base');
+const apiKeyInput  = document.getElementById('api-key');
+const startBtn     = document.getElementById('btn-start');
+const stopBtn      = document.getElementById('btn-stop');
+const toastContainer = document.getElementById('toast-container');
+
+// Restore saved config
+apiBaseInput.value = localStorage.getItem('operator_api_base') || DEFAULTS.apiBase;
+apiKeyInput.value  = localStorage.getItem('operator_api_key')  || DEFAULTS.apiKey;
+apiBaseInput.addEventListener('change', () => localStorage.setItem('operator_api_base', apiBaseInput.value));
+apiKeyInput.addEventListener('change',  () => localStorage.setItem('operator_api_key',  apiKeyInput.value));
+
+let sseSource = null;
+let pollTimer = null;
+let recentTimer = null;
+
+// ============================================================
+// Helpers
+// ============================================================
+function apiBase() { return (apiBaseInput.value || '').replace(/\/$/, ''); }
+function apiKey() { return apiKeyInput.value.trim(); }
+
+function authHeaders() {
+  const h = {'Content-Type': 'application/json'};
+  if (apiKey()) h['X-API-Key'] = apiKey();
+  return h;
+}
+
+function toast(msg, type = 'info') {
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.textContent = msg;
+  toastContainer.appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+function fmtMs(ms) {
+  if (!ms || ms < 1) return '—';
+  if (ms < 1000) return Math.round(ms) + ' ms';
+  return (ms / 1000).toFixed(1) + ' s';
+}
+function fmtPct(p) {
+  if (p == null || isNaN(p)) return '—';
+  return (p * 100).toFixed(1) + '%';
+}
+function fmtTimeAgo(iso) {
+  if (!iso) return 'never';
+  const dt = new Date(iso);
+  const sec = Math.floor((Date.now() - dt.getTime()) / 1000);
+  if (sec < 5) return 'just now';
+  if (sec < 60) return sec + 's ago';
+  if (sec < 3600) return Math.floor(sec / 60) + 'm ago';
+  if (sec < 86400) return Math.floor(sec / 3600) + 'h ago';
+  return Math.floor(sec / 86400) + 'd ago';
+}
+function fmtTime(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit', second: '2-digit'});
+}
+function shortId(id) {
+  if (!id) return '—';
+  return id.slice(0, 8);
+}
+
+// ============================================================
+// API calls
+// ============================================================
+async function apiCall(path, opts = {}) {
+  const url = apiBase() + path;
+  const resp = await fetch(url, {
+    headers: authHeaders(),
+    ...opts,
+  });
+  if (!resp.ok) {
+    let msg = resp.statusText;
+    try {
+      const body = await resp.json();
+      msg = body.detail || body.error || msg;
+    } catch {}
+    throw new Error(`HTTP ${resp.status}: ${msg}`);
+  }
+  return resp.json();
+}
+
+async function startPipeline() {
+  startBtn.disabled = true;
+  try {
+    const r = await apiCall('/operator/start', {method: 'POST'});
+    toast('Pipeline started: ' + (r.worker_id || ''), 'success');
+    setRunning(true);
+    pollNow();
+  } catch (e) {
+    toast('Start failed: ' + e.message, 'error');
+    startBtn.disabled = false;
+  }
+}
+
+async function stopPipeline() {
+  stopBtn.disabled = true;
+  toast('Stop requested — draining current image (up to 60s)...', 'info');
+  try {
+    await apiCall('/operator/stop', {method: 'POST'});
+    toast('Pipeline stopped', 'success');
+    setRunning(false);
+  } catch (e) {
+    toast('Stop failed: ' + e.message, 'error');
+  } finally {
+    stopBtn.disabled = false;
+    pollNow();
+  }
+}
+
+function setRunning(running) {
+  startBtn.disabled = running;
+  stopBtn.disabled = !running;
+}
+
+// ============================================================
+// Render
+// ============================================================
+function renderMetrics(payload) {
+  const w = payload.worker || {};
+  const q = payload.queue || {};
+
+  // Connection pill
+  const connEl = document.getElementById('connection-status');
+  const connTx = document.getElementById('connection-text');
+  if (w.is_running) {
+    connEl.className = 'status-pill running';
+    connTx.textContent = 'Pipeline Running';
+  } else {
+    connEl.className = 'status-pill stopped';
+    connTx.textContent = 'Pipeline Stopped';
+  }
+
+  // Worker section
+  document.getElementById('m-worker-state').textContent = w.is_running ? 'Running' : 'Stopped';
+  document.getElementById('m-worker-id').textContent = w.worker_id || 'No worker';
+  document.getElementById('m-heartbeat').textContent = fmtTimeAgo(w.last_heartbeat_at);
+  document.getElementById('m-heartbeat-sub').textContent = fmtTime(w.last_heartbeat_at);
+  document.getElementById('m-current').textContent = w.current_image_id ? shortId(w.current_image_id) : 'idle';
+  document.getElementById('m-current-sub').textContent = w.current_image_id ? 'in flight' : 'awaiting work';
+  document.getElementById('m-last-error').textContent = w.last_error || '— no errors';
+
+  // Queue
+  document.getElementById('m-pending').textContent = q.pending_count ?? 0;
+  document.getElementById('m-processing').textContent = q.processing_count ?? 0;
+  document.getElementById('m-classified').textContent = q.classified_count ?? 0;
+  document.getElementById('m-expert-review').textContent = q.expert_review_count ?? 0;
+  document.getElementById('m-done').textContent = q.done_count ?? 0;
+  document.getElementById('m-failed').textContent = q.failed_count ?? 0;
+
+  // Performance
+  document.getElementById('m-throughput-hr').textContent = q.throughput_last_hour ?? 0;
+  document.getElementById('m-throughput-min').textContent = q.throughput_last_minute ?? 0;
+  document.getElementById('m-avg-s1').textContent = fmtMs(w.avg_stage1_time_ms);
+  document.getElementById('m-avg-s2').textContent = fmtMs(w.avg_stage2_time_ms);
+  document.getElementById('m-conf-s1').textContent = fmtPct(q.avg_stage1_confidence_last_hour);
+  document.getElementById('m-conf-s2').textContent = fmtPct(q.avg_stage2_confidence_last_hour);
+
+  // Footer config
+  if (w.config) {
+    document.getElementById('cfg-poll').textContent = w.config.poll_interval_s ?? '—';
+    document.getElementById('cfg-batch').textContent = w.config.batch_size ?? '—';
+    document.getElementById('cfg-retries').textContent = w.config.max_retries ?? '—';
+    document.getElementById('cfg-threshold').textContent = (w.config.confidence_threshold * 100).toFixed(0) + '%';
+  }
+
+  // Update button states based on actual server state
+  setRunning(!!w.is_running);
+
+  // Distribution
+  renderDistribution(payload.distribution || []);
+
+  // Currently processing card — fetch image metadata if changed
+  updateCurrentCard(w.current_image_id, w.last_processed_id, w);
+}
+
+// ============================================================
+// Currently-processing card
+// ============================================================
+let _lastCurrentId = null;
+let _currentImageMeta = null;
+let _lastProcessedSummary = null;
+let _liveTimerInterval = null;  // ticks elapsed timer on the active stage every 100ms
+
+// Stage row helper
+function setStageRow(rowId, dotId, timerId, state, timerText) {
+  // state ∈ 'idle' | 'queued' | 'active' | 'done' | 'failed' | 'skipped'
+  const row = document.getElementById(rowId);
+  const dot = document.getElementById(dotId);
+  const timer = document.getElementById(timerId);
+  // Clear all state classes first
+  ['active','done','failed','skipped'].forEach(c => {
+    row.classList.remove(c); dot.classList.remove(c);
+  });
+  if (state !== 'idle' && state !== 'queued') {
+    row.classList.add(state);
+    dot.classList.add(state);
+  }
+  timer.textContent = timerText;
+}
+
+function fmtSeconds(ms) {
+  if (!ms || ms <= 0) return '—';
+  const s = ms / 1000;
+  return s < 10 ? `${s.toFixed(2)}s` : `${s.toFixed(1)}s`;
+}
+
+function nowMsSinceISO(iso) {
+  if (!iso) return 0;
+  const t = new Date(iso).getTime();
+  if (isNaN(t)) return 0;
+  return Date.now() - t;
+}
+
+function paintStageStates(worker) {
+  const stage = worker.current_stage;          // 'downloading' | 'stage1' | 'stage2' | null
+  const startedAt = worker.current_stage_started_at;
+  const s1Ms = worker.current_stage1_time_ms || 0;
+  const s2Ms = worker.current_stage2_time_ms || 0;
+  const skippedS2 = worker.current_skipped_stage2;
+
+  if (stage === 'downloading') {
+    setStageRow('row-download','dot-download','timer-download','active', fmtSeconds(nowMsSinceISO(startedAt)));
+    setStageRow('row-stage1','dot-stage1','timer-stage1','idle','—');
+    setStageRow('row-stage2','dot-stage2','timer-stage2','idle','—');
+  } else if (stage === 'stage1') {
+    setStageRow('row-download','dot-download','timer-download','done','✓');
+    setStageRow('row-stage1','dot-stage1','timer-stage1','active', fmtSeconds(nowMsSinceISO(startedAt)));
+    setStageRow('row-stage2','dot-stage2','timer-stage2','idle','—');
+  } else if (stage === 'stage2') {
+    setStageRow('row-download','dot-download','timer-download','done','✓');
+    setStageRow('row-stage1','dot-stage1','timer-stage1','done', fmtSeconds(s1Ms));
+    setStageRow('row-stage2','dot-stage2','timer-stage2','active', fmtSeconds(nowMsSinceISO(startedAt)));
+  } else {
+    // No active stage — between images, OR finished but waiting for next claim.
+    // Use cumulative time fields to indicate the most recent finished image.
+    if (s1Ms > 0) {
+      setStageRow('row-download','dot-download','timer-download','done','✓');
+      setStageRow('row-stage1','dot-stage1','timer-stage1','done', fmtSeconds(s1Ms));
+      if (s2Ms > 0) {
+        setStageRow('row-stage2','dot-stage2','timer-stage2','done', fmtSeconds(s2Ms));
+      } else if (skippedS2) {
+        setStageRow('row-stage2','dot-stage2','timer-stage2','skipped','skipped (Normal)');
+      } else {
+        setStageRow('row-stage2','dot-stage2','timer-stage2','idle','—');
+      }
+    } else {
+      // Truly idle
+      setStageRow('row-download','dot-download','timer-download','idle','—');
+      setStageRow('row-stage1','dot-stage1','timer-stage1','idle','—');
+      setStageRow('row-stage2','dot-stage2','timer-stage2','idle','—');
+    }
+  }
+}
+
+async function updateCurrentCard(currentId, lastProcessedId, worker) {
+  const card = document.getElementById('current-card');
+  const img = document.getElementById('current-image');
+  const ph = document.getElementById('current-placeholder');
+
+  if (currentId) {
+    card.classList.remove('idle');
+    // Fetch image metadata only when the in-flight image changes
+    if (currentId !== _lastCurrentId) {
+      _lastCurrentId = currentId;
+      _currentImageMeta = null;
+      try {
+        const meta = await fetchInFlightMeta(currentId);
+        if (meta) _currentImageMeta = meta;
+      } catch (e) { /* ignore */ }
+    }
+
+    const meta = _currentImageMeta || {};
+    document.getElementById('cur-id').textContent = shortId(currentId);
+    document.getElementById('cur-loc').textContent = meta.address
+      ? meta.address
+      : (meta.latitude ? `${meta.latitude.toFixed(4)}, ${meta.longitude.toFixed(4)}` : 'unknown');
+    document.getElementById('cur-url').textContent = meta.image_url || 'loading...';
+
+    if (meta.image_url) {
+      img.src = meta.image_url;
+      img.style.display = 'block';
+      ph.style.display = 'none';
+      img.onerror = () => {
+        img.style.display = 'none';
+        ph.style.display = 'flex';
+        ph.textContent = 'Image preview unavailable (CORS or 404)';
+      };
+    } else {
+      img.style.display = 'none';
+      ph.style.display = 'flex';
+      ph.textContent = 'Loading image preview...';
+    }
+
+    // Start a live timer that paints elapsed for the active stage every 100ms.
+    // We re-render only the active row's timer; full state is repainted on next SSE/poll.
+    if (!_liveTimerInterval) {
+      _liveTimerInterval = setInterval(() => {
+        const stage = worker.current_stage;
+        if (!stage) return;
+        const elapsed = fmtSeconds(nowMsSinceISO(worker.current_stage_started_at));
+        if (stage === 'downloading') document.getElementById('timer-download').textContent = elapsed;
+        else if (stage === 'stage1') document.getElementById('timer-stage1').textContent = elapsed;
+        else if (stage === 'stage2') document.getElementById('timer-stage2').textContent = elapsed;
+      }, 100);
+    }
+  } else {
+    // Idle — clear the live timer interval
+    card.classList.add('idle');
+    _lastCurrentId = null;
+    _currentImageMeta = null;
+    img.style.display = 'none';
+    ph.style.display = 'flex';
+    ph.textContent = 'Worker idle — no image being processed';
+    document.getElementById('cur-id').textContent = '—';
+    document.getElementById('cur-loc').textContent = '—';
+    document.getElementById('cur-url').textContent = '—';
+    if (_liveTimerInterval) { clearInterval(_liveTimerInterval); _liveTimerInterval = null; }
+  }
+
+  // Always paint stage rows from the worker snapshot (drives state transitions)
+  paintStageStates(worker);
+
+  if (_lastProcessedSummary) {
+    document.getElementById('cur-last-result').textContent = _lastProcessedSummary;
+  }
+}
+
+async function fetchInFlightMeta(imageId) {
+  // Fetch recent + look for the row, but in-flight rows have status='processing'
+  // and may not be in /operator/recent (which filters processed_at IS NOT NULL).
+  // So we use a tiny inline REST call directly to Supabase via the API proxy.
+  // Simplest: use a new endpoint /operator/inflight that fetches the current row.
+  try {
+    const r = await apiCall(`/operator/inflight?id=${imageId}`);
+    return r;
+  } catch (e) {
+    return null;
+  }
+}
+
+function renderDistribution(items) {
+  const container = document.getElementById('distribution');
+  if (!Array.isArray(items) || items.length === 0) {
+    container.innerHTML = '<div class="empty">No classifications yet.</div>';
+    return;
+  }
+  const max = Math.max(...items.map(i => i.count || 0), 1);
+  container.innerHTML = items.map(item => {
+    const pct = ((item.count || 0) / max) * 100;
+    return `
+      <div class="dist-row">
+        <span class="dist-label" title="${escapeHtml(item.distress_type)}">${escapeHtml(item.distress_type)}</span>
+        <div class="dist-bar-bg"><div class="dist-bar-fill" style="width: ${pct}%"></div></div>
+        <span class="dist-count">${item.count}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderActivity(items) {
+  const container = document.getElementById('activity-list');
+  document.getElementById('activity-count').textContent = items.length + ' items';
+
+  if (!items.length) {
+    container.innerHTML = '<div class="empty">No images processed yet.</div>';
+    return;
+  }
+
+  // Track most recent result for the "Last Result" line in the current card
+  if (items.length > 0) {
+    const it = items[0];
+    const cls = (it.distress_types && it.distress_types.length)
+      ? it.distress_types.join(', ')
+      : (it.stage1_label || 'unknown');
+    const conf = it.stage2_confidence || it.stage1_confidence || 0;
+    _lastProcessedSummary = `${cls} (${fmtPct(conf)} confidence) — ${it.status}`;
+    document.getElementById('cur-last-result').textContent = _lastProcessedSummary;
+  }
+
+  container.innerHTML = items.map(it => {
+    const conf = it.stage2_confidence || it.stage1_confidence || 0;
+    const confClass = it.status === 'failed' ? 'fail' : (conf >= 0.8 ? 'high' : 'low');
+    const confText = it.status === 'failed' ? 'FAIL' : fmtPct(conf);
+    const cls = (it.distress_types && it.distress_types.length)
+      ? it.distress_types.join(', ')
+      : (it.stage1_label || (it.error_message ? 'error' : 'unknown'));
+    return `
+      <div class="activity-item">
+        <span class="activity-time">${fmtTime(it.processed_at)}</span>
+        <span class="activity-class" title="${escapeHtml(cls)}">${escapeHtml(cls)}</span>
+        <span class="activity-conf ${confClass}">${confText}</span>
+        <span class="activity-status ${it.status}">${it.status}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+// ============================================================
+// Polling / SSE
+// ============================================================
+async function pollNow() {
+  try {
+    const m = await apiCall('/operator/metrics');
+    renderMetrics(m);
+  } catch (e) {
+    document.getElementById('connection-status').className = 'status-pill unknown';
+    document.getElementById('connection-text').textContent = 'Connection lost';
+    document.getElementById('m-last-error').textContent = e.message;
+  }
+}
+
+async function pollRecent() {
+  try {
+    const r = await apiCall('/operator/recent?limit=20');
+    renderActivity(r.items || []);
+  } catch (e) {
+    // Activity feed silently fails — non-critical
+  }
+}
+
+function startSSE() {
+  // Use fetch-based SSE so we can send X-API-Key header
+  // (EventSource doesn't support custom headers)
+  stopSSE();
+  const url = apiBase() + '/operator/metrics/stream?interval_seconds=2';
+  const ctrl = new AbortController();
+  sseSource = ctrl;
+
+  fetch(url, {headers: authHeaders(), signal: ctrl.signal})
+    .then(async resp => {
+      if (!resp.ok) throw new Error('SSE HTTP ' + resp.status);
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+      while (true) {
+        const {done, value} = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, {stream: true}).replace(/\r\n/g, '\n');
+        let parts = buf.split('\n\n');
+        buf = parts.pop() || '';
+        for (const part of parts) {
+          let event = 'message';
+          let dataLines = [];
+          for (const line of part.split('\n')) {
+            if (line.startsWith('event:')) event = line.slice(6).trim();
+            else if (line.startsWith('data:')) dataLines.push(line.slice(5).trim());
+          }
+          if (!dataLines.length) continue;
+          try {
+            const data = JSON.parse(dataLines.join('\n'));
+            if (event === 'metrics') renderMetrics(data);
+          } catch (e) { /* ignore parse errors */ }
+        }
+      }
+    })
+    .catch(err => {
+      if (err.name === 'AbortError') return;
+      console.warn('SSE failed, falling back to polling:', err.message);
+      // Fallback: poll on a timer
+      pollTimer = setInterval(pollNow, POLL_INTERVAL_FALLBACK_MS);
+    });
+}
+
+function stopSSE() {
+  if (sseSource) { try { sseSource.abort(); } catch {} sseSource = null; }
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+}
+
+// ============================================================
+// Init
+// ============================================================
+startBtn.addEventListener('click', startPipeline);
+stopBtn.addEventListener('click', stopPipeline);
+
+// Help panel toggle
+const btnHelp = document.getElementById('btn-help');
+const overview = document.getElementById('overview');
+const HELP_KEY = 'operator_help_shown';
+function applyHelpVisibility(shown) {
+  overview.classList.toggle('shown', shown);
+  btnHelp.classList.toggle('active', shown);
+  btnHelp.textContent = shown ? '× Close Help' : '? Help';
+}
+applyHelpVisibility(localStorage.getItem(HELP_KEY) === '1');
+btnHelp.addEventListener('click', () => {
+  const next = !overview.classList.contains('shown');
+  applyHelpVisibility(next);
+  localStorage.setItem(HELP_KEY, next ? '1' : '0');
+});
+
+// Initial fetches + start streams
+pollNow();
+pollRecent();
+startSSE();
+recentTimer = setInterval(pollRecent, RECENT_REFRESH_MS);
+
+// Cleanup on navigation
+window.addEventListener('beforeunload', () => {
+  stopSSE();
+  if (recentTimer) clearInterval(recentTimer);
+});
+</script>
+</body>
+</html>

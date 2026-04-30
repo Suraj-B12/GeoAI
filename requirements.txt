@@ -8,11 +8,11 @@
 #   cd LLaMA-Factory && pip install -e ".[torch,metrics]"
 # ============================================================
 
-# Core ML
-transformers>=4.49.0
-accelerate>=0.27.0
-bitsandbytes>=0.43.0
-peft>=0.13.0
+# Core ML (pinned — latest transformers breaks bitsandbytes Params4bit)
+transformers==4.57.6
+accelerate==0.34.2
+bitsandbytes==0.44.1
+peft==0.14.0
 
 # Qwen2.5-VL
 qwen-vl-utils
@@ -21,8 +21,10 @@ qwen-vl-utils
 #   pip install flash-attn --no-build-isolation
 # flash-attn>=2.5.0
 
-# Training acceleration
-liger-kernel>=0.2.0
+# Training acceleration — Linux only (requires Triton, no Windows wheels).
+# Skipped on Windows by the platform marker. Inference doesn't need this;
+# only matters when running LLaMA-Factory training on the A5000.
+liger-kernel>=0.2.0; sys_platform == "linux"
 
 # Dataset
 numpy
@@ -44,6 +46,9 @@ uvicorn[standard]>=0.27.0
 python-multipart
 slowapi>=0.1.9
 python-dotenv>=1.0.0
+
+# Async HTTP client (operator pipeline → Supabase REST + Cloudinary downloads)
+httpx>=0.27.0
 
 # Interactive UI
 gradio>=4.0.0
