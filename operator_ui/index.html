@@ -681,6 +681,64 @@ body {
 }
 .help-toggle:hover { color: var(--text); border-color: var(--text-secondary); }
 .help-toggle.active { background: var(--text); color: white; border-color: var(--text); }
+
+/* ============ ADAPTER / TRAINING PANELS ============ */
+.adapter-row {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.adapter-info {
+  flex: 1;
+  min-width: 200px;
+}
+.adapter-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+}
+.adapter-value {
+  font-size: 14px;
+  color: var(--text);
+  font-weight: 500;
+  font-family: ui-monospace, SF Mono, Menlo, monospace;
+  word-break: break-all;
+}
+.adapter-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.adapter-select {
+  padding: 8px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--surface);
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  min-width: 240px;
+}
+.adapter-select:disabled { opacity: 0.5; cursor: not-allowed; }
+.adapter-status {
+  margin-top: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-family: ui-monospace, SF Mono, Menlo, monospace;
+  display: none;
+}
+.adapter-status.shown { display: block; }
+.adapter-status.info  { background: var(--blue-light); color: #1e3a8a; }
+.adapter-status.ok    { background: #ecfdf5; color: #065f46; }
+.adapter-status.err   { background: #fef2f2; color: #991b1b; }
+.adapter-status.warn  { background: #fffbeb; color: #92400e; }
 </style>
 </head>
 <body>
@@ -921,6 +979,79 @@ body {
       </div>
       <div id="distribution" class="distribution">
         <div class="empty">No classifications yet.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MODEL VERSION ============ -->
+  <div class="section">
+    <div class="section-title">
+      <span class="label-row">
+        Model Version
+        <span class="help-icon" data-tip="The currently loaded LoRA adapter (or the base model if none). Switching adapters takes ~30s while the model reloads on the GPU. The worker pauses for that window — any in-flight image will fail and be released back to pending.">?</span>
+      </span>
+    </div>
+    <div class="panel" id="adapter-panel">
+      <div class="adapter-row">
+        <div class="adapter-info">
+          <div class="adapter-label">Active</div>
+          <div class="adapter-value" id="adapter-active">loading…</div>
+        </div>
+        <div class="adapter-controls">
+          <select id="adapter-select" class="adapter-select">
+            <option value="">— select to switch —</option>
+          </select>
+          <button id="adapter-switch-btn" class="btn btn-primary btn-sm" disabled>Switch</button>
+        </div>
+      </div>
+      <div class="adapter-status" id="adapter-status"></div>
+    </div>
+  </div>
+
+  <!-- ============ TRAINING RUN PROGRESS ============ -->
+  <div class="section">
+    <div class="section-title">
+      <span class="label-row">
+        Training Run
+        <span class="help-icon" data-tip="Live progress of the QLoRA fine-tuning script (scripts/train_qlora.py). Reads outputs/training_run.json which is updated every ~50 steps by a TrainerCallback. Stale = no heartbeat for >5 min — the training process likely crashed.">?</span>
+      </span>
+    </div>
+    <div class="panel" id="training-panel">
+      <div id="training-empty" class="empty">No training run on this machine yet.</div>
+      <div id="training-info" style="display:none;">
+        <div class="metrics-grid" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));">
+          <div class="metric">
+            <div class="metric-label">Status</div>
+            <div class="metric-value" id="train-status">—</div>
+            <div class="metric-sub" id="train-run-id">—</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Progress</div>
+            <div class="metric-value" id="train-step">—</div>
+            <div class="metric-sub" id="train-pct">—</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Train loss</div>
+            <div class="metric-value" id="train-loss">—</div>
+            <div class="metric-sub" id="train-grad">grad —</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Eval loss (best)</div>
+            <div class="metric-value" id="train-eval">—</div>
+            <div class="metric-sub" id="train-best-eval">best —</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">GPU temp</div>
+            <div class="metric-value" id="train-temp">—</div>
+            <div class="metric-sub" id="train-vram">— GB</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">ETA</div>
+            <div class="metric-value" id="train-eta">—</div>
+            <div class="metric-sub" id="train-sps">— steps/s</div>
+          </div>
+        </div>
+        <div class="adapter-status" id="train-warning" style="margin-top: 8px;"></div>
       </div>
     </div>
   </div>
@@ -1448,16 +1579,171 @@ btnHelp.addEventListener('click', () => {
   localStorage.setItem(HELP_KEY, next ? '1' : '0');
 });
 
+// ============================================================
+// ADAPTER MANAGEMENT
+// ============================================================
+const adapterSelect = document.getElementById('adapter-select');
+const adapterSwitchBtn = document.getElementById('adapter-switch-btn');
+const adapterActive = document.getElementById('adapter-active');
+const adapterStatus = document.getElementById('adapter-status');
+let _adapterPollTimer = null;
+
+function setAdapterStatus(text, kind) {
+  if (!text) { adapterStatus.classList.remove('shown'); return; }
+  adapterStatus.className = 'adapter-status shown ' + (kind || 'info');
+  adapterStatus.textContent = text;
+}
+
+async function loadAdapters() {
+  try {
+    const r = await apiCall('/operator/adapters');
+    const active = r.active || '(base model — no adapter)';
+    adapterActive.textContent = active;
+    // Populate select with available adapters not equal to current
+    const options = ['<option value="">— select to switch —</option>'];
+    if (r.active) options.push('<option value="__base__">[Revert to base model]</option>');
+    for (const ad of (r.available || [])) {
+      const isActive = (ad.path === r.active);
+      const meta = ad.metadata ? ` ✓ metadata` : '';
+      options.push(`<option value="${escapeAttr(ad.path)}" ${isActive ? 'disabled' : ''}>${escapeHtml(ad.name)}${isActive ? ' (active)' : ''}${meta}</option>`);
+    }
+    adapterSelect.innerHTML = options.join('');
+    adapterSelect.disabled = false;
+  } catch (e) {
+    adapterActive.textContent = '(unavailable)';
+    setAdapterStatus('Failed to fetch adapter list: ' + e.message, 'err');
+  }
+}
+
+adapterSelect.addEventListener('change', () => {
+  adapterSwitchBtn.disabled = !adapterSelect.value;
+});
+
+adapterSwitchBtn.addEventListener('click', async () => {
+  const sel = adapterSelect.value;
+  if (!sel) return;
+  const targetPath = sel === '__base__' ? null : sel;
+  const display = sel === '__base__' ? '(base model)' : sel;
+  if (!confirm(`Hot-swap adapter to ${display}?\n\nThe worker will pause for ~30 seconds while the model reloads on the GPU. Any image being processed RIGHT NOW will fail and be released back to pending.`)) return;
+
+  adapterSwitchBtn.disabled = true;
+  adapterSelect.disabled = true;
+  setAdapterStatus(`Loading ${display} on GPU... this takes ~30s, do not close the page`, 'info');
+
+  try {
+    const r = await apiCall('/operator/adapters/switch', {
+      method: 'POST',
+      body: JSON.stringify({ adapter_path: targetPath }),
+    });
+    setAdapterStatus(`Active adapter is now ${r.adapter_path || '(base model)'} on ${r.device} — loaded at ${r.loaded_at}`, 'ok');
+    toast('Adapter switched');
+    await loadAdapters();
+  } catch (e) {
+    setAdapterStatus('Switch failed: ' + e.message, 'err');
+    adapterSelect.disabled = false;
+  }
+});
+
+// ============================================================
+// TRAINING RUN PROGRESS
+// ============================================================
+const trainEmpty = document.getElementById('training-empty');
+const trainInfo = document.getElementById('training-info');
+const trainWarning = document.getElementById('train-warning');
+let _trainPollTimer = null;
+
+function fmtETA(seconds) {
+  if (seconds == null || seconds <= 0) return '—';
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${seconds % 60}s`;
+  return `${Math.round(seconds)}s`;
+}
+
+async function pollTraining() {
+  try {
+    const t = await apiCall('/operator/training/status');
+    trainEmpty.style.display = 'none';
+    trainInfo.style.display = 'block';
+
+    document.getElementById('train-status').textContent = t.status || '—';
+    document.getElementById('train-run-id').textContent = (t.run_id || '').replace(/^qwen25vl-qlora-/, '');
+
+    const step = t.current_step ?? 0;
+    const total = t.total_steps ?? 0;
+    document.getElementById('train-step').textContent = total > 0 ? `${step} / ${total}` : `${step}`;
+    const pct = total > 0 ? ((step / total) * 100).toFixed(1) + '%' : '—';
+    document.getElementById('train-pct').textContent = total > 0
+      ? `${pct} · epoch ${(t.current_epoch ?? 0).toFixed(2)}`
+      : `epoch ${(t.current_epoch ?? 0).toFixed(2)}`;
+
+    document.getElementById('train-loss').textContent = t.train_loss != null ? t.train_loss.toFixed(4) : '—';
+    document.getElementById('train-grad').textContent = `grad ${t.grad_norm != null ? t.grad_norm.toFixed(3) : '—'}`;
+    document.getElementById('train-eval').textContent = t.eval_loss != null ? t.eval_loss.toFixed(4) : '—';
+    document.getElementById('train-best-eval').textContent = `best ${t.best_eval_loss != null ? t.best_eval_loss.toFixed(4) : '—'}`;
+
+    document.getElementById('train-temp').textContent = t.gpu_temp_c != null ? `${t.gpu_temp_c.toFixed(0)}°C` : '—';
+    document.getElementById('train-vram').textContent = t.vram_used_gb != null
+      ? `${t.vram_used_gb.toFixed(1)} / ${(t.vram_total_gb || 24).toFixed(0)} GB`
+      : '— GB';
+
+    document.getElementById('train-eta').textContent = fmtETA(t.eta_seconds);
+    document.getElementById('train-sps').textContent = `${(t.steps_per_sec ?? 0).toFixed(2)} steps/s`;
+
+    // Status warnings
+    let warning = '';
+    let kind = '';
+    if (t.stale) {
+      warning = `Heartbeat is ${Math.round(t.heartbeat_age_seconds)}s stale — training process may have crashed. Check outputs/stderr.log.`;
+      kind = 'err';
+    } else if (t.last_error && (t.status === 'failed' || t.status === 'crashed')) {
+      warning = `Last error: ${t.last_error}`;
+      kind = 'err';
+    } else if (t.status === 'completed') {
+      warning = `Run completed at ${t.completed_at}. Run scripts/04_post_finetune_eval.py and scripts/ab_compare_adapters.py to evaluate.`;
+      kind = 'ok';
+    } else if (t.status === 'running' && t.gpu_temp_c != null && t.gpu_temp_c >= 85) {
+      warning = `GPU temp ${t.gpu_temp_c.toFixed(0)}°C is high — risk of thermal throttling. Check chassis airflow.`;
+      kind = 'warn';
+    }
+    if (warning) {
+      trainWarning.className = 'adapter-status shown ' + kind;
+      trainWarning.textContent = warning;
+    } else {
+      trainWarning.className = 'adapter-status';
+      trainWarning.textContent = '';
+    }
+
+  } catch (e) {
+    if (String(e.message).includes('404')) {
+      trainEmpty.style.display = 'block';
+      trainInfo.style.display = 'none';
+      trainEmpty.textContent = 'No training run on this machine yet.';
+    } else {
+      trainEmpty.style.display = 'block';
+      trainInfo.style.display = 'none';
+      trainEmpty.textContent = 'Could not read training status: ' + e.message;
+    }
+  }
+}
+
 // Initial fetches + start streams
 pollNow();
 pollRecent();
+loadAdapters();
+pollTraining();
 startSSE();
 recentTimer = setInterval(pollRecent, RECENT_REFRESH_MS);
+_adapterPollTimer = setInterval(loadAdapters, 30_000);   // adapter list rarely changes
+_trainPollTimer = setInterval(pollTraining, 5_000);      // training metrics every 5s
 
 // Cleanup on navigation
 window.addEventListener('beforeunload', () => {
   stopSSE();
   if (recentTimer) clearInterval(recentTimer);
+  if (_adapterPollTimer) clearInterval(_adapterPollTimer);
+  if (_trainPollTimer) clearInterval(_trainPollTimer);
 });
 </script>
 </body>

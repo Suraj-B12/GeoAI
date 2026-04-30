@@ -264,18 +264,81 @@ python scripts/03_baseline_eval.py --stage 1 --max-samples 1000
 
 **Output:** `eval_results/baseline_results.json`, confusion matrix PNGs
 
-### Phase 4: Fine-Tuning (on A6000)
+### Phase 4: Fine-Tuning (on RTX A5000, 24 GB)
 
-```bash
-# Ensure data prep is done on THIS machine (Phase 1)
-# Then run training:
-llamafactory-cli train configs/qwen25vl_qlora_sft.yaml
+A 12-24h unattended run on Windows. **Do NOT skip the pre-flight steps.**
 
-# Monitor GPU usage in another terminal:
-watch -n 1 nvidia-smi
+```powershell
+# 0. Apply Supabase migration 004 (training_runs heartbeat table)
+#    Paste migrations/004_training_runs.sql into Supabase SQL Editor and Run.
+
+# 1. Install LLaMA-Factory (one time)
+git clone https://github.com/hiyouga/LLaMA-Factory.git LLaMA-Factory-src
+cd LLaMA-Factory-src
+python -m pip install -e ".[torch,metrics]"
+cd ..
+
+# 2. Pre-flight the dataset (catches broken JPEGs, mismatched <image> tags)
+python scripts/preflight_dataset.py
+# MUST exit 0 — fix preflight_problems.txt errors before continuing.
+
+# 3. Make Windows Update wait until after training
+#    Settings -> Windows Update -> Pause for 5 weeks
+#    AND (admin shell): NoAutoRebootWithLoggedOnUsers = 1 in WindowsUpdate\AU registry
+
+# 4a. Foreground (good for first run / debugging — blocks terminal):
+python scripts/train_qlora.py
+
+# 4b. As a Windows service (best for unattended overnight runs):
+choco install nssm                    # one-time
+# Run as Administrator:
+.\scripts\setup_training_service.ps1
+Start-Service QwenTrain               # kick it off
+Get-Content outputs\stdout.log -Wait -Tail 50    # tail logs
+
+# Monitor remotely from any device — query Supabase training_runs:
+#   SELECT run_id, status, current_step, total_steps, train_loss, eval_loss,
+#          gpu_temp_c, vram_used_gb, eta_seconds
+#     FROM training_runs ORDER BY started_at DESC LIMIT 1;
 ```
 
-**Expected:** ~12-24 hours on A6000. Adapter saved to `outputs/qwen25vl-qlora-gaps-rdd/`
+**Resume after a crash / reboot:**
+```powershell
+# Find the latest checkpoint
+ls outputs\qwen25vl-qlora-gaps-rdd\
+# Resume (run_id stays the same so heartbeat updates continue same Supabase row)
+python scripts/train_qlora.py --resume outputs\qwen25vl-qlora-gaps-rdd\checkpoint-2400
+```
+
+**Expected on A5000 4-bit:** ~12-24 hours total. Adapter saved every 200 steps to
+`outputs/qwen25vl-qlora-gaps-rdd/checkpoint-XXXX/`. With `save_total_limit: 3` plus
+the best checkpoint, max disk use is ~10 GB.
+
+### Phase 4.5: Adapter Promotion (manual gate)
+
+After training finishes:
+
+```powershell
+# 1. Re-run baseline-style eval with the new adapter
+python scripts/04_post_finetune_eval.py --adapter-path outputs/qwen25vl-qlora-gaps-rdd/
+
+# 2. Run the A/B comparison — applies promotion criteria
+python scripts/ab_compare_adapters.py
+# Exits 0 if criteria met, prints decision + writes eval_results/ab_comparison_table.md
+
+# 3. If promoted: copy adapter to versioned dir, update .env
+$ts = Get-Date -Format "yyyyMMdd"
+mkdir adapters\v2-rdd-2epochs-$ts
+Copy-Item outputs\qwen25vl-qlora-gaps-rdd\* adapters\v2-rdd-2epochs-$ts\ -Recurse
+# Edit .env: ADAPTER_PATH=adapters/v2-rdd-2epochs-YYYYMMDD
+# Restart server: it now serves the new adapter on the same /classify endpoints.
+```
+
+**Promotion criteria (in `scripts/ab_compare_adapters.py`):**
+- Stage 1 accuracy must improve by ≥ 3 percentage points
+- Stage 2 macro F1 must improve by ≥ 10 percentage points
+- Normal-class precision must NOT regress by more than 5 pp
+- All three must hold simultaneously
 
 ### Phase 5: Post-Fine-Tune Evaluation
 
@@ -803,8 +866,12 @@ Capstone/
 |   +-- 06_incremental_retrain.py      # Retrain on expert corrections
 |   +-- validate_all.py                # 13-test validation suite
 |   +-- setup_machine.py               # Cross-platform automated setup
+|   +-- preflight_dataset.py           # NEW — pre-train check: broken JPEGs, tag mismatches
+|   +-- train_qlora.py                 # NEW — training launcher (heartbeat to Supabase, resume support)
+|   +-- ab_compare_adapters.py         # NEW — A/B promotion gate (baseline vs fine-tuned)
+|   +-- setup_training_service.ps1     # NEW — install training as a Windows service via NSSM
 |   +-- tests/
-|   |   +-- test_pipeline_robustness.py  # NEW — 5-test suite: 404, corrupt, timeout, mid-stop, concurrent
+|   |   +-- test_pipeline_robustness.py  # 5-test suite: 404, corrupt, timeout, mid-stop, concurrent
 +-- app/
 |   +-- main.py                        # FastAPI server (classify + operator endpoints)
 |   +-- model.py                       # PavementClassifier singleton
@@ -825,7 +892,8 @@ Capstone/
 +-- migrations/
 |   +-- 001_operator_pipeline.sql      # adds status enum, RPC functions, worker_state, views
 |   +-- 002_photos_integration.sql     # photos→assessments trigger + backfill
-|   +-- 003_expert_ui_anon_access.sql  # NEW — anon RLS for expert UI + reviewer_name col
+|   +-- 003_expert_ui_anon_access.sql  # anon RLS for expert UI + reviewer_name col
+|   +-- 004_training_runs.sql          # NEW — training heartbeat table (QLoRA progress)
 |   +-- test_data_pending_rows.sql     # smoke-test fixture inserts (test_fixtures URLs)
 +-- test_fixtures/                     # RDD images + corrupt.jpg for ENABLE_TEST_FIXTURES=1 mount
 +-- paper/

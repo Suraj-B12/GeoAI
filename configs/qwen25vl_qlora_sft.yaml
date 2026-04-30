@@ -2,20 +2,18 @@
 ### Qwen2.5-VL-7B QLoRA Fine-Tuning Config for LLaMA-Factory
 ### Pavement Distress Classification (GAPs + RDD combined)
 ###
-### Hardware: NVIDIA A6000 (48GB VRAM)
+### Hardware: NVIDIA RTX A5000 (24 GB VRAM)
 ### Expected training time: ~12-24 hours
+### Effective batch size: 4 * 8 = 32
 ###
 ### BEFORE RUNNING:
-###   1. Copy the Capstone/ project to the A6000 machine
-###   2. Run data prep ON that machine:
-###        cd /path/to/Capstone
-###        python scripts/01_convert_gaps_to_images.py
-###        python scripts/02_build_training_data.py
-###        python scripts/05_setup_training_config.py
-###   3. The last script auto-fills dataset_dir and output_dir below.
+###   1. python scripts/preflight_dataset.py     # MUST pass — catches broken JPEGs
+###   2. python scripts/05_setup_training_config.py  # auto-fills dataset_dir, output_dir
+###   3. Set env: PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True,max_split_size_mb:512
+###   4. Disable Windows Update auto-reboot (see SETUP.md)
+###   5. python -m llamafactory.cli train configs/qwen25vl_qlora_sft.yaml
 ###
-### Usage:
-###   llamafactory-cli train /path/to/Capstone/configs/qwen25vl_qlora_sft.yaml
+### Recovery: pass --resume_from_checkpoint outputs/.../checkpoint-XXXX
 ### ============================================================
 
 ### Model
@@ -31,7 +29,7 @@ lora_rank: 64
 lora_alpha: 128
 lora_dropout: 0.1
 
-### Quantization (QLoRA - 4-bit)
+### Quantization (QLoRA - 4-bit NF4)
 quantization_bit: 4
 quantization_method: bitsandbytes
 
@@ -43,12 +41,22 @@ eval_dataset: combined_valid
 template: qwen2_5_vl
 cutoff_len: 2048
 overwrite_cache: true
-preprocessing_num_workers: 8
+# Windows-safe worker count — 8 caused PIL BadJpegData warnings under file-handle contention
+preprocessing_num_workers: 4
+
+### Image-token caps for Qwen2.5-VL processor
+### Critical for VRAM safety — phone photos at 4032x3024 generate 15k+ visual tokens
+### and OOM the A5000 mid-training. 256 tokens (256*28*28 = 200,704 px) is the
+### official Qwen2.5-VL fine-tuning recommendation for consumer GPUs.
+image_max_pixels: 200704
+image_min_pixels: 50176
 
 ### Output
 output_dir: C:/Users/PRO-LAB-3/Documents/Capstone/outputs/qwen25vl-qlora-gaps-rdd
 logging_steps: 50
-save_steps: 500
+# Drop from 500 to 200 — Windows Update can wipe up to (save_steps * step_time)
+# of work. With 200 we lose at most ~1.4h on a hard reboot vs ~3.5h before.
+save_steps: 200
 save_total_limit: 3
 plot_loss: true
 overwrite_output_dir: true
@@ -62,6 +70,14 @@ num_train_epochs: 2
 lr_scheduler_type: cosine
 warmup_ratio: 0.1
 bf16: true
+# QLoRA-paper canonical value. Default is 1.0 which is borderline-unstable
+# with rank-64 LoRA + alpha-128 (effective scaling factor 2.0). 0.3 is what
+# Bavest/fin-llama and the original QLoRA paper use.
+max_grad_norm: 0.3
+
+### Reproducibility
+seed: 42
+data_seed: 42
 
 ### Evaluation + early stopping
 eval_strategy: steps
@@ -70,10 +86,16 @@ save_strategy: steps
 load_best_model_at_end: true
 metric_for_best_model: eval_loss
 greater_is_better: false
+# load_best_model_at_end only RESTORES the best at end — it does not STOP
+# training when eval_loss diverges. This callback actually stops the run.
+early_stopping_patience: 3      # 3 evals * 500 steps = 1500-step grace window
+early_stopping_threshold: 0.005
 
-### Regularization (prevents overfitting)
+### Regularization (anti-overfit stack)
 weight_decay: 0.05
-label_smoothing_factor: 0.1
+# Dropped from 0.1 — softens structured-output target distribution and
+# hurts exact-match parsing on "DISTRESS_TYPES: ..." responses.
+label_smoothing_factor: 0.05
 neftune_noise_alpha: 5.0
 
 ### Freeze vision tower (standard for VLM LoRA fine-tuning)
@@ -81,7 +103,10 @@ freeze_vision_tower: true
 
 ### Performance & Acceleration
 flash_attn: fa2
-enable_liger_kernel: true
+# CRITICAL: Liger Kernel patches linear layers that QLoRA needs to adapt.
+# With quantization_bit=4, Liger either errors at startup or silently
+# disables itself. Per LLaMA-Factory FAQ — incompatible with QLoRA.
+enable_liger_kernel: false
 gradient_checkpointing: true
 optim: adamw_8bit
 ddp_timeout: 1800

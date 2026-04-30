@@ -41,6 +41,16 @@ fail_inspect.jpg
 # 60+MB binary, downloaded separately
 cloudflared.exe
 
+# Third-party source clone — installed in editable mode, not our code
+LLaMA-Factory-src/
+
+# Training run artifacts (regenerated each run)
+outputs/training_run.json
+outputs/training_run_history.jsonl
+outputs/stdout.log
+outputs/stderr.log
+preflight_problems.txt
+
 # ============================================================
 # Raw datasets (multi-GB, downloaded separately)
 # ============================================================

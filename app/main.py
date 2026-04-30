@@ -640,6 +640,148 @@ async def operator_inflight(request: Request, id: str):
         raise HTTPException(status_code=502, detail=f"Supabase fetch failed: {e}")
 
 
+# ============================================================
+# Adapter management — list / switch / inspect LoRA adapters
+# ============================================================
+ADAPTER_SEARCH_DIRS = [
+    PROJECT_ROOT / "adapters",
+    PROJECT_ROOT / "outputs",
+]
+HEARTBEAT_PATH = PROJECT_ROOT / "outputs" / "training_run.json"
+HEARTBEAT_HISTORY = PROJECT_ROOT / "outputs" / "training_run_history.jsonl"
+
+
+def _list_adapter_dirs() -> list[dict]:
+    """Find all directories that look like LoRA adapters (have adapter_config.json).
+
+    Searches `adapters/*/` (versioned) and `outputs/*/` (raw training output).
+    Returns each as a dict with name, path, has_metadata, metadata (if any).
+    """
+    found = []
+    for base in ADAPTER_SEARCH_DIRS:
+        if not base.is_dir():
+            continue
+        for sub in sorted(base.iterdir()):
+            if not sub.is_dir():
+                continue
+            cfg = sub / "adapter_config.json"
+            # The training output dir contains checkpoint-XXXX subdirs PLUS
+            # the merged final adapter at the top level. Detect the top-level one.
+            if cfg.exists():
+                meta_path = sub / "metadata.json"
+                meta = None
+                if meta_path.exists():
+                    try:
+                        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+                    except Exception:
+                        meta = None
+                found.append({
+                    "name": sub.name,
+                    "path": str(sub.relative_to(PROJECT_ROOT)).replace("\\", "/"),
+                    "has_metadata": meta is not None,
+                    "metadata": meta,
+                })
+    return found
+
+
+@app.get("/operator/adapters", dependencies=[Depends(verify_api_key)])
+@limiter.limit("60/minute")
+async def operator_list_adapters(request: Request):
+    """List all LoRA adapter directories the operator could switch to."""
+    classifier = get_classifier()
+    return JSONResponse({
+        "active": classifier.adapter_path,
+        "available": _list_adapter_dirs(),
+    })
+
+
+@app.get("/operator/adapters/active", dependencies=[Depends(verify_api_key)])
+async def operator_active_adapter(request: Request):
+    """Tiny endpoint for the dashboard to poll the current adapter path."""
+    classifier = get_classifier()
+    return JSONResponse({
+        "adapter_path": classifier.adapter_path,
+        "model_path": classifier.model_path,
+        "quantization_bits": classifier.quantization_bits,
+        "device": classifier.device,
+    })
+
+
+@app.post("/operator/adapters/switch", dependencies=[Depends(verify_api_key)])
+@limiter.limit("4/minute")  # hot-swap is expensive (~30s) and disruptive
+async def operator_switch_adapter(request: Request):
+    """Hot-swap the loaded LoRA adapter.
+
+    Body: {"adapter_path": str | null}
+        null or empty string -> revert to base model (no adapter)
+        string path          -> load that adapter
+
+    Path must be under the project root. Path is validated before the old
+    model is torn down — bad input doesn't leave us with no model loaded.
+
+    Worker is paused for the duration of the swap (the singleton's lock
+    blocks predict_stage1/2 until reload completes).
+    """
+    body = await request.json()
+    new_path: str | None = body.get("adapter_path")
+    if new_path == "":
+        new_path = None
+
+    # Reject paths outside the project (anti-traversal)
+    if new_path:
+        from pathlib import Path
+        p = (PROJECT_ROOT / new_path).resolve()
+        if PROJECT_ROOT.resolve() not in p.parents and p != PROJECT_ROOT.resolve():
+            raise HTTPException(status_code=400, detail="adapter_path must be inside project root")
+
+    classifier = get_classifier()
+    try:
+        # Run in thread pool so the event loop stays responsive while the
+        # old model is freed and the new one is loaded.
+        result = await asyncio.to_thread(classifier.reload_adapter, new_path)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"reload failed: {e}")
+
+    return JSONResponse(result)
+
+
+# ============================================================
+# Training run progress — local file heartbeat
+# ============================================================
+@app.get("/operator/training/status", dependencies=[Depends(verify_api_key)])
+@limiter.limit("60/minute")
+async def operator_training_status(request: Request):
+    """Read the local training_run.json heartbeat written by scripts/train_qlora.py.
+
+    Returns the latest snapshot, or 404 if no training has ever run.
+    Stale snapshots (>5 min since last heartbeat) get a `stale: true` flag
+    so the UI can warn the operator that the training process may have died.
+    """
+    if not HEARTBEAT_PATH.exists():
+        raise HTTPException(status_code=404, detail="no training run on this machine")
+    try:
+        snapshot = json.loads(HEARTBEAT_PATH.read_text(encoding="utf-8"))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"heartbeat unreadable: {e}")
+
+    # Stale check
+    from datetime import datetime, timezone
+    snapshot["stale"] = False
+    last = snapshot.get("last_heartbeat_at") or snapshot.get("updated_at")
+    if last and snapshot.get("status") in ("running", "starting"):
+        try:
+            t = datetime.fromisoformat(last.replace("Z", "+00:00"))
+            age = (datetime.now(timezone.utc) - t).total_seconds()
+            snapshot["heartbeat_age_seconds"] = age
+            if age > 300:  # 5 min
+                snapshot["stale"] = True
+        except Exception:
+            pass
+    return JSONResponse(snapshot)
+
+
 @app.get("/operator/metrics/stream", dependencies=[Depends(verify_api_key)])
 async def operator_metrics_stream(request: Request, interval_seconds: float = 2.0):
     """

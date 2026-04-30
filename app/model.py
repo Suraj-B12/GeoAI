@@ -49,6 +49,7 @@ class PavementClassifier:
     ):
         self.model_path = model_path
         self.adapter_path = adapter_path
+        self.quantization_bits = quantization_bits   # remember for reload
         self._lock = threading.Lock()
         self._model = None
         self._processor = None
@@ -60,6 +61,61 @@ class PavementClassifier:
         self._distress_token_ids = []
 
         self._load_model(quantization_bits)
+
+    def reload_adapter(self, new_adapter_path: str | None) -> dict:
+        """Hot-swap the LoRA adapter without restarting the server.
+
+        Tears down the current model entirely (PeftModel + base model)
+        and rebuilds from scratch with the new adapter. Safer than
+        peft's set_adapter()/load_adapter() which has edge cases on
+        4-bit quantized bases (peft #2586 territory). Takes ~30s.
+
+        new_adapter_path:
+            - None or "" -> base model only (no adapter)
+            - path to dir with adapter_config.json -> load that adapter
+
+        Returns: {"adapter_path": str|None, "device": str, "loaded_at": iso}
+        """
+        from datetime import datetime, timezone
+
+        new_adapter_path = new_adapter_path or None
+        if new_adapter_path is not None:
+            # Validate the directory has the right files BEFORE tearing
+            # down the working model. A bad path here would otherwise leave
+            # us with no model loaded.
+            from pathlib import Path
+            p = Path(new_adapter_path)
+            if not p.is_dir():
+                raise ValueError(f"adapter path is not a directory: {new_adapter_path}")
+            if not (p / "adapter_config.json").exists():
+                raise ValueError(
+                    f"adapter path missing adapter_config.json: {new_adapter_path}"
+                )
+
+        with self._lock:
+            print(f"[PavementClassifier] Hot-swap adapter: {self.adapter_path!r} -> {new_adapter_path!r}")
+
+            # Free the old model BEFORE loading the new one — otherwise we
+            # need 2x VRAM for the swap moment. Drop refs + empty cache.
+            self._model = None
+            self._processor = None
+            self._loaded = False
+            try:
+                import gc
+                gc.collect()
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+            except Exception:
+                pass
+
+            self.adapter_path = new_adapter_path
+            self._load_model(self.quantization_bits)
+
+        return {
+            "adapter_path": self.adapter_path,
+            "device": self._device,
+            "loaded_at": datetime.now(timezone.utc).isoformat(),
+        }
 
     def _load_model(self, quantization_bits: int) -> None:
         """Load model, processor, and cache target token IDs."""
