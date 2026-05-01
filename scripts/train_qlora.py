@@ -381,21 +381,29 @@ def main() -> int:
         except Exception:
             total_epochs = 2
 
-        # Inject our callback by patching the trainer's callback list
-        # via the Hugging Face Transformers Trainer's add_callback API.
-        # LLaMA-Factory's run_exp() builds the trainer internally — we
-        # patch via a monkey-patch on transformers.Trainer.__init__.
+        # Inject our callbacks by patching the Trainer init. LLaMA-Factory's
+        # run_exp() builds the trainer internally — patching __init__ is the
+        # cleanest way to attach extras without forking LF.
         from transformers import Trainer as HFTrainer
+        from transformers import EarlyStoppingCallback
         original_init = HFTrainer.__init__
-        callback = make_heartbeat_callback(hb, total_epochs)
+        heartbeat_cb = make_heartbeat_callback(hb, total_epochs)
+        # Early-stopping: stop when eval_loss hasn't improved by >= 0.005 for
+        # 3 consecutive evals (eval_strategy='steps', eval_steps=500 in YAML
+        # → ~1500 steps grace window). Doesn't require load_best_model_at_end.
+        early_stop_cb = EarlyStoppingCallback(
+            early_stopping_patience=3,
+            early_stopping_threshold=0.005,
+        )
 
         def patched_init(self, *a, **kw):
             original_init(self, *a, **kw)
             try:
-                self.add_callback(callback)
-                print("  [hb] Heartbeat callback attached to Trainer")
+                self.add_callback(heartbeat_cb)
+                self.add_callback(early_stop_cb)
+                print("  [hb] Heartbeat + EarlyStopping callbacks attached")
             except Exception as e:
-                print(f"  [hb] Failed to attach callback: {e}")
+                print(f"  [hb] Failed to attach callbacks: {e}")
         HFTrainer.__init__ = patched_init
 
         # Hand off to LLaMA-Factory
