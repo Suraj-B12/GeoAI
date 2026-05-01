@@ -65,9 +65,13 @@ plot_loss: true
 overwrite_output_dir: true
 
 ### Training hyperparameters
-per_device_train_batch_size: 4
-per_device_eval_batch_size: 4
-gradient_accumulation_steps: 8
+# Per-device batch dropped 4 -> 2 after empirical OOM at step 1 on A5000 24GB.
+# Cross-entropy log_softmax materializes [batch * seq * vocab=152k * fp32] ~=
+# 5GB just for the logits tensor at batch=4 + seq=2048. Halving keeps the
+# effective batch at 2 * 16 = 32 (unchanged) but halves activation memory.
+per_device_train_batch_size: 2
+per_device_eval_batch_size: 2
+gradient_accumulation_steps: 16
 learning_rate: 1.0e-4
 num_train_epochs: 2
 lr_scheduler_type: cosine
