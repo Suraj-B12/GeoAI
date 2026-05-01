@@ -25,8 +25,13 @@ stage: sft
 do_train: true
 finetuning_type: lora
 lora_target: all
-lora_rank: 64
-lora_alpha: 128
+# Halved from 64 -> 32 after empirical OOM at step 9 (first optimizer step).
+# 161M trainable params × adamw state was pushing 23.5/24 GB usage. Rank 32
+# gives ~80M trainable params. lora_alpha kept at 2*rank for same effective
+# scaling factor (2.0). For domain-specific QLoRA on a 7B base, rank 32
+# is the canonical recipe; rank 64 is luxury.
+lora_rank: 32
+lora_alpha: 64
 lora_dropout: 0.1
 
 ### Quantization (QLoRA - 4-bit NF4)
@@ -131,6 +136,9 @@ flash_attn: fa2
 # disables itself. Per LLaMA-Factory FAQ — incompatible with QLoRA.
 enable_liger_kernel: false
 gradient_checkpointing: true
-optim: adamw_8bit
+# paged_adamw_8bit pages optimizer state to CPU memory when VRAM is tight.
+# This is the canonical QLoRA paper optimizer for 24GB-and-below GPUs.
+# Speed cost ~5%, VRAM savings ~30%.
+optim: paged_adamw_8bit
 ddp_timeout: 1800
 report_to: none
