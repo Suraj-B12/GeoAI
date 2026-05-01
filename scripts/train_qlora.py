@@ -57,12 +57,15 @@ def preflight_environment() -> None:
     print("Pre-flight environment checks")
     print("=" * 70)
 
-    # Set CUDA allocator hints if not already
-    cuda_alloc = os.environ.get("PYTORCH_CUDA_ALLOC_CONF", "")
-    desired = "expandable_segments:True,max_split_size_mb:512"
-    if "expandable_segments" not in cuda_alloc:
-        os.environ["PYTORCH_CUDA_ALLOC_CONF"] = desired
-        print(f"  Set PYTORCH_CUDA_ALLOC_CONF={desired}")
+    # CUDA allocator hints — expandable_segments avoids fragmentation,
+    # max_split_size_mb=128 (down from 512) keeps the allocator from
+    # carving large blocks that get stranded mid-run. Empirically this
+    # was the trigger for runaway step times (step 9+ ballooning to 400s+
+    # on A5000 24GB) — the allocator had ~250MB free but couldn't find a
+    # contiguous block large enough for the next activation.
+    desired = "expandable_segments:True,max_split_size_mb:128"
+    os.environ["PYTORCH_CUDA_ALLOC_CONF"] = desired
+    print(f"  Set PYTORCH_CUDA_ALLOC_CONF={desired}")
 
     # Disable HF tokenizer fork warning spam
     os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
