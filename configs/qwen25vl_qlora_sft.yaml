@@ -38,7 +38,10 @@ quantization_method: bitsandbytes
 dataset_dir: C:/Users/PRO-LAB-3/Documents/Capstone/data
 dataset: combined_train
 eval_dataset: combined_valid
-template: qwen2_5_vl
+# Current LLaMA-Factory unified Qwen2-VL and Qwen2.5-VL under one template
+# (same chat format + <|image_pad|> token). 'qwen2_5_vl' was a separate
+# template in older LF versions but no longer exists.
+template: qwen2_vl
 cutoff_len: 2048
 overwrite_cache: true
 # Windows-safe worker count — 8 caused PIL BadJpegData warnings under file-handle contention
