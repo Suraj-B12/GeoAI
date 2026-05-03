@@ -461,25 +461,53 @@ def _checkpoint_path(tag: str) -> Path:
 
 
 def _save_checkpoint(path: Path, data: dict):
-    """Atomically save checkpoint — write to temp file then rename."""
-    tmp = path.with_suffix(".tmp")
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(data, f)
-    tmp.replace(path)
+    """Save checkpoint with .bak fallback for crash safety.
+
+    Atomic rename via Path.replace() is unreliable on Windows when any other
+    process (Search Indexer, Defender, OneDrive, an open File Explorer window)
+    has even a read handle on the destination — confirmed empirically.
+    Instead: rename current json -> .bak (cheap rename, doesn't need write
+    access on the target), then write fresh json. If we crash mid-write the
+    .bak from the previous successful save survives.
+
+    Save failures are non-fatal: a transient file lock should not kill a 6h+
+    eval run. We log the warning and continue — the eval state stays in RAM
+    and the next interval will retry.
+    """
+    bak = path.with_suffix(".json.bak")
+    try:
+        if path.exists():
+            try:
+                if bak.exists():
+                    bak.unlink()
+                path.rename(bak)
+            except OSError:
+                # If we can't rotate the bak, just overwrite directly
+                pass
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f)
+    except OSError as e:
+        print(f"  [warn] checkpoint save failed: {e} — continuing in-memory only")
 
 
 def _load_checkpoint(path: Path) -> dict | None:
-    """Load checkpoint if it exists and is valid."""
-    if not path.exists():
-        return None
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        # Sanity check
-        if "resume_index" in data and "y_true_primary" in data:
-            return data
-    except (json.JSONDecodeError, OSError, KeyError):
-        pass
+    """Load checkpoint, falling back to .json.bak if the primary is missing/corrupt."""
+    candidates = [path]
+    bak = path.with_suffix(".json.bak")
+    if bak.exists():
+        candidates.append(bak)
+    for cand in candidates:
+        if not cand.exists():
+            continue
+        try:
+            with open(cand, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if "resume_index" in data and "y_true_primary" in data:
+                if cand != path:
+                    print(f"  [info] primary checkpoint unreadable, falling back to {cand.name}")
+                return data
+        except (json.JSONDecodeError, OSError, KeyError):
+            continue
     return None
 
 
