@@ -219,19 +219,23 @@ After commit 7, training reached step 500 cleanly (verified 2026-05-01).
 
 ### 5.2 Empirical step-time profile
 
-From `outputs/training_run_history.jsonl` (full record of every heartbeat):
+From `outputs/training_run_history.jsonl` (full record of every heartbeat) and `outputs/qwen25vl-qlora-gaps-rdd/trainer_state.json` (eval rounds).
 
-| Step | Train loss | Steps/sec | s/step | VRAM used (GB) | GPU temp (°C) |
-|---|---|---|---|---|---|
-| 80 | 0.1192 | 0.046 | 21.7 | 19.88 | 84 |
-| 200 | 0.0661 | 0.026 | 38.5 | n/a | 85 |
-| 320 | 0.0687 | 0.043 | 23.3 | 23.4 | 85 |
-| 400 | 0.0639 | 0.039 | 25.6 | n/a | 85 |
-| 420 | 0.0468 | 0.031 | 32.2 | 23.47 | 84 |
-| 440 | 0.0628 | 0.024 | 41.5 | 23.38 | 76 |
-| 460 | 0.0597 | 0.031 | 32.4 | 23.23 | 82 |
-| 480 | 0.0466 | 0.045 | 22.2 | 21.74 | 85 |
-| 500 | 0.0555 | 0.022 | 45.1 (eval running) | 19.82 | 85 |
+Train-side losses across the run:
+
+| Step | Train loss | Steps/sec | VRAM used (GB) | GPU temp (°C) |
+|---|---|---|---|---|
+| 80 | 0.1192 | 0.046 | 19.88 | 84 |
+| 200 | 0.0661 | 0.026 | n/a | 85 |
+| 320 | 0.0687 | 0.043 | 23.4 | 85 |
+| 400 | 0.0639 | 0.039 | n/a | 85 |
+| 420 | 0.0468 | 0.031 | 23.47 | 84 |
+| 460 | 0.0597 | 0.031 | 23.23 | 82 |
+| 500 | 0.0555 | 0.022 | 19.82 | 85 |
+| 1000 | 0.0557 | (eval round) | 19.8 | 85 |
+| 1500 | 0.0445 | — | — | — |
+| 2000 | 0.0406 | — | — | — |
+| 2500 | 0.0439 | — | — | — |
 
 Source: `outputs/training_run_history.jsonl` (one line per logged step). Script to reproduce the table:
 
@@ -250,9 +254,39 @@ with open('outputs/training_run_history.jsonl') as f:
 
 - **Steps 1-16 stable at 22-25 s/step** before any cache-clear — confirms the model + activations + optimizer DO fit in 24 GB headroom-tight.
 - **Steps 17-25 ballooned to 47s, 88s, 117s, 168s, 259s, 330s** — pure allocator fragmentation. Same VRAM in use, but blocks getting stranded.
-- **After `torch_empty_cache_steps: 4` was added**: 320 steps run with no degradation (current state at handoff).
-- **GPU temperature stayed below 88°C throttle line** (max observed: 85°C) — cooling adequate.
+- **After `torch_empty_cache_steps: 4` was added**: ran cleanly to step 2500.
+- **GPU temperature stayed below 88°C throttle line** (max observed: 85°C) — cooling adequate over 43-hour training run.
 - **VRAM oscillated 19.8 → 23.5 GB** between cache clears — proves the cache-clear is working (memory is being released and reclaimed).
+
+### 5.4 Eval loss trajectory + early stopping
+
+From `outputs/qwen25vl-qlora-gaps-rdd/trainer_state.json` `log_history`:
+
+| Step | Epoch | Eval loss | Train loss | Notes |
+|---|---|---|---|---|
+| 500 | 0.21 | 0.0603 | 0.0555 | Initial eval — already lower than train |
+| 1000 | 0.42 | **0.0485** | 0.0557 | Strong drop |
+| 1500 | 0.62 | **0.04775** | 0.0445 | **Best eval loss achieved** |
+| 2000 | 0.83 | 0.0633 | 0.0406 | Eval rises — train falls — overfitting |
+| 2500 | 1.04 | 0.0655 | 0.0439 | Eval rises again → **EarlyStoppingCallback fires** |
+
+Training halted at step 2500 / 4806 (52% of planned). 1.04 of 2 planned epochs completed.
+
+**Best checkpoint: step 1500** with `eval_loss=0.04775287`. However, due to `save_total_limit: 3`, only checkpoints 1000, 2200, 2400 were retained on disk — checkpoint-1500 was deleted to make room. The closest-available best checkpoint is **`checkpoint-1000` with eval_loss=0.04847** (only 0.001 worse than the unreachable optimum).
+
+The trainer's `best_global_step` field correctly records 1500. The `best_model_checkpoint` field falls back to `checkpoint-1000` (the highest-numbered surviving checkpoint at-or-below the best step).
+
+**For deployment we use `checkpoint-1000`** (the nearest available best). This is the adapter that will be evaluated in §6 and §7.
+
+### 5.5 Total training wall-clock
+
+| Item | Value |
+|---|---|
+| Started | 2026-05-01T05:16:01Z |
+| Completed | 2026-05-03T00:42:56Z |
+| **Total wall-clock** | **~43h 27m** |
+| Steps completed | 2500 / 4806 (52% of planned, halted by early stopping) |
+| Avg seconds/step | ~62.6 (includes eval overhead at steps 500, 1000, 1500, 2000, 2500) |
 
 ---
 

@@ -17,17 +17,28 @@ End-to-end system: phone app (RoadSide) → Cloudinary + Supabase → AI pipelin
 
 ## Where we are in the work
 
-QLoRA fine-tuning is **currently running** on the RTX A5000. Expected to finish in ~40 hours from when this file was written. Phases:
-
 | Phase | Status |
 |---|---|
 | Phase 1: Baseline eval (Qwen2.5-VL-7B raw) on RDD test set | DONE — `eval_results/baseline_results.json` |
-| Phase 2a: QLoRA fine-tuning | **RUNNING** as of 2026-05-01T05:16Z |
-| Phase 2b: Post-finetune eval | PENDING (run after 2a completes) |
-| Phase 2c: A/B promotion gate | PENDING |
+| Phase 2a: QLoRA fine-tuning | **DONE** — early-stopped at step 2500/4806, best checkpoint at `outputs/qwen25vl-qlora-gaps-rdd/checkpoint-1000/` (eval_loss 0.0485) |
+| Phase 2b: Post-finetune eval | **RUNNING** as of handoff (started 2026-05-03, ~10h estimated) |
+| Phase 2c: A/B promotion gate | PENDING (auto-trigger after 2b) |
 | Phase 2d: Hot-swap adapter into operator pipeline | PENDING (UI ready) |
 | Phase 3: Expert-in-the-loop retrain | NOT STARTED |
 | Phase 4: WebGIS layer | HANDED OFF — `paper/WEBGIS_HANDOFF_BRIEF.md` |
+
+### Phase 2a finished (training is over)
+
+- Halted at step 2500 / 4806 by `EarlyStoppingCallback` (eval loss had risen for 3 consecutive evals)
+- Best eval loss = 0.04775 at step 1500, but `checkpoint-1500` was pruned by `save_total_limit: 3`
+- Closest surviving best = **`checkpoint-1000` (eval loss 0.0485)** — what we deploy
+- Total training wall-clock: ~43h 27m
+- Final adapter on disk (`outputs/qwen25vl-qlora-gaps-rdd/adapter_model.safetensors`) corresponds to step 2500 and is OVERFIT (eval 0.0655) — **don't deploy that**, use checkpoint-1000
+
+Eval-loss curve (from `trainer_state.json`):
+```
+step  500: 0.0603   step 1000: 0.0485   step 1500: 0.0478   step 2000: 0.0633   step 2500: 0.0655
+```
 
 ---
 
@@ -73,21 +84,23 @@ If `status == "failed"` or `"crashed"`, OR if `last_heartbeat_at` is more than ~
 
 ---
 
-## Phase 2b — Post-finetune evaluation (run when training completes)
+## Phase 2b — Post-finetune evaluation (RUNNING)
 
-The point: produce comparable numbers to the baseline so we can compute the delta.
+This was started by the previous session. **It is currently running in the background** as of handoff.
 
 ```powershell
-cd C:\Users\PRO-LAB-3\Documents\Capstone
-venv\Scripts\activate
-
-# Re-run the same eval but with the adapter loaded
-python scripts/04_post_finetune_eval.py --adapter-path outputs/qwen25vl-qlora-gaps-rdd/
-
-# Output goes to eval_results/finetuned_results.json (same shape as baseline_results.json)
+# Already running:
+python scripts/04_post_finetune_eval.py --adapter-path outputs/qwen25vl-qlora-gaps-rdd/checkpoint-1000
 ```
 
-This takes ~10 hours (Stage 1 ~1.5h on 10k GAPs images, Stage 2 ~8.5h on 5,758 RDD test images). Has its own checkpoint resumption baked in (saves every 50 images to `eval_results/.stage*_checkpoint_finetuned.json`).
+Note the `checkpoint-1000` path — this is the best surviving checkpoint (see Phase 2a section). **Do not** point at the parent dir (`outputs/qwen25vl-qlora-gaps-rdd/`) because that loads the OVERFIT step-2500 adapter.
+
+Estimated runtime: ~10 hours total (Stage 1 ~1.5h on 10k GAPs images, Stage 2 ~8.5h on 5,758 RDD test images). Has its own checkpoint resumption baked in (saves every 50 images to `eval_results/.stage*_checkpoint_finetuned.json`).
+
+**To check progress:** look for the latest progress lines in the launching shell, or check `eval_results/`:
+- During Stage 1: `eval_results/.stage1_checkpoint_finetuned.json` updates every 50 images
+- After Stage 1 completes: `eval_results/finetuned_results.json` has Stage 1 numbers; Stage 2 runs next
+- After both: full `eval_results/finetuned_results.json` + `confusion_matrices/finetuned_*.png`
 
 If the system crashes during eval, just re-run the same command — it picks up from the checkpoint.
 
