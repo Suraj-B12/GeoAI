@@ -631,16 +631,27 @@ def evaluate_stage2(model, processor, max_samples: int = 0, tag: str = "baseline
                 "total_time": total_time,
                 "total_samples": len(test_data),
             })
+            # Deep memory clean every checkpoint interval — prevents the
+            # allocator-fragmentation slowdown empirically observed during long
+            # eval runs on the A5000 (step time ballooning 5s -> 60s+ around
+            # sample 3850 of Stage 2). gc.collect() releases Python refs to
+            # tensors; empty_cache() then returns CUDA memory to the allocator.
+            import gc
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
             running_acc = accuracy_score(y_true_primary, y_pred_primary)
             avg_time = total_time / len(y_true_primary)
             print(f"  [{i+1}/{len(test_data)}] Acc: {running_acc:.4f} | "
-                  f"Avg: {avg_time:.2f}s/img | Checkpoint saved")
+                  f"Avg: {avg_time:.2f}s/img | Checkpoint saved + cache cleared",
+                  flush=True)
 
         elif (i + 1) % 100 == 0:
             running_acc = accuracy_score(y_true_primary, y_pred_primary)
             avg_time = total_time / len(y_true_primary)
             print(f"  [{i+1}/{len(test_data)}] Acc: {running_acc:.4f} | "
-                  f"Avg: {avg_time:.2f}s/img | Errors: {error_count} | Skipped: {skipped_count}")
+                  f"Avg: {avg_time:.2f}s/img | Errors: {error_count} | Skipped: {skipped_count}",
+                  flush=True)
 
     # --- Final checkpoint (covers Ctrl+C case too) ---
     final_index = i + 1 if len(test_data) > 0 else resume_index
