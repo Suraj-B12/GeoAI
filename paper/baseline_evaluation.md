@@ -477,35 +477,56 @@ The base model's Stage 2 performance reveals a fundamental limitation of zero-sh
 
 ### 6.2 Fine-Tuned Results (Post-QLoRA Training)
 
-> **[TO BE FILLED — Phase 2]**
-> After fine-tuning on combined GAPs + RDD training data.
+QLoRA fine-tuned `Qwen2.5-VL-7B-Instruct` with rank-32 LoRA adapter, 2-epoch schedule, paged 8-bit AdamW, on the combined GAPs+RDD training set. Training wall-clock 43h 27m on RTX A5000 24 GB. Best surviving checkpoint: `checkpoint-1000` (eval_loss 0.0485). All numbers verified in `eval_results/finetuned_results.json` and `eval_results/ab_comparison.json`.
 
 #### 6.2.1 Stage 1: Binary Detection (Fine-Tuned)
 
 | Metric | Baseline | Fine-Tuned | Delta |
 |---|---|---|---|
-| Overall Accuracy | 76.53% | ___ | ___ |
-| Precision (macro) | 84.36% | ___ | ___ |
-| Recall (macro) | 70.92% | ___ | ___ |
-| F1-Score (macro) | 71.44% | ___ | ___ |
-| Distress Recall | 42.88% | ___ | ___ |
+| Overall Accuracy | 76.53% | **88.39%** | **+11.86 pp** |
+| Precision (macro) | 84.36% | 90.87% | +6.51 pp |
+| Recall (macro) | 70.92% | 85.85% | +14.93 pp |
+| F1-Score (macro) | 71.44% | **87.25%** | **+15.82 pp** |
+| Normal Recall | 98.97% | 98.55% | -0.42 pp (held) |
+| **Distress Recall** | **42.88%** | **73.15%** | **+30.27 pp** |
+| Distress Precision | 96.51% | 97.11% | +0.60 pp (held) |
+
+The Normal-bias documented in §6.1.1 is fixed. Distress recall climbed from 42.88% (missed 57% of damaged roads) to 73.15% (catches ~3 in 4) without sacrificing Distress precision (96.51% → 97.11%, essentially unchanged). The model is no longer afraid to label damage as damage.
 
 #### 6.2.2 Stage 2: In-Distribution Type Classification (Fine-Tuned, RDD Test Set)
 
 | Metric | Baseline | Fine-Tuned | Delta |
 |---|---|---|---|
-| Primary Accuracy | 48.66% | ___ | ___ |
-| F1-Score (macro) | 20.71% | ___ | ___ |
-| Exact Match Rate | 34.40% | ___ | ___ |
+| Primary Accuracy | 48.66% | **66.06%** | **+17.40 pp** |
+| F1-Score (macro) | 20.71% | **40.32%** | **+19.61 pp** |
+| Exact Match Rate | 34.40% | 52.76% | +18.36 pp |
+| Avg inference time | 5.32 s/img | 15.70 s/img | longer (more complete responses, see §6.5) |
 
-**Per-Class Comparison:**
+**Per-Class Comparison (recall):**
 
 | Class | Baseline Recall | Fine-Tuned Recall | Delta |
 |---|---|---|---|
-| D00 (Longitudinal) | 72.50% | ___ | ___ |
-| D10 (Transverse) | 0.00% | ___ | ___ |
-| D20 (Alligator) | 2.57% | ___ | ___ |
-| D40 (Pothole) | 1.94% | ___ | ___ |
+| Unparseable / Normal | 64.12% | 94.73% | +30.61 pp |
+| D00 Longitudinal | 72.50% | 71.78% | -0.72 pp (held) |
+| D10 Transverse | 0.00% | 1.72% | +1.72 pp (still hard) |
+| **D20 Alligator** | **2.57%** | **35.22%** | **+32.65 pp** |
+| **D40 Pothole** | **1.94%** | **34.56%** | **+32.61 pp** |
+
+**The headline finding:** D20 (alligator cracking) and D40 (potholes) — the two classes that were essentially unrecognized by the baseline — both gained more than 30 percentage points of recall. The model went from detecting 1 in 39 alligator cracks and 1 in 51 potholes to roughly 1 in 3 of each. This is the single most impactful change in the project and validates the central hypothesis that domain-specific fine-tuning fixes catastrophic class blindness without retraining the vision encoder.
+
+D10 (transverse cracks) remains a failure mode. Hypothesis: discriminating longitudinal vs transverse from visual evidence requires orientation-specific reasoning that the model does not fully acquire from 26,869 RDD training examples. Future work could close this with explicit orientation augmentation or a dedicated D00↔D10 discrimination loss.
+
+#### 6.2.3 Promotion Gate Decision
+
+The fine-tuned adapter cleared all three production-promotion thresholds defined in `scripts/ab_compare_adapters.py`:
+
+| Criterion | Threshold | Actual | Pass |
+|---|---|---|---|
+| Stage 1 accuracy improvement | ≥ +3.0 pp | +11.86 pp | ✅ |
+| Stage 2 macro F1 improvement | ≥ +10.0 pp | +19.61 pp | ✅ |
+| Normal-class precision regression | ≥ −5.0 pp | +12.42 pp | ✅ |
+
+The adapter was promoted to `adapters/v2-rdd-2epochs-20260507/` and pointed at via `ADAPTER_PATH` in the production environment.
 
 ### 6.3 Cross-Dataset Generalization (Attain Dataset)
 
@@ -545,8 +566,6 @@ The base model's Stage 2 performance reveals a fundamental limitation of zero-sh
 
 ## 7. Discussion
 
-> **[TO BE EXPANDED after Phases 2 and 3]**
-
 ### 7.1 Baseline Performance Interpretation
 
 The baseline results establish that a general-purpose VLM (Qwen2.5-VL-7B) has some capability for pavement assessment but falls far short of practical deployment:
@@ -562,13 +581,38 @@ The 48.66% accuracy (above 20% random) is attributable to:
 2. **Visual-semantic pre-training:** The VLM's pre-trained alignment between visual features and text enables partial recognition of obvious patterns (cracks)
 3. **D00 bias:** "Longitudinal crack" is the most generic and visually common crack type, serving as a default when the model recognizes crack-like patterns
 
-### 7.3 Expected Impact of Fine-Tuning
+### 7.3 Empirical Impact of Fine-Tuning
 
-Based on the baseline failure patterns, fine-tuning should specifically improve:
-1. **D10 (Transverse) recall** from 0% — the model needs training data showing orientation matters
-2. **D20 (Alligator) recall** from 2.57% — the interconnected crack pattern is distinctive but needs explicit examples
-3. **D40 (Pothole) recall** from 1.94% — depth/shadow cues need to be learned for bowl-shaped depressions
-4. **Unparseable rate** from 34.24% — fine-tuning on the exact output format reduces format violations
+Three of the four predictions in the original Phase 1 plan held; one did not. Verified deltas:
+
+1. **D10 (Transverse) recall** — predicted gain from 0% to functional. Actual: 0% → 1.72%. **Did not generalize.** Hypothesis: discriminating longitudinal from transverse needs orientation-aware visual grounding the model does not learn from these training pairs.
+2. **D20 (Alligator) recall** — predicted gain from 2.57%. Actual: **2.57% → 35.22% (+32.65 pp)**. The interconnected mesh pattern is now recognizable.
+3. **D40 (Pothole) recall** — predicted gain from 1.94%. Actual: **1.94% → 34.56% (+32.61 pp)**. Depth/shadow cues are now associated with the term "pothole".
+4. **Unparseable rate** — predicted to drop from 34.24%. Actual: format compliance is now near-universal; the "Unparseable / Normal" class has 94.73% recall (vs 64.12% baseline), confirming the model now uses the exact `DISTRESS_TYPES: ... SEVERITY: ... DESCRIPTION: ...` schema almost always.
+
+Stage 1 also dramatically improved (Distress recall +30.27 pp) — fine-tuning shifted the decision boundary closer to ground truth and away from the Normal-bias.
+
+### 7.4 What Fine-Tuning Did NOT Solve
+
+D10 transverse-crack recall remains at ~2%. This is the open problem after Phase 2. Two hypotheses:
+- **Insufficient orientation discrimination signal in the loss** — the model can copy the structured response format but the visual feature distinguishing horizontal from vertical cracks isn't leveraged.
+- **Class imbalance in training data** — D10 is the smallest of the four RDD classes. Resampling, focal loss, or pair-based contrastive examples could help.
+
+Future work should target this specifically. The current adapter is otherwise production-ready.
+
+### 7.5 The Engineering Cost — Not Trivial
+
+Getting QLoRA on Qwen2.5-VL-7B to actually train end-to-end on a 24 GB consumer GPU required **6 commits of empirically-validated YAML hardening** — each fixing a specific failure mode reproduced in real OOM logs. Documented for reproducibility:
+
+1. `enable_liger_kernel: false` — Liger is incompatible with QLoRA, silent slowdown
+2. `image_max_pixels: 100352` — phone photos at native resolution OOM the activation memory
+3. `cutoff_len: 1024` — 2048 was overkill given response lengths and pushed activations into thrashing
+4. `label_smoothing_factor: 0.0` — the label smoother materializes a 5 GB log_softmax tensor that triggered the original OOM
+5. `optim: paged_adamw_8bit` — pages optimizer state to CPU; lazy allocation on first step otherwise crashes at step 9
+6. `lora_rank: 32` (not 64) and `per_device_train_batch_size: 1, gradient_accumulation_steps: 32` — final memory budget that fits comfortably
+7. `torch_empty_cache_steps: 4` — without this, allocator fragmentation balloons step times from 22s to 400s by step 25
+
+Most of these are not in the LLaMA-Factory documentation. We document them in `paper/PAPER_INGREDIENTS.md` §5 and the project's `CLAUDE.md` for future work.
 
 ---
 
@@ -729,5 +773,5 @@ These four packages must be installed at these exact versions. Any upgrade to `t
 
 ---
 
-*Last updated: 2026-03-29*
-*Status: Phase 1 baseline complete. Phase 2 (fine-tuning + cross-dataset eval) pending. Phase 3 (expert-in-the-loop) not yet started.*
+*Last updated: 2026-05-07*
+*Status: Phase 1 baseline complete. **Phase 2 fine-tuning + post-finetune eval + A/B promotion gate complete (PASSED).** Adapter promoted to `adapters/v2-rdd-2epochs-20260507/`. Cross-dataset eval on Attain pending. Phase 3 (expert-in-the-loop) not yet started.*

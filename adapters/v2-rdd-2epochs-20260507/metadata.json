@@ -1,0 +1,35 @@
+{
+  "version": "v2-rdd-2epochs-20260507",
+  "promoted_at": "2026-05-07",
+  "base_model": "Qwen/Qwen2.5-VL-7B-Instruct",
+  "trained_on": ["GAPs V2 (50k Stage 1)", "RDD2022 (26.9k Stage 2)"],
+  "training_steps": 1000,
+  "training_eval_loss": 0.0485,
+  "training_total_steps_planned": 4806,
+  "training_early_stopped_at": 2500,
+  "training_total_wall_clock_hours": 43.5,
+  "lora_rank": 32,
+  "lora_alpha": 64,
+  "quantization": "4-bit NF4",
+  "promotion_gate": "PASSED (2026-05-07)",
+  "metrics_vs_baseline": {
+    "stage1_accuracy": {"baseline": 0.7653, "finetuned": 0.8839, "delta_pp": 11.86},
+    "stage1_f1_macro": {"baseline": 0.7144, "finetuned": 0.8725, "delta_pp": 15.82},
+    "stage1_distress_recall": {"baseline": 0.4288, "finetuned": 0.7315, "delta_pp": 30.27},
+    "stage2_accuracy": {"baseline": 0.4866, "finetuned": 0.6606, "delta_pp": 17.40},
+    "stage2_f1_macro": {"baseline": 0.2071, "finetuned": 0.4032, "delta_pp": 19.61},
+    "stage2_d20_alligator_recall": {"baseline": 0.0257, "finetuned": 0.3522, "delta_pp": 32.65},
+    "stage2_d40_pothole_recall": {"baseline": 0.0194, "finetuned": 0.3456, "delta_pp": 32.61}
+  },
+  "test_sets": {
+    "stage1": "GAPs V2 test split, 10,000 images",
+    "stage2": "RDD2022 test split, 5,758 images"
+  },
+  "verification_files": {
+    "baseline_results": "eval_results/baseline_results.json",
+    "finetuned_results": "eval_results/finetuned_results.json",
+    "ab_comparison": "eval_results/ab_comparison.json",
+    "ab_comparison_table": "eval_results/ab_comparison_table.md"
+  },
+  "notes": "Best checkpoint identified post-hoc from trainer_state.json log_history. step-1500 had lowest eval_loss (0.0478) but was pruned by save_total_limit=3; step-1000 (eval_loss 0.0485) is the closest surviving best. The final-step adapter (step 2500, eval_loss 0.0655) is OVERFIT and should NOT be deployed."
+}

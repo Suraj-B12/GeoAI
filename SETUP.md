@@ -319,8 +319,13 @@ the best checkpoint, max disk use is ~10 GB.
 After training finishes:
 
 ```powershell
-# 1. Re-run baseline-style eval with the new adapter
-python scripts/04_post_finetune_eval.py --adapter-path outputs/qwen25vl-qlora-gaps-rdd/
+# 1. Identify the best checkpoint by reading trainer_state.json log_history.
+#    (We trained 2500 steps, eval-step lows: 500=0.0603, 1000=0.0485, 1500=0.0478,
+#    2000=0.0633, 2500=0.0655. step-1500 was best but pruned by save_total_limit.
+#    Closest survivor = checkpoint-1000.)
+#    DO NOT use the parent dir outputs/qwen25vl-qlora-gaps-rdd/ — that's the
+#    final overfit step.
+python scripts/04_post_finetune_eval.py --adapter-path outputs/qwen25vl-qlora-gaps-rdd/checkpoint-1000
 
 # 2. Run the A/B comparison — applies promotion criteria
 python scripts/ab_compare_adapters.py
@@ -329,7 +334,10 @@ python scripts/ab_compare_adapters.py
 # 3. If promoted: copy adapter to versioned dir, update .env
 $ts = Get-Date -Format "yyyyMMdd"
 mkdir adapters\v2-rdd-2epochs-$ts
-Copy-Item outputs\qwen25vl-qlora-gaps-rdd\* adapters\v2-rdd-2epochs-$ts\ -Recurse
+Copy-Item outputs\qwen25vl-qlora-gaps-rdd\checkpoint-1000\* adapters\v2-rdd-2epochs-$ts\ -Recurse
+# Drop a metadata.json next to adapter_config.json (records training stats,
+# delta vs baseline, base model hash, promotion timestamp) — see existing
+# adapters/v2-rdd-2epochs-20260507/metadata.json for the schema.
 # Edit .env: ADAPTER_PATH=adapters/v2-rdd-2epochs-YYYYMMDD
 # Restart server: it now serves the new adapter on the same /classify endpoints.
 ```
@@ -339,6 +347,20 @@ Copy-Item outputs\qwen25vl-qlora-gaps-rdd\* adapters\v2-rdd-2epochs-$ts\ -Recurs
 - Stage 2 macro F1 must improve by ≥ 10 percentage points
 - Normal-class precision must NOT regress by more than 5 pp
 - All three must hold simultaneously
+
+**Phase 2 actual results (verified, 2026-05-07):**
+
+| Metric | Baseline | Fine-Tuned | Delta |
+|---|---|---|---|
+| Stage 1 accuracy | 76.53% | **88.39%** | **+11.86 pp** |
+| Stage 1 F1 macro | 71.44% | 87.25% | +15.82 pp |
+| Stage 1 Distress recall | 42.88% | **73.15%** | **+30.27 pp** |
+| Stage 2 accuracy | 48.66% | **66.06%** | **+17.40 pp** |
+| Stage 2 F1 macro | 20.71% | **40.32%** | **+19.61 pp** |
+| D20 Alligator recall | 2.57% | **35.22%** | **+32.65 pp** |
+| D40 Pothole recall | 1.94% | **34.56%** | **+32.61 pp** |
+
+Promotion gate **PASSED**. See `paper/PAPER_INGREDIENTS.md` §10 for the full per-class breakdown and `eval_results/ab_comparison_table.md` for the auto-generated table.
 
 ### Phase 5: Post-Fine-Tune Evaluation
 
@@ -898,8 +920,22 @@ Capstone/
 +-- test_fixtures/                     # RDD images + corrupt.jpg for ENABLE_TEST_FIXTURES=1 mount
 +-- paper/
 |   +-- baseline_evaluation.md         # Research paper draft + technical notes
+|   +-- PAPER_INGREDIENTS.md           # NEW — verified metrics for the paper (cite these)
+|   +-- CONTINUATION_PROMPT.md         # NEW — handoff brief for a fresh chat
+|   +-- WEBGIS_HANDOFF_BRIEF.md        # NEW — for the WebGIS work stream
++-- adapters/                          # NEW — versioned promoted LoRA adapters
+|   +-- v2-rdd-2epochs-20260507/       # promoted 2026-05-07 (Phase 2 — gate PASSED)
+|   |   +-- adapter_config.json
+|   |   +-- adapter_model.safetensors
+|   |   +-- metadata.json              # training stats + delta vs baseline + provenance
+|   |   +-- ...
 +-- outputs/                           # Training outputs (gitignored)
 +-- eval_results/                      # Evaluation metrics + plots
+|   +-- baseline_results.json          # Phase 1 numbers
+|   +-- finetuned_results.json         # Phase 2b numbers
+|   +-- ab_comparison.json             # Phase 2c numerical
+|   +-- ab_comparison_table.md         # Phase 2c paper-ready Markdown
+|   +-- confusion_matrices/            # baseline + finetuned PNGs
 +-- db_schema.sql                      # Supabase PostgreSQL schema (initial setup)
 +-- requirements.txt                   # Python dependencies (incl. httpx)
 +-- SETUP.md                           # This file
