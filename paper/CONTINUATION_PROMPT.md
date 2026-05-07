@@ -21,11 +21,25 @@ End-to-end system: phone app (RoadSide) → Cloudinary + Supabase → AI pipelin
 |---|---|
 | Phase 1: Baseline eval (Qwen2.5-VL-7B raw) on RDD test set | DONE — `eval_results/baseline_results.json` |
 | Phase 2a: QLoRA fine-tuning | **DONE** — early-stopped at step 2500/4806, best checkpoint at `outputs/qwen25vl-qlora-gaps-rdd/checkpoint-1000/` (eval_loss 0.0485) |
-| Phase 2b: Post-finetune eval | **RUNNING** as of handoff (started 2026-05-03, ~10h estimated) |
-| Phase 2c: A/B promotion gate | PENDING (auto-trigger after 2b) |
-| Phase 2d: Hot-swap adapter into operator pipeline | PENDING (UI ready) |
+| Phase 2b: Post-finetune eval | **DONE** — `eval_results/finetuned_results.json` (Stage 1 88.39%, Stage 2 66.06%) |
+| Phase 2c: A/B promotion gate | **DONE — PASSED** — `eval_results/ab_comparison_table.md`. All 3 thresholds cleared |
+| Phase 2d: Hot-swap adapter into operator pipeline | PENDING — adapter is ready, just needs `.env` update + restart |
 | Phase 3: Expert-in-the-loop retrain | NOT STARTED |
 | Phase 4: WebGIS layer | HANDED OFF — `paper/WEBGIS_HANDOFF_BRIEF.md` |
+
+### Phase 2 result summary (verified, in repo)
+
+| Metric | Baseline | Fine-Tuned | Delta |
+|---|---|---|---|
+| Stage 1 accuracy | 76.53% | **88.39%** | **+11.86 pp** |
+| Stage 1 F1 (macro) | 71.44% | 87.25% | +15.82 pp |
+| Stage 1 Distress recall | 42.88% | **73.15%** | +30.27 pp |
+| Stage 2 accuracy | 48.66% | **66.06%** | **+17.40 pp** |
+| Stage 2 F1 (macro) | 20.71% | **40.32%** | **+19.61 pp** |
+| D20 Alligator recall | 2.57% | **35.22%** | **+32.65 pp** |
+| D40 Pothole recall | 1.94% | **34.56%** | **+32.61 pp** |
+
+Promotion gate PASSED. Adapter cleared for production. See `paper/PAPER_INGREDIENTS.md` §10 for full breakdown.
 
 ### Phase 2a finished (training is over)
 

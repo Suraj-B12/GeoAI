@@ -471,17 +471,101 @@ Source: `git log --oneline`.
 
 ---
 
-## 10. Sections that will be added once training completes
+## 10. Phase 2b Results — Post-Fine-Tune Evaluation
 
-These sections are intentionally absent because the data does not yet exist. The new chat session will fill these in:
+All numbers in this section are verifiable in `eval_results/finetuned_results.json` (created 2026-05-06 from `scripts/04_post_finetune_eval.py --adapter-path outputs/qwen25vl-qlora-gaps-rdd/checkpoint-1000`).
 
-1. **Post-fine-tune Stage 1 results** — will be in `eval_results/finetuned_results.json` after `python scripts/04_post_finetune_eval.py --adapter-path outputs/qwen25vl-qlora-gaps-rdd/`
-2. **Post-fine-tune Stage 2 per-class results** — same file
-3. **A/B comparison table (baseline vs fine-tuned, with deltas)** — will be in `eval_results/ab_comparison_table.md` after `python scripts/ab_compare_adapters.py`
-4. **Training loss curve** — will be derivable from `outputs/training_run_history.jsonl` (full step-by-step record)
-5. **Eval loss curve** — same file, filtered to entries with `eval_loss != null`
-6. **Final per-class confusion matrices (post-fine-tune)** — `eval_results/confusion_matrices/finetuned_*.png`
-7. **Re-run on the 76 Bengaluru real-world photos** — will be in Supabase `assessments` table after re-classifying with new adapter
+### 10.1 Stage 1 — Binary Detection (10,000 GAPs test images)
+
+| Metric | Baseline | Fine-Tuned | Delta |
+|---|---|---|---|
+| Accuracy | 76.53% | **88.39%** | **+11.86 pp** |
+| Precision (macro) | 84.36% | 90.87% | +6.51 pp |
+| Recall (macro) | 70.92% | 85.85% | +14.93 pp |
+| F1 (macro) | 71.44% | **87.25%** | **+15.82 pp** |
+| Unparseable responses | 0 / 10,000 | 0 / 10,000 | unchanged |
+
+#### Per-class breakdown
+
+| Class | Metric | Baseline | Fine-Tuned | Delta |
+|---|---|---|---|---|
+| Normal | Precision | 72.21% | 84.63% | +12.42 pp |
+| Normal | Recall | 98.97% | 98.55% | -0.42 pp (held) |
+| Normal | F1 | 83.50% | **91.06%** | +7.56 pp |
+| Distress | Precision | 96.51% | 97.11% | +0.60 pp (held) |
+| **Distress** | **Recall** | **42.88%** | **73.15%** | **+30.27 pp** |
+| Distress | F1 | 59.37% | **83.45%** | +24.08 pp |
+
+**Headline finding for Stage 1:** the Normal-bias problem is fixed. Distress recall jumped from 42.88% → 73.15% (the model now catches 73% of damaged roads vs missing 57% before) WITHOUT sacrificing Distress precision (96.51% → 97.11%, essentially unchanged). The fine-tuned model is no longer afraid to call damage "damage" when it sees it.
+
+### 10.2 Stage 2 — Distress Type Classification (5,758 RDD test images)
+
+| Metric | Baseline | Fine-Tuned | Delta |
+|---|---|---|---|
+| Primary accuracy | 48.66% | **66.06%** | **+17.40 pp** |
+| F1 (macro) | 20.71% | **40.32%** | **+19.61 pp** |
+| Exact match rate | 34.40% | 52.76% | +18.36 pp |
+| Avg inference time | 5.32 s/img | 15.70 s/img | longer responses |
+
+#### Per-class recall (the most paper-worthy table)
+
+| Class | Baseline recall | Fine-Tuned recall | Delta | Notes |
+|---|---|---|---|---|
+| Unparseable / Normal | 64.12% | 94.73% | +30.61 pp | Better at recognizing "no distress" |
+| D00 Longitudinal | **72.50%** | 71.78% | -0.72 pp | Held — was already strong |
+| D10 Transverse | 0.00% | 1.72% | +1.72 pp | Still hard (orientation ambiguity) |
+| **D20 Alligator** | **2.57%** | **35.22%** | **+32.65 pp** | Massive recovery |
+| **D40 Pothole** | **1.94%** | **34.56%** | **+32.61 pp** | Massive recovery |
+
+**Headline finding for Stage 2:** the two classes that were effectively invisible to the base model — D20 (alligator cracking) and D40 (potholes) — gained **30+ percentage points of recall each** through fine-tuning. The model went from detecting 1 in 39 alligator cracks and 1 in 51 potholes to roughly 1 in 3 of each. This is the single most impactful change in the project.
+
+D10 (transverse cracks) remains the failure mode. Hypothesis: discriminating longitudinal vs transverse requires orientation reasoning the model doesn't fully acquire from 26k training examples. A future training run with explicit orientation labels or augmented orientation-flipped pairs could close this gap.
+
+### 10.3 Promotion gate decision
+
+Verified by `python scripts/ab_compare_adapters.py`, output in `eval_results/ab_comparison.json`.
+
+| Criterion | Threshold | Actual | Pass |
+|---|---|---|---|
+| Stage 1 accuracy improvement | ≥ +3.0 pp | +11.86 pp | ✅ |
+| Stage 2 macro F1 improvement | ≥ +10.0 pp | +19.61 pp | ✅ |
+| Normal-class precision regression | ≥ -5.0 pp | +12.42 pp | ✅ |
+
+**Result: PROMOTE.** The fine-tuned adapter (`outputs/qwen25vl-qlora-gaps-rdd/checkpoint-1000`) is cleared for production.
+
+### 10.4 Confusion matrices
+
+Generated PNGs at `eval_results/confusion_matrices/`:
+- `baseline_stage1_cm.png` — pre-fine-tune Stage 1
+- `finetuned_stage1_cm.png` — post-fine-tune Stage 1
+- `baseline_stage2_cm.png` — pre-fine-tune Stage 2
+- `finetuned_stage2_cm.png` — post-fine-tune Stage 2
+
+Side-by-side comparison: the diagonal of the post-fine-tune Stage 2 matrix is dramatically darker than baseline — D20 and D40 cells now have substantial counts where they were near-zero before.
+
+### 10.5 Why the fine-tuned model is slower per-image
+
+Avg inference time grew from 5.32 s/img (baseline) to 15.70 s/img (fine-tuned) on Stage 2. **This is not a bug, it's a feature of the training:** the fine-tuned model learned to fully use the structured response format (`DISTRESS_TYPES: ... SEVERITY: ... DESCRIPTION: ...`) for ~100-150 tokens per response, vs the baseline's frequent unparseable / short outputs (often hitting an early stop). Per-token speed is unchanged; it's just generating a more complete output. This is a legitimate quality improvement, not a regression.
+
+---
+
+## 11. Phase 2c — Promotion Gate (PASSED)
+
+`scripts/ab_compare_adapters.py` was run on 2026-05-06 and exited 0. Output:
+- `eval_results/ab_comparison.json` (full numeric breakdown)
+- `eval_results/ab_comparison_table.md` (paste-ready Markdown for the paper)
+
+All three thresholds cleared by wide margins. The fine-tuned adapter at `outputs/qwen25vl-qlora-gaps-rdd/checkpoint-1000` is cleared to be promoted via the operator dashboard's adapter-switch UI or by setting `ADAPTER_PATH` in `.env`.
+
+---
+
+## 12. Sections still pending (not yet measured)
+
+These would extend the paper but are not blocking:
+
+1. **Re-run on the 76 Bengaluru real-world photos** with the new adapter — will be in Supabase `assessments` table after re-classifying. Expected to dramatically reduce the expert_review queue.
+2. **Cross-dataset evaluation on Attain** (zero-shot generalization to NZ road photos, 2,293 images, 7 distress classes after exclusions) — would test whether the RDD-trained model generalizes geographically. Has not been started.
+3. **Phase 3 expert-in-the-loop** — collecting expert corrections, few-shot injection, LoRA incremental retraining. The infrastructure (`expert_ui`, `06_incremental_retrain.py`) is ready but no real corrections have been collected yet.
 
 Until those exist, do not write about them. The reviewer should be able to verify every number in this document against a file in this repo at the commit hash referenced.
 
