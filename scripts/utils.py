@@ -200,16 +200,32 @@ OTHER:
 # ============================================================
 
 # --- Stage 1: Binary Detection (GAPs) ---
+# Tone: assertive but professional. Step-by-step inspection checklist forces a
+# deliberate observation pass before the model commits to a label. Negative-
+# motivation framing ("missing damage costs road repairs and citizen safety")
+# pushes carefulness without melodrama.
 STAGE1_SYSTEM_PROMPT = (
-    "You are an expert pavement condition inspector. "
-    "Your task is to examine pavement images and determine whether "
-    "the pavement shows any signs of distress or damage. "
+    "You are an expert pavement condition inspector reviewing road photos for "
+    "a city's road maintenance team. Your decisions are escalated to engineers "
+    "and translated into real budget for repairs.\n\n"
+    "Errors here have real cost. Missing actual damage ('Normal' on a damaged "
+    "road) leaves citizens driving on unsafe surfaces. Falsely flagging clean "
+    "roads ('Distress' on intact pavement) wastes inspection time. Both matter.\n\n"
+    "Before you answer, run this inspection checklist on the image:\n"
+    "  1. CRACKS — any visible lines breaking the surface (any orientation, any pattern)?\n"
+    "  2. PATTERN — is there an interconnected mesh / alligator-skin texture?\n"
+    "  3. HOLES — any depressions, pits, or bowl-shaped voids in the surface?\n"
+    "  4. EDGES — damage along lane edges or shoulders?\n"
+    "  5. SURFACE TEXTURE — loose aggregate, raveling, or unusual roughness?\n\n"
+    "If ANY of those are present, answer Distress. Otherwise answer Normal. "
+    "Do NOT confuse with: shadows, lane markings, wet patches, or oil stains — "
+    "those are not pavement distress.\n\n"
     "Respond with exactly one word: Normal or Distress."
 )
 
 STAGE1_USER_PROMPT = (
     "<image>\n"
-    "Examine this pavement image carefully. "
+    "Run the inspection checklist on this pavement image. "
     "Is this pavement in normal condition, or does it show signs of distress? "
     "Respond with exactly one word: Normal or Distress."
 )
@@ -236,13 +252,40 @@ DESCRIPTION: The pavement shows a transverse crack perpendicular to traffic dire
 """.strip()
 
 STAGE2_SYSTEM_PROMPT = (
-    "You are an expert pavement distress analyst. "
-    "Your task is to identify the specific type(s) of pavement distress "
-    "visible in the image. Use your knowledge of pavement engineering "
-    "to classify the distress accurately.\n\n"
+    "You are an expert pavement distress analyst classifying damage in road "
+    "images for a city's maintenance team. Your output drives where repair "
+    "crews are sent and how budget is spent.\n\n"
+    "A wrong type label sends the wrong fix. A missed pothole means a vehicle "
+    "hits it tomorrow. Be precise. Do NOT guess if the image is ambiguous — "
+    "name only what you can clearly see.\n\n"
+    "CRITICAL — DO NOT OUTPUT 'Other Distress' OR 'Other' AS A TYPE. "
+    "These labels are useless to the road maintenance team — they cannot send "
+    "a repair crew based on 'Other'. You MUST pick a SPECIFIC distress type "
+    "from the taxonomy below, OR if you genuinely cannot identify the damage "
+    "type, output 'DISTRESS_TYPES: Normal - No distress detected' and let the "
+    "expert review handle it. Vague labels are worse than no label.\n\n"
     f"{ALL_DISTRESS_TYPES}\n\n"
+    "Before answering, run this inspection checklist:\n"
+    "  STEP 1 — CRACK ORIENTATION\n"
+    "    - Lines running ALONG the road's direction (parallel to traffic) → Longitudinal Crack (D00)\n"
+    "    - Lines running ACROSS the road (perpendicular to traffic) → Transverse Crack (D10)\n"
+    "  STEP 2 — CRACK PATTERN\n"
+    "    - Interconnected web / alligator-skin / mesh of small cracks → Alligator Crack (D20)\n"
+    "    - Rectangular blocks formed by intersecting cracks → Block Crack (D43)\n"
+    "  STEP 3 — SURFACE DEFECTS\n"
+    "    - Bowl-shaped depression / hole with broken edges → Pothole (D40)\n"
+    "    - Loss of aggregate, rough/sandy surface texture → Raveling\n"
+    "    - General weathered, oxidized, gray-bleached surface → Weathering/Oxidation\n"
+    "  STEP 4 — REPAIRS / JOINTS\n"
+    "    - Visible patch with different color/texture flush with surface → Inlaid Patch (D44)\n"
+    "    - Open gaps at joints between pavement sections → Open Joint (D50)\n"
+    "  STEP 5 — RULE OUT FALSE POSITIVES\n"
+    "    - Shadows, lane markings, water stains, oil spots, tire skid marks "
+    "are NOT pavement distress. Do not label them.\n\n"
     f"{STAGE2_FEW_SHOT_EXAMPLES}\n\n"
-    "Now analyze the provided image. Respond with a structured analysis in this exact format:\n"
+    "Now analyze the provided image. List every distress type you observe "
+    "(an image may contain multiple). Respond with a structured analysis "
+    "in this exact format:\n"
     "DISTRESS_TYPES: <comma-separated list of distress types found>\n"
     "SEVERITY: <Low / Medium / High>\n"
     "DESCRIPTION: <one sentence describing what you observe>"
@@ -250,8 +293,10 @@ STAGE2_SYSTEM_PROMPT = (
 
 STAGE2_USER_PROMPT = (
     "<image>\n"
-    "Analyze this pavement image. Identify all types of distress present. "
-    "Provide the distress type(s), severity estimate, and a brief description."
+    "Run the 5-step inspection checklist on this pavement image. Identify "
+    "every distress type present. Be precise — name only what you can "
+    "clearly see in the image. Provide the distress type(s), severity "
+    "estimate (Low / Medium / High), and a brief one-sentence description."
 )
 
 # --- Stage 2 training response template ---
@@ -278,8 +323,21 @@ def build_stage2_training_response(class_ids: list[int]) -> str:
             "with no visible signs of damage or deterioration."
         )
 
+    # NEVER emit "Other Distress" in training labels (RDD class 4 is the noise
+    # bucket). The model learns to default to it for ambiguous cases, which
+    # produces useless output downstream. Drop class 4 entirely; if every
+    # class is class-4, fall back to the Normal response.
+    actionable_ids = [cid for cid in class_ids if cid != 4]
+    if not actionable_ids:
+        return (
+            "DISTRESS_TYPES: Normal - No distress detected\n"
+            "SEVERITY: None\n"
+            "DESCRIPTION: The pavement surface shows minor deterioration but no "
+            "specific distress type can be clearly identified."
+        )
+
     type_names = []
-    for cid in sorted(set(class_ids)):
+    for cid in sorted(set(actionable_ids)):
         name = RDD_LABEL_MAP.get(cid, "Unknown Distress")
         type_names.append(name)
 
@@ -381,9 +439,19 @@ def parse_stage2_response(text: str) -> dict:
             if "normal" in types_str.lower() or "no distress" in types_str.lower():
                 result["distress_types"] = ["Normal"]
             else:
-                result["distress_types"] = [
+                # Filter out the "Other Distress" catch-all leaked from RDD class-4
+                # training labels. It's a non-actionable label — the dashboard
+                # and WebGIS need a specific type or "Unknown" to route to expert.
+                # If the model emitted ONLY "Other Distress", we treat it as
+                # unparseable so the row goes to expert review.
+                raw_types = [
                     t.strip() for t in types_str.split(",") if t.strip()
                 ]
+                filtered = [
+                    t for t in raw_types
+                    if t.lower() not in ("other distress", "other", "unknown distress")
+                ]
+                result["distress_types"] = filtered if filtered else []
         elif line_stripped.upper().startswith("SEVERITY:"):
             result["severity"] = line_stripped.split(":", 1)[1].strip()
         elif line_stripped.upper().startswith("DESCRIPTION:"):

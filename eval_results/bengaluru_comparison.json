@@ -1,0 +1,359 @@
+{
+  "summary": {
+    "comparison_at": "2026-05-07T17:57:51.523483Z",
+    "n_rows_compared": 76,
+    "n_baseline_only": 0,
+    "n_current_only": 1,
+    "baseline_status_counts": {
+      "classified": 29,
+      "expert_review": 47
+    },
+    "current_status_counts": {
+      "classified": 32,
+      "expert_review": 45
+    },
+    "status_xtab": {
+      "expert_review -> classified": 7,
+      "classified -> classified": 24,
+      "expert_review -> expert_review": 40,
+      "classified -> expert_review": 5
+    },
+    "stage1_label_xtab": {
+      "Normal -> Normal": 26,
+      "Distress -> Distress": 43,
+      "Normal -> Distress": 5,
+      "Distress -> Normal": 2
+    },
+    "review_flag_flips": {
+      "resolved": 7,
+      "unchanged": 63,
+      "newly_flagged": 6
+    },
+    "confidence_delta_stage1_avg": 0.014,
+    "confidence_delta_stage2_avg": 0.011,
+    "n_type_changes": 22,
+    "n_severity_changes": 15
+  },
+  "type_changes": [
+    {
+      "id": "13e9fba4",
+      "image_url": "https://res.cloudinary.com/dnxpt5gea/image/upload/v1777374011/lcqdynbppfoychtnmhrp.jpg",
+      "address": "23, 7th Cross Rd, CK Nagar, NR Colony, Basavanagudi, Bengaluru, Karnataka 560004, India",
+      "baseline_types": [
+        "Raveling",
+        "Weathering/Oxidation"
+      ],
+      "finetuned_types": [
+        "Pothole (D40)"
+      ]
+    },
+    {
+      "id": "163ff37f",
+      "image_url": "https://res.cloudinary.com/dnxpt5gea/image/upload/v1777374139/xgorimvypoveygj07wjv.jpg",
+      "address": "23, 7th Cross Rd, CK Nagar, NR Colony, Basavanagudi, Bengaluru, Karnataka 560004, India",
+      "baseline_types": [
+        "Pothole (D40)",
+        "Raveling"
+      ],
+      "finetuned_types": [
+        "Pothole (D40)"
+      ]
+    },
+    {
+      "id": "1c0ce951",
+      "image_url": "https://res.cloudinary.com/dnxpt5gea/image/upload/v1777363262/kewidxwsbfprajlflojb.jpg",
+      "address": "WHR8+95V, Basavanagudi, Bengaluru, Karnataka 560004, India",
+      "baseline_types": [],
+      "finetuned_types": [
+        "Raveling"
+      ]
+    },
+    {
+      "id": "46341bbd",
+      "image_url": "https://res.cloudinary.com/dnxpt5gea/image/upload/v1777436507/tik0une3rxlfbtozx3mt.jpg",
+      "address": "336, 25th Cross Rd, Siddanna Layout, Banashankari Stage II, Banashankari, Bengaluru, Karnataka 560070, India",
+      "baseline_types": [
+        "Block Crack (D43)",
+        "Raveling"
+      ],
+      "finetuned_types": [
+        "Pothole (D40)"
+      ]
+    },
+    {
+      "id": "53a627b7",
+      "image_url": "https://res.cloudinary.com/dnxpt5gea/image/upload/v1777374109/inrf65cgdxqdhvofgxeo.jpg",
+      "address": "23, 7th Cross Rd, CK Nagar, NR Colony, Basavanagudi, Bengaluru, Karnataka 560004, India",
+      "baseline_types": [],
+      "finetuned_types": [
+        "Raveling"
+      ]
+    },
+    {
+      "id": "557305d8",
+      "image_url": "https://res.cloudinary.com/dnxpt5gea/image/upload/v1777389537/nrmprcio3cnjummksw0g.jpg",
+      "address": "771, Lal Bahadur Shastri Nagar, Bengaluru, Vajarahalli, Karnataka 560109, India",
+      "baseline_types": [
+        "Longitudinal Crack (D00)",
+        "Raveling"
+      ],
+      "finetuned_types": [
+        "Raveling"
+      ]
+    },
+    {
+      "id": "739f9e77",
+      "image_url": "https://res.cloudinary.com/dnxpt5gea/image/upload/v1777374285/of53lbhnkimednjkcywj.jpg",
+      "address": "23, 7th Cross Rd, CK Nagar, NR Colony, Basavanagudi, Bengaluru, Karnataka 560004, India",
+      "baseline_types": [
+        "Polishing",
+        "Raveling"
+      ],
+      "finetuned_types": [
+        "Pothole (D40)"
+      ]
+    },
+    {
+      "id": "7e5c8914",
+      "image_url": "https://res.cloudinary.com/dnxpt5gea/image/upload/v1777375190/i2w9btql9rvas1sljvd7.jpg",
+      "address": "23, 7th Cross Rd, CK Nagar, NR Colony, Basavanagudi, Bengaluru, Karnataka 560004, India",
+      "baseline_types": [
+        "Longitudinal Crack (D00)",
+        "Raveling"
+      ],
+      "finetuned_types": [
+        "Pothole (D40)"
+      ]
+    },
+    {
+      "id": "86502906",
+      "image_url": "https://res.cloudinary.com/dnxpt5gea/image/upload/v1777390148/a1uwjkh9zcdktq1qyyln.jpg",
+      "address": "70, Kanakapura Main Rd, Navaratan Gardens, Konanakunte, Bengaluru, Karnataka 560109, India",
+      "baseline_types": [],
+      "finetuned_types": [
+        "Pothole (D40)"
+      ]
+    },
+    {
+      "id": "86803b76",
+      "image_url": "https://res.cloudinary.com/dnxpt5gea/image/upload/v1777373998/dcpwmy1ug5d3mk6jujek.jpg",
+      "address": "23, 7th Cross Rd, CK Nagar, NR Colony, Basavanagudi, Bengaluru, Karnataka 560004, India",
+      "baseline_types": [
+        "Longitudinal Crack (D00)",
+        "Pothole (D40)"
+      ],
+      "finetuned_types": [
+        "Pothole (D40)"
+      ]
+    },
+    {
+      "id": "894b1f6c",
+      "image_url": "https://res.cloudinary.com/dnxpt5gea/image/upload/v1777374076/ix98oj1u4dtuu6hpsdwz.jpg",
+      "address": "23, 7th Cross Rd, CK Nagar, NR Colony, Basavanagudi, Bengaluru, Karnataka 560004, India",
+      "baseline_types": [
+        "Raveling",
+        "Weathering/Oxidation"
+      ],
+      "finetuned_types": [
+        "Pothole (D40)"
+      ]
+    },
+    {
+      "id": "9891fe4c",
+      "image_url": "https://res.cloudinary.com/dnxpt5gea/image/upload/v1777362512/k5db3iivycnaz6okirxv.jpg",
+      "address": "WHR8+95V, Basavanagudi, Bengaluru, Karnataka 560004, India",
+      "baseline_types": [
+        "Pothole (D40)",
+        "Raveling"
+      ],
+      "finetuned_types": [
+        "Pothole (D40)"
+      ]
+    },
+    {
+      "id": "a6bc5616",
+      "image_url": "https://res.cloudinary.com/dnxpt5gea/image/upload/v1777436538/moy6cplk6hhxierzoxlo.jpg",
+      "address": "336, 25th Cross Rd, Siddanna Layout, Banashankari Stage II, Banashankari, Bengaluru, Karnataka 560070, India",
+      "baseline_types": [],
+      "finetuned_types": [
+        "Raveling"
+      ]
+    },
+    {
+      "id": "b8425ccd",
+      "image_url": "https://res.cloudinary.com/dnxpt5gea/image/upload/v1777374237/f6r4lfjge6fq7dicfnis.jpg",
+      "address": "23, 7th Cross Rd, CK Nagar, NR Colony, Basavanagudi, Bengaluru, Karnataka 560004, India",
+      "baseline_types": [
+        "Pothole (D40)"
+      ],
+      "finetuned_types": []
+    },
+    {
+      "id": "be596cf5",
+      "image_url": "https://res.cloudinary.com/dnxpt5gea/image/upload/v1777363187/bhoxmqbixg79hhnqrj7l.jpg",
+      "address": "WHR8+95V, Basavanagudi, Bengaluru, Karnataka 560004, India",
+      "baseline_types": [
+        "Polishing",
+        "Raveling"
+      ],
+      "finetuned_types": [
+        "Raveling"
+      ]
+    },
+    {
+      "id": "c015de56",
+      "image_url": "https://res.cloudinary.com/dnxpt5gea/image/upload/v1775897369/mlozurqaaug6b5mm65vl.jpg",
+      "address": "Kempegowda International Airport Bengaluru (BLR), Karnataka 560300, India",
+      "baseline_types": [],
+      "finetuned_types": [
+        "Longitudinal Crack (D00)"
+      ]
+    },
+    {
+      "id": "c1d158df",
+      "image_url": "https://res.cloudinary.com/dnxpt5gea/image/upload/v1777390198/rv4namtlskibb923j7mo.jpg",
+      "address": "70, Kanakapura Main Rd, Navaratan Gardens, Konanakunte, Bengaluru, Karnataka 560109, India",
+      "baseline_types": [
+        "Edge Crack (D08)"
+      ],
+      "finetuned_types": []
+    },
+    {
+      "id": "cf151564",
+      "image_url": "https://res.cloudinary.com/dnxpt5gea/image/upload/v1777364350/lgyvcyauc9jzylilmhqo.jpg",
+      "address": "WHR8+95V, Basavanagudi, Bengaluru, Karnataka 560004, India",
+      "baseline_types": [
+        "Raveling",
+        "Weathering/Oxidation"
+      ],
+      "finetuned_types": [
+        "Raveling"
+      ]
+    },
+    {
+      "id": "d02a877a",
+      "image_url": "https://res.cloudinary.com/dnxpt5gea/image/upload/v1777374303/k0han7a2imjae80i2ggd.jpg",
+      "address": "23, 7th Cross Rd, CK Nagar, NR Colony, Basavanagudi, Bengaluru, Karnataka 560004, India",
+      "baseline_types": [
+        "Longitudinal Crack (D00)",
+        "Raveling"
+      ],
+      "finetuned_types": [
+        "Pothole (D40)"
+      ]
+    },
+    {
+      "id": "dadebfbf",
+      "image_url": "https://res.cloudinary.com/dnxpt5gea/image/upload/v1777374110/fctdtfmc8mdhavupvdiq.jpg",
+      "address": "23, 7th Cross Rd, CK Nagar, NR Colony, Basavanagudi, Bengaluru, Karnataka 560004, India",
+      "baseline_types": [
+        "Raveling",
+        "Weathering/Oxidation"
+      ],
+      "finetuned_types": [
+        "Pothole (D40)"
+      ]
+    },
+    {
+      "id": "e6977719",
+      "image_url": "https://res.cloudinary.com/dnxpt5gea/image/upload/v1777375057/kk7qbdwvdy1lw8iauqlt.jpg",
+      "address": "23, 7th Cross Rd, CK Nagar, NR Colony, Basavanagudi, Bengaluru, Karnataka 560004, India",
+      "baseline_types": [
+        "Block Crack (D43)",
+        "Longitudinal Crack (D00)"
+      ],
+      "finetuned_types": [
+        "Pothole (D40)"
+      ]
+    },
+    {
+      "id": "eedae0bb",
+      "image_url": "https://res.cloudinary.com/dnxpt5gea/image/upload/v1777374291/whkhbxkebhhlkkc5sbmh.jpg",
+      "address": "23, 7th Cross Rd, CK Nagar, NR Colony, Basavanagudi, Bengaluru, Karnataka 560004, India",
+      "baseline_types": [
+        "Raveling",
+        "Weathering/Oxidation"
+      ],
+      "finetuned_types": [
+        "Pothole (D40)"
+      ]
+    }
+  ],
+  "severity_changes": [
+    {
+      "id": "13e9fba4",
+      "baseline_severity": "Medium",
+      "finetuned_severity": "High"
+    },
+    {
+      "id": "1c0ce951",
+      "baseline_severity": "None",
+      "finetuned_severity": "Low"
+    },
+    {
+      "id": "46341bbd",
+      "baseline_severity": "Medium",
+      "finetuned_severity": "High"
+    },
+    {
+      "id": "53a627b7",
+      "baseline_severity": "None",
+      "finetuned_severity": "Low"
+    },
+    {
+      "id": "739f9e77",
+      "baseline_severity": "Low",
+      "finetuned_severity": "High"
+    },
+    {
+      "id": "7e5c8914",
+      "baseline_severity": "Medium",
+      "finetuned_severity": "High"
+    },
+    {
+      "id": "86502906",
+      "baseline_severity": "None",
+      "finetuned_severity": "High"
+    },
+    {
+      "id": "894b1f6c",
+      "baseline_severity": "Medium",
+      "finetuned_severity": "High"
+    },
+    {
+      "id": "a6bc5616",
+      "baseline_severity": "None",
+      "finetuned_severity": "Low"
+    },
+    {
+      "id": "b8425ccd",
+      "baseline_severity": "High",
+      "finetuned_severity": "None"
+    },
+    {
+      "id": "c015de56",
+      "baseline_severity": "None",
+      "finetuned_severity": "Low"
+    },
+    {
+      "id": "c1d158df",
+      "baseline_severity": "Low",
+      "finetuned_severity": "None"
+    },
+    {
+      "id": "dadebfbf",
+      "baseline_severity": "Medium",
+      "finetuned_severity": "High"
+    },
+    {
+      "id": "e6977719",
+      "baseline_severity": "Medium",
+      "finetuned_severity": "High"
+    },
+    {
+      "id": "eedae0bb",
+      "baseline_severity": "Medium",
+      "finetuned_severity": "High"
+    }
+  ]
+}

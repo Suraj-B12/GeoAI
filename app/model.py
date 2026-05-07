@@ -376,23 +376,96 @@ class PavementClassifier:
             "stage1_raw": stage1_raw,
         }
 
+    def _stage2_result_is_uninformative(self, parsed: dict) -> bool:
+        """
+        Decide whether the parsed Stage 2 result is too vague to commit.
+
+        Triggers cascade fallback (re-run with adapter disabled, base model only)
+        if any of:
+          - parsed.distress_types is empty
+          - parsed.distress_types == ['Unknown']  (parser already filtered 'Other Distress')
+          - any element is 'Unknown' / 'Other Distress' / 'Other'
+
+        The fallback restores the model's pretrained zero-shot taxonomy
+        (Block Crack, Raveling, Weathering, Edge Crack, etc.) which the
+        QLoRA fine-tune narrowed away. We only run the second pass when the
+        primary pass failed to commit to a specific type — saves ~5s/image
+        on the common case where the adapter does its job.
+        """
+        types = parsed.get("distress_types") or []
+        if not types:
+            return True
+        bad = {"unknown", "other distress", "other", "unknown distress"}
+        return all(t.strip().lower() in bad for t in types)
+
+    def _has_active_adapter(self) -> bool:
+        """True iff a LoRA adapter is currently attached to the model."""
+        from peft import PeftModel
+        return isinstance(self._model, PeftModel) and self.adapter_path is not None
+
     def predict_stage2(self, image: Image.Image) -> dict:
         """
-        Run Stage 2 only: distress type classification.
+        Run Stage 2 with adapter-cascade fallback.
 
-        Returns dict with stage 2 fields only. Thread-safe.
+        First pass: full model (with LoRA adapter active if present). The
+        fine-tuned adapter is highly accurate on the four RDD classes
+        (D00/D10/D20/D40) but had its broader taxonomy capability narrowed
+        during fine-tuning.
+
+        Cascade: if the first pass returns 'Unknown' / empty / 'Other
+        Distress', re-run the SAME image with the adapter temporarily
+        disabled (PeftModel.disable_adapter context manager). The base model
+        retains the pretrained zero-shot taxonomy and can name types like
+        Block Crack, Raveling, Weathering — useful for real-world photos
+        outside the RDD distribution.
+
+        Returns dict with stage 2 fields plus 'stage2_used_fallback' bool.
+        Thread-safe.
         """
         image = image.convert("RGB")
 
         with self._lock:
             s2_start = time.time()
+
+            # Pass 1: with adapter (if loaded)
             stage2_raw, s2_scores, s2_gen_ids = self._run_inference_with_scores(
                 image, STAGE2_SYSTEM_PROMPT, STAGE2_USER_PROMPT
             )
-            s2_time = (time.time() - s2_start) * 1000
-
             s2_confidence = self._compute_sequence_confidence(s2_scores, s2_gen_ids)
             parsed = parse_stage2_response(stage2_raw)
+
+            used_fallback = False
+            primary_raw = stage2_raw
+
+            # Pass 2 (fallback): only fires if pass 1 is uninformative AND
+            # we actually have an adapter to disable. Without an adapter,
+            # there's nothing to gain from a second pass.
+            if (
+                self._has_active_adapter()
+                and self._stage2_result_is_uninformative(parsed)
+            ):
+                try:
+                    print(f"[PavementClassifier] Stage 2 cascade: pass 1 was '{parsed.get('distress_types')}', re-running with adapter disabled")
+                    with self._model.disable_adapter():
+                        fb_raw, fb_scores, fb_gen_ids = self._run_inference_with_scores(
+                            image, STAGE2_SYSTEM_PROMPT, STAGE2_USER_PROMPT
+                        )
+                    fb_parsed = parse_stage2_response(fb_raw)
+
+                    # Only swap if fallback gave something more specific
+                    if not self._stage2_result_is_uninformative(fb_parsed):
+                        used_fallback = True
+                        stage2_raw = fb_raw
+                        s2_scores = fb_scores
+                        s2_gen_ids = fb_gen_ids
+                        s2_confidence = self._compute_sequence_confidence(fb_scores, fb_gen_ids)
+                        parsed = fb_parsed
+                        print(f"[PavementClassifier] Stage 2 cascade: fallback recovered '{fb_parsed.get('distress_types')}'")
+                except Exception as e:
+                    # Fallback errors are non-fatal — keep the primary result.
+                    print(f"[PavementClassifier] Stage 2 cascade fallback FAILED: {e}")
+
+            s2_time = (time.time() - s2_start) * 1000
 
         return {
             "distress_types": parsed["distress_types"],
@@ -401,6 +474,8 @@ class PavementClassifier:
             "stage2_confidence": s2_confidence,
             "stage2_time_ms": round(s2_time, 1),
             "stage2_raw": stage2_raw,
+            "stage2_used_fallback": used_fallback,
+            "stage2_primary_raw": primary_raw if used_fallback else None,
         }
 
     def predict(self, image: Image.Image) -> dict:
@@ -439,6 +514,8 @@ class PavementClassifier:
             result["stage2_confidence"] = s2["stage2_confidence"]
             result["stage2_time_ms"] = s2["stage2_time_ms"]
             result["stage2_raw"] = s2["stage2_raw"]
+            result["stage2_used_fallback"] = s2.get("stage2_used_fallback", False)
+            result["stage2_primary_raw"] = s2.get("stage2_primary_raw")
 
             # Flag for expert review if EITHER stage has low confidence
             result["needs_expert_review"] = (

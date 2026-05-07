@@ -502,6 +502,11 @@ class PipelineWorker:
                 "stage2_raw": s2.get("stage2_raw", ""),
                 "stage1_time_ms": s1_time,
                 "stage2_time_ms": s2_time,
+                # Cascade telemetry: did Stage 2's first pass (with adapter)
+                # fall back to running with the adapter disabled to recover
+                # broader-taxonomy types? See app/model.py predict_stage2.
+                "stage2_used_fallback": s2.get("stage2_used_fallback", False),
+                "stage2_primary_raw": s2.get("stage2_primary_raw"),
             },
             "image_width": img_w,
             "image_height": img_h,
