@@ -71,10 +71,12 @@ adapters/**/merges.txt
 
 # ============================================================
 # Raw datasets (multi-GB, downloaded separately)
+# Anchored to root so they don't accidentally match subdirs
+# elsewhere (e.g. eval_results/plots/attain/).
 # ============================================================
-GAPs v2/
-RDD/
-Attain/
+/GAPs v2/
+/RDD/
+/Attain/
 test_fixtures/*.jpg
 test_fixtures/*.jpeg
 test_fixtures/*.png
