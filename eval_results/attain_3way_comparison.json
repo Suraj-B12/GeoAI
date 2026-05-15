@@ -1,0 +1,360 @@
+{
+  "subset": "WS_V2.0",
+  "n_images": 769,
+  "aggregate": {
+    "A_baseline_v1_prompts": {
+      "tier1_in_dist_acc": 0.1751,
+      "tier1_correct": 247,
+      "tier1_total": 1411,
+      "tier2_zero_shot_acc": 0.0327,
+      "tier2_correct": 10,
+      "tier2_total": 306,
+      "severity_acc": 0.0894,
+      "severity_correct": 68,
+      "severity_total": 761,
+      "stage1_distress_rate": 0.3810143042912874,
+      "0_preds": 476,
+      "1_pred": 242,
+      "2_preds": 51,
+      "3_or_more": 0,
+      "multi_rate": 0.06631989596879063,
+      "avg_preds_per_distress_image": 1.174061433447099
+    },
+    "B_baseline_v2_prompts": {
+      "tier1_in_dist_acc": 0.2693,
+      "tier1_correct": 380,
+      "tier1_total": 1411,
+      "tier2_zero_shot_acc": 0.0588,
+      "tier2_correct": 18,
+      "tier2_total": 306,
+      "severity_acc": 0.0723,
+      "severity_correct": 55,
+      "severity_total": 761,
+      "stage1_distress_rate": 0.52925877763329,
+      "0_preds": 362,
+      "1_pred": 3,
+      "2_preds": 400,
+      "3_or_more": 4,
+      "multi_rate": 0.5253576072821846,
+      "avg_preds_per_distress_image": 2.0024570024570023
+    },
+    "C_finetuned_v1_prompts": {
+      "tier1_in_dist_acc": 0.3111,
+      "tier1_correct": 439,
+      "tier1_total": 1411,
+      "tier2_zero_shot_acc": 0.0,
+      "tier2_correct": 0,
+      "tier2_total": 306,
+      "severity_acc": 0.2576,
+      "severity_correct": 196,
+      "severity_total": 761,
+      "stage1_distress_rate": 0.6853055916775033,
+      "0_preds": 242,
+      "1_pred": 397,
+      "2_preds": 130,
+      "3_or_more": 0,
+      "multi_rate": 0.16905071521456436,
+      "avg_preds_per_distress_image": 1.2466793168880455
+    }
+  },
+  "deltas": {
+    "tier1_in_dist_acc": {
+      "prompt_only_AtoB": 0.0942,
+      "adapter_only_BtoC": 0.0418,
+      "total_AtoC": 0.136
+    },
+    "tier2_zero_shot_acc": {
+      "prompt_only_AtoB": 0.0261,
+      "adapter_only_BtoC": -0.0588,
+      "total_AtoC": -0.0327
+    },
+    "severity_acc": {
+      "prompt_only_AtoB": -0.0171,
+      "adapter_only_BtoC": 0.1853,
+      "total_AtoC": 0.1682
+    }
+  },
+  "per_class": {
+    "Alligator crack": {
+      "tier": "in-dist",
+      "A_baseline_v1_prompts": {
+        "tp": 5,
+        "fp": 0,
+        "fn": 556,
+        "precision": 1.0,
+        "recall": 0.0089,
+        "f1": 0.0177
+      },
+      "B_baseline_v2_prompts": {
+        "tp": 16,
+        "fp": 1,
+        "fn": 545,
+        "precision": 0.9412,
+        "recall": 0.0285,
+        "f1": 0.0554
+      },
+      "C_finetuned_v1_prompts": {
+        "tp": 69,
+        "fp": 5,
+        "fn": 492,
+        "precision": 0.9324,
+        "recall": 0.123,
+        "f1": 0.2173
+      },
+      "f1_delta_prompt": 0.0377,
+      "f1_delta_adapter": 0.1619,
+      "f1_delta_total": 0.1996
+    },
+    "Block crack": {
+      "tier": "zero-shot",
+      "A_baseline_v1_prompts": {
+        "tp": 7,
+        "fp": 26,
+        "fn": 25,
+        "precision": 0.2121,
+        "recall": 0.2188,
+        "f1": 0.2154
+      },
+      "B_baseline_v2_prompts": {
+        "tp": 12,
+        "fp": 35,
+        "fn": 20,
+        "precision": 0.2553,
+        "recall": 0.375,
+        "f1": 0.3038
+      },
+      "C_finetuned_v1_prompts": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 32,
+        "precision": 0,
+        "recall": 0.0,
+        "f1": 0
+      },
+      "f1_delta_prompt": 0.0884,
+      "f1_delta_adapter": -0.3038,
+      "f1_delta_total": -0.2154
+    },
+    "Linear crack": {
+      "tier": "in-dist",
+      "A_baseline_v1_prompts": {
+        "tp": 222,
+        "fp": 17,
+        "fn": 465,
+        "precision": 0.9289,
+        "recall": 0.3231,
+        "f1": 0.4795
+      },
+      "B_baseline_v2_prompts": {
+        "tp": 335,
+        "fp": 30,
+        "fn": 352,
+        "precision": 0.9178,
+        "recall": 0.4876,
+        "f1": 0.6369
+      },
+      "C_finetuned_v1_prompts": {
+        "tp": 370,
+        "fp": 36,
+        "fn": 317,
+        "precision": 0.9113,
+        "recall": 0.5386,
+        "f1": 0.677
+      },
+      "f1_delta_prompt": 0.1574,
+      "f1_delta_adapter": 0.0401,
+      "f1_delta_total": 0.1975
+    },
+    "Pothole": {
+      "tier": "in-dist",
+      "A_baseline_v1_prompts": {
+        "tp": 20,
+        "fp": 21,
+        "fn": 143,
+        "precision": 0.4878,
+        "recall": 0.1227,
+        "f1": 0.1961
+      },
+      "B_baseline_v2_prompts": {
+        "tp": 29,
+        "fp": 27,
+        "fn": 134,
+        "precision": 0.5179,
+        "recall": 0.1779,
+        "f1": 0.2648
+      },
+      "C_finetuned_v1_prompts": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 163,
+        "precision": 0,
+        "recall": 0.0,
+        "f1": 0
+      },
+      "f1_delta_prompt": 0.0687,
+      "f1_delta_adapter": -0.2648,
+      "f1_delta_total": -0.1961
+    },
+    "Raveling": {
+      "tier": "zero-shot",
+      "A_baseline_v1_prompts": {
+        "tp": 1,
+        "fp": 6,
+        "fn": 106,
+        "precision": 0.1429,
+        "recall": 0.0093,
+        "f1": 0.0175
+      },
+      "B_baseline_v2_prompts": {
+        "tp": 0,
+        "fp": 2,
+        "fn": 107,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0
+      },
+      "C_finetuned_v1_prompts": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 107,
+        "precision": 0,
+        "recall": 0.0,
+        "f1": 0
+      },
+      "f1_delta_prompt": -0.0175,
+      "f1_delta_adapter": 0,
+      "f1_delta_total": -0.0175
+    },
+    "Weathering": {
+      "tier": "zero-shot",
+      "A_baseline_v1_prompts": {
+        "tp": 2,
+        "fp": 0,
+        "fn": 165,
+        "precision": 1.0,
+        "recall": 0.012,
+        "f1": 0.0237
+      },
+      "B_baseline_v2_prompts": {
+        "tp": 6,
+        "fp": 18,
+        "fn": 161,
+        "precision": 0.25,
+        "recall": 0.0359,
+        "f1": 0.0628
+      },
+      "C_finetuned_v1_prompts": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 167,
+        "precision": 0,
+        "recall": 0.0,
+        "f1": 0
+      },
+      "f1_delta_prompt": 0.0391,
+      "f1_delta_adapter": -0.0628,
+      "f1_delta_total": -0.0237
+    }
+  },
+  "prediction_frequency": {
+    "Alligator Crack (D20)": {
+      "A_baseline_v1_prompts": 5,
+      "B_baseline_v2_prompts": 17,
+      "C_finetuned_v1_prompts": 74
+    },
+    "Block Crack (D43)": {
+      "A_baseline_v1_prompts": 33,
+      "B_baseline_v2_prompts": 47,
+      "C_finetuned_v1_prompts": 0
+    },
+    "Longitudinal Crack (D00)": {
+      "A_baseline_v1_prompts": 239,
+      "B_baseline_v2_prompts": 364,
+      "C_finetuned_v1_prompts": 406
+    },
+    "Polishing": {
+      "A_baseline_v1_prompts": 0,
+      "B_baseline_v2_prompts": 1,
+      "C_finetuned_v1_prompts": 0
+    },
+    "Pothole (D40)": {
+      "A_baseline_v1_prompts": 41,
+      "B_baseline_v2_prompts": 56,
+      "C_finetuned_v1_prompts": 0
+    },
+    "Raveling": {
+      "A_baseline_v1_prompts": 7,
+      "B_baseline_v2_prompts": 2,
+      "C_finetuned_v1_prompts": 0
+    },
+    "Rutting": {
+      "A_baseline_v1_prompts": 0,
+      "B_baseline_v2_prompts": 30,
+      "C_finetuned_v1_prompts": 0
+    },
+    "Rutting (D30)": {
+      "A_baseline_v1_prompts": 0,
+      "B_baseline_v2_prompts": 63,
+      "C_finetuned_v1_prompts": 0
+    },
+    "Rutting (D41)": {
+      "A_baseline_v1_prompts": 0,
+      "B_baseline_v2_prompts": 2,
+      "C_finetuned_v1_prompts": 0
+    },
+    "Transverse Crack (D10)": {
+      "A_baseline_v1_prompts": 17,
+      "B_baseline_v2_prompts": 209,
+      "C_finetuned_v1_prompts": 97
+    },
+    "Unknown": {
+      "A_baseline_v1_prompts": 0,
+      "B_baseline_v2_prompts": 0,
+      "C_finetuned_v1_prompts": 80
+    },
+    "Weathering/Oxidation": {
+      "A_baseline_v1_prompts": 2,
+      "B_baseline_v2_prompts": 20,
+      "C_finetuned_v1_prompts": 0
+    },
+    "Weathering/Oxidation (D70)": {
+      "A_baseline_v1_prompts": 0,
+      "B_baseline_v2_prompts": 4,
+      "C_finetuned_v1_prompts": 0
+    }
+  },
+  "head_to_head": {
+    "A_vs_B_prompts_effect": {
+      "n_compared": 769,
+      "A_strictly_better": 3,
+      "B_strictly_better": 141,
+      "tied_both_correct_on_>=1": 222,
+      "tied_both_wrong_or_partial": 403
+    },
+    "B_vs_C_adapter_effect": {
+      "n_compared": 769,
+      "A_strictly_better": 73,
+      "B_strictly_better": 118,
+      "tied_both_correct_on_>=1": 271,
+      "tied_both_wrong_or_partial": 307
+    },
+    "A_vs_C_total_effect": {
+      "n_compared": 769,
+      "A_strictly_better": 37,
+      "B_strictly_better": 214,
+      "tied_both_correct_on_>=1": 191,
+      "tied_both_wrong_or_partial": 327
+    }
+  },
+  "codex_verdict": {
+    "codex_claim": "baseline + v2 prompts >= fine-tuned + v1 prompts",
+    "n_aggregate_metrics": 3,
+    "n_metrics_v2_baseline_wins": 1,
+    "tier1_in_dist_v2_wins": false,
+    "tier2_zero_shot_v2_wins": true,
+    "severity_v2_wins": false,
+    "h2h_v2_baseline_wins_per_image": 73,
+    "h2h_finetuned_wins_per_image": 118,
+    "supported": false
+  }
+}

@@ -1,0 +1,1225 @@
+{
+  "subset": "WS_V2.0",
+  "n_images": 769,
+  "accuracy_table": {
+    "tier1_in_distribution": {
+      "baseline": {
+        "instances": 1411,
+        "correct": 247,
+        "accuracy": 0.1751
+      },
+      "finetuned": {
+        "instances": 1411,
+        "correct": 439,
+        "accuracy": 0.3111
+      },
+      "delta_accuracy": 0.136
+    },
+    "tier2_zero_shot": {
+      "baseline": {
+        "instances": 306,
+        "correct": 10,
+        "accuracy": 0.0327
+      },
+      "finetuned": {
+        "instances": 306,
+        "correct": 0,
+        "accuracy": 0.0
+      },
+      "delta_accuracy": -0.0327
+    },
+    "severity": {
+      "baseline": {
+        "instances": 761,
+        "correct": 68,
+        "accuracy": 0.0894
+      },
+      "finetuned": {
+        "instances": 761,
+        "correct": 196,
+        "accuracy": 0.2576
+      },
+      "delta_accuracy": 0.1682
+    }
+  },
+  "per_class": {
+    "Alligator crack": {
+      "tier": "in-dist",
+      "baseline": {
+        "tp": 5,
+        "fp": 0,
+        "fn": 556,
+        "precision": 1.0,
+        "recall": 0.0089,
+        "f1": 0.0177
+      },
+      "finetuned": {
+        "tp": 69,
+        "fp": 5,
+        "fn": 492,
+        "precision": 0.9324,
+        "recall": 0.123,
+        "f1": 0.2173
+      },
+      "delta": {
+        "tp": 64,
+        "fp": 5,
+        "fn": -64,
+        "precision": -0.0676,
+        "recall": 0.1141,
+        "f1": 0.1996
+      }
+    },
+    "Block crack": {
+      "tier": "zero-shot",
+      "baseline": {
+        "tp": 7,
+        "fp": 26,
+        "fn": 25,
+        "precision": 0.2121,
+        "recall": 0.2188,
+        "f1": 0.2154
+      },
+      "finetuned": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 32,
+        "precision": 0,
+        "recall": 0.0,
+        "f1": 0
+      },
+      "delta": {
+        "tp": -7,
+        "fp": -26,
+        "fn": 7,
+        "precision": -0.2121,
+        "recall": -0.2188,
+        "f1": -0.2154
+      }
+    },
+    "Linear crack": {
+      "tier": "in-dist",
+      "baseline": {
+        "tp": 222,
+        "fp": 17,
+        "fn": 465,
+        "precision": 0.9289,
+        "recall": 0.3231,
+        "f1": 0.4795
+      },
+      "finetuned": {
+        "tp": 370,
+        "fp": 36,
+        "fn": 317,
+        "precision": 0.9113,
+        "recall": 0.5386,
+        "f1": 0.677
+      },
+      "delta": {
+        "tp": 148,
+        "fp": 19,
+        "fn": -148,
+        "precision": -0.0176,
+        "recall": 0.2155,
+        "f1": 0.1975
+      }
+    },
+    "Pothole": {
+      "tier": "in-dist",
+      "baseline": {
+        "tp": 20,
+        "fp": 21,
+        "fn": 143,
+        "precision": 0.4878,
+        "recall": 0.1227,
+        "f1": 0.1961
+      },
+      "finetuned": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 163,
+        "precision": 0,
+        "recall": 0.0,
+        "f1": 0
+      },
+      "delta": {
+        "tp": -20,
+        "fp": -21,
+        "fn": 20,
+        "precision": -0.4878,
+        "recall": -0.1227,
+        "f1": -0.1961
+      }
+    },
+    "Raveling": {
+      "tier": "zero-shot",
+      "baseline": {
+        "tp": 1,
+        "fp": 6,
+        "fn": 106,
+        "precision": 0.1429,
+        "recall": 0.0093,
+        "f1": 0.0175
+      },
+      "finetuned": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 107,
+        "precision": 0,
+        "recall": 0.0,
+        "f1": 0
+      },
+      "delta": {
+        "tp": -1,
+        "fp": -6,
+        "fn": 1,
+        "precision": -0.1429,
+        "recall": -0.0093,
+        "f1": -0.0175
+      }
+    },
+    "Weathering": {
+      "tier": "zero-shot",
+      "baseline": {
+        "tp": 2,
+        "fp": 0,
+        "fn": 165,
+        "precision": 1.0,
+        "recall": 0.012,
+        "f1": 0.0237
+      },
+      "finetuned": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 167,
+        "precision": 0,
+        "recall": 0.0,
+        "f1": 0
+      },
+      "delta": {
+        "tp": -2,
+        "fp": 0,
+        "fn": 2,
+        "precision": -1.0,
+        "recall": -0.012,
+        "f1": -0.0237
+      }
+    }
+  },
+  "stage1_detection": {
+    "baseline": {
+      "total": 769,
+      "predicted_distress": 293,
+      "predicted_normal": 476,
+      "distress_rate": 0.381
+    },
+    "finetuned": {
+      "total": 769,
+      "predicted_distress": 527,
+      "predicted_normal": 242,
+      "distress_rate": 0.6853
+    }
+  },
+  "severity_distribution": {
+    "High": {
+      "baseline": 45,
+      "finetuned": 2
+    },
+    "Low": {
+      "baseline": 56,
+      "finetuned": 396
+    },
+    "Medium": {
+      "baseline": 192,
+      "finetuned": 129
+    },
+    "Unknown": {
+      "baseline": 476,
+      "finetuned": 242
+    }
+  },
+  "prediction_frequencies_pipeline": {
+    "Alligator Crack (D20)": {
+      "baseline_count": 5,
+      "finetuned_count": 74,
+      "delta": 69
+    },
+    "Block Crack (D43)": {
+      "baseline_count": 33,
+      "finetuned_count": 0,
+      "delta": -33
+    },
+    "Longitudinal Crack (D00)": {
+      "baseline_count": 239,
+      "finetuned_count": 406,
+      "delta": 167
+    },
+    "Pothole (D40)": {
+      "baseline_count": 41,
+      "finetuned_count": 0,
+      "delta": -41
+    },
+    "Raveling": {
+      "baseline_count": 7,
+      "finetuned_count": 0,
+      "delta": -7
+    },
+    "Transverse Crack (D10)": {
+      "baseline_count": 17,
+      "finetuned_count": 97,
+      "delta": 80
+    },
+    "Unknown": {
+      "baseline_count": 0,
+      "finetuned_count": 80,
+      "delta": 80
+    },
+    "Weathering/Oxidation": {
+      "baseline_count": 2,
+      "finetuned_count": 0,
+      "delta": -2
+    }
+  },
+  "prediction_frequencies_attain": {
+    "Alligator crack": {
+      "baseline": 5,
+      "finetuned": 74
+    },
+    "Block crack": {
+      "baseline": 33,
+      "finetuned": 0
+    },
+    "Linear crack": {
+      "baseline": 239,
+      "finetuned": 406
+    },
+    "Pothole": {
+      "baseline": 41,
+      "finetuned": 0
+    },
+    "Raveling": {
+      "baseline": 7,
+      "finetuned": 0
+    },
+    "Weathering": {
+      "baseline": 2,
+      "finetuned": 0
+    }
+  },
+  "pothole_bias_check": {
+    "baseline_predictions_with_pothole": 41,
+    "finetuned_predictions_with_pothole": 0,
+    "actual_pothole_instances_in_gt": 163
+  },
+  "head_to_head": {
+    "n_compared": 769,
+    "finetuned_strictly_better": 214,
+    "baseline_strictly_better": 37,
+    "tied_both_correct": 191,
+    "tied_both_wrong_or_partial": 327,
+    "ft_wins": [
+      {
+        "image": "Attain_SMP_WS_v2_000718.jpg",
+        "gt": [
+          "Alligator crack"
+        ],
+        "baseline_pred": [],
+        "finetuned_pred": [
+          "Alligator Crack (D20)"
+        ],
+        "baseline_correct": [],
+        "finetuned_correct": [
+          "Alligator crack"
+        ]
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000350.jpg",
+        "gt": [
+          "Alligator crack",
+          "Linear crack"
+        ],
+        "baseline_pred": [],
+        "finetuned_pred": [
+          "Longitudinal Crack (D00)"
+        ],
+        "baseline_correct": [],
+        "finetuned_correct": [
+          "Linear crack"
+        ]
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000533.jpg",
+        "gt": [
+          "Alligator crack",
+          "Linear crack"
+        ],
+        "baseline_pred": [],
+        "finetuned_pred": [
+          "Longitudinal Crack (D00)"
+        ],
+        "baseline_correct": [],
+        "finetuned_correct": [
+          "Linear crack"
+        ]
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000005.jpg",
+        "gt": [
+          "Block crack",
+          "Raveling",
+          "Linear crack",
+          "Weathering"
+        ],
+        "baseline_pred": [],
+        "finetuned_pred": [
+          "Longitudinal Crack (D00)"
+        ],
+        "baseline_correct": [],
+        "finetuned_correct": [
+          "Linear crack"
+        ]
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000373.jpg",
+        "gt": [
+          "Pothole",
+          "Alligator crack",
+          "Linear crack"
+        ],
+        "baseline_pred": [],
+        "finetuned_pred": [
+          "Longitudinal Crack (D00)",
+          "Transverse Crack (D10)"
+        ],
+        "baseline_correct": [],
+        "finetuned_correct": [
+          "Linear crack"
+        ]
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000193.jpg",
+        "gt": [
+          "Alligator crack",
+          "Linear crack"
+        ],
+        "baseline_pred": [],
+        "finetuned_pred": [
+          "Longitudinal Crack (D00)"
+        ],
+        "baseline_correct": [],
+        "finetuned_correct": [
+          "Linear crack"
+        ]
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000458.jpg",
+        "gt": [
+          "Alligator crack",
+          "Linear crack",
+          "Weathering"
+        ],
+        "baseline_pred": [],
+        "finetuned_pred": [
+          "Longitudinal Crack (D00)"
+        ],
+        "baseline_correct": [],
+        "finetuned_correct": [
+          "Linear crack"
+        ]
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000624.jpg",
+        "gt": [
+          "Raveling",
+          "Linear crack",
+          "Alligator crack",
+          "Patch and utility cut- Low"
+        ],
+        "baseline_pred": [],
+        "finetuned_pred": [
+          "Longitudinal Crack (D00)"
+        ],
+        "baseline_correct": [],
+        "finetuned_correct": [
+          "Linear crack"
+        ]
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000400.jpg",
+        "gt": [
+          "Pothole",
+          "Alligator crack",
+          "Linear crack"
+        ],
+        "baseline_pred": [
+          "Block Crack (D43)"
+        ],
+        "finetuned_pred": [
+          "Longitudinal Crack (D00)",
+          "Transverse Crack (D10)"
+        ],
+        "baseline_correct": [],
+        "finetuned_correct": [
+          "Linear crack"
+        ]
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000175.jpg",
+        "gt": [
+          "Alligator crack",
+          "Linear crack"
+        ],
+        "baseline_pred": [],
+        "finetuned_pred": [
+          "Longitudinal Crack (D00)"
+        ],
+        "baseline_correct": [],
+        "finetuned_correct": [
+          "Linear crack"
+        ]
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000553.jpg",
+        "gt": [
+          "Linear crack"
+        ],
+        "baseline_pred": [],
+        "finetuned_pred": [
+          "Longitudinal Crack (D00)"
+        ],
+        "baseline_correct": [],
+        "finetuned_correct": [
+          "Linear crack"
+        ]
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000300.jpg",
+        "gt": [
+          "Pothole",
+          "Alligator crack",
+          "Linear crack"
+        ],
+        "baseline_pred": [],
+        "finetuned_pred": [
+          "Longitudinal Crack (D00)"
+        ],
+        "baseline_correct": [],
+        "finetuned_correct": [
+          "Linear crack"
+        ]
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000339.jpg",
+        "gt": [
+          "Alligator crack",
+          "Linear crack"
+        ],
+        "baseline_pred": [],
+        "finetuned_pred": [
+          "Longitudinal Crack (D00)"
+        ],
+        "baseline_correct": [],
+        "finetuned_correct": [
+          "Linear crack"
+        ]
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000319.jpg",
+        "gt": [
+          "Alligator crack",
+          "Linear crack"
+        ],
+        "baseline_pred": [],
+        "finetuned_pred": [
+          "Longitudinal Crack (D00)"
+        ],
+        "baseline_correct": [],
+        "finetuned_correct": [
+          "Linear crack"
+        ]
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000570.jpg",
+        "gt": [
+          "Alligator crack",
+          "Linear crack"
+        ],
+        "baseline_pred": [],
+        "finetuned_pred": [
+          "Longitudinal Crack (D00)"
+        ],
+        "baseline_correct": [],
+        "finetuned_correct": [
+          "Linear crack"
+        ]
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000516.jpg",
+        "gt": [
+          "Raveling",
+          "Linear crack",
+          "Alligator crack",
+          "Patch and utility cut- Low"
+        ],
+        "baseline_pred": [
+          "Longitudinal Crack (D00)",
+          "Block Crack (D43)"
+        ],
+        "finetuned_pred": [
+          "Longitudinal Crack (D00)",
+          "Alligator Crack (D20)"
+        ],
+        "baseline_correct": [
+          "Linear crack"
+        ],
+        "finetuned_correct": [
+          "Alligator crack",
+          "Linear crack"
+        ]
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000774.jpg",
+        "gt": [
+          "Alligator crack",
+          "Linear crack",
+          "Weathering"
+        ],
+        "baseline_pred": [],
+        "finetuned_pred": [
+          "Longitudinal Crack (D00)"
+        ],
+        "baseline_correct": [],
+        "finetuned_correct": [
+          "Linear crack"
+        ]
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000454.jpg",
+        "gt": [
+          "Alligator crack",
+          "Linear crack"
+        ],
+        "baseline_pred": [],
+        "finetuned_pred": [
+          "Longitudinal Crack (D00)"
+        ],
+        "baseline_correct": [],
+        "finetuned_correct": [
+          "Linear crack"
+        ]
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000455.jpg",
+        "gt": [
+          "Alligator crack",
+          "Linear crack"
+        ],
+        "baseline_pred": [],
+        "finetuned_pred": [
+          "Longitudinal Crack (D00)"
+        ],
+        "baseline_correct": [],
+        "finetuned_correct": [
+          "Linear crack"
+        ]
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000056.jpg",
+        "gt": [
+          "Pothole",
+          "Linear crack",
+          "Weathering"
+        ],
+        "baseline_pred": [],
+        "finetuned_pred": [
+          "Longitudinal Crack (D00)"
+        ],
+        "baseline_correct": [],
+        "finetuned_correct": [
+          "Linear crack"
+        ]
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000140.jpg",
+        "gt": [
+          "Alligator crack",
+          "Linear crack"
+        ],
+        "baseline_pred": [
+          "Longitudinal Crack (D00)"
+        ],
+        "finetuned_pred": [
+          "Longitudinal Crack (D00)",
+          "Alligator Crack (D20)"
+        ],
+        "baseline_correct": [
+          "Linear crack"
+        ],
+        "finetuned_correct": [
+          "Alligator crack",
+          "Linear crack"
+        ]
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000811.jpg",
+        "gt": [
+          "Alligator crack",
+          "Linear crack",
+          "Weathering"
+        ],
+        "baseline_pred": [],
+        "finetuned_pred": [
+          "Longitudinal Crack (D00)"
+        ],
+        "baseline_correct": [],
+        "finetuned_correct": [
+          "Linear crack"
+        ]
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000363.jpg",
+        "gt": [
+          "Pothole",
+          "Alligator crack",
+          "Linear crack"
+        ],
+        "baseline_pred": [],
+        "finetuned_pred": [
+          "Longitudinal Crack (D00)",
+          "Transverse Crack (D10)"
+        ],
+        "baseline_correct": [],
+        "finetuned_correct": [
+          "Linear crack"
+        ]
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000609.jpg",
+        "gt": [
+          "Pothole",
+          "Alligator crack",
+          "Patch and utility cut- Low",
+          "Linear crack"
+        ],
+        "baseline_pred": [],
+        "finetuned_pred": [
+          "Longitudinal Crack (D00)"
+        ],
+        "baseline_correct": [],
+        "finetuned_correct": [
+          "Linear crack"
+        ]
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000290.jpg",
+        "gt": [
+          "Raveling",
+          "Alligator crack",
+          "Linear crack"
+        ],
+        "baseline_pred": [],
+        "finetuned_pred": [
+          "Longitudinal Crack (D00)"
+        ],
+        "baseline_correct": [],
+        "finetuned_correct": [
+          "Linear crack"
+        ]
+      }
+    ],
+    "base_wins": [
+      {
+        "image": "Attain_SMP_WS_v2_000019.jpg",
+        "gt": [
+          "Pothole",
+          "Linear crack",
+          "Weathering"
+        ],
+        "baseline_pred": [
+          "Raveling",
+          "Weathering/Oxidation"
+        ],
+        "finetuned_pred": [
+          "Unknown"
+        ],
+        "baseline_correct": [
+          "Weathering"
+        ],
+        "finetuned_correct": []
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000374.jpg",
+        "gt": [
+          "Pothole",
+          "Alligator crack",
+          "Linear crack"
+        ],
+        "baseline_pred": [
+          "Longitudinal Crack (D00)"
+        ],
+        "finetuned_pred": [
+          "Unknown"
+        ],
+        "baseline_correct": [
+          "Linear crack"
+        ],
+        "finetuned_correct": []
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000378.jpg",
+        "gt": [
+          "Pothole",
+          "Alligator crack",
+          "Linear crack"
+        ],
+        "baseline_pred": [
+          "Pothole (D40)"
+        ],
+        "finetuned_pred": [
+          "Unknown"
+        ],
+        "baseline_correct": [
+          "Pothole"
+        ],
+        "finetuned_correct": []
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000018.jpg",
+        "gt": [
+          "Pothole",
+          "Linear crack",
+          "Weathering"
+        ],
+        "baseline_pred": [
+          "Pothole (D40)"
+        ],
+        "finetuned_pred": [
+          "Unknown"
+        ],
+        "baseline_correct": [
+          "Pothole"
+        ],
+        "finetuned_correct": []
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000021.jpg",
+        "gt": [
+          "Pothole",
+          "Linear crack",
+          "Weathering"
+        ],
+        "baseline_pred": [
+          "Longitudinal Crack (D00)",
+          "Raveling"
+        ],
+        "finetuned_pred": [
+          "Unknown"
+        ],
+        "baseline_correct": [
+          "Linear crack"
+        ],
+        "finetuned_correct": []
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000578.jpg",
+        "gt": [
+          "Block crack",
+          "Linear crack",
+          "Alligator crack",
+          "Patch and utility cut- Low"
+        ],
+        "baseline_pred": [
+          "Longitudinal Crack (D00)",
+          "Block Crack (D43)"
+        ],
+        "finetuned_pred": [
+          "Alligator Crack (D20)"
+        ],
+        "baseline_correct": [
+          "Block crack",
+          "Linear crack"
+        ],
+        "finetuned_correct": [
+          "Alligator crack"
+        ]
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000391.jpg",
+        "gt": [
+          "Linear crack",
+          "Pothole",
+          "Patch and utility cut- Low",
+          "Patch and utility cut- High",
+          "Alligator crack"
+        ],
+        "baseline_pred": [
+          "Longitudinal Crack (D00)",
+          "Pothole (D40)"
+        ],
+        "finetuned_pred": [
+          "Longitudinal Crack (D00)",
+          "Transverse Crack (D10)"
+        ],
+        "baseline_correct": [
+          "Pothole",
+          "Linear crack"
+        ],
+        "finetuned_correct": [
+          "Linear crack"
+        ]
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000028.jpg",
+        "gt": [
+          "Pothole",
+          "Linear crack",
+          "Weathering"
+        ],
+        "baseline_pred": [
+          "Pothole (D40)"
+        ],
+        "finetuned_pred": [
+          "Unknown"
+        ],
+        "baseline_correct": [
+          "Pothole"
+        ],
+        "finetuned_correct": []
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000020.jpg",
+        "gt": [
+          "Pothole",
+          "Linear crack",
+          "Weathering"
+        ],
+        "baseline_pred": [
+          "Longitudinal Crack (D00)",
+          "Block Crack (D43)"
+        ],
+        "finetuned_pred": [
+          "Alligator Crack (D20)"
+        ],
+        "baseline_correct": [
+          "Linear crack"
+        ],
+        "finetuned_correct": []
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000022.jpg",
+        "gt": [
+          "Pothole",
+          "Linear crack",
+          "Weathering"
+        ],
+        "baseline_pred": [
+          "Pothole (D40)"
+        ],
+        "finetuned_pred": [
+          "Unknown"
+        ],
+        "baseline_correct": [
+          "Pothole"
+        ],
+        "finetuned_correct": []
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000063.jpg",
+        "gt": [
+          "Alligator crack",
+          "Linear crack",
+          "Weathering"
+        ],
+        "baseline_pred": [
+          "Longitudinal Crack (D00)"
+        ],
+        "finetuned_pred": [
+          "Unknown"
+        ],
+        "baseline_correct": [
+          "Linear crack"
+        ],
+        "finetuned_correct": []
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000029.jpg",
+        "gt": [
+          "Pothole",
+          "Linear crack",
+          "Weathering"
+        ],
+        "baseline_pred": [
+          "Longitudinal Crack (D00)",
+          "Block Crack (D43)"
+        ],
+        "finetuned_pred": [
+          "Unknown"
+        ],
+        "baseline_correct": [
+          "Linear crack"
+        ],
+        "finetuned_correct": []
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000014.jpg",
+        "gt": [
+          "Alligator crack",
+          "Linear crack",
+          "Weathering"
+        ],
+        "baseline_pred": [
+          "Raveling",
+          "Weathering/Oxidation"
+        ],
+        "finetuned_pred": [
+          "Unknown"
+        ],
+        "baseline_correct": [
+          "Weathering"
+        ],
+        "finetuned_correct": []
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000009.jpg",
+        "gt": [
+          "Linear crack",
+          "Weathering",
+          "Pothole",
+          "Block crack",
+          "Alligator crack"
+        ],
+        "baseline_pred": [
+          "Longitudinal Crack (D00)",
+          "Raveling"
+        ],
+        "finetuned_pred": [
+          "Unknown"
+        ],
+        "baseline_correct": [
+          "Linear crack"
+        ],
+        "finetuned_correct": []
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000032.jpg",
+        "gt": [
+          "Weathering",
+          "Pothole",
+          "Patch and utility cut- Low",
+          "Linear crack"
+        ],
+        "baseline_pred": [
+          "Pothole (D40)"
+        ],
+        "finetuned_pred": [
+          "Unknown"
+        ],
+        "baseline_correct": [
+          "Pothole"
+        ],
+        "finetuned_correct": []
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000408.jpg",
+        "gt": [
+          "Linear crack",
+          "Patch and utility cut- High",
+          "Alligator crack",
+          "Patch and utility cut- Low"
+        ],
+        "baseline_pred": [
+          "Pothole (D40)",
+          "Longitudinal Crack (D00)"
+        ],
+        "finetuned_pred": [
+          "Unknown"
+        ],
+        "baseline_correct": [
+          "Linear crack"
+        ],
+        "finetuned_correct": []
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000031.jpg",
+        "gt": [
+          "Weathering",
+          "Pothole",
+          "Patch and utility cut- Low",
+          "Linear crack"
+        ],
+        "baseline_pred": [
+          "Pothole (D40)"
+        ],
+        "finetuned_pred": [
+          "Unknown"
+        ],
+        "baseline_correct": [
+          "Pothole"
+        ],
+        "finetuned_correct": []
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000072.jpg",
+        "gt": [
+          "Linear crack",
+          "Patch and utility cut- Low",
+          "Weathering"
+        ],
+        "baseline_pred": [
+          "Pothole (D40)",
+          "Longitudinal Crack (D00)"
+        ],
+        "finetuned_pred": [
+          "Unknown"
+        ],
+        "baseline_correct": [
+          "Linear crack"
+        ],
+        "finetuned_correct": []
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000006.jpg",
+        "gt": [
+          "Block crack",
+          "Raveling",
+          "Linear crack",
+          "Weathering"
+        ],
+        "baseline_pred": [
+          "Longitudinal Crack (D00)",
+          "Raveling"
+        ],
+        "finetuned_pred": [
+          "Longitudinal Crack (D00)"
+        ],
+        "baseline_correct": [
+          "Raveling",
+          "Linear crack"
+        ],
+        "finetuned_correct": [
+          "Linear crack"
+        ]
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000424.jpg",
+        "gt": [
+          "Raveling",
+          "Pothole",
+          "Alligator crack",
+          "Linear crack"
+        ],
+        "baseline_pred": [
+          "Longitudinal Crack (D00)"
+        ],
+        "finetuned_pred": [
+          "Unknown"
+        ],
+        "baseline_correct": [
+          "Linear crack"
+        ],
+        "finetuned_correct": []
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000380.jpg",
+        "gt": [
+          "Pothole",
+          "Alligator crack",
+          "Linear crack"
+        ],
+        "baseline_pred": [
+          "Pothole (D40)"
+        ],
+        "finetuned_pred": [
+          "Unknown"
+        ],
+        "baseline_correct": [
+          "Pothole"
+        ],
+        "finetuned_correct": []
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000375.jpg",
+        "gt": [
+          "Pothole",
+          "Alligator crack",
+          "Linear crack"
+        ],
+        "baseline_pred": [
+          "Pothole (D40)"
+        ],
+        "finetuned_pred": [
+          "Unknown"
+        ],
+        "baseline_correct": [
+          "Pothole"
+        ],
+        "finetuned_correct": []
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000030.jpg",
+        "gt": [
+          "Pothole",
+          "Linear crack",
+          "Weathering"
+        ],
+        "baseline_pred": [
+          "Pothole (D40)"
+        ],
+        "finetuned_pred": [
+          "Unknown"
+        ],
+        "baseline_correct": [
+          "Pothole"
+        ],
+        "finetuned_correct": []
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000007.jpg",
+        "gt": [
+          "Linear crack",
+          "Weathering",
+          "Pothole",
+          "Block crack",
+          "Alligator crack"
+        ],
+        "baseline_pred": [
+          "Longitudinal Crack (D00)",
+          "Block Crack (D43)"
+        ],
+        "finetuned_pred": [
+          "Unknown"
+        ],
+        "baseline_correct": [
+          "Block crack",
+          "Linear crack"
+        ],
+        "finetuned_correct": []
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000392.jpg",
+        "gt": [
+          "Linear crack",
+          "Pothole",
+          "Patch and utility cut- Low",
+          "Patch and utility cut- High",
+          "Alligator crack"
+        ],
+        "baseline_pred": [
+          "Longitudinal Crack (D00)",
+          "Pothole (D40)"
+        ],
+        "finetuned_pred": [
+          "Longitudinal Crack (D00)",
+          "Transverse Crack (D10)"
+        ],
+        "baseline_correct": [
+          "Pothole",
+          "Linear crack"
+        ],
+        "finetuned_correct": [
+          "Linear crack"
+        ]
+      }
+    ]
+  }
+}

@@ -666,6 +666,174 @@ def plot_attain_head_to_head(comparison: dict):
     return out
 
 
+def plot_attain_3way_tier_accuracy(threeway: dict):
+    """3-way bar chart: tier 1, tier 2, severity across A/B/C."""
+    A = threeway["aggregate"]["A_baseline_v1_prompts"]
+    B = threeway["aggregate"]["B_baseline_v2_prompts"]
+    C = threeway["aggregate"]["C_finetuned_v1_prompts"]
+
+    metrics = ["Tier 1\n(in-distribution)", "Tier 2\n(zero-shot)", "Severity"]
+    A_v = [A["tier1_in_dist_acc"], A["tier2_zero_shot_acc"], A["severity_acc"]]
+    B_v = [B["tier1_in_dist_acc"], B["tier2_zero_shot_acc"], B["severity_acc"]]
+    C_v = [C["tier1_in_dist_acc"], C["tier2_zero_shot_acc"], C["severity_acc"]]
+
+    fig, ax = plt.subplots(figsize=(11, 5.5))
+    x = np.arange(len(metrics))
+    w = 0.27
+    bars_A = ax.bar(x - w, A_v, w, label="A: baseline + v1 prompts", color=C_BASE)
+    bars_B = ax.bar(x,     B_v, w, label="B: baseline + v2 prompts (Codex)", color="#7570b3")
+    bars_C = ax.bar(x + w, C_v, w, label="C: fine-tuned + v1 prompts", color=C_FT)
+    annotate_bars(ax, bars_A, fmt="{:.1%}", fontsize=8)
+    annotate_bars(ax, bars_B, fmt="{:.1%}", fontsize=8)
+    annotate_bars(ax, bars_C, fmt="{:.1%}", fontsize=8)
+    ax.set_xticks(x)
+    ax.set_xticklabels(metrics)
+    ax.set_ylabel("Accuracy")
+    ax.set_ylim(0, max(max(A_v), max(B_v), max(C_v)) * 1.25)
+    ax.yaxis.set_major_formatter(mticker.PercentFormatter(1.0, decimals=0))
+    ax.set_title("Attain WS_V2.0 — 3-way comparison: prompt vs adapter contribution")
+    ax.legend(loc="upper right")
+    fig.tight_layout()
+    out = PLOTS_DIR / "attain" / "3way_tier_accuracy.png"
+    fig.savefig(out)
+    plt.close(fig)
+    return out
+
+
+def plot_attain_3way_per_class_f1(threeway: dict):
+    """3-way per-class F1."""
+    classes = sorted(threeway["per_class"].keys(),
+                     key=lambda c: threeway["per_class"][c]["tier"])
+    A_f1 = [threeway["per_class"][c]["A_baseline_v1_prompts"]["f1"] for c in classes]
+    B_f1 = [threeway["per_class"][c]["B_baseline_v2_prompts"]["f1"] for c in classes]
+    C_f1 = [threeway["per_class"][c]["C_finetuned_v1_prompts"]["f1"] for c in classes]
+
+    fig, ax = plt.subplots(figsize=(12, 6))
+    x = np.arange(len(classes))
+    w = 0.27
+    bars_A = ax.bar(x - w, A_f1, w, label="A: baseline + v1 prompts", color=C_BASE)
+    bars_B = ax.bar(x,     B_f1, w, label="B: baseline + v2 prompts (Codex)", color="#7570b3")
+    bars_C = ax.bar(x + w, C_f1, w, label="C: fine-tuned + v1 prompts", color=C_FT)
+    annotate_bars(ax, bars_A, fmt="{:.2f}", fontsize=8, offset=0.015)
+    annotate_bars(ax, bars_B, fmt="{:.2f}", fontsize=8, offset=0.015)
+    annotate_bars(ax, bars_C, fmt="{:.2f}", fontsize=8, offset=0.015)
+    ax.set_xticks(x)
+    tier_lookup = {c: threeway["per_class"][c]["tier"] for c in classes}
+    ax.set_xticklabels([f"{short(c, 18)}\n({tier_lookup[c]})" for c in classes],
+                       rotation=15, ha="right")
+    ax.set_ylabel("F1 score")
+    ax.set_ylim(0, 1.0)
+    ax.set_title("Attain WS_V2.0 — per-class F1 across all 3 configurations")
+    ax.legend(loc="upper right")
+    fig.tight_layout()
+    out = PLOTS_DIR / "attain" / "3way_per_class_f1.png"
+    fig.savefig(out)
+    plt.close(fig)
+    return out
+
+
+def plot_attain_3way_decomposition(threeway: dict):
+    """Stacked bar: prompt contribution + adapter contribution for each metric.
+    Visualises that the +13.6pp Tier 1 improvement is ~70% prompts and ~30% adapter."""
+    metrics = ["Tier 1\n(in-dist)", "Tier 2\n(zero-shot)", "Severity"]
+    A = threeway["aggregate"]["A_baseline_v1_prompts"]
+    B = threeway["aggregate"]["B_baseline_v2_prompts"]
+    C = threeway["aggregate"]["C_finetuned_v1_prompts"]
+    base = [A["tier1_in_dist_acc"], A["tier2_zero_shot_acc"], A["severity_acc"]]
+    prompt_delta = [B["tier1_in_dist_acc"] - A["tier1_in_dist_acc"],
+                    B["tier2_zero_shot_acc"] - A["tier2_zero_shot_acc"],
+                    B["severity_acc"] - A["severity_acc"]]
+    adapter_delta = [C["tier1_in_dist_acc"] - B["tier1_in_dist_acc"],
+                     C["tier2_zero_shot_acc"] - B["tier2_zero_shot_acc"],
+                     C["severity_acc"] - B["severity_acc"]]
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    x = np.arange(len(metrics))
+    w = 0.55
+    bars_base = ax.bar(x, base, w, label="Baseline (A)", color=C_BASE)
+    # Show prompt and adapter contributions (positive only stacks normally; negatives shown separately)
+    # Positive prompt contributions
+    bars_p_pos = ax.bar(x, [max(0, p) for p in prompt_delta], w, bottom=base,
+                        label="+ Prompt contribution (A→B)", color="#7570b3")
+    # Compute floor for adapter contribution (top of positive prompt bar)
+    floor_for_adapter = [b + max(0, p) for b, p in zip(base, prompt_delta)]
+    bars_a_pos = ax.bar(x, [max(0, a) for a in adapter_delta], w, bottom=floor_for_adapter,
+                        label="+ Adapter contribution (B→C)", color=C_FT)
+    # Mark negative contributions with hatching
+    for i, (p, a) in enumerate(zip(prompt_delta, adapter_delta)):
+        if p < 0:
+            ax.bar(x[i], abs(p), w, bottom=base[i] + p, label="− Prompt regression" if i == 0 else None,
+                   color="#7570b3", hatch="///", edgecolor="black", linewidth=0.5, alpha=0.6)
+        if a < 0:
+            top_after_prompt = base[i] + max(0, p)
+            ax.bar(x[i], abs(a), w, bottom=top_after_prompt + a,
+                   label="− Adapter regression" if i == 0 else None,
+                   color=C_FT, hatch="///", edgecolor="black", linewidth=0.5, alpha=0.6)
+    # Annotations
+    for i, (b, p, a) in enumerate(zip(base, prompt_delta, adapter_delta)):
+        ax.text(x[i], b/2, f"{b:.1%}", ha="center", va="center", color="white", fontsize=9, fontweight="bold")
+        if abs(p) > 0.005:
+            sign = "+" if p > 0 else "−"
+            ax.text(x[i] + 0.05, b + p/2 if p > 0 else b + p/2,
+                    f"{sign}{abs(p):.1%}", ha="left", va="center", fontsize=8, fontweight="bold")
+        if abs(a) > 0.005:
+            sign = "+" if a > 0 else "−"
+            base_for_a = b + max(0, p)
+            mid = base_for_a + a/2 if a > 0 else base_for_a + a/2
+            ax.text(x[i] + 0.05, mid, f"{sign}{abs(a):.1%}", ha="left", va="center", fontsize=8, fontweight="bold")
+    ax.set_xticks(x)
+    ax.set_xticklabels(metrics)
+    ax.set_ylabel("Accuracy")
+    ax.yaxis.set_major_formatter(mticker.PercentFormatter(1.0, decimals=0))
+    ax.set_title("Attain WS_V2.0 — decomposing prompt-vs-adapter contributions")
+    ax.legend(loc="upper right", fontsize=9)
+    fig.tight_layout()
+    out = PLOTS_DIR / "attain" / "3way_contribution_decomposition.png"
+    fig.savefig(out)
+    plt.close(fig)
+    return out
+
+
+def plot_attain_3way_head_to_head(threeway: dict):
+    """Side-by-side stacked bars for the three pairwise comparisons."""
+    h2h = threeway["head_to_head"]
+    labels = ["A vs B\n(prompt effect)", "B vs C\n(adapter effect, Codex test)", "A vs C\n(total effect)"]
+    keys = ["A_vs_B_prompts_effect", "B_vs_C_adapter_effect", "A_vs_C_total_effect"]
+
+    A_better = [h2h[k]["A_strictly_better"] for k in keys]
+    B_better = [h2h[k]["B_strictly_better"] for k in keys]
+    tied_some = [h2h[k]["tied_both_correct_on_>=1"] for k in keys]
+    tied_none = [h2h[k]["tied_both_wrong_or_partial"] for k in keys]
+
+    fig, ax = plt.subplots(figsize=(11, 5.5))
+    x = np.arange(len(labels))
+    w = 0.7
+    p1 = ax.bar(x, A_better, w, label="First config strictly better", color=C_BASE)
+    p2 = ax.bar(x, B_better, w, bottom=A_better, label="Second config strictly better", color=C_FT)
+    p3 = ax.bar(x, tied_some, w, bottom=[a+b for a,b in zip(A_better, B_better)],
+                label="Tied — both right on ≥1", color=C_GAIN)
+    p4 = ax.bar(x, tied_none, w, bottom=[a+b+c for a,b,c in zip(A_better, B_better, tied_some)],
+                label="Tied — both wrong/partial", color=C_NEUT)
+    # Annotate inside each segment
+    for i in range(len(labels)):
+        segments = [(A_better[i], 0), (B_better[i], A_better[i]), (tied_some[i], A_better[i]+B_better[i]),
+                    (tied_none[i], A_better[i]+B_better[i]+tied_some[i])]
+        for v, bottom in segments:
+            if v > 20:
+                ax.text(x[i], bottom + v/2, f"{v}", ha="center", va="center",
+                        color="white", fontsize=10, fontweight="bold")
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels)
+    ax.set_ylabel("Images (out of 769)")
+    ax.set_title("Attain WS_V2.0 — per-image head-to-head, 3 pairwise comparisons")
+    ax.legend(loc="upper right", fontsize=9)
+    fig.tight_layout()
+    out = PLOTS_DIR / "attain" / "3way_head_to_head.png"
+    fig.savefig(out)
+    plt.close(fig)
+    return out
+
+
 def plot_attain_f1_delta(comparison: dict):
     """F1 delta per class — does fine-tuning help or hurt each one?"""
     pc = comparison.get("per_class") or {}
@@ -795,6 +963,18 @@ def main():
         for fn in (plot_attain_head_to_head, plot_attain_f1_delta):
             try:
                 p = fn(attain_compare)
+                if p:
+                    print(f"  [ok] {p.relative_to(PROJECT_ROOT)}")
+                    generated["Attain (cross-dataset)"].append(p)
+            except Exception as e:
+                print(f"  [err] {fn.__name__}: {e}")
+
+    attain_3way = load_json("attain_3way_comparison.json")
+    if attain_3way:
+        for fn in (plot_attain_3way_tier_accuracy, plot_attain_3way_per_class_f1,
+                   plot_attain_3way_decomposition, plot_attain_3way_head_to_head):
+            try:
+                p = fn(attain_3way)
                 if p:
                     print(f"  [ok] {p.relative_to(PROJECT_ROOT)}")
                     generated["Attain (cross-dataset)"].append(p)

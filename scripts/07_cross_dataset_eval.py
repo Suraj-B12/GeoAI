@@ -298,7 +298,27 @@ def evaluate(args):
         args.model, args.adapter_path, args.quantization_bits
     )
 
-    # Inference loop
+    # Choose prompt set based on --prompts-version
+    if args.prompts_version == "v2":
+        from scripts.utils_v2_prompts import (
+            STAGE1_SYSTEM_PROMPT_V2 as S1_SYS,
+            STAGE1_USER_PROMPT_V2 as S1_USR,
+            STAGE2_SYSTEM_PROMPT_V2 as S2_SYS,
+            STAGE2_USER_PROMPT_V2 as S2_USR,
+        )
+        print(f"Prompts: V2 ('insane' — deep persona + high-stakes negative-sentiment)")
+    else:
+        S1_SYS, S1_USR = STAGE1_SYSTEM_PROMPT, STAGE1_USER_PROMPT
+        S2_SYS, S2_USR = STAGE2_SYSTEM_PROMPT, STAGE2_USER_PROMPT
+        print(f"Prompts: V1 (current scripts/utils.py)")
+
+    # Checkpoint config — crash-resume support
+    ckpt_name = f"attain_{args.subset}_{args.prompts_version}_"
+    ckpt_name += "adapter" if args.adapter_path else "baseline"
+    ckpt_path = EVAL_DIR / f".{ckpt_name}_checkpoint.json"
+    ckpt_tmp = EVAL_DIR / f".{ckpt_name}_checkpoint.tmp"
+
+    # Resume if checkpoint exists
     results = []
     in_dist_correct = in_dist_total = 0
     zero_shot_correct = zero_shot_total = 0
@@ -306,16 +326,66 @@ def evaluate(args):
     per_class_tp: dict[str, int] = defaultdict(int)
     per_class_fp: dict[str, int] = defaultdict(int)
     per_class_fn: dict[str, int] = defaultdict(int)
+    processed_image_names: set[str] = set()
 
+    if ckpt_path.exists():
+        try:
+            with ckpt_path.open(encoding="utf-8") as f:
+                state = json.load(f)
+            results = state.get("results", [])
+            in_dist_correct = state.get("in_dist_correct", 0)
+            in_dist_total = state.get("in_dist_total", 0)
+            zero_shot_correct = state.get("zero_shot_correct", 0)
+            zero_shot_total = state.get("zero_shot_total", 0)
+            sev_correct = state.get("sev_correct", 0)
+            sev_total = state.get("sev_total", 0)
+            per_class_tp = defaultdict(int, state.get("per_class_tp", {}))
+            per_class_fp = defaultdict(int, state.get("per_class_fp", {}))
+            per_class_fn = defaultdict(int, state.get("per_class_fn", {}))
+            processed_image_names = {r["image"] for r in results}
+            print(f"Resumed from checkpoint: {len(results)} images already processed")
+        except Exception as e:
+            print(f"WARNING: checkpoint {ckpt_path} unreadable ({e}), starting fresh")
+            results = []
+
+    def save_checkpoint():
+        """Atomic-ish checkpoint via .tmp + replace, with .bak fallback for Windows."""
+        state = {
+            "results": results,
+            "in_dist_correct": in_dist_correct,
+            "in_dist_total": in_dist_total,
+            "zero_shot_correct": zero_shot_correct,
+            "zero_shot_total": zero_shot_total,
+            "sev_correct": sev_correct,
+            "sev_total": sev_total,
+            "per_class_tp": dict(per_class_tp),
+            "per_class_fp": dict(per_class_fp),
+            "per_class_fn": dict(per_class_fn),
+        }
+        try:
+            with ckpt_tmp.open("w", encoding="utf-8") as f:
+                json.dump(state, f)
+            # On Windows, os.replace works if dest doesn't exist or is unlocked
+            if ckpt_path.exists():
+                bak = ckpt_path.with_suffix(".json.bak")
+                if bak.exists(): bak.unlink()
+                ckpt_path.rename(bak)
+            ckpt_tmp.rename(ckpt_path)
+        except Exception as e:
+            print(f"WARNING: checkpoint save failed: {e}")
+
+    # Inference loop
     for entry in tqdm(gt, desc="Attain eval"):
         img_path = Path(entry["image_path"])
+        if img_path.name in processed_image_names:
+            continue  # skip already-processed (resume)
         try:
             image = Image.open(img_path).convert("RGB")
 
             # Stage 1
             s1_resp = baseline_eval.run_inference(
                 model, processor, image,
-                STAGE1_SYSTEM_PROMPT, STAGE1_USER_PROMPT, max_new_tokens=20
+                S1_SYS, S1_USR, max_new_tokens=20
             )
             s1_id = parse_stage1_response(s1_resp)
             is_distressed = s1_id == 1
@@ -324,7 +394,7 @@ def evaluate(args):
             if is_distressed:
                 s2_resp = baseline_eval.run_inference(
                     model, processor, image,
-                    STAGE2_SYSTEM_PROMPT, STAGE2_USER_PROMPT, max_new_tokens=200
+                    S2_SYS, S2_USR, max_new_tokens=200
                 )
                 parsed = parse_stage2_response(s2_resp)
                 pred_pipeline = parsed["distress_types"]
@@ -379,17 +449,23 @@ def evaluate(args):
                 "pred_attain": list(pred_attain),
                 "pred_severity": pred_sev,
                 "is_distressed_pred": is_distressed,
+                "stage1_raw": s1_resp,
+                "stage2_raw": s2_resp if is_distressed else None,
             })
 
             image.close()
             del image
-            if len(results) % 50 == 0:
+            if len(results) % 25 == 0:
                 gc.collect()
                 if torch.cuda.is_available():
                     torch.cuda.empty_cache()
+                save_checkpoint()
 
         except Exception as e:
             print(f"\n  ERROR on {img_path.name}: {e}")
+
+    # Final checkpoint save before computing metrics
+    save_checkpoint()
 
     # Compute aggregate metrics
     def _f1(tp, fp, fn):
@@ -460,10 +536,25 @@ def evaluate(args):
 
     # Save
     EVAL_DIR.mkdir(parents=True, exist_ok=True)
-    out = EVAL_DIR / "attain_cross_dataset_results.json"
+    out_name = args.output_name or f"attain_{args.prompts_version}_"
+    if not args.output_name:
+        out_name += "adapter" if args.adapter_path else "baseline"
+        out_name += "_results.json"
+    out = EVAL_DIR / out_name
+    summary["prompts_version"] = args.prompts_version
     with out.open("w", encoding="utf-8") as f:
         json.dump({"summary": summary, "per_image_results": results}, f, indent=2)
     print(f"\nResults saved to: {out}")
+
+    # Clear checkpoint on success
+    try:
+        if ckpt_path.exists():
+            ckpt_path.unlink()
+        bak = ckpt_path.with_suffix(".json.bak")
+        if bak.exists():
+            bak.unlink()
+    except Exception:
+        pass
 
 
 def main():
@@ -475,6 +566,11 @@ def main():
     parser.add_argument("--max-samples", type=int, default=0,
                         help="Limit number of test images (0 = all)")
     parser.add_argument("--quantization-bits", type=int, default=None, choices=[0, 4, 8])
+    parser.add_argument("--prompts-version", default="v1", choices=["v1", "v2"],
+                        help="v1 = current scripts/utils.py prompts. "
+                             "v2 = scripts/utils_v2_prompts.py (insane persona + stakes).")
+    parser.add_argument("--output-name", default=None,
+                        help="Custom output filename. Default: attain_<prompts>_<mode>_results.json")
     args = parser.parse_args()
     evaluate(args)
 
