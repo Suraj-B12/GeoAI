@@ -23,13 +23,34 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from scripts.utils import (
     CONFIDENCE_THRESHOLD,
-    STAGE1_SYSTEM_PROMPT,
-    STAGE1_USER_PROMPT,
-    STAGE2_SYSTEM_PROMPT,
-    STAGE2_USER_PROMPT,
     parse_stage1_response,
     parse_stage2_response,
 )
+
+# Prompt set selection
+# ===================
+# Production = "improved_baseline" (v2 IRC prompts: deep persona + stakes
+# + 6-step IRC:82 inspection protocol + quantitative severity criteria).
+# Set PROMPTS_VERSION=v1 to fall back to the plain Stage-2 prompts (kept
+# for paper/research comparison only — see scripts/utils.py).
+_PROMPTS_VERSION = os.environ.get("PROMPTS_VERSION", "v2").lower()
+if _PROMPTS_VERSION in ("v2", "improved", "improved_baseline"):
+    from scripts.utils_v2_prompts import (
+        STAGE1_SYSTEM_PROMPT_V2 as STAGE1_SYSTEM_PROMPT,
+        STAGE1_USER_PROMPT_V2 as STAGE1_USER_PROMPT,
+        STAGE2_SYSTEM_PROMPT_V2 as STAGE2_SYSTEM_PROMPT,
+        STAGE2_USER_PROMPT_V2 as STAGE2_USER_PROMPT,
+    )
+    _ACTIVE_PROMPTS = "v2_improved_baseline"
+else:
+    from scripts.utils import (
+        STAGE1_SYSTEM_PROMPT,
+        STAGE1_USER_PROMPT,
+        STAGE2_SYSTEM_PROMPT,
+        STAGE2_USER_PROMPT,
+    )
+    _ACTIVE_PROMPTS = "v1_plain"
+print(f"[PavementClassifier] Active prompt set: {_ACTIVE_PROMPTS}")
 
 
 class PavementClassifier:
@@ -552,15 +573,28 @@ def get_classifier(
     adapter_path: str = None,
     quantization_bits: int = 4,
 ) -> PavementClassifier:
-    """Get or create the global classifier singleton."""
+    """Get or create the global classifier singleton.
+
+    Adapter loading respects DISABLE_ADAPTER env var:
+      DISABLE_ADAPTER=true    → no LoRA loaded, pure base model (production default
+                                 for the Improved Baseline pipeline)
+      DISABLE_ADAPTER unset   → ADAPTER_PATH env var governs (legacy behaviour;
+                                 used for paper experiments / A-B runs only)
+    """
     global _classifier
     if _classifier is None:
         model_path = model_path or os.environ.get(
             "MODEL_PATH", "Qwen/Qwen2.5-VL-7B-Instruct"
         )
-        adapter_path = adapter_path or os.environ.get("ADAPTER_PATH", None)
-        if adapter_path == "":
+        disable_adapter = os.environ.get("DISABLE_ADAPTER", "").lower() in ("1", "true", "yes")
+        if disable_adapter:
             adapter_path = None
+            print("[PavementClassifier] DISABLE_ADAPTER=true -> running pure base model "
+                  "(Improved Baseline pipeline)")
+        else:
+            adapter_path = adapter_path or os.environ.get("ADAPTER_PATH", None)
+            if adapter_path == "":
+                adapter_path = None
         quant = int(os.environ.get("QUANTIZATION_BITS", str(quantization_bits)))
         _classifier = PavementClassifier(model_path, adapter_path, quant)
     return _classifier

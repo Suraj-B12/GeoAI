@@ -21,9 +21,10 @@ Phone Photo → FastAPI /classify → Stage 1 (Normal/Distress?) → Stage 2 (Wh
                                                               Versioned adapter saved to adapters/vN/
 ```
 
-- **Model:** Qwen2.5-VL-7B-Instruct, fine-tuned with QLoRA via LLaMA-Factory
-- **Stage 1:** Binary detection (Normal/Distress) — trained on GAPs V2 50k dataset (160x160 grayscale .npy)
-- **Stage 2:** Distress type classification — trained on RDD dataset (YOLO format, D00/D10/D20/D40)
+- **Production model:** Qwen2.5-VL-7B-Instruct **BASE** (no adapter) with v2 Improved Baseline prompts. The RDD-fine-tuned LoRA adapter is built and verified but NOT used in production — empirically beaten by the Improved Baseline on multi-class detection (52.5% vs 16.9%), zero-shot classes (Block crack F1 0.30 vs 0.00), and cross-geography Pothole. See `eval_results/attain_3way_comparison.md`.
+- **Taxonomy:** IRC:82-2015 compliant (Indian Roads Congress Code of Practice). 18 photo-visible distress types across 4 IRC categories (Surface Defects, Cracks, Deformation, Disintegration). Severity follows IRC quantitative criteria (mm thresholds). See `scripts/irc82_taxonomy.py` (single source of truth) and `eval_results/irc82_verification_report.md` (5-round verification, 100% IRC compliance on 100 real images).
+- **Stage 1:** Binary detection (Normal/Distress) — pure prompt-based, deep persona + 5-step inspection protocol
+- **Stage 2:** IRC:82 distress type + severity — pure prompt-based, deep persona + 6-step IRC protocol + full IRC taxonomy + quantitative severity criteria
 - **API:** FastAPI with rate limiting, API key auth, CORS, async inference, SSE streaming
 - **DB:** Supabase (PostgreSQL) — tables: assessments, custom_distress_types, retrain_jobs
 - **Expert UI:** Single-page HTML/JS dashboard with Supabase Auth, tab-based pending/reviewed views, adapter version management
@@ -266,8 +267,10 @@ Capstone/
 | Variable | Default | Purpose |
 |---|---|---|
 | `MODEL_PATH` | `Qwen/Qwen2.5-VL-7B-Instruct` | Model to load |
-| `ADAPTER_PATH` | None (auto-detects from adapters/ or outputs/) | LoRA adapter directory |
-| `QUANTIZATION_BITS` | `4` | 4-bit or 8-bit quantization |
+| `DISABLE_ADAPTER` | `true` in production .env | Skip LoRA loading entirely. Production runs pure base model. |
+| `PROMPTS_VERSION` | `v2` (default in app/model.py) | `v2` = Improved Baseline (production). `v1` = Plain Baseline (paper experiments only). |
+| `ADAPTER_PATH` | Unset in production | LoRA adapter directory. Used only when `DISABLE_ADAPTER=false` for A/B experiments. |
+| `QUANTIZATION_BITS` | `4` | 4-bit or 8-bit quantization. Set `0` on A5000 for fp16. |
 | `API_KEYS` | Empty (auth disabled) | Comma-separated API keys |
 | `CORS_ORIGINS` | `*` | Allowed CORS origins |
 | `PROJECT_ROOT` | Auto-detected | Project root path |
@@ -293,8 +296,9 @@ llamafactory-cli train configs/qwen25vl_qlora_sft.yaml
 # Evaluate after fine-tuning:
 python scripts/04_post_finetune_eval.py --adapter-path outputs/qwen25vl-qlora-gaps-rdd/
 
-# Start API server:
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
+# Start API server (production — Improved Baseline pipeline):
+# .env must contain DISABLE_ADAPTER=true and PROMPTS_VERSION=v2
+uvicorn app.main:app --env-file .env --host 0.0.0.0 --port 8000 --workers 1
 
 # Expose to internet via Cloudflare:
 cloudflared tunnel --url http://localhost:8000
