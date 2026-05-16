@@ -1,4 +1,4 @@
-# Attain WS_V2.0 — 3-way comparison (Codex hypothesis test)
+# Attain WS_V2.0 — 3-way comparison (Improved-Baseline vs Fine-tuned)
 
 **Subset:** WS_V2.0, 769 images, ground-truth pavement distress only (EXCLUDE filter applied).
 
@@ -6,17 +6,17 @@
 
 | Config | Prompts | Adapter |
 |---|---|---|
-| **A** baseline_v1 | v1 (current production) | none |
-| **B** baseline_v2 | v2 (Codex 'insane' — deep persona + stakes) | none |
-| **C** finetuned_v1 | v1 (current production) | LoRA `adapters/v2-rdd-2epochs-20260507` |
+| **A** Plain Baseline    | v1 (current production prompts) | none |
+| **B** Improved Baseline | v2 (deep persona + stakes + protocol + taxonomy) | none |
+| **C** Fine-tuned        | v1 (current production prompts) | LoRA `adapters/v2-rdd-2epochs-20260507` |
 
 Decomposition of total improvement A→C:
-  - Prompt-only contribution: **A → B** (what aggressive prompts add over plain prompts)
-  - Adapter-only contribution: **B → C** (what the adapter adds *on top of* the strongest prompts — meaningful sign)
+  - Prompt-engineering contribution: **A → B** (improved prompts vs plain prompts)
+  - Adapter contribution: **B → C** (what the adapter adds *on top of* the improved prompts — sign matters: negative means the adapter actively hurts vs improved baseline)
 
 ## Headline accuracy
 
-| Metric | A: baseline v1 | B: baseline v2 | C: finetuned v1 | Prompt Δ (A→B) | Adapter Δ (B→C) |
+| Metric | A: Plain Baseline | B: Improved Baseline | C: Fine-tuned | Prompt Δ (A→B) | Adapter Δ (B→C) |
 |---|---|---|---|---|---|
 | Tier 1 in-distribution (Linear, Alligator, Pothole) | 17.51% | 26.93% | 31.11% | **+9.42%** | **+4.18%** |
 | Tier 2 zero-shot (Block, Raveling, Weathering) | 3.27% | 5.88% | 0.00% | **+2.61%** | **-5.88%** |
@@ -26,7 +26,7 @@ Decomposition of total improvement A→C:
 
 ## Per-class F1 — all three configurations
 
-| Class | Tier | A F1 | B F1 | C F1 | Prompt Δ | Adapter Δ |
+| Class | Tier | A: Plain | B: Improved | C: Fine-tuned | Prompt Δ | Adapter Δ |
 |---|---|---|---|---|---|---|
 | Alligator crack | in-dist | 0.018 | 0.055 | 0.217 | +0.038 | +0.162 |
 | Block crack | zero-shot | 0.215 | 0.304 | 0.000 | +0.088 | -0.304 |
@@ -37,7 +37,7 @@ Decomposition of total improvement A→C:
 
 ## Per-class TP / FP / FN
 
-| Class | A TP/FP/FN | B TP/FP/FN | C TP/FP/FN |
+| Class | A: Plain TP/FP/FN | B: Improved TP/FP/FN | C: Fine-tuned TP/FP/FN |
 |---|---|---|---|
 | Alligator crack | 5/0/556 | 16/1/545 | 69/5/492 |
 | Block crack | 7/26/25 | 12/35/20 | 0/0/32 |
@@ -50,7 +50,7 @@ Decomposition of total improvement A→C:
 
 Reveals which classes each configuration prefers to emit:
 
-| Pipeline label | A: baseline_v1 | B: baseline_v2 | C: finetuned_v1 |
+| Pipeline label | A: Plain Baseline | B: Improved Baseline | C: Fine-tuned |
 |---|---|---|---|
 | Longitudinal Crack (D00) | 239 | 364 | 406 |
 | Transverse Crack (D10) | 17 | 209 | 97 |
@@ -70,42 +70,42 @@ Reveals which classes each configuration prefers to emit:
 
 Each pairwise comparison: who recovered MORE of the ground-truth classes on each image.
 
-### **A vs B** — prompt-only effect (current vs Codex prompts, both no adapter)
+### **A vs B** — prompt-engineering effect (Plain Baseline vs Improved Baseline, both no adapter)
 
 - A strictly better: **3** (0.4%)
 - B strictly better: **141** (18.3%)
 - Tied (both correct on ≥1 class): 222
 - Tied (both wrong/partial): 403
 
-### **B vs C** — Codex's exact test (v2 baseline vs fine-tuned)
+### **B vs C** — the prompt-vs-adapter test (Improved Baseline vs Fine-tuned)
 
 - A strictly better: **73** (9.5%)
 - B strictly better: **118** (15.3%)
 - Tied (both correct on ≥1 class): 271
 - Tied (both wrong/partial): 307
 
-### **A vs C** — total fine-tune effect (current baseline vs current fine-tuned)
+### **A vs C** — total fine-tune-plus-prompts effect (Plain Baseline vs Fine-tuned)
 
 - A strictly better: **37** (4.8%)
 - B strictly better: **214** (27.8%)
 - Tied (both correct on ≥1 class): 191
 - Tied (both wrong/partial): 327
 
-## Codex hypothesis — final verdict
+## Hypothesis — final verdict
 
-**Claim being tested:** baseline + v2 prompts >= fine-tuned + v1 prompts
+**Hypothesis being tested:** Improved Baseline (no adapter) >= Fine-tuned (with adapter)
 
-- Aggregate metrics where v2 baseline ≥ fine-tuned: **1 / 3**
-  - Tier 1 in-distribution: v2 baseline wins = `False`
-  - Tier 2 zero-shot: v2 baseline wins = `True`
-  - Severity: v2 baseline wins = `False`
-- Head-to-head per-image: v2 baseline wins **73** vs fine-tuned wins **118**
+- Aggregate metrics where Improved Baseline ≥ Fine-tuned: **1 / 3**
+  - Tier 1 in-distribution: Improved Baseline wins = `False`
+  - Tier 2 zero-shot: Improved Baseline wins = `True`
+  - Severity: Improved Baseline wins = `False`
+- Head-to-head per-image: Improved Baseline wins **73** vs Fine-tuned wins **118**
 
-**Codex claim supported overall:** `False`
+**Hypothesis supported overall:** `False`
 
 ## How to read this
 
-- **Prompt Δ positive** → aggressive prompts help on this metric, regardless of adapter.
+- **Prompt Δ positive** → improved prompts help on this metric, regardless of adapter.
 - **Adapter Δ positive** → adapter still adds value *even with the strongest prompts*. The improvement is real and not just confounded by prompts.
-- **Adapter Δ negative** → adapter actively hurts when v2 prompts are already in play. On these classes, you should ditch the adapter and use the baseline + v2 prompts pathway.
-- **Class-level signal trumps aggregate signal for routing decisions.** Even if the adapter wins on aggregate, it might be the wrong choice for specific class subsets.
+- **Adapter Δ negative** → adapter actively hurts when improved prompts are already in play. On these classes, the Improved Baseline pathway is strictly better.
+- **Class-level signal trumps aggregate signal for routing decisions.** Even if the adapter wins on aggregate, it might be the wrong choice for specific class subsets — which is the argument for a hybrid router architecture.

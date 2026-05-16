@@ -1,6 +1,10 @@
 """
-v2 ("INSANE") prompt set for testing the Codex hypothesis:
-    "Baseline + sufficiently aggressive prompts can beat the LoRA adapter."
+"Improved Baseline" prompt set — the v2 prompts used to test whether
+aggressive prompt engineering alone can match a LoRA-fine-tuned adapter.
+
+Hypothesis under test:
+    "Baseline (no adapter) + sufficiently engineered prompts can match or
+     exceed a LoRA-fine-tuned adapter on cross-dataset evaluation."
 
 Design (from prompt-engineering literature):
   - Deep persona with name, credentials, organization, years of experience
@@ -17,9 +21,7 @@ Design (from prompt-engineering literature):
 
 These prompts deliberately do NOT use any RDD-specific cues that would advantage
 the adapter. They use the SAME taxonomy injection the v1 prompts use, just with
-maximally aggressive persona + stakes + protocol.
-
-If baseline+v2 beats fine-tuned+v1 on Attain, Codex's claim is supported.
+maximally engineered persona + stakes + protocol — hence "Improved Baseline".
 """
 
 from __future__ import annotations

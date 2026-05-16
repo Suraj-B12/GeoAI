@@ -306,7 +306,7 @@ def evaluate(args):
             STAGE2_SYSTEM_PROMPT_V2 as S2_SYS,
             STAGE2_USER_PROMPT_V2 as S2_USR,
         )
-        print(f"Prompts: V2 ('insane' — deep persona + high-stakes negative-sentiment)")
+        print(f"Prompts: V2 'Improved Baseline' (deep persona + high-stakes + protocol + taxonomy)")
     else:
         S1_SYS, S1_USR = STAGE1_SYSTEM_PROMPT, STAGE1_USER_PROMPT
         S2_SYS, S2_USR = STAGE2_SYSTEM_PROMPT, STAGE2_USER_PROMPT
@@ -568,7 +568,8 @@ def main():
     parser.add_argument("--quantization-bits", type=int, default=None, choices=[0, 4, 8])
     parser.add_argument("--prompts-version", default="v1", choices=["v1", "v2"],
                         help="v1 = current scripts/utils.py prompts. "
-                             "v2 = scripts/utils_v2_prompts.py (insane persona + stakes).")
+                             "v2 = scripts/utils_v2_prompts.py (Improved Baseline: "
+                             "deep persona + stakes + protocol).")
     parser.add_argument("--output-name", default=None,
                         help="Custom output filename. Default: attain_<prompts>_<mode>_results.json")
     args = parser.parse_args()

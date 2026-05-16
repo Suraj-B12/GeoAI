@@ -1,22 +1,23 @@
 """
-3-way Attain WS_V2.0 comparison — definitive test of the Codex hypothesis:
+3-way Attain WS_V2.0 comparison — definitive test of the hypothesis:
 
-  "Baseline + sufficiently aggressive prompts can beat the LoRA adapter."
+  "Baseline (no adapter) + sufficiently engineered prompts can match or exceed
+   the LoRA-fine-tuned adapter on cross-dataset evaluation."
 
 Loads:
-  eval_results/attain_baseline_results.json      (V1 baseline:   v1 prompts, no adapter)
-  eval_results/attain_baseline_v2_results.json   (V2 baseline:   v2 prompts, no adapter)
-  eval_results/attain_finetuned_results.json     (V1 fine-tuned: v1 prompts + LoRA adapter)
+  eval_results/attain_baseline_results.json      (Plain baseline: v1 prompts, no adapter)
+  eval_results/attain_baseline_v2_results.json   (Improved Baseline: v2 prompts, no adapter)
+  eval_results/attain_finetuned_results.json     (Fine-tuned:     v1 prompts + LoRA adapter)
 
 Each represents one of three configurations on the same 769-image set:
-  CONFIG A — baseline v1: pure baseline + current production prompts
-  CONFIG B — baseline v2: pure baseline + Codex-style aggressive prompts
-  CONFIG C — fine-tuned v1: LoRA adapter + current production prompts
+  CONFIG A — Plain Baseline:    base model + v1 prompts (current production prompts)
+  CONFIG B — Improved Baseline: base model + v2 prompts (deep persona + stakes + protocol)
+  CONFIG C — Fine-tuned:        LoRA adapter + v1 prompts (current production)
 
 Decomposes the total improvement A→C into:
-  • Prompt contribution: A → B   (what aggressive prompts add to the baseline)
-  • Adapter contribution: B → C  (what the adapter adds on top of v2 prompts; sign
-    is meaningful — negative means adapter hurts)
+  • Prompt-engineering contribution: A → B   (what improved prompts add over plain prompts)
+  • Adapter contribution: B → C  (what the adapter adds on top of improved prompts; sign
+    is meaningful — negative means adapter actively hurts vs improved baseline)
 
 Outputs:
   eval_results/attain_3way_comparison.json
@@ -99,9 +100,9 @@ def main():
 
     # The 3 configurations
     configs = {
-        "A_baseline_v1_prompts": a,
-        "B_baseline_v2_prompts": b,
-        "C_finetuned_v1_prompts": c,
+        "A_plain_baseline": a,
+        "B_improved_baseline": b,
+        "C_finetuned_adapter": c,
     }
 
     # =====================================================
@@ -126,9 +127,9 @@ def main():
         }
 
     # Deltas
-    A = agg["A_baseline_v1_prompts"]
-    B = agg["B_baseline_v2_prompts"]
-    C = agg["C_finetuned_v1_prompts"]
+    A = agg["A_plain_baseline"]
+    B = agg["B_improved_baseline"]
+    C = agg["C_finetuned_adapter"]
     deltas = {}
     for k in ("tier1_in_dist_acc", "tier2_zero_shot_acc", "severity_acc"):
         deltas[k] = {
@@ -162,12 +163,12 @@ def main():
             else:
                 row[name] = {"tp": 0, "fp": 0, "fn": 0, "precision": 0, "recall": 0, "f1": 0}
         # F1 deltas
-        row["f1_delta_prompt"] = round(row["B_baseline_v2_prompts"]["f1"]
-                                       - row["A_baseline_v1_prompts"]["f1"], 4)
-        row["f1_delta_adapter"] = round(row["C_finetuned_v1_prompts"]["f1"]
-                                        - row["B_baseline_v2_prompts"]["f1"], 4)
-        row["f1_delta_total"] = round(row["C_finetuned_v1_prompts"]["f1"]
-                                      - row["A_baseline_v1_prompts"]["f1"], 4)
+        row["f1_delta_prompt"] = round(row["B_improved_baseline"]["f1"]
+                                       - row["A_plain_baseline"]["f1"], 4)
+        row["f1_delta_adapter"] = round(row["C_finetuned_adapter"]["f1"]
+                                        - row["B_improved_baseline"]["f1"], 4)
+        row["f1_delta_total"] = round(row["C_finetuned_adapter"]["f1"]
+                                      - row["A_plain_baseline"]["f1"], 4)
         per_class[cls] = row
 
     # =====================================================
@@ -192,24 +193,23 @@ def main():
     }
 
     # =====================================================
-    # Verdict logic for Codex's claim
+    # Verdict logic — does Improved Baseline >= Fine-tuned?
     # =====================================================
-    # "Baseline + v2 beats fine-tuned" requires v2 baseline >= fine-tuned on key metrics
-    v2_beats_ft_tier1 = B["tier1_in_dist_acc"] >= C["tier1_in_dist_acc"]
-    v2_beats_ft_tier2 = B["tier2_zero_shot_acc"] >= C["tier2_zero_shot_acc"]
-    v2_beats_ft_sev   = B["severity_acc"] >= C["severity_acc"]
-    n_metrics_v2_wins = sum([v2_beats_ft_tier1, v2_beats_ft_tier2, v2_beats_ft_sev])
+    improved_beats_ft_tier1 = B["tier1_in_dist_acc"] >= C["tier1_in_dist_acc"]
+    improved_beats_ft_tier2 = B["tier2_zero_shot_acc"] >= C["tier2_zero_shot_acc"]
+    improved_beats_ft_sev   = B["severity_acc"] >= C["severity_acc"]
+    n_metrics_improved_wins = sum([improved_beats_ft_tier1, improved_beats_ft_tier2, improved_beats_ft_sev])
 
     verdict = {
-        "codex_claim": "baseline + v2 prompts >= fine-tuned + v1 prompts",
+        "hypothesis": "Improved Baseline (no adapter) >= Fine-tuned (with adapter)",
         "n_aggregate_metrics": 3,
-        "n_metrics_v2_baseline_wins": n_metrics_v2_wins,
-        "tier1_in_dist_v2_wins": v2_beats_ft_tier1,
-        "tier2_zero_shot_v2_wins": v2_beats_ft_tier2,
-        "severity_v2_wins": v2_beats_ft_sev,
-        "h2h_v2_baseline_wins_per_image": h2h["B_vs_C_adapter_effect"]["A_strictly_better"],
-        "h2h_finetuned_wins_per_image":   h2h["B_vs_C_adapter_effect"]["B_strictly_better"],
-        "supported": n_metrics_v2_wins >= 2 and (
+        "n_metrics_improved_baseline_wins": n_metrics_improved_wins,
+        "tier1_in_dist_improved_wins": improved_beats_ft_tier1,
+        "tier2_zero_shot_improved_wins": improved_beats_ft_tier2,
+        "severity_improved_wins": improved_beats_ft_sev,
+        "h2h_improved_baseline_wins_per_image": h2h["B_vs_C_adapter_effect"]["A_strictly_better"],
+        "h2h_finetuned_wins_per_image":         h2h["B_vs_C_adapter_effect"]["B_strictly_better"],
+        "supported": n_metrics_improved_wins >= 2 and (
             h2h["B_vs_C_adapter_effect"]["A_strictly_better"]
             >= h2h["B_vs_C_adapter_effect"]["B_strictly_better"]
         ),
@@ -223,7 +223,7 @@ def main():
         "per_class": per_class,
         "prediction_frequency": freq_analysis,
         "head_to_head": h2h,
-        "codex_verdict": verdict,
+        "verdict": verdict,
     }
 
     # =====================================================
@@ -243,9 +243,9 @@ def main():
     print("=" * 80)
     print()
     print("Configurations:")
-    print(f"  A = baseline + v1 prompts (current production prompts, no adapter)")
-    print(f"  B = baseline + v2 prompts (Codex 'insane' prompts, no adapter)")
-    print(f"  C = fine-tuned + v1 prompts (LoRA adapter + current production prompts)")
+    print(f"  A = Plain Baseline    (base model + v1 prompts, no adapter)")
+    print(f"  B = Improved Baseline (base model + v2 prompts, no adapter)")
+    print(f"  C = Fine-tuned        (LoRA adapter + v1 prompts)")
     print()
     print(f"{'Metric':30s} {'A':>10s} {'B':>10s} {'C':>10s} {'B-A':>10s} {'C-B':>10s}")
     print("-" * 80)
@@ -264,29 +264,29 @@ def main():
     print("-" * 90)
     for cls in per_class_keys:
         row = per_class[cls]
-        a_f1 = row["A_baseline_v1_prompts"]["f1"]
-        b_f1 = row["B_baseline_v2_prompts"]["f1"]
-        c_f1 = row["C_finetuned_v1_prompts"]["f1"]
+        a_f1 = row["A_plain_baseline"]["f1"]
+        b_f1 = row["B_improved_baseline"]["f1"]
+        c_f1 = row["C_finetuned_adapter"]["f1"]
         print(f"{cls:30s} {a_f1:>8.3f} {b_f1:>8.3f} {c_f1:>8.3f} "
               f"{row['f1_delta_prompt']:>+9.3f} {row['f1_delta_adapter']:>+9.3f} "
               f"{row['tier']:>10s}")
     print()
     print("Head-to-head per-image:")
-    print(f"  B vs C (Codex test — v2 baseline vs fine-tuned):")
+    print(f"  B vs C — Improved Baseline vs Fine-tuned (the prompt-vs-adapter test):")
     bc = h2h["B_vs_C_adapter_effect"]
-    print(f"    v2 baseline strictly better:  {bc['A_strictly_better']}/769 ({bc['A_strictly_better']/7.69:.1f}%)")
-    print(f"    fine-tuned strictly better:   {bc['B_strictly_better']}/769 ({bc['B_strictly_better']/7.69:.1f}%)")
-    print(f"    tied (both right on >=1):     {bc['tied_both_correct_on_>=1']}/769")
-    print(f"    tied (both wrong/partial):    {bc['tied_both_wrong_or_partial']}/769")
+    print(f"    Improved Baseline strictly better: {bc['A_strictly_better']}/769 ({bc['A_strictly_better']/7.69:.1f}%)")
+    print(f"    Fine-tuned strictly better:        {bc['B_strictly_better']}/769 ({bc['B_strictly_better']/7.69:.1f}%)")
+    print(f"    tied (both right on >=1):          {bc['tied_both_correct_on_>=1']}/769")
+    print(f"    tied (both wrong/partial):         {bc['tied_both_wrong_or_partial']}/769")
     print()
-    print("CODEX VERDICT:")
-    print(f"  Claim: {verdict['codex_claim']}")
-    print(f"  Aggregate metrics where v2 baseline >= fine-tuned: "
-          f"{verdict['n_metrics_v2_baseline_wins']}/3")
-    print(f"    - Tier 1 in-dist:   v2 wins = {verdict['tier1_in_dist_v2_wins']}")
-    print(f"    - Tier 2 zero-shot: v2 wins = {verdict['tier2_zero_shot_v2_wins']}")
-    print(f"    - Severity:         v2 wins = {verdict['severity_v2_wins']}")
-    print(f"  Head-to-head: v2 wins {bc['A_strictly_better']} vs ft wins {bc['B_strictly_better']}")
+    print("VERDICT:")
+    print(f"  Hypothesis: {verdict['hypothesis']}")
+    print(f"  Aggregate metrics where Improved Baseline >= Fine-tuned: "
+          f"{verdict['n_metrics_improved_baseline_wins']}/3")
+    print(f"    - Tier 1 in-dist:   Improved Baseline wins = {verdict['tier1_in_dist_improved_wins']}")
+    print(f"    - Tier 2 zero-shot: Improved Baseline wins = {verdict['tier2_zero_shot_improved_wins']}")
+    print(f"    - Severity:         Improved Baseline wins = {verdict['severity_improved_wins']}")
+    print(f"  Head-to-head: Improved Baseline wins {bc['A_strictly_better']} vs Fine-tuned wins {bc['B_strictly_better']}")
     print(f"  SUPPORTED: {verdict['supported']}")
     print()
     print(f"JSON: {out_json}")
@@ -295,11 +295,11 @@ def main():
 
 def _render_markdown(d: dict) -> str:
     L = []
-    A = d["aggregate"]["A_baseline_v1_prompts"]
-    B = d["aggregate"]["B_baseline_v2_prompts"]
-    C = d["aggregate"]["C_finetuned_v1_prompts"]
-    v = d["codex_verdict"]
-    L.append("# Attain WS_V2.0 — 3-way comparison (Codex hypothesis test)")
+    A = d["aggregate"]["A_plain_baseline"]
+    B = d["aggregate"]["B_improved_baseline"]
+    C = d["aggregate"]["C_finetuned_adapter"]
+    v = d["verdict"]
+    L.append("# Attain WS_V2.0 — 3-way comparison (Improved-Baseline vs Fine-tuned)")
     L.append("")
     L.append(f"**Subset:** WS_V2.0, {d['n_images']} images, ground-truth pavement distress only (EXCLUDE filter applied).")
     L.append("")
@@ -307,17 +307,17 @@ def _render_markdown(d: dict) -> str:
     L.append("")
     L.append("| Config | Prompts | Adapter |")
     L.append("|---|---|---|")
-    L.append("| **A** baseline_v1 | v1 (current production) | none |")
-    L.append("| **B** baseline_v2 | v2 (Codex 'insane' — deep persona + stakes) | none |")
-    L.append("| **C** finetuned_v1 | v1 (current production) | LoRA `adapters/v2-rdd-2epochs-20260507` |")
+    L.append("| **A** Plain Baseline    | v1 (current production prompts) | none |")
+    L.append("| **B** Improved Baseline | v2 (deep persona + stakes + protocol + taxonomy) | none |")
+    L.append("| **C** Fine-tuned        | v1 (current production prompts) | LoRA `adapters/v2-rdd-2epochs-20260507` |")
     L.append("")
     L.append("Decomposition of total improvement A→C:")
-    L.append("  - Prompt-only contribution: **A → B** (what aggressive prompts add over plain prompts)")
-    L.append("  - Adapter-only contribution: **B → C** (what the adapter adds *on top of* the strongest prompts — meaningful sign)")
+    L.append("  - Prompt-engineering contribution: **A → B** (improved prompts vs plain prompts)")
+    L.append("  - Adapter contribution: **B → C** (what the adapter adds *on top of* the improved prompts — sign matters: negative means the adapter actively hurts vs improved baseline)")
     L.append("")
     L.append("## Headline accuracy")
     L.append("")
-    L.append("| Metric | A: baseline v1 | B: baseline v2 | C: finetuned v1 | Prompt Δ (A→B) | Adapter Δ (B→C) |")
+    L.append("| Metric | A: Plain Baseline | B: Improved Baseline | C: Fine-tuned | Prompt Δ (A→B) | Adapter Δ (B→C) |")
     L.append("|---|---|---|---|---|---|")
     for k, label in [
         ("tier1_in_dist_acc", "Tier 1 in-distribution (Linear, Alligator, Pothole)"),
@@ -332,46 +332,46 @@ def _render_markdown(d: dict) -> str:
 
     L.append("## Per-class F1 — all three configurations")
     L.append("")
-    L.append("| Class | Tier | A F1 | B F1 | C F1 | Prompt Δ | Adapter Δ |")
+    L.append("| Class | Tier | A: Plain | B: Improved | C: Fine-tuned | Prompt Δ | Adapter Δ |")
     L.append("|---|---|---|---|---|---|---|")
     for cls in sorted(d["per_class"].keys()):
         r = d["per_class"][cls]
         L.append(f"| {cls} | {r['tier']} "
-                 f"| {r['A_baseline_v1_prompts']['f1']:.3f} "
-                 f"| {r['B_baseline_v2_prompts']['f1']:.3f} "
-                 f"| {r['C_finetuned_v1_prompts']['f1']:.3f} "
+                 f"| {r['A_plain_baseline']['f1']:.3f} "
+                 f"| {r['B_improved_baseline']['f1']:.3f} "
+                 f"| {r['C_finetuned_adapter']['f1']:.3f} "
                  f"| {r['f1_delta_prompt']:+.3f} "
                  f"| {r['f1_delta_adapter']:+.3f} |")
     L.append("")
 
     L.append("## Per-class TP / FP / FN")
     L.append("")
-    L.append("| Class | A TP/FP/FN | B TP/FP/FN | C TP/FP/FN |")
+    L.append("| Class | A: Plain TP/FP/FN | B: Improved TP/FP/FN | C: Fine-tuned TP/FP/FN |")
     L.append("|---|---|---|---|")
     for cls in sorted(d["per_class"].keys()):
         r = d["per_class"][cls]
         L.append(f"| {cls} "
-                 f"| {r['A_baseline_v1_prompts']['tp']}/{r['A_baseline_v1_prompts']['fp']}/{r['A_baseline_v1_prompts']['fn']} "
-                 f"| {r['B_baseline_v2_prompts']['tp']}/{r['B_baseline_v2_prompts']['fp']}/{r['B_baseline_v2_prompts']['fn']} "
-                 f"| {r['C_finetuned_v1_prompts']['tp']}/{r['C_finetuned_v1_prompts']['fp']}/{r['C_finetuned_v1_prompts']['fn']} |")
+                 f"| {r['A_plain_baseline']['tp']}/{r['A_plain_baseline']['fp']}/{r['A_plain_baseline']['fn']} "
+                 f"| {r['B_improved_baseline']['tp']}/{r['B_improved_baseline']['fp']}/{r['B_improved_baseline']['fn']} "
+                 f"| {r['C_finetuned_adapter']['tp']}/{r['C_finetuned_adapter']['fp']}/{r['C_finetuned_adapter']['fn']} |")
     L.append("")
 
     L.append("## Pipeline-label emission counts (out of 769 images)")
     L.append("")
     L.append("Reveals which classes each configuration prefers to emit:")
     L.append("")
-    L.append("| Pipeline label | A: baseline_v1 | B: baseline_v2 | C: finetuned_v1 |")
+    L.append("| Pipeline label | A: Plain Baseline | B: Improved Baseline | C: Fine-tuned |")
     L.append("|---|---|---|---|")
     fq = d["prediction_frequency"]
     sorted_labels = sorted(fq.keys(),
-                           key=lambda k: -max(fq[k]["A_baseline_v1_prompts"],
-                                              fq[k]["B_baseline_v2_prompts"],
-                                              fq[k]["C_finetuned_v1_prompts"]))
+                           key=lambda k: -max(fq[k]["A_plain_baseline"],
+                                              fq[k]["B_improved_baseline"],
+                                              fq[k]["C_finetuned_adapter"]))
     for lbl in sorted_labels[:20]:
         L.append(f"| {lbl} "
-                 f"| {fq[lbl]['A_baseline_v1_prompts']} "
-                 f"| {fq[lbl]['B_baseline_v2_prompts']} "
-                 f"| {fq[lbl]['C_finetuned_v1_prompts']} |")
+                 f"| {fq[lbl]['A_plain_baseline']} "
+                 f"| {fq[lbl]['B_improved_baseline']} "
+                 f"| {fq[lbl]['C_finetuned_adapter']} |")
     L.append("")
 
     L.append("## Head-to-head per-image")
@@ -379,9 +379,9 @@ def _render_markdown(d: dict) -> str:
     L.append("Each pairwise comparison: who recovered MORE of the ground-truth classes on each image.")
     L.append("")
     for k, label in [
-        ("A_vs_B_prompts_effect", "**A vs B** — prompt-only effect (current vs Codex prompts, both no adapter)"),
-        ("B_vs_C_adapter_effect", "**B vs C** — Codex's exact test (v2 baseline vs fine-tuned)"),
-        ("A_vs_C_total_effect",   "**A vs C** — total fine-tune effect (current baseline vs current fine-tuned)"),
+        ("A_vs_B_prompts_effect", "**A vs B** — prompt-engineering effect (Plain Baseline vs Improved Baseline, both no adapter)"),
+        ("B_vs_C_adapter_effect", "**B vs C** — the prompt-vs-adapter test (Improved Baseline vs Fine-tuned)"),
+        ("A_vs_C_total_effect",   "**A vs C** — total fine-tune-plus-prompts effect (Plain Baseline vs Fine-tuned)"),
     ]:
         h = d["head_to_head"][k]
         L.append(f"### {label}")
@@ -392,29 +392,30 @@ def _render_markdown(d: dict) -> str:
         L.append(f"- Tied (both wrong/partial): {h['tied_both_wrong_or_partial']}")
         L.append("")
 
-    L.append("## Codex hypothesis — final verdict")
+    L.append("## Hypothesis — final verdict")
     L.append("")
-    L.append(f"**Claim being tested:** {v['codex_claim']}")
+    L.append(f"**Hypothesis being tested:** {v['hypothesis']}")
     L.append("")
-    L.append(f"- Aggregate metrics where v2 baseline ≥ fine-tuned: **{v['n_metrics_v2_baseline_wins']} / 3**")
-    L.append(f"  - Tier 1 in-distribution: v2 baseline wins = `{v['tier1_in_dist_v2_wins']}`")
-    L.append(f"  - Tier 2 zero-shot: v2 baseline wins = `{v['tier2_zero_shot_v2_wins']}`")
-    L.append(f"  - Severity: v2 baseline wins = `{v['severity_v2_wins']}`")
-    L.append(f"- Head-to-head per-image: v2 baseline wins **{v['h2h_v2_baseline_wins_per_image']}** "
-             f"vs fine-tuned wins **{v['h2h_finetuned_wins_per_image']}**")
+    L.append(f"- Aggregate metrics where Improved Baseline ≥ Fine-tuned: **{v['n_metrics_improved_baseline_wins']} / 3**")
+    L.append(f"  - Tier 1 in-distribution: Improved Baseline wins = `{v['tier1_in_dist_improved_wins']}`")
+    L.append(f"  - Tier 2 zero-shot: Improved Baseline wins = `{v['tier2_zero_shot_improved_wins']}`")
+    L.append(f"  - Severity: Improved Baseline wins = `{v['severity_improved_wins']}`")
+    L.append(f"- Head-to-head per-image: Improved Baseline wins **{v['h2h_improved_baseline_wins_per_image']}** "
+             f"vs Fine-tuned wins **{v['h2h_finetuned_wins_per_image']}**")
     L.append("")
-    L.append(f"**Codex claim supported overall:** `{v['supported']}`")
+    L.append(f"**Hypothesis supported overall:** `{v['supported']}`")
     L.append("")
 
     L.append("## How to read this")
     L.append("")
-    L.append("- **Prompt Δ positive** → aggressive prompts help on this metric, regardless of adapter.")
+    L.append("- **Prompt Δ positive** → improved prompts help on this metric, regardless of adapter.")
     L.append("- **Adapter Δ positive** → adapter still adds value *even with the strongest prompts*. "
              "The improvement is real and not just confounded by prompts.")
-    L.append("- **Adapter Δ negative** → adapter actively hurts when v2 prompts are already in play. "
-             "On these classes, you should ditch the adapter and use the baseline + v2 prompts pathway.")
+    L.append("- **Adapter Δ negative** → adapter actively hurts when improved prompts are already in play. "
+             "On these classes, the Improved Baseline pathway is strictly better.")
     L.append("- **Class-level signal trumps aggregate signal for routing decisions.** Even if the adapter "
-             "wins on aggregate, it might be the wrong choice for specific class subsets.")
+             "wins on aggregate, it might be the wrong choice for specific class subsets — which is the "
+             "argument for a hybrid router architecture.")
     L.append("")
 
     return "\n".join(L)

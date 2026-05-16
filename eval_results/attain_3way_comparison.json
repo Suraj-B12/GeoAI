@@ -2,7 +2,7 @@
   "subset": "WS_V2.0",
   "n_images": 769,
   "aggregate": {
-    "A_baseline_v1_prompts": {
+    "A_plain_baseline": {
       "tier1_in_dist_acc": 0.1751,
       "tier1_correct": 247,
       "tier1_total": 1411,
@@ -20,7 +20,7 @@
       "multi_rate": 0.06631989596879063,
       "avg_preds_per_distress_image": 1.174061433447099
     },
-    "B_baseline_v2_prompts": {
+    "B_improved_baseline": {
       "tier1_in_dist_acc": 0.2693,
       "tier1_correct": 380,
       "tier1_total": 1411,
@@ -38,7 +38,7 @@
       "multi_rate": 0.5253576072821846,
       "avg_preds_per_distress_image": 2.0024570024570023
     },
-    "C_finetuned_v1_prompts": {
+    "C_finetuned_adapter": {
       "tier1_in_dist_acc": 0.3111,
       "tier1_correct": 439,
       "tier1_total": 1411,
@@ -77,7 +77,7 @@
   "per_class": {
     "Alligator crack": {
       "tier": "in-dist",
-      "A_baseline_v1_prompts": {
+      "A_plain_baseline": {
         "tp": 5,
         "fp": 0,
         "fn": 556,
@@ -85,7 +85,7 @@
         "recall": 0.0089,
         "f1": 0.0177
       },
-      "B_baseline_v2_prompts": {
+      "B_improved_baseline": {
         "tp": 16,
         "fp": 1,
         "fn": 545,
@@ -93,7 +93,7 @@
         "recall": 0.0285,
         "f1": 0.0554
       },
-      "C_finetuned_v1_prompts": {
+      "C_finetuned_adapter": {
         "tp": 69,
         "fp": 5,
         "fn": 492,
@@ -107,7 +107,7 @@
     },
     "Block crack": {
       "tier": "zero-shot",
-      "A_baseline_v1_prompts": {
+      "A_plain_baseline": {
         "tp": 7,
         "fp": 26,
         "fn": 25,
@@ -115,7 +115,7 @@
         "recall": 0.2188,
         "f1": 0.2154
       },
-      "B_baseline_v2_prompts": {
+      "B_improved_baseline": {
         "tp": 12,
         "fp": 35,
         "fn": 20,
@@ -123,7 +123,7 @@
         "recall": 0.375,
         "f1": 0.3038
       },
-      "C_finetuned_v1_prompts": {
+      "C_finetuned_adapter": {
         "tp": 0,
         "fp": 0,
         "fn": 32,
@@ -137,7 +137,7 @@
     },
     "Linear crack": {
       "tier": "in-dist",
-      "A_baseline_v1_prompts": {
+      "A_plain_baseline": {
         "tp": 222,
         "fp": 17,
         "fn": 465,
@@ -145,7 +145,7 @@
         "recall": 0.3231,
         "f1": 0.4795
       },
-      "B_baseline_v2_prompts": {
+      "B_improved_baseline": {
         "tp": 335,
         "fp": 30,
         "fn": 352,
@@ -153,7 +153,7 @@
         "recall": 0.4876,
         "f1": 0.6369
       },
-      "C_finetuned_v1_prompts": {
+      "C_finetuned_adapter": {
         "tp": 370,
         "fp": 36,
         "fn": 317,
@@ -167,7 +167,7 @@
     },
     "Pothole": {
       "tier": "in-dist",
-      "A_baseline_v1_prompts": {
+      "A_plain_baseline": {
         "tp": 20,
         "fp": 21,
         "fn": 143,
@@ -175,7 +175,7 @@
         "recall": 0.1227,
         "f1": 0.1961
       },
-      "B_baseline_v2_prompts": {
+      "B_improved_baseline": {
         "tp": 29,
         "fp": 27,
         "fn": 134,
@@ -183,7 +183,7 @@
         "recall": 0.1779,
         "f1": 0.2648
       },
-      "C_finetuned_v1_prompts": {
+      "C_finetuned_adapter": {
         "tp": 0,
         "fp": 0,
         "fn": 163,
@@ -197,7 +197,7 @@
     },
     "Raveling": {
       "tier": "zero-shot",
-      "A_baseline_v1_prompts": {
+      "A_plain_baseline": {
         "tp": 1,
         "fp": 6,
         "fn": 106,
@@ -205,7 +205,7 @@
         "recall": 0.0093,
         "f1": 0.0175
       },
-      "B_baseline_v2_prompts": {
+      "B_improved_baseline": {
         "tp": 0,
         "fp": 2,
         "fn": 107,
@@ -213,7 +213,7 @@
         "recall": 0.0,
         "f1": 0
       },
-      "C_finetuned_v1_prompts": {
+      "C_finetuned_adapter": {
         "tp": 0,
         "fp": 0,
         "fn": 107,
@@ -227,7 +227,7 @@
     },
     "Weathering": {
       "tier": "zero-shot",
-      "A_baseline_v1_prompts": {
+      "A_plain_baseline": {
         "tp": 2,
         "fp": 0,
         "fn": 165,
@@ -235,7 +235,7 @@
         "recall": 0.012,
         "f1": 0.0237
       },
-      "B_baseline_v2_prompts": {
+      "B_improved_baseline": {
         "tp": 6,
         "fp": 18,
         "fn": 161,
@@ -243,7 +243,7 @@
         "recall": 0.0359,
         "f1": 0.0628
       },
-      "C_finetuned_v1_prompts": {
+      "C_finetuned_adapter": {
         "tp": 0,
         "fp": 0,
         "fn": 167,
@@ -258,69 +258,69 @@
   },
   "prediction_frequency": {
     "Alligator Crack (D20)": {
-      "A_baseline_v1_prompts": 5,
-      "B_baseline_v2_prompts": 17,
-      "C_finetuned_v1_prompts": 74
+      "A_plain_baseline": 5,
+      "B_improved_baseline": 17,
+      "C_finetuned_adapter": 74
     },
     "Block Crack (D43)": {
-      "A_baseline_v1_prompts": 33,
-      "B_baseline_v2_prompts": 47,
-      "C_finetuned_v1_prompts": 0
+      "A_plain_baseline": 33,
+      "B_improved_baseline": 47,
+      "C_finetuned_adapter": 0
     },
     "Longitudinal Crack (D00)": {
-      "A_baseline_v1_prompts": 239,
-      "B_baseline_v2_prompts": 364,
-      "C_finetuned_v1_prompts": 406
+      "A_plain_baseline": 239,
+      "B_improved_baseline": 364,
+      "C_finetuned_adapter": 406
     },
     "Polishing": {
-      "A_baseline_v1_prompts": 0,
-      "B_baseline_v2_prompts": 1,
-      "C_finetuned_v1_prompts": 0
+      "A_plain_baseline": 0,
+      "B_improved_baseline": 1,
+      "C_finetuned_adapter": 0
     },
     "Pothole (D40)": {
-      "A_baseline_v1_prompts": 41,
-      "B_baseline_v2_prompts": 56,
-      "C_finetuned_v1_prompts": 0
+      "A_plain_baseline": 41,
+      "B_improved_baseline": 56,
+      "C_finetuned_adapter": 0
     },
     "Raveling": {
-      "A_baseline_v1_prompts": 7,
-      "B_baseline_v2_prompts": 2,
-      "C_finetuned_v1_prompts": 0
+      "A_plain_baseline": 7,
+      "B_improved_baseline": 2,
+      "C_finetuned_adapter": 0
     },
     "Rutting": {
-      "A_baseline_v1_prompts": 0,
-      "B_baseline_v2_prompts": 30,
-      "C_finetuned_v1_prompts": 0
+      "A_plain_baseline": 0,
+      "B_improved_baseline": 30,
+      "C_finetuned_adapter": 0
     },
     "Rutting (D30)": {
-      "A_baseline_v1_prompts": 0,
-      "B_baseline_v2_prompts": 63,
-      "C_finetuned_v1_prompts": 0
+      "A_plain_baseline": 0,
+      "B_improved_baseline": 63,
+      "C_finetuned_adapter": 0
     },
     "Rutting (D41)": {
-      "A_baseline_v1_prompts": 0,
-      "B_baseline_v2_prompts": 2,
-      "C_finetuned_v1_prompts": 0
+      "A_plain_baseline": 0,
+      "B_improved_baseline": 2,
+      "C_finetuned_adapter": 0
     },
     "Transverse Crack (D10)": {
-      "A_baseline_v1_prompts": 17,
-      "B_baseline_v2_prompts": 209,
-      "C_finetuned_v1_prompts": 97
+      "A_plain_baseline": 17,
+      "B_improved_baseline": 209,
+      "C_finetuned_adapter": 97
     },
     "Unknown": {
-      "A_baseline_v1_prompts": 0,
-      "B_baseline_v2_prompts": 0,
-      "C_finetuned_v1_prompts": 80
+      "A_plain_baseline": 0,
+      "B_improved_baseline": 0,
+      "C_finetuned_adapter": 80
     },
     "Weathering/Oxidation": {
-      "A_baseline_v1_prompts": 2,
-      "B_baseline_v2_prompts": 20,
-      "C_finetuned_v1_prompts": 0
+      "A_plain_baseline": 2,
+      "B_improved_baseline": 20,
+      "C_finetuned_adapter": 0
     },
     "Weathering/Oxidation (D70)": {
-      "A_baseline_v1_prompts": 0,
-      "B_baseline_v2_prompts": 4,
-      "C_finetuned_v1_prompts": 0
+      "A_plain_baseline": 0,
+      "B_improved_baseline": 4,
+      "C_finetuned_adapter": 0
     }
   },
   "head_to_head": {
@@ -346,14 +346,14 @@
       "tied_both_wrong_or_partial": 327
     }
   },
-  "codex_verdict": {
-    "codex_claim": "baseline + v2 prompts >= fine-tuned + v1 prompts",
+  "verdict": {
+    "hypothesis": "Improved Baseline (no adapter) >= Fine-tuned (with adapter)",
     "n_aggregate_metrics": 3,
-    "n_metrics_v2_baseline_wins": 1,
-    "tier1_in_dist_v2_wins": false,
-    "tier2_zero_shot_v2_wins": true,
-    "severity_v2_wins": false,
-    "h2h_v2_baseline_wins_per_image": 73,
+    "n_metrics_improved_baseline_wins": 1,
+    "tier1_in_dist_improved_wins": false,
+    "tier2_zero_shot_improved_wins": true,
+    "severity_improved_wins": false,
+    "h2h_improved_baseline_wins_per_image": 73,
     "h2h_finetuned_wins_per_image": 118,
     "supported": false
   }

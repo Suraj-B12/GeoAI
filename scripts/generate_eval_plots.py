@@ -668,9 +668,9 @@ def plot_attain_head_to_head(comparison: dict):
 
 def plot_attain_3way_tier_accuracy(threeway: dict):
     """3-way bar chart: tier 1, tier 2, severity across A/B/C."""
-    A = threeway["aggregate"]["A_baseline_v1_prompts"]
-    B = threeway["aggregate"]["B_baseline_v2_prompts"]
-    C = threeway["aggregate"]["C_finetuned_v1_prompts"]
+    A = threeway["aggregate"]["A_plain_baseline"]
+    B = threeway["aggregate"]["B_improved_baseline"]
+    C = threeway["aggregate"]["C_finetuned_adapter"]
 
     metrics = ["Tier 1\n(in-distribution)", "Tier 2\n(zero-shot)", "Severity"]
     A_v = [A["tier1_in_dist_acc"], A["tier2_zero_shot_acc"], A["severity_acc"]]
@@ -680,9 +680,9 @@ def plot_attain_3way_tier_accuracy(threeway: dict):
     fig, ax = plt.subplots(figsize=(11, 5.5))
     x = np.arange(len(metrics))
     w = 0.27
-    bars_A = ax.bar(x - w, A_v, w, label="A: baseline + v1 prompts", color=C_BASE)
-    bars_B = ax.bar(x,     B_v, w, label="B: baseline + v2 prompts (Codex)", color="#7570b3")
-    bars_C = ax.bar(x + w, C_v, w, label="C: fine-tuned + v1 prompts", color=C_FT)
+    bars_A = ax.bar(x - w, A_v, w, label="A: Plain Baseline", color=C_BASE)
+    bars_B = ax.bar(x,     B_v, w, label="B: Improved Baseline", color="#7570b3")
+    bars_C = ax.bar(x + w, C_v, w, label="C: Fine-tuned", color=C_FT)
     annotate_bars(ax, bars_A, fmt="{:.1%}", fontsize=8)
     annotate_bars(ax, bars_B, fmt="{:.1%}", fontsize=8)
     annotate_bars(ax, bars_C, fmt="{:.1%}", fontsize=8)
@@ -704,16 +704,16 @@ def plot_attain_3way_per_class_f1(threeway: dict):
     """3-way per-class F1."""
     classes = sorted(threeway["per_class"].keys(),
                      key=lambda c: threeway["per_class"][c]["tier"])
-    A_f1 = [threeway["per_class"][c]["A_baseline_v1_prompts"]["f1"] for c in classes]
-    B_f1 = [threeway["per_class"][c]["B_baseline_v2_prompts"]["f1"] for c in classes]
-    C_f1 = [threeway["per_class"][c]["C_finetuned_v1_prompts"]["f1"] for c in classes]
+    A_f1 = [threeway["per_class"][c]["A_plain_baseline"]["f1"] for c in classes]
+    B_f1 = [threeway["per_class"][c]["B_improved_baseline"]["f1"] for c in classes]
+    C_f1 = [threeway["per_class"][c]["C_finetuned_adapter"]["f1"] for c in classes]
 
     fig, ax = plt.subplots(figsize=(12, 6))
     x = np.arange(len(classes))
     w = 0.27
-    bars_A = ax.bar(x - w, A_f1, w, label="A: baseline + v1 prompts", color=C_BASE)
-    bars_B = ax.bar(x,     B_f1, w, label="B: baseline + v2 prompts (Codex)", color="#7570b3")
-    bars_C = ax.bar(x + w, C_f1, w, label="C: fine-tuned + v1 prompts", color=C_FT)
+    bars_A = ax.bar(x - w, A_f1, w, label="A: Plain Baseline", color=C_BASE)
+    bars_B = ax.bar(x,     B_f1, w, label="B: Improved Baseline", color="#7570b3")
+    bars_C = ax.bar(x + w, C_f1, w, label="C: Fine-tuned", color=C_FT)
     annotate_bars(ax, bars_A, fmt="{:.2f}", fontsize=8, offset=0.015)
     annotate_bars(ax, bars_B, fmt="{:.2f}", fontsize=8, offset=0.015)
     annotate_bars(ax, bars_C, fmt="{:.2f}", fontsize=8, offset=0.015)
@@ -736,9 +736,9 @@ def plot_attain_3way_decomposition(threeway: dict):
     """Stacked bar: prompt contribution + adapter contribution for each metric.
     Visualises that the +13.6pp Tier 1 improvement is ~70% prompts and ~30% adapter."""
     metrics = ["Tier 1\n(in-dist)", "Tier 2\n(zero-shot)", "Severity"]
-    A = threeway["aggregate"]["A_baseline_v1_prompts"]
-    B = threeway["aggregate"]["B_baseline_v2_prompts"]
-    C = threeway["aggregate"]["C_finetuned_v1_prompts"]
+    A = threeway["aggregate"]["A_plain_baseline"]
+    B = threeway["aggregate"]["B_improved_baseline"]
+    C = threeway["aggregate"]["C_finetuned_adapter"]
     base = [A["tier1_in_dist_acc"], A["tier2_zero_shot_acc"], A["severity_acc"]]
     prompt_delta = [B["tier1_in_dist_acc"] - A["tier1_in_dist_acc"],
                     B["tier2_zero_shot_acc"] - A["tier2_zero_shot_acc"],
@@ -797,7 +797,7 @@ def plot_attain_3way_decomposition(threeway: dict):
 def plot_attain_3way_head_to_head(threeway: dict):
     """Side-by-side stacked bars for the three pairwise comparisons."""
     h2h = threeway["head_to_head"]
-    labels = ["A vs B\n(prompt effect)", "B vs C\n(adapter effect, Codex test)", "A vs C\n(total effect)"]
+    labels = ["A vs B\n(prompt-engineering effect)", "B vs C\n(prompt-vs-adapter test)", "A vs C\n(total effect)"]
     keys = ["A_vs_B_prompts_effect", "B_vs_C_adapter_effect", "A_vs_C_total_effect"]
 
     A_better = [h2h[k]["A_strictly_better"] for k in keys]
