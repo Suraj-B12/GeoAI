@@ -70,13 +70,14 @@ adapters/**/vocab.json
 adapters/**/merges.txt
 
 # ============================================================
-# Raw datasets (multi-GB, downloaded separately)
+# Raw datasets and reference documents (multi-GB, downloaded separately)
 # Anchored to root so they don't accidentally match subdirs
 # elsewhere (e.g. eval_results/plots/attain/).
 # ============================================================
 /GAPs v2/
 /RDD/
 /Attain/
+/IRC 82/
 test_fixtures/*.jpg
 test_fixtures/*.jpeg
 test_fixtures/*.png

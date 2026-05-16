@@ -155,45 +155,23 @@ RDD_SHORT_CODES = {
 }
 
 # ============================================================
-# Comprehensive distress taxonomy (for few-shot / open-world)
-# This is injected into the system prompt so the model can
-# recognise distress types BEYOND the RDD training labels.
+# Distress taxonomy — IRC:82-2015 compliant (vision-only subset)
+#
+# All distress labels are sourced from scripts/irc82_taxonomy.py which is
+# verified against the Indian Roads Congress Code of Practice IRC:82-2015
+# Section 7 (Types of Pavement Distress).
+#
+# Single source of truth. To change the taxonomy, edit irc82_taxonomy.py.
 # ============================================================
-ALL_DISTRESS_TYPES = """
-Known pavement distress types (classify into one or more):
+from scripts.irc82_taxonomy import (
+    render_taxonomy_for_prompt as _render_irc_taxonomy,
+    render_severity_criteria_for_prompt as _render_irc_severity,
+    canonicalize_to_irc as _canonicalize_to_irc,
+    IRC82_DISTRESS_TAXONOMY,
+)
 
-CRACKING:
-  - Longitudinal Crack (D00): Cracks running parallel to the road direction.
-  - Transverse Crack (D10): Cracks running perpendicular to the road direction.
-  - Alligator Crack (D20): Interconnected cracks forming a pattern resembling alligator skin. Also called fatigue cracking or mesh cracking.
-  - Block Crack (D43): Rectangular cracks that divide the pavement into blocks, typically caused by thermal contraction.
-  - Edge Crack: Cracks along the edge of the pavement, usually within 30 cm of the shoulder.
-  - Reflective Crack: Cracks in overlay surfaces that mirror joints or cracks in the underlying layer.
-
-SURFACE DEFORMATION:
-  - Pothole (D40): Bowl-shaped holes in the pavement surface caused by wear and weathering.
-  - Rutting: Longitudinal surface depressions in the wheel path caused by repeated traffic loads.
-  - Shoving: Longitudinal displacement of the pavement surface, often near intersections.
-  - Depression: Localized low areas in the pavement surface.
-
-SURFACE DEFECTS:
-  - Raveling: Loss of aggregate particles from the pavement surface.
-  - Bleeding: Excess asphalt binder on the pavement surface creating a shiny, reflective area.
-  - Polishing: Smooth, slippery pavement surface from traffic wear.
-
-PATCHES AND REPAIRS:
-  - Inlaid Patch (D44): Repair patches that are flush with the surrounding pavement.
-  - Applied Patch: Repair material applied on top of existing pavement.
-  - Utility Cut Patch: Patches from utility work (water, gas, electrical).
-
-JOINT DEFECTS:
-  - Open Joint (D50): Gaps or separations at pavement joints.
-  - Joint Seal Damage: Deterioration of sealant material in pavement joints.
-
-OTHER:
-  - Weathering/Oxidation: General surface deterioration from sun and weather exposure.
-  - Water Damage: Damage caused by water infiltration (stripping, pumping).
-""".strip()
+ALL_DISTRESS_TYPES = _render_irc_taxonomy()
+IRC_SEVERITY_CRITERIA = _render_irc_severity()
 
 # ============================================================
 # Prompt Templates
@@ -230,73 +208,86 @@ STAGE1_USER_PROMPT = (
     "Respond with exactly one word: Normal or Distress."
 )
 
-# --- Stage 2: Distress Type Classification (RDD) ---
-# Includes few-shot text examples to ground the model's output format.
+# --- Stage 2: Distress Type Classification (IRC:82-2015) ---
+# Few-shot examples use IRC:82 canonical names exclusively.
 STAGE2_FEW_SHOT_EXAMPLES = """
-Here are examples of correct analysis:
+Here are examples of correct IRC:82-2015 compliant analysis:
 
-Example 1 - An image showing a long crack running parallel to the road with minor surface wear:
-DISTRESS_TYPES: Longitudinal Crack (D00)
+Example 1 - An image showing a long crack running parallel to the road, ~2mm wide, single crack:
+DISTRESS_TYPES: Longitudinal Cracking
 SEVERITY: Low
-DESCRIPTION: The pavement shows a single longitudinal crack running along the wheel path with no secondary damage.
+DESCRIPTION: A single longitudinal crack ~2mm wide runs along the wheel path with no secondary damage (IRC:82 §7.3.4).
 
-Example 2 - An image showing interconnected cracks forming a web pattern with a nearby bowl-shaped hole:
-DISTRESS_TYPES: Alligator Crack (D20), Pothole (D40)
+Example 2 - An image showing interconnected web-pattern cracks with a bowl-shaped hole nearby:
+DISTRESS_TYPES: Alligator Cracking, Potholes
 SEVERITY: High
-DESCRIPTION: The pavement shows severe alligator cracking with an adjacent pothole indicating advanced structural failure.
+DESCRIPTION: Severe alligator cracking (>6mm with spalling) and an adjacent pothole indicate advanced structural failure (IRC:82 §7.3.3, §7.5.3).
 
-Example 3 - An image showing a crack running across the road width with a patched repair nearby:
-DISTRESS_TYPES: Transverse Crack (D10), Inlaid Patch (D44)
+Example 3 - An image showing a crack across the lane plus loose surface aggregate:
+DISTRESS_TYPES: Transverse Cracking, Ravelling
 SEVERITY: Medium
-DESCRIPTION: The pavement shows a transverse crack perpendicular to traffic direction with an adjacent repair patch.
+DESCRIPTION: A 4mm transverse crack and visible aggregate loss indicating early-stage ravelling (IRC:82 §7.3.5, §7.5.2).
 """.strip()
 
 STAGE2_SYSTEM_PROMPT = (
-    "You are an expert pavement distress analyst classifying damage in road "
-    "images for a city's maintenance team. Your output drives where repair "
-    "crews are sent and how budget is spent.\n\n"
-    "A wrong type label sends the wrong fix. A missed pothole means a vehicle "
-    "hits it tomorrow. Be precise. Do NOT guess if the image is ambiguous — "
-    "name only what you can clearly see.\n\n"
-    "CRITICAL — DO NOT OUTPUT 'Other Distress' OR 'Other' AS A TYPE. "
-    "These labels are useless to the road maintenance team — they cannot send "
-    "a repair crew based on 'Other'. You MUST pick a SPECIFIC distress type "
-    "from the taxonomy below, OR if you genuinely cannot identify the damage "
-    "type, output 'DISTRESS_TYPES: Normal - No distress detected' and let the "
-    "expert review handle it. Vague labels are worse than no label.\n\n"
+    "You are an expert pavement distress analyst classifying damage for a "
+    "city's road maintenance team. Your output drives where repair crews are "
+    "sent and how budget is spent.\n\n"
+    "ALL OUTPUT MUST CONFORM TO IRC:82-2015 — the Indian Roads Congress Code "
+    "of Practice for Maintenance of Bituminous Road Surfaces. The taxonomy "
+    "below is the complete and ONLY list of valid distress labels. Severity "
+    "uses the IRC:82 quantitative criteria.\n\n"
+    "Wrong labels send the wrong fix. Missed potholes hit citizens tomorrow. "
+    "Be precise — name only what you can clearly see in the image.\n\n"
+    "FORBIDDEN: 'Other Distress', 'Other', 'Unknown', 'Various'. "
+    "If genuinely no distress is visible, output 'DISTRESS_TYPES: Normal - "
+    "No distress detected'. If a distress is visible but you cannot identify "
+    "which IRC:82 type it is, pick the closest type from the taxonomy and "
+    "report Low severity — never use generic non-IRC labels.\n\n"
     f"{ALL_DISTRESS_TYPES}\n\n"
-    "Before answering, run this inspection checklist:\n"
+    f"{IRC_SEVERITY_CRITERIA}\n\n"
+    "Inspection protocol (run silently before answering):\n"
     "  STEP 1 — CRACK ORIENTATION\n"
-    "    - Lines running ALONG the road's direction (parallel to traffic) → Longitudinal Crack (D00)\n"
-    "    - Lines running ACROSS the road (perpendicular to traffic) → Transverse Crack (D10)\n"
+    "    • Lines along the road direction → Longitudinal Cracking (IRC §7.3.4)\n"
+    "    • Lines across the road direction → Transverse Cracking (IRC §7.3.5)\n"
+    "    • Very fine lines < 1mm with no clear orientation → Hairline Cracks (IRC §7.3.2)\n"
     "  STEP 2 — CRACK PATTERN\n"
-    "    - Interconnected web / alligator-skin / mesh of small cracks → Alligator Crack (D20)\n"
-    "    - Rectangular blocks formed by intersecting cracks → Block Crack (D43)\n"
+    "    • Interconnected web / alligator-skin → Alligator Cracking (IRC §7.3.3)\n"
+    "    • Cracks along the pavement edge (within ~30 cm) → Edge Cracking (IRC §7.3.6)\n"
+    "    • Crescent / half-moon shaped → Slippage (IRC §7.4.1)\n"
     "  STEP 3 — SURFACE DEFECTS\n"
-    "    - Bowl-shaped depression / hole with broken edges → Pothole (D40)\n"
-    "    - Loss of aggregate, rough/sandy surface texture → Raveling\n"
-    "    - General weathered, oxidized, gray-bleached surface → Weathering/Oxidation\n"
-    "  STEP 4 — REPAIRS / JOINTS\n"
-    "    - Visible patch with different color/texture flush with surface → Inlaid Patch (D44)\n"
-    "    - Open gaps at joints between pavement sections → Open Joint (D50)\n"
-    "  STEP 5 — RULE OUT FALSE POSITIVES\n"
-    "    - Shadows, lane markings, water stains, oil spots, tire skid marks "
-    "are NOT pavement distress. Do not label them.\n\n"
+    "    • Bowl-shaped cavity with broken edges → Potholes (IRC §7.5.3)\n"
+    "    • Bowl-shaped dip WITHOUT broken edges (still smooth pavement) → Shallow Depression (IRC §7.4.5)\n"
+    "    • Rough/pock-marked, loss of aggregate → Ravelling (IRC §7.5.2)\n"
+    "    • Exposed aggregate, no bitumen coating → Stripping (IRC §7.5.1)\n"
+    "    • Shiny / glossy / wet-looking patches → Bleeding (IRC §7.2.1)\n"
+    "    • Dry, sandy, gray surface → Hungry Surface (IRC §7.2.4)\n"
+    "    • Alternating dark/light bitumen lines → Streaking (IRC §7.2.3)\n"
+    "  STEP 4 — DEFORMATION\n"
+    "    • Longitudinal depression in wheel path → Rutting (IRC §7.4.2)\n"
+    "    • Washboard ripples across the lane → Corrugation (IRC §7.4.3)\n"
+    "    • Raised bulges / wave fronts in surface → Shoving (IRC §7.4.4)\n"
+    "    • Large-scale sagging or rising area → Settlement (IRC §7.4.6)\n"
+    "  STEP 5 — EDGE FAILURE\n"
+    "    • Ragged pavement edge with material missing → Edge Breaking (IRC §7.5.4)\n"
+    "  STEP 6 — RULE OUT FALSE POSITIVES\n"
+    "    • Shadows, lane markings, oil stains, skid marks, manhole covers, "
+    "drainage grates — these are NOT pavement distress.\n\n"
     f"{STAGE2_FEW_SHOT_EXAMPLES}\n\n"
-    "Now analyze the provided image. List every distress type you observe "
-    "(an image may contain multiple). Respond with a structured analysis "
-    "in this exact format:\n"
-    "DISTRESS_TYPES: <comma-separated list of distress types found>\n"
-    "SEVERITY: <Low / Medium / High>\n"
-    "DESCRIPTION: <one sentence describing what you observe>"
+    "Now analyze the provided image. List every IRC:82 distress type you "
+    "observe (an image may contain multiple). Respond in this exact format:\n"
+    "DISTRESS_TYPES: <comma-separated list of canonical IRC:82 names from the taxonomy above>\n"
+    "SEVERITY: <Low / Medium / High — OR Small / Medium / Large for potholes — "
+    "OR 'N/A' for types where IRC:82 declares severity not applicable>\n"
+    "DESCRIPTION: <one sentence describing what you observe, citing IRC:82 section>"
 )
 
 STAGE2_USER_PROMPT = (
     "<image>\n"
-    "Run the 5-step inspection checklist on this pavement image. Identify "
-    "every distress type present. Be precise — name only what you can "
-    "clearly see in the image. Provide the distress type(s), severity "
-    "estimate (Low / Medium / High), and a brief one-sentence description."
+    "Run the 6-step IRC:82 inspection protocol on this pavement image. "
+    "Identify every IRC:82 distress type present. Be precise — use only "
+    "canonical IRC:82 names from the taxonomy. Provide type(s), severity "
+    "per IRC:82 quantitative criteria, and a one-sentence description."
 )
 
 # --- Stage 2 training response template ---
@@ -439,44 +430,63 @@ def parse_stage2_response(text: str) -> dict:
             if "normal" in types_str.lower() or "no distress" in types_str.lower():
                 result["distress_types"] = ["Normal"]
             else:
-                # Filter out the "Other Distress" catch-all leaked from RDD class-4
-                # training labels. It's a non-actionable label — the dashboard
-                # and WebGIS need a specific type or "Unknown" to route to expert.
-                # If the model emitted ONLY "Other Distress", we treat it as
-                # unparseable so the row goes to expert review.
+                # Canonicalize every emitted label to IRC:82-2015 name.
+                # canonicalize_to_irc returns None for {Unknown, Other, Other Distress,
+                # Normal, empty} — those get filtered out. Unrecognised distress strings
+                # pass through unchanged so the parser caller can flag them.
                 raw_types = [
                     t.strip() for t in types_str.split(",") if t.strip()
                 ]
-                filtered = [
-                    t for t in raw_types
-                    if t.lower() not in ("other distress", "other", "unknown distress")
-                ]
-                result["distress_types"] = filtered if filtered else []
+                canonical_types = []
+                for raw in raw_types:
+                    irc_name = _canonicalize_to_irc(raw)
+                    if irc_name is None:
+                        continue  # 'Other', 'Unknown', etc — drop
+                    if irc_name not in canonical_types:
+                        canonical_types.append(irc_name)
+                result["distress_types"] = canonical_types
         elif line_stripped.upper().startswith("SEVERITY:"):
             result["severity"] = line_stripped.split(":", 1)[1].strip()
         elif line_stripped.upper().startswith("DESCRIPTION:"):
             result["description"] = line_stripped.split(":", 1)[1].strip()
 
-    # Fallback: if no structured output, try keyword extraction
+    # Fallback: if no structured output, try keyword extraction.
+    # Keywords map to canonical IRC:82 names (the parser stays IRC-aligned).
     if not result["distress_types"]:
         text_lower = text.lower()
-        keyword_map = {
-            "longitudinal crack": "Longitudinal Crack (D00)",
-            "transverse crack": "Transverse Crack (D10)",
-            "alligator crack": "Alligator Crack (D20)",
-            "fatigue crack": "Alligator Crack (D20)",
-            "mesh crack": "Alligator Crack (D20)",
-            "pothole": "Pothole (D40)",
-            "block crack": "Block Crack (D43)",
+        keyword_to_irc = {
+            "longitudinal crack": "Longitudinal Cracking",
+            "transverse crack": "Transverse Cracking",
+            "alligator crack": "Alligator Cracking",
+            "fatigue crack": "Alligator Cracking",
+            "mesh crack": "Alligator Cracking",
+            "map crack": "Alligator Cracking",
+            "pothole": "Potholes",
+            "block crack": "Alligator Cracking",  # closest IRC visible analog
             "rutting": "Rutting",
-            "raveling": "Raveling",
+            "raveling": "Ravelling",
+            "ravelling": "Ravelling",
             "bleeding": "Bleeding",
-            "patch": "Repair Patch",
-            "open joint": "Open Joint (D50)",
-            "edge crack": "Edge Crack",
-            "depression": "Depression",
+            "fatty surface": "Bleeding",
+            "edge crack": "Edge Cracking",
+            "edge breaking": "Edge Breaking",
+            "edge break": "Edge Breaking",
+            "shallow depression": "Shallow Depression",
+            "depression": "Shallow Depression",
+            "settlement": "Settlement",
+            "upheaval": "Settlement",
+            "shoving": "Shoving",
+            "corrugation": "Corrugation",
+            "washboard": "Corrugation",
+            "slippage": "Slippage",
+            "stripping": "Stripping",
+            "streaking": "Streaking",
+            "hungry surface": "Hungry Surface",
+            "hairline": "Hairline Cracks",
+            "weathering": "Hungry Surface",  # closest visible analog
+            "oxidation": "Hungry Surface",
         }
-        for keyword, label in keyword_map.items():
+        for keyword, label in keyword_to_irc.items():
             if keyword in text_lower and label not in result["distress_types"]:
                 result["distress_types"].append(label)
 

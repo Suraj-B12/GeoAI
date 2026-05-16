@@ -1,0 +1,96 @@
+{
+  "summary": {
+    "subset": "WS_V2.0",
+    "n_images": 2,
+    "n_processed": 2,
+    "tier1_in_distribution": {
+      "instances": 4,
+      "correct": 3,
+      "accuracy": 0.75
+    },
+    "tier2_zero_shot": {
+      "instances": 2,
+      "correct": 0,
+      "accuracy": 0.0
+    },
+    "severity": {
+      "instances": 2,
+      "correct": 0,
+      "accuracy": 0.0
+    },
+    "per_class": {
+      "Linear crack": {
+        "tier": "in-dist",
+        "tp": 2,
+        "fp": 0,
+        "fn": 0,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      "Weathering": {
+        "tier": "zero-shot",
+        "tp": 0,
+        "fp": 0,
+        "fn": 2,
+        "precision": 0,
+        "recall": 0.0,
+        "f1": 0
+      },
+      "Alligator crack": {
+        "tier": "in-dist",
+        "tp": 1,
+        "fp": 0,
+        "fn": 1,
+        "precision": 1.0,
+        "recall": 0.5,
+        "f1": 0.6667
+      }
+    },
+    "adapter_path": null,
+    "prompts_version": "v2"
+  },
+  "per_image_results": [
+    {
+      "image": "Attain_SMP_WS_v2_000001.jpg",
+      "gt_attain": [
+        "Alligator crack",
+        "Weathering",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking\nSEVERITY: Medium\nDESCRIPTION: Multiple parallel cracks running along the road centerline and across the lane, indicative of moderate distress (IRC:82 \u00a77.3.4, \u00a77.3.5)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000002.jpg",
+      "gt_attain": [
+        "Alligator crack",
+        "Weathering",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Alligator Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Alligator Cracking\nSEVERITY: Medium\nDESCRIPTION: Interconnected cracks forming small irregular blocks and a network of cracks parallel to the road centerline indicate medium severity alligator cracking and longitudinal cracking (IRC:82 \u00a77.3.3, \u00a77.3.4)."
+    }
+  ]
+}
