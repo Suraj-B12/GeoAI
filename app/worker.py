@@ -46,7 +46,7 @@ from app.supabase_client import (
     update_assessment,
     upsert_worker_state,
 )
-from scripts.utils import CONFIDENCE_THRESHOLD
+from scripts.utils import CONFIDENCE_THRESHOLD, normalize_severity
 
 
 log = logging.getLogger("pipeline_worker")
@@ -542,7 +542,10 @@ class PipelineWorker:
             "stage1_confidence": s1_conf,
             "is_distressed": is_distressed,
             "distress_types": s2.get("distress_types") or [],
-            "severity": s2.get("severity") or "None",
+            # Defense-in-depth: normalize_severity is also called inside
+            # parse_stage2_response, but if anything ever skips that path,
+            # we MUST NOT write a CHECK-violating value here.
+            "severity": normalize_severity(s2.get("severity")) if s2 else "None",
             "description": s2.get("description") or "",
             "stage2_confidence": s2_conf,
             "needs_expert_review": final_status == "expert_review",

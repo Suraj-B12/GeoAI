@@ -424,6 +424,59 @@ def build_stage2_training_response(class_ids: list[int]) -> str:
 # Response Parsing
 # ============================================================
 
+# ============================================================
+# Severity normalization (database-safe)
+# ============================================================
+# Defensive map from anything the VLM might emit -> the small set
+# Supabase's assessments.severity CHECK constraint allows:
+#     ('None', 'Low', 'Medium', 'High', 'Unknown')
+#
+# IRC:82-2015 actually defines THREE severity vocabularies:
+#   - Most types:  Low / Medium / High
+#   - Potholes (§7.5.3.4):  Small / Medium / Large
+#   - Severity-not-applicable:  N/A
+# All three must collapse to the DB's allowed set or the row write fails
+# with constraint violation (which is what was crashing 24 rows at scale).
+#
+# Mapping rationale:
+#   Small  -> Low    (IRC §7.5.3.4 Small pothole is the lowest tier)
+#   Large  -> High   (IRC §7.5.3.4 Large pothole is the highest tier)
+#   N/A    -> None   (the IRC "severity not applicable" semantic)
+#   common synonyms (minor/moderate/severe) -> Low/Medium/High
+#   anything unrecognized -> Unknown (safer than failing the write)
+_SEVERITY_NORMALIZE = {
+    "low": "Low", "medium": "Medium", "high": "High",
+    "small": "Low", "large": "High",          # IRC §7.5.3.4 Pothole tiers
+    "n/a": "None", "na": "None", "not applicable": "None",
+    "none": "None", "no severity": "None",
+    "minor": "Low", "moderate": "Medium", "severe": "High",
+    "extensive": "High",                       # IRC §7.2.1.4 Bleeding
+    "unknown": "Unknown", "": "Unknown",
+}
+
+
+def normalize_severity(raw: str | None) -> str:
+    """
+    Map any model-emitted severity string to one of the DB-allowed values:
+        'None' | 'Low' | 'Medium' | 'High' | 'Unknown'
+
+    Defensive: never raises, never returns a forbidden value. Unrecognized
+    inputs default to 'Unknown' which routes the row to expert review
+    rather than crashing the worker.
+
+    Tolerates trailing punctuation ('High.', 'Medium,') and case variation.
+    """
+    if raw is None:
+        return "Unknown"
+    s = str(raw).strip().lower()
+    # Strip common trailing punctuation the model sometimes emits
+    while s and s[-1] in ".,;:!?)":
+        s = s[:-1].rstrip()
+    # Strip surrounding quotes
+    s = s.strip("'\"`").strip()
+    return _SEVERITY_NORMALIZE.get(s, "Unknown")
+
+
 def parse_pavement_filter_response(text: str) -> str:
     """
     Parse the pavement pre-filter (Stage 0) response.
@@ -579,6 +632,11 @@ def parse_stage2_response(text: str) -> dict:
 
     if not result["distress_types"]:
         result["distress_types"] = ["Unknown"]
+
+    # Defensive normalization — guarantees severity is one of the 5
+    # values the Supabase CHECK constraint allows. Without this, IRC §7.5.3.4
+    # pothole tiers (Small/Large) and N/A would crash the row write.
+    result["severity"] = normalize_severity(result["severity"])
 
     return result
 
