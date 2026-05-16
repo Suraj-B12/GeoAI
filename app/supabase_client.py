@@ -446,8 +446,8 @@ async def reset_for_reclassify(
         "pavement_filter_raw": None,
         "pavement_filter_at": None,
         "error_message": None,
-        "attempt_count": 0,
-        "worker_id": None,
+        "retry_count": 0,
+        "claimed_by": None,
         "claimed_at": None,
     }
     resp = await client.patch(

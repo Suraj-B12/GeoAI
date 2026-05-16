@@ -100,7 +100,10 @@ def main():
         print("DRY-RUN — no changes made. Re-run with --apply to perform reset.")
         return
 
-    # 3. Build payload — clear all prediction fields, set status=pending
+    # 3. Build payload — clear all prediction fields, set status=pending.
+    # Column names match the live schema (see migration 001 + 004):
+    #   retry_count  (NOT attempt_count)
+    #   claimed_by   (NOT worker_id)
     payload = {
         "status": "pending",
         "processed_at": None,
@@ -118,8 +121,8 @@ def main():
         "pavement_filter_raw": None,
         "pavement_filter_at": None,
         "error_message": None,
-        "attempt_count": 0,
-        "worker_id": None,
+        "retry_count": 0,
+        "claimed_by": None,
         "claimed_at": None,
     }
 
