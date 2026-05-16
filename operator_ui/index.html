@@ -899,14 +899,19 @@ body {
               <span class="stage-label">Downloading image</span>
               <span class="stage-timer" id="timer-download">—</span>
             </div>
+            <div id="row-stage0" class="stage-row">
+              <span class="stage-dot" id="dot-stage0"></span>
+              <span class="stage-label">Stage 0 — Pavement pre-filter</span>
+              <span class="stage-timer" id="timer-stage0">—</span>
+            </div>
             <div id="row-stage1" class="stage-row">
               <span class="stage-dot" id="dot-stage1"></span>
-              <span class="stage-label">Stage 1 — Detection</span>
+              <span class="stage-label">Stage 1 — Distress detection</span>
               <span class="stage-timer" id="timer-stage1">—</span>
             </div>
             <div id="row-stage2" class="stage-row">
               <span class="stage-dot" id="dot-stage2"></span>
-              <span class="stage-label">Stage 2 — Classification</span>
+              <span class="stage-label">Stage 2 — IRC:82 classification</span>
               <span class="stage-timer" id="timer-stage2">—</span>
             </div>
           </div>
@@ -1352,6 +1357,11 @@ let _lastCurrentId = null;
 let _currentImageMeta = null;
 let _lastProcessedSummary = null;
 let _liveTimerInterval = null;  // ticks elapsed timer on the active stage every 100ms
+// Module-level worker snapshot updated on every poll. The live-timer interval
+// reads from this so it always sees the latest current_stage + started_at,
+// instead of a closure-captured stale reference (which was the cause of the
+// "191.9s download" bug).
+let _currentWorker = null;
 
 // Stage row helper
 function setStageRow(rowId, dotId, timerId, state, timerText) {
@@ -1383,44 +1393,75 @@ function nowMsSinceISO(iso) {
   return Date.now() - t;
 }
 
+function resetAllStageRows() {
+  setStageRow('row-download','dot-download','timer-download','idle','—');
+  setStageRow('row-stage0','dot-stage0','timer-stage0','idle','—');
+  setStageRow('row-stage1','dot-stage1','timer-stage1','idle','—');
+  setStageRow('row-stage2','dot-stage2','timer-stage2','idle','—');
+}
+
 function paintStageStates(worker) {
-  const stage = worker.current_stage;          // 'downloading' | 'stage1' | 'stage2' | null
+  // Active stage can be: 'downloading' | 'pavement_filter' | 'stage1' | 'stage2' | null
+  const stage = worker.current_stage;
   const startedAt = worker.current_stage_started_at;
+  const s0Ms = worker.current_stage0_time_ms || 0;
   const s1Ms = worker.current_stage1_time_ms || 0;
   const s2Ms = worker.current_stage2_time_ms || 0;
   const skippedS2 = worker.current_skipped_stage2;
+  const live = fmtSeconds(nowMsSinceISO(startedAt));
 
   if (stage === 'downloading') {
-    setStageRow('row-download','dot-download','timer-download','active', fmtSeconds(nowMsSinceISO(startedAt)));
+    setStageRow('row-download','dot-download','timer-download','active', live);
+    setStageRow('row-stage0','dot-stage0','timer-stage0','idle','—');
     setStageRow('row-stage1','dot-stage1','timer-stage1','idle','—');
     setStageRow('row-stage2','dot-stage2','timer-stage2','idle','—');
-  } else if (stage === 'stage1') {
+    return;
+  }
+  if (stage === 'pavement_filter') {
     setStageRow('row-download','dot-download','timer-download','done','✓');
-    setStageRow('row-stage1','dot-stage1','timer-stage1','active', fmtSeconds(nowMsSinceISO(startedAt)));
+    setStageRow('row-stage0','dot-stage0','timer-stage0','active', live);
+    setStageRow('row-stage1','dot-stage1','timer-stage1','idle','—');
     setStageRow('row-stage2','dot-stage2','timer-stage2','idle','—');
-  } else if (stage === 'stage2') {
+    return;
+  }
+  if (stage === 'stage1') {
     setStageRow('row-download','dot-download','timer-download','done','✓');
+    setStageRow('row-stage0','dot-stage0','timer-stage0','done', fmtSeconds(s0Ms));
+    setStageRow('row-stage1','dot-stage1','timer-stage1','active', live);
+    setStageRow('row-stage2','dot-stage2','timer-stage2','idle','—');
+    return;
+  }
+  if (stage === 'stage2') {
+    setStageRow('row-download','dot-download','timer-download','done','✓');
+    setStageRow('row-stage0','dot-stage0','timer-stage0','done', fmtSeconds(s0Ms));
     setStageRow('row-stage1','dot-stage1','timer-stage1','done', fmtSeconds(s1Ms));
-    setStageRow('row-stage2','dot-stage2','timer-stage2','active', fmtSeconds(nowMsSinceISO(startedAt)));
+    setStageRow('row-stage2','dot-stage2','timer-stage2','active', live);
+    return;
+  }
+
+  // stage === null — between images. Show what the previous image actually did.
+  // Three terminal-state patterns based on the last record_timing() values:
+  //   - rejected at Stage 0: s0>0, s1==0, s2==0 (image not pavement)
+  //   - Normal:              s0>0, s1>0,  s2==0 (Stage 1 said no distress)
+  //   - Distress classified: s0>0, s1>0,  s2>0
+  if (s0Ms > 0 && s1Ms === 0 && s2Ms === 0) {
+    setStageRow('row-download','dot-download','timer-download','done','✓');
+    setStageRow('row-stage0','dot-stage0','timer-stage0','done', fmtSeconds(s0Ms));
+    setStageRow('row-stage1','dot-stage1','timer-stage1','skipped','rejected (not pavement)');
+    setStageRow('row-stage2','dot-stage2','timer-stage2','skipped','—');
+  } else if (s1Ms > 0 && s2Ms === 0) {
+    setStageRow('row-download','dot-download','timer-download','done','✓');
+    setStageRow('row-stage0','dot-stage0','timer-stage0','done', fmtSeconds(s0Ms));
+    setStageRow('row-stage1','dot-stage1','timer-stage1','done', fmtSeconds(s1Ms));
+    setStageRow('row-stage2','dot-stage2','timer-stage2', skippedS2 ? 'skipped' : 'idle',
+                 skippedS2 ? 'skipped (Normal)' : '—');
+  } else if (s1Ms > 0 && s2Ms > 0) {
+    setStageRow('row-download','dot-download','timer-download','done','✓');
+    setStageRow('row-stage0','dot-stage0','timer-stage0','done', fmtSeconds(s0Ms));
+    setStageRow('row-stage1','dot-stage1','timer-stage1','done', fmtSeconds(s1Ms));
+    setStageRow('row-stage2','dot-stage2','timer-stage2','done', fmtSeconds(s2Ms));
   } else {
-    // No active stage — between images, OR finished but waiting for next claim.
-    // Use cumulative time fields to indicate the most recent finished image.
-    if (s1Ms > 0) {
-      setStageRow('row-download','dot-download','timer-download','done','✓');
-      setStageRow('row-stage1','dot-stage1','timer-stage1','done', fmtSeconds(s1Ms));
-      if (s2Ms > 0) {
-        setStageRow('row-stage2','dot-stage2','timer-stage2','done', fmtSeconds(s2Ms));
-      } else if (skippedS2) {
-        setStageRow('row-stage2','dot-stage2','timer-stage2','skipped','skipped (Normal)');
-      } else {
-        setStageRow('row-stage2','dot-stage2','timer-stage2','idle','—');
-      }
-    } else {
-      // Truly idle
-      setStageRow('row-download','dot-download','timer-download','idle','—');
-      setStageRow('row-stage1','dot-stage1','timer-stage1','idle','—');
-      setStageRow('row-stage2','dot-stage2','timer-stage2','idle','—');
-    }
+    resetAllStageRows();
   }
 }
 
@@ -1429,10 +1470,17 @@ async function updateCurrentCard(currentId, lastProcessedId, worker) {
   const img = document.getElementById('current-image');
   const ph = document.getElementById('current-placeholder');
 
+  // ALWAYS refresh the module-level worker reference. The live timer interval
+  // reads from this — must be the latest snapshot, not a stale closure capture.
+  _currentWorker = worker;
+
   if (currentId) {
     card.classList.remove('idle');
     // Fetch image metadata only when the in-flight image changes
     if (currentId !== _lastCurrentId) {
+      // New image just claimed — clear stale stage rows immediately so the
+      // user never sees the previous image's times bleeding into this one.
+      resetAllStageRows();
       _lastCurrentId = currentId;
       _currentImageMeta = null;
       try {
@@ -1463,17 +1511,20 @@ async function updateCurrentCard(currentId, lastProcessedId, worker) {
       ph.textContent = 'Loading image preview...';
     }
 
-    // Start a live timer that paints elapsed for the active stage every 100ms.
-    // We re-render only the active row's timer; full state is repainted on next SSE/poll.
+    // Start the live timer ONCE; it always reads from _currentWorker (module
+    // ref) so it stays fresh. Each tick paints elapsed for the active stage.
     if (!_liveTimerInterval) {
       _liveTimerInterval = setInterval(() => {
-        const stage = worker.current_stage;
+        const w = _currentWorker;
+        if (!w) return;
+        const stage = w.current_stage;
         if (!stage) return;
-        const elapsed = fmtSeconds(nowMsSinceISO(worker.current_stage_started_at));
-        if (stage === 'downloading') document.getElementById('timer-download').textContent = elapsed;
-        else if (stage === 'stage1') document.getElementById('timer-stage1').textContent = elapsed;
-        else if (stage === 'stage2') document.getElementById('timer-stage2').textContent = elapsed;
-      }, 100);
+        const elapsed = fmtSeconds(nowMsSinceISO(w.current_stage_started_at));
+        if (stage === 'downloading')      document.getElementById('timer-download').textContent = elapsed;
+        else if (stage === 'pavement_filter') document.getElementById('timer-stage0').textContent = elapsed;
+        else if (stage === 'stage1')      document.getElementById('timer-stage1').textContent = elapsed;
+        else if (stage === 'stage2')      document.getElementById('timer-stage2').textContent = elapsed;
+      }, 200);  // 200ms — still smooth, less CPU than 100ms
     }
   } else {
     // Idle — clear the live timer interval
