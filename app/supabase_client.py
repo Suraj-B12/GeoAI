@@ -281,6 +281,36 @@ async def get_recent_processed(
 # ============================================================
 # Dashboard browse API (paginated, status-filtered)
 # ============================================================
+_PAVEMENT_FILTER_COL = "pavement_filter_decision"
+# Probe + cache whether migration 004 added the pavement_filter_* columns.
+# Avoids re-querying on every dashboard request. We set the cache lazily
+# on first dashboard call from main.py.
+_migration_004_status: Optional[bool] = None
+
+def _migration_004_applied() -> bool:
+    """Return cached migration-004 status. Probe via probe_migration_004()."""
+    return bool(_migration_004_status)
+
+
+async def probe_migration_004(client: httpx.AsyncClient) -> bool:
+    """One-time check: does the pavement_filter_decision column exist?
+
+    Caches the result module-globally. Re-probes on next call ONLY when the
+    cached value is None (e.g. first request after a fresh process start).
+    """
+    global _migration_004_status
+    if _migration_004_status is not None:
+        return _migration_004_status
+    try:
+        resp = await client.get(
+            f"/rest/v1/assessments?select={_PAVEMENT_FILTER_COL}&limit=1"
+        )
+        _migration_004_status = resp.status_code < 400
+    except Exception:
+        _migration_004_status = False
+    return _migration_004_status
+
+
 async def list_assessments_for_dashboard(
     client: httpx.AsyncClient,
     status: Optional[str] = None,
@@ -289,6 +319,8 @@ async def list_assessments_for_dashboard(
     limit: int = 50,
     offset: int = 0,
 ) -> dict:
+    # Lazy probe: first dashboard request determines if migration 004 ran
+    await probe_migration_004(client)
     """
     Paginated list for the operator dashboard.
 
@@ -302,12 +334,16 @@ async def list_assessments_for_dashboard(
     them (the dashboard uses loading='lazy' + tab-based reveal to control
     bandwidth).
     """
-    select = (
+    # NOTE: pavement_filter_decision is added at SELECT time only if the
+    # column exists (i.e. migration 004 has been applied). The probe avoids
+    # failing on un-migrated databases — the dashboard still works, just
+    # without per-row pre-filter info.
+    base_cols = (
         "id,image_url,address,latitude,longitude,status,"
         "stage1_label,stage1_confidence,distress_types,severity,"
-        "stage2_confidence,needs_expert_review,pavement_filter_decision,"
-        "created_at,processed_at"
+        "stage2_confidence,needs_expert_review,created_at,processed_at"
     )
+    select = base_cols + ("," + _PAVEMENT_FILTER_COL if _migration_004_applied() else "")
     filters = []
     if status and status != "all":
         # Comma-separated whitelist support: "classified,expert_review"

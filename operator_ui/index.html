@@ -1072,8 +1072,16 @@ body {
 // ============================================================
 // Config
 // ============================================================
+// API base resolution:
+//   1. localStorage override (user typed + saved)
+//   2. window.location.origin if non-empty + not 'null' (served from FastAPI)
+//   3. fallback to localhost:8000 (file:// load, dev mode)
+// API key defaults to empty because the server has API_KEYS unset (auth off).
+// Both inputs are still editable so production users can override.
+const _ORIGIN = (window.location.origin && window.location.origin !== 'null')
+  ? window.location.origin : 'http://localhost:8000';
 const DEFAULTS = {
-  apiBase: window.location.origin,  // same origin if served from FastAPI
+  apiBase: _ORIGIN,
   apiKey: '',
 };
 const POLL_INTERVAL_FALLBACK_MS = 3000;  // used if SSE fails

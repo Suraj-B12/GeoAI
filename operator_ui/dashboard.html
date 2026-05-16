@@ -243,8 +243,16 @@ body {
 // Config + persistent UI state
 // ============================================================
 const LS = window.localStorage;
+// Default API base to the origin we're served from (FastAPI). Falls back to
+// localStorage override (set by typing in the input + clicking Connect), then
+// to window.location.origin. When the dashboard is opened from the FastAPI
+// route /dashboard, this means it works out of the box — no manual entry.
+// API key defaults to empty because the server has API_KEYS unset (auth off).
+const DEFAULT_API_BASE = window.location.origin && window.location.origin !== 'null'
+  ? window.location.origin
+  : 'http://localhost:8000';
 const state = {
-  apiBase: LS.getItem('dash_api_base') || '',
+  apiBase: LS.getItem('dash_api_base') || DEFAULT_API_BASE,
   apiKey:  LS.getItem('dash_api_key')  || '',
   status: 'all',
   dateFrom: null,
@@ -568,10 +576,10 @@ document.getElementById('reclass-cancel').addEventListener('click', () => {
   document.getElementById('reclass-modal').classList.remove('show');
 });
 
-// Auto-connect if creds in localStorage
-if (state.apiBase) {
-  setTimeout(loadAll, 100);
-}
+// Auto-connect on page load — apiBase always has a default
+// (window.location.origin), so the dashboard is functional with zero clicks.
+// Auth disabled = empty API key works fine.
+setTimeout(loadAll, 50);
 </script>
 </body>
 </html>
