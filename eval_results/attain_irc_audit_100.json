@@ -1,0 +1,1935 @@
+{
+  "summary": {
+    "subset": "WS_V2.0",
+    "n_images": 100,
+    "n_processed": 100,
+    "tier1_in_distribution": {
+      "instances": 146,
+      "correct": 69,
+      "accuracy": 0.4726
+    },
+    "tier2_zero_shot": {
+      "instances": 100,
+      "correct": 0,
+      "accuracy": 0.0
+    },
+    "severity": {
+      "instances": 100,
+      "correct": 2,
+      "accuracy": 0.02
+    },
+    "per_class": {
+      "Pothole": {
+        "tier": "in-dist",
+        "tp": 8,
+        "fp": 17,
+        "fn": 14,
+        "precision": 0.32,
+        "recall": 0.3636,
+        "f1": 0.3404
+      },
+      "Raveling": {
+        "tier": "zero-shot",
+        "tp": 0,
+        "fp": 0,
+        "fn": 4,
+        "precision": 0,
+        "recall": 0.0,
+        "f1": 0
+      },
+      "Linear crack": {
+        "tier": "in-dist",
+        "tp": 58,
+        "fp": 11,
+        "fn": 30,
+        "precision": 0.8406,
+        "recall": 0.6591,
+        "f1": 0.7389
+      },
+      "Alligator crack": {
+        "tier": "in-dist",
+        "tp": 3,
+        "fp": 5,
+        "fn": 33,
+        "precision": 0.375,
+        "recall": 0.0833,
+        "f1": 0.1364
+      },
+      "Block crack": {
+        "tier": "zero-shot",
+        "tp": 0,
+        "fp": 0,
+        "fn": 12,
+        "precision": 0,
+        "recall": 0.0,
+        "f1": 0
+      },
+      "Weathering": {
+        "tier": "zero-shot",
+        "tp": 0,
+        "fp": 0,
+        "fn": 84,
+        "precision": 0,
+        "recall": 0.0,
+        "f1": 0
+      }
+    },
+    "adapter_path": null,
+    "prompts_version": "v2"
+  },
+  "per_image_results": [
+    {
+      "image": "Attain_SMP_WS_v2_000001.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking\nSEVERITY: Medium\nDESCRIPTION: Multiple parallel cracks running along the road centerline and across the lane, indicative of moderate distress (IRC:82 \u00a77.3.4, \u00a77.3.5)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000002.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Alligator Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Alligator Cracking\nSEVERITY: Medium\nDESCRIPTION: Interconnected cracks forming small irregular blocks and a network of cracks parallel to the road centerline indicate medium severity alligator cracking and longitudinal cracking (IRC:82 \u00a77.3.3, \u00a77.3.4)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000003.jpg",
+      "gt_attain": [
+        "Block crack",
+        "Weathering",
+        "Linear crack",
+        "Raveling"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking\nSEVERITY: Medium\nDESCRIPTION: Multiple parallel cracks running along the road centerline and across the lane, indicative of moderate cracking (IRC:82 \u00a77.3.4, \u00a77.3.5)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000004.jpg",
+      "gt_attain": [
+        "Block crack",
+        "Weathering",
+        "Linear crack",
+        "Raveling"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking\nSEVERITY: Medium\nDESCRIPTION: Multiple cracks are visible, including both longitudinal and transverse patterns, indicating moderate distress (IRC:82 \u00a77.3.4, \u00a77.3.5)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000005.jpg",
+      "gt_attain": [
+        "Block crack",
+        "Weathering",
+        "Linear crack",
+        "Raveling"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking\nSEVERITY: Medium\nDESCRIPTION: Multiple parallel cracks running along the road centerline and across the lane, indicating medium severity according to IRC:82 \u00a77.3.4 and \u00a77.3.5."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000006.jpg",
+      "gt_attain": [
+        "Block crack",
+        "Weathering",
+        "Linear crack",
+        "Raveling"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking\nSEVERITY: Medium\nDESCRIPTION: Multiple parallel cracks running along the road centerline and across the lane, indicative of moderate cracking (IRC:82 \u00a77.3.4, \u00a77.3.5)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000007.jpg",
+      "gt_attain": [
+        "Pothole",
+        "Linear crack",
+        "Alligator crack",
+        "Block crack",
+        "Weathering"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking\nSEVERITY: Medium\nDESCRIPTION: Multiple parallel cracks running along the road centerline and across the lane, indicative of moderate distress (IRC:82 \u00a77.3.4, \u00a77.3.5)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000008.jpg",
+      "gt_attain": [
+        "Pothole",
+        "Linear crack",
+        "Alligator crack",
+        "Block crack",
+        "Weathering"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Pothole"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking, Potholes\nSEVERITY: Medium\nDESCRIPTION: Multiple longitudinal and transverse cracks are present, with some potholes visible, indicating moderate distress (IRC:82 \u00a77.3.4, \u00a77.3.5, \u00a77.5.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000009.jpg",
+      "gt_attain": [
+        "Pothole",
+        "Linear crack",
+        "Alligator crack",
+        "Block crack",
+        "Weathering"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking\nSEVERITY: Medium\nDESCRIPTION: Multiple parallel cracks running along the wheel path and across the lane, indicative of medium severity cracking (IRC:82 \u00a77.3.4, \u00a77.3.5)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000010.jpg",
+      "gt_attain": [
+        "Pothole",
+        "Linear crack",
+        "Alligator crack",
+        "Block crack",
+        "Weathering"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking\nSEVERITY: Medium\nDESCRIPTION: Multiple parallel cracks running along the road centerline and across the lane, indicative of moderate distress (IRC:82 \u00a77.3.4, \u00a77.3.5)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000011.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking\nSEVERITY: Medium\nDESCRIPTION: Multiple parallel cracks, both longitudinal and transverse, are visible, indicating moderate distress (IRC:82 \u00a77.3.4, \u00a77.3.5)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000012.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking\nSEVERITY: Medium\nDESCRIPTION: Multiple parallel cracks along the wheel path and across the lane, indicative of moderate distress (IRC:82 \u00a77.3.4, \u00a77.3.5)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000013.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking\nSEVERITY: Medium\nDESCRIPTION: Multiple parallel cracks (both longitudinal and transverse) are visible, indicating moderate distress (IRC:82 \u00a77.3.4, \u00a77.3.5)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000014.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking\nSEVERITY: Medium\nDESCRIPTION: Multiple parallel cracks (both longitudinal and transverse) are visible, indicating moderate distress (IRC:82 \u00a77.3.4, \u00a77.3.5)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000015.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking\nSEVERITY: Medium\nDESCRIPTION: Multiple parallel cracks (both longitudinal and transverse) are visible, indicating moderate distress (IRC:82 \u00a77.3.4, \u00a77.3.5)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000016.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking\nSEVERITY: Medium\nDESCRIPTION: Multiple parallel cracks (both longitudinal and transverse) are present, indicating moderate distress (IRC:82 \u00a77.3.4, \u00a77.3.5)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000017.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack",
+        "Pothole"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking\nSEVERITY: Medium\nDESCRIPTION: Multiple parallel cracks (both longitudinal and transverse) are visible, indicating moderate distress (IRC:82 \u00a77.3.4, \u00a77.3.5)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000018.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack",
+        "Pothole"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Pothole"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking, Potholes\nSEVERITY: Medium\nDESCRIPTION: Multiple longitudinal and transverse cracks, with some potholes present, indicating moderate distress (IRC:82 \u00a77.3.4, \u00a77.3.5, \u00a77.5.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000019.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack",
+        "Pothole"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking\nSEVERITY: Medium\nDESCRIPTION: Multiple parallel cracks (both longitudinal and transverse) are visible, indicating moderate distress (IRC:82 \u00a77.3.4, \u00a77.3.5)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000020.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack",
+        "Pothole"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking\nSEVERITY: Medium\nDESCRIPTION: Multiple interconnected cracks, both longitudinal and transverse, with widths ranging from 3-6 mm, indicative of moderate distress (IRC:82 \u00a77.3.4, \u00a77.3.5)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000021.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack",
+        "Pothole"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking\nSEVERITY: Medium\nDESCRIPTION: Multiple parallel cracks running along the road centerline and across the lane, indicative of moderate distress (IRC:82 \u00a77.3.4, \u00a77.3.5)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000022.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack",
+        "Pothole"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking\nSEVERITY: Medium\nDESCRIPTION: Multiple parallel cracks (both longitudinal and transverse) are present, indicating moderate distress (IRC:82 \u00a77.3.4, \u00a77.3.5)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000023.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Pothole"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking, Potholes\nSEVERITY: Medium\nDESCRIPTION: Multiple longitudinal and transverse cracks, with visible potholes indicating moderate distress (IRC:82 \u00a77.3.4, \u00a77.3.5, \u00a77.5.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000024.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking\nSEVERITY: Medium\nDESCRIPTION: Multiple parallel cracks (3-6 mm wide) running along the wheel path and across the lane, indicative of moderate distress (IRC:82 \u00a77.3.4, \u00a77.3.5)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000025.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Pothole"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking, Potholes\nSEVERITY: Medium\nDESCRIPTION: Multiple cracks (both longitudinal and transverse) and several potholes are observed, indicating moderate distress (IRC:82 \u00a77.3.4, \u00a77.3.5, \u00a77.5.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000026.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Pothole"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Potholes\nSEVERITY: Medium\nDESCRIPTION: Multiple longitudinal cracks and scattered potholes indicate moderate distress (IRC:82 \u00a77.3.4, \u00a77.5.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000027.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack",
+        "Pothole"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Pothole"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking, Potholes\nSEVERITY: Medium\nDESCRIPTION: Multiple interconnected cracks and a large pothole indicate advanced distress (IRC:82 \u00a77.3.4, \u00a77.3.5, \u00a77.5.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000028.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack",
+        "Pothole"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Alligator Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Pothole",
+        "Alligator crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Alligator Cracking, Potholes\nSEVERITY: Medium\nDESCRIPTION: Interconnected cracks and bowl-shaped cavities indicate medium severity distresses (IRC:82 \u00a77.3.4, \u00a77.5.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000029.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack",
+        "Pothole"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking\nSEVERITY: Medium\nDESCRIPTION: Multiple parallel cracks running along the road centerline and across the lane, indicative of moderate distress (IRC:82 \u00a77.3.4, \u00a77.3.5)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000030.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack",
+        "Pothole"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Pothole"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking, Potholes\nSEVERITY: Medium\nDESCRIPTION: Multiple interconnected cracks and visible potholes indicate medium severity distress (IRC:82 \u00a77.3.4, \u00a77.3.5, \u00a77.5.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000031.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack",
+        "Pothole",
+        "Patch and utility cut- Low"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Pothole"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Potholes\nSEVERITY: Medium\nDESCRIPTION: Multiple longitudinal cracks and a large pothole are observed, indicating moderate distress (IRC:82 \u00a77.3.4, \u00a77.5.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000032.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack",
+        "Pothole",
+        "Patch and utility cut- Low"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Potholes",
+        "Longitudinal Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Pothole"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Potholes, Longitudinal Cracking\nSEVERITY: Medium\nDESCRIPTION: Multiple potholes with jagged edges and exposed base course, accompanied by a single longitudinal crack running along the wheel path (IRC:82 \u00a77.5.3, \u00a77.3.4)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000033.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack",
+        "Pothole",
+        "Patch and utility cut- Low"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Potholes",
+        "Longitudinal Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Pothole"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Potholes, Longitudinal Cracking\nSEVERITY: Medium\nDESCRIPTION: A medium-sized pothole with jagged edges and a longitudinal crack running along the wheel path, indicative of structural distress (IRC:82 \u00a77.5.3, \u00a77.3.4)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000034.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack",
+        "Pothole",
+        "Patch and utility cut- Low"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Bleeding"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Low",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Bleeding\nSEVERITY: Low\nDESCRIPTION: A single longitudinal crack ~2mm wide runs along the wheel path with no secondary damage (IRC:82 \u00a77.3.4). There are also signs of bleeding (IRC:82 \u00a77.2.1)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000035.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Patch and utility cut- Low",
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Pothole"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Potholes\nSEVERITY: Medium\nDESCRIPTION: Multiple longitudinal cracks and scattered potholes indicate moderate distress (IRC:82 \u00a77.3.4, \u00a77.5.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000036.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Patch and utility cut- Low",
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Pothole"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Potholes\nSEVERITY: Medium\nDESCRIPTION: Multiple longitudinal cracks and scattered potholes indicate moderate distress (IRC:82 \u00a77.3.4, \u00a77.5.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000037.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": false,
+      "stage1_raw": "Normal",
+      "stage2_raw": null
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000038.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking\nSEVERITY: Medium\nDESCRIPTION: Multiple parallel cracks, both longitudinal and transverse, are visible, indicating moderate distress (IRC:82 \u00a77.3.4, \u00a77.3.5)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000039.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": false,
+      "stage1_raw": "Normal",
+      "stage2_raw": null
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000040.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": false,
+      "stage1_raw": "Normal",
+      "stage2_raw": null
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000041.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": false,
+      "stage1_raw": "Normal",
+      "stage2_raw": null
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000042.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": false,
+      "stage1_raw": "Normal",
+      "stage2_raw": null
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000043.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": false,
+      "stage1_raw": "Normal",
+      "stage2_raw": null
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000044.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": false,
+      "stage1_raw": "Normal",
+      "stage2_raw": null
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000045.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": false,
+      "stage1_raw": "Normal",
+      "stage2_raw": null
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000046.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": false,
+      "stage1_raw": "Normal",
+      "stage2_raw": null
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000047.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": false,
+      "stage1_raw": "Normal",
+      "stage2_raw": null
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000048.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": false,
+      "stage1_raw": "Normal",
+      "stage2_raw": null
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000049.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": false,
+      "stage1_raw": "Normal",
+      "stage2_raw": null
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000050.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": false,
+      "stage1_raw": "Normal",
+      "stage2_raw": null
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000051.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": false,
+      "stage1_raw": "Normal",
+      "stage2_raw": null
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000052.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": false,
+      "stage1_raw": "Normal",
+      "stage2_raw": null
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000053.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": false,
+      "stage1_raw": "Normal",
+      "stage2_raw": null
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000054.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": false,
+      "stage1_raw": "Normal",
+      "stage2_raw": null
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000055.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack",
+        "Pothole"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": false,
+      "stage1_raw": "Normal",
+      "stage2_raw": null
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000056.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack",
+        "Pothole"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": false,
+      "stage1_raw": "Normal",
+      "stage2_raw": null
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000057.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack",
+        "Pothole"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": false,
+      "stage1_raw": "Normal",
+      "stage2_raw": null
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000058.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack",
+        "Pothole"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": false,
+      "stage1_raw": "Normal",
+      "stage2_raw": null
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000059.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Alligator crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": false,
+      "stage1_raw": "Normal",
+      "stage2_raw": null
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000060.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Alligator crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Low",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking\nSEVERITY: Low\nDESCRIPTION: Multiple parallel cracks running along the road centerline and across the lane, respectively, indicating minor cracking (IRC:82 \u00a77.3.4, \u00a77.3.5)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000061.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Low",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking\nSEVERITY: Low\nDESCRIPTION: Multiple parallel cracks along the wheel path and across the lane, both ~1-3 mm wide, indicating early-stage cracking (IRC:82 \u00a77.3.4, \u00a77.3.5)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000062.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking\nSEVERITY: Medium\nDESCRIPTION: Multiple cracks are observed, including both longitudinal and transverse types, with widths ranging from 3-6 mm, indicating moderate distress (IRC:82 \u00a77.3.4, \u00a77.3.5)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000063.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Low",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking\nSEVERITY: Low\nDESCRIPTION: Multiple parallel cracks along the road centerline and across the lane, both ~1-3 mm wide, indicating early-stage cracking (IRC:82 \u00a77.3.4, \u00a77.3.5)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000064.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking\nSEVERITY: Medium\nDESCRIPTION: Multiple parallel cracks (3-6 mm wide) are observed along the road centerline and across the lane, indicative of moderate distress (IRC:82 \u00a77.3.4, \u00a77.3.5)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000065.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking\nSEVERITY: Medium\nDESCRIPTION: Multiple parallel cracks (both longitudinal and transverse) are visible, indicating moderate distress (IRC:82 \u00a77.3.4, \u00a77.3.5)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000066.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking\nSEVERITY: Medium\nDESCRIPTION: Multiple cracks are visible, including both longitudinal and transverse patterns, indicating moderate distress (IRC:82 \u00a77.3.4, \u00a77.3.5)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000067.jpg",
+      "gt_attain": [
+        "Weathering"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking\nSEVERITY: Medium\nDESCRIPTION: Multiple parallel cracks (both longitudinal and transverse) are visible, indicating moderate distress (IRC:82 \u00a77.3.4, \u00a77.3.5)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000068.jpg",
+      "gt_attain": [
+        "Weathering"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking\nSEVERITY: Medium\nDESCRIPTION: Multiple parallel cracks (both longitudinal and transverse) are visible, indicating moderate distress (IRC:82 \u00a77.3.4, \u00a77.3.5)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000069.jpg",
+      "gt_attain": [
+        "Weathering"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking\nSEVERITY: Medium\nDESCRIPTION: Multiple cracks, both longitudinal and transverse, are visible, indicating moderate distress (IRC:82 \u00a77.3.4, \u00a77.3.5)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000070.jpg",
+      "gt_attain": [
+        "Weathering"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking\nSEVERITY: Medium\nDESCRIPTION: Multiple cracks are observed, including both longitudinal and transverse types, with widths ranging from 3-6 mm, indicating moderate distress (IRC:82 \u00a77.3.4, \u00a77.3.5)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000071.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack",
+        "Patch and utility cut- Low"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Pothole"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Potholes\nSEVERITY: Medium\nDESCRIPTION: A medium-sized pothole with jagged edges and a longitudinal crack running along the wheel path, indicative of advanced distress (IRC:82 \u00a77.3.4, \u00a77.5.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000072.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack",
+        "Patch and utility cut- Low"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Pothole"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Potholes\nSEVERITY: Medium\nDESCRIPTION: A single longitudinal crack ~2mm wide runs along the wheel path, accompanied by a medium-sized pothole with jagged edges, indicative of advanced distress (IRC:82 \u00a77.3.4, \u00a77.5.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000073.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack",
+        "Patch and utility cut- Low"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Pothole"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Potholes\nSEVERITY: Medium\nDESCRIPTION: A 3-6 mm wide longitudinal crack runs along the wheel path, accompanied by a medium-sized pothole (25-50 mm deep and 200-500 mm wide) indicative of advanced distress (IRC:82 \u00a77.3.4, \u00a77.5.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000074.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack",
+        "Patch and utility cut- Low"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Pothole"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Potholes\nSEVERITY: Medium\nDESCRIPTION: A medium-sized pothole with jagged edges and a longitudinal crack running along the wheel path, indicative of structural distress (IRC:82 \u00a77.3.4, \u00a77.5.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000075.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Patch and utility cut- Low"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Pothole"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Potholes\nSEVERITY: Medium\nDESCRIPTION: Multiple longitudinal cracks and a large pothole are observed, indicating moderate distress (IRC:82 \u00a77.3.4, \u00a77.5.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000076.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Patch and utility cut- Low"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Pothole"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Potholes\nSEVERITY: Medium\nDESCRIPTION: A 3-6 mm wide longitudinal crack runs along the wheel path, accompanied by a medium-sized pothole with jagged edges, indicative of moderate distress (IRC:82 \u00a77.3.4, \u00a77.5.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000077.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Patch and utility cut- Low",
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Alligator Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Alligator Cracking\nSEVERITY: Medium\nDESCRIPTION: Interconnected cracks forming small irregular blocks and a single longitudinal crack ~3mm wide indicate medium severity distress (IRC:82 \u00a77.3.4, \u00a77.3.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000078.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Patch and utility cut- Low",
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Pothole"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Potholes\nSEVERITY: Medium\nDESCRIPTION: A longitudinal crack ~3mm wide runs along the wheel path, accompanied by a medium-sized pothole with jagged edges and visible base course exposure (IRC:82 \u00a77.3.4, \u00a77.5.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000079.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Patch and utility cut- Low",
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Alligator Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Alligator Cracking\nSEVERITY: Medium\nDESCRIPTION: Interconnected cracks forming small irregular blocks and a single longitudinal crack ~3mm wide indicate medium severity distress (IRC:82 \u00a77.3.4, \u00a77.3.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000080.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Patch and utility cut- Low",
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Pothole"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Potholes\nSEVERITY: Medium\nDESCRIPTION: A 3-6 mm wide longitudinal crack runs along the wheel path, accompanied by a small pothole with jagged edges, indicative of moderate distress (IRC:82 \u00a77.3.4, \u00a77.5.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000081.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Patch and utility cut- Low",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Potholes",
+        "Longitudinal Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Pothole"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Potholes, Longitudinal Cracking\nSEVERITY: Medium\nDESCRIPTION: A medium-sized pothole with jagged edges and a longitudinal crack running along the wheel path, indicative of advanced distress (IRC:82 \u00a77.5.3, \u00a77.3.4)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000082.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Patch and utility cut- Low",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Potholes",
+        "Longitudinal Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Pothole"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Potholes, Longitudinal Cracking\nSEVERITY: Medium\nDESCRIPTION: A medium-sized pothole with jagged edges and visible base course material, accompanied by a longitudinal crack running along the wheel path (IRC:82 \u00a77.5.3, \u00a77.3.4)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000083.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Patch and utility cut- Low",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Potholes",
+        "Longitudinal Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Pothole"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Potholes, Longitudinal Cracking\nSEVERITY: Medium\nDESCRIPTION: A medium-sized pothole with jagged edges and visible base course material, accompanied by a longitudinal crack running along the wheel path (IRC:82 \u00a77.5.3, \u00a77.3.4)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000084.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Patch and utility cut- Low",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Pothole"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Potholes\nSEVERITY: Medium\nDESCRIPTION: A 3-6 mm wide longitudinal crack runs along the wheel path, accompanied by a bowl-shaped pothole with jagged edges, indicative of moderate distress (IRC:82 \u00a77.3.4, \u00a77.5.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000085.jpg",
+      "gt_attain": [
+        "Block crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [
+        "Alligator Cracking",
+        "Longitudinal Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking, Longitudinal Cracking\nSEVERITY: Medium\nDESCRIPTION: Interconnected web-pattern cracks and visible longitudinal cracks indicate moderate distress (IRC:82 \u00a77.3.3, \u00a77.3.4)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000086.jpg",
+      "gt_attain": [
+        "Block crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [
+        "Alligator Cracking",
+        "Longitudinal Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking, Longitudinal Cracking\nSEVERITY: Medium\nDESCRIPTION: Interconnected web-pattern cracks and visible longitudinal cracks indicate moderate distress (IRC:82 \u00a77.3.3, \u00a77.3.4)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000087.jpg",
+      "gt_attain": [
+        "Block crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [
+        "Alligator Cracking",
+        "Longitudinal Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking, Longitudinal Cracking\nSEVERITY: Medium\nDESCRIPTION: Interconnected web-pattern cracks and visible longitudinal cracks indicate moderate distress (IRC:82 \u00a77.3.3, \u00a77.3.4)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000088.jpg",
+      "gt_attain": [
+        "Block crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [
+        "Alligator Cracking",
+        "Longitudinal Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking, Longitudinal Cracking\nSEVERITY: Medium\nDESCRIPTION: Interconnected web-pattern cracks and longitudinal cracks indicate moderate distress (IRC:82 \u00a77.3.3, \u00a77.3.4)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000129.jpg",
+      "gt_attain": [
+        "Linear crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": false,
+      "stage1_raw": "Normal",
+      "stage2_raw": null
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000130.jpg",
+      "gt_attain": [
+        "Linear crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": false,
+      "stage1_raw": "Normal",
+      "stage2_raw": null
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000131.jpg",
+      "gt_attain": [
+        "Linear crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": false,
+      "stage1_raw": "Normal",
+      "stage2_raw": null
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000132.jpg",
+      "gt_attain": [
+        "Linear crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": false,
+      "stage1_raw": "Normal",
+      "stage2_raw": null
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000134.jpg",
+      "gt_attain": [
+        "Linear crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": false,
+      "stage1_raw": "Normal",
+      "stage2_raw": null
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000135.jpg",
+      "gt_attain": [
+        "Linear crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": false,
+      "stage1_raw": "Normal",
+      "stage2_raw": null
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000136.jpg",
+      "gt_attain": [
+        "Patch and utility cut- Low",
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": false,
+      "stage1_raw": "Normal",
+      "stage2_raw": null
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000137.jpg",
+      "gt_attain": [
+        "Patch and utility cut- Low",
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": false,
+      "stage1_raw": "Normal",
+      "stage2_raw": null
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000138.jpg",
+      "gt_attain": [
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Low",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking\nSEVERITY: Low\nDESCRIPTION: Multiple cracks are observed, including both longitudinal and transverse types, with widths less than 1 mm, indicating isolated and infrequent occurrences (IRC:82 \u00a77.3.4, \u00a77.3.5)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000139.jpg",
+      "gt_attain": [
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Low",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking\nSEVERITY: Low\nDESCRIPTION: Multiple cracks are visible, including both longitudinal and transverse patterns, with widths less than 1 mm, indicating early-stage cracking (IRC:82 \u00a77.3.4, \u00a77.3.5)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000140.jpg",
+      "gt_attain": [
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Low",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking\nSEVERITY: Low\nDESCRIPTION: Multiple cracks are visible, including both longitudinal and transverse patterns, with widths less than 1 mm, indicating early-stage cracking (IRC:82 \u00a77.3.4, \u00a77.3.5)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000141.jpg",
+      "gt_attain": [
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": false,
+      "stage1_raw": "Normal",
+      "stage2_raw": null
+    }
+  ]
+}

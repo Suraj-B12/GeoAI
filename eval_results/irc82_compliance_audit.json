@@ -1,0 +1,39 @@
+{
+  "source_file": "eval_results\\attain_irc_audit_100.json",
+  "n_images": 100,
+  "n_label_emissions_total": 145,
+  "irc_label_compliance_rate": 1.0,
+  "legacy_slip_through_rate": 0.0,
+  "hallucination_rate": 0.0,
+  "irc_section_citation_rate": 1.0,
+  "severity_format_compliance_distressed_only": 1.0,
+  "distressed_severity_distribution": {
+    "Medium": 62,
+    "Low": 7
+  },
+  "na_severity_handling": {
+    "correct_na": 0,
+    "wrong_concrete_severity": 0,
+    "total": 0
+  },
+  "pothole_severity_terminology": {
+    "correct_terminology": 0,
+    "wrong_lmh": 0,
+    "total": 0
+  },
+  "label_distribution": {
+    "Longitudinal Cracking": 69,
+    "Transverse Cracking": 42,
+    "Potholes": 25,
+    "Alligator Cracking": 8,
+    "Bleeding": 1
+  },
+  "severity_distribution": {
+    "Medium": 62,
+    "Unknown": 31,
+    "Low": 7
+  },
+  "hallucinations": {},
+  "multi_class_prediction_rate": 0.69,
+  "n_descriptions_examined": 69
+}

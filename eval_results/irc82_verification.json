@@ -1,0 +1,334 @@
+{
+  "overall": "pass",
+  "rounds": {
+    "round_1_pdf_cross_reference": {
+      "status": "pass",
+      "n_expected_subsections": 20,
+      "n_mapped_to_taxonomy": 18,
+      "n_explicitly_excluded": 2,
+      "subsections_in_pdf": 22,
+      "details": [
+        {
+          "subsection": "7.2.1",
+          "found_in_pdf": true,
+          "expected": "Bleeding",
+          "status": "ok-mapped"
+        },
+        {
+          "subsection": "7.2.2",
+          "found_in_pdf": true,
+          "expected": "EXCLUDED:Smooth Surface (severity needs skid number measurement)",
+          "status": "ok-excluded"
+        },
+        {
+          "subsection": "7.2.3",
+          "found_in_pdf": true,
+          "expected": "Streaking",
+          "status": "ok-mapped"
+        },
+        {
+          "subsection": "7.2.4",
+          "found_in_pdf": true,
+          "expected": "Hungry Surface",
+          "status": "ok-mapped"
+        },
+        {
+          "subsection": "7.3.2",
+          "found_in_pdf": true,
+          "expected": "Hairline Cracks",
+          "status": "ok-mapped"
+        },
+        {
+          "subsection": "7.3.3",
+          "found_in_pdf": true,
+          "expected": "Alligator Cracking",
+          "status": "ok-mapped"
+        },
+        {
+          "subsection": "7.3.4",
+          "found_in_pdf": true,
+          "expected": "Longitudinal Cracking",
+          "status": "ok-mapped"
+        },
+        {
+          "subsection": "7.3.5",
+          "found_in_pdf": true,
+          "expected": "Transverse Cracking",
+          "status": "ok-mapped"
+        },
+        {
+          "subsection": "7.3.6",
+          "found_in_pdf": true,
+          "expected": "Edge Cracking",
+          "status": "ok-mapped"
+        },
+        {
+          "subsection": "7.3.7",
+          "found_in_pdf": true,
+          "expected": "EXCLUDED:Reflection Cracking (requires underlying-layer knowledge)",
+          "status": "ok-excluded"
+        },
+        {
+          "subsection": "7.4.1",
+          "found_in_pdf": true,
+          "expected": "Slippage",
+          "status": "ok-mapped"
+        },
+        {
+          "subsection": "7.4.2",
+          "found_in_pdf": true,
+          "expected": "Rutting",
+          "status": "ok-mapped"
+        },
+        {
+          "subsection": "7.4.3",
+          "found_in_pdf": true,
+          "expected": "Corrugation",
+          "status": "ok-mapped"
+        },
+        {
+          "subsection": "7.4.4",
+          "found_in_pdf": true,
+          "expected": "Shoving",
+          "status": "ok-mapped"
+        },
+        {
+          "subsection": "7.4.5",
+          "found_in_pdf": true,
+          "expected": "Shallow Depression",
+          "status": "ok-mapped"
+        },
+        {
+          "subsection": "7.4.6",
+          "found_in_pdf": true,
+          "expected": "Settlement",
+          "status": "ok-mapped"
+        },
+        {
+          "subsection": "7.5.1",
+          "found_in_pdf": true,
+          "expected": "Stripping",
+          "status": "ok-mapped"
+        },
+        {
+          "subsection": "7.5.2",
+          "found_in_pdf": true,
+          "expected": "Ravelling",
+          "status": "ok-mapped"
+        },
+        {
+          "subsection": "7.5.3",
+          "found_in_pdf": true,
+          "expected": "Potholes",
+          "status": "ok-mapped"
+        },
+        {
+          "subsection": "7.5.4",
+          "found_in_pdf": true,
+          "expected": "Edge Breaking",
+          "status": "ok-mapped"
+        }
+      ],
+      "extra_subsections_in_pdf": [
+        "7.3.1",
+        "7.4.7"
+      ],
+      "misses": []
+    },
+    "round_2_parser_tests": {
+      "status": "pass",
+      "n_cases": 32,
+      "n_passed": 32,
+      "n_failed": 0,
+      "failures": []
+    },
+    "round_3_severity_match": {
+      "status": "pass",
+      "n_checks": 16,
+      "n_pdf_match": 16,
+      "n_no_match": 0,
+      "details": [
+        {
+          "label": "Longitudinal Cracking",
+          "tier_check": "Low width 1-3 mm",
+          "phrases_tried": [
+            "1-3 mm",
+            "1 - 3 mm",
+            "1to 3 mm",
+            "1 to 3 mm"
+          ],
+          "found_in_pdf": true
+        },
+        {
+          "label": "Longitudinal Cracking",
+          "tier_check": "Medium width 3-6 mm",
+          "phrases_tried": [
+            "3-6 mm",
+            "3 - 6 mm",
+            "3 to 6 mm"
+          ],
+          "found_in_pdf": true
+        },
+        {
+          "label": "Longitudinal Cracking",
+          "tier_check": "High width > 6 mm",
+          "phrases_tried": [
+            "greater than 6 mm",
+            "more than 6 mm",
+            "> 6 mm",
+            "6 mm wide"
+          ],
+          "found_in_pdf": true
+        },
+        {
+          "label": "Transverse Cracking",
+          "tier_check": "Low width 1-3 mm",
+          "phrases_tried": [
+            "1-3 mm",
+            "1 - 3 mm",
+            "1to 3 mm"
+          ],
+          "found_in_pdf": true
+        },
+        {
+          "label": "Transverse Cracking",
+          "tier_check": "Medium width 3-6 mm",
+          "phrases_tried": [
+            "3-6 mm",
+            "3 - 6 mm"
+          ],
+          "found_in_pdf": true
+        },
+        {
+          "label": "Transverse Cracking",
+          "tier_check": "High width > 6 mm",
+          "phrases_tried": [
+            "greater than 6 mm",
+            "6 mm wide"
+          ],
+          "found_in_pdf": true
+        },
+        {
+          "label": "Alligator Cracking",
+          "tier_check": "Low 1-3 mm",
+          "phrases_tried": [
+            "1 to 3 mm",
+            "1-3 mm"
+          ],
+          "found_in_pdf": true
+        },
+        {
+          "label": "Alligator Cracking",
+          "tier_check": "Medium 3-6 mm",
+          "phrases_tried": [
+            "3 to 6 mm",
+            "3-6 mm"
+          ],
+          "found_in_pdf": true
+        },
+        {
+          "label": "Alligator Cracking",
+          "tier_check": "High > 6 mm",
+          "phrases_tried": [
+            "more than 6 mm",
+            "6 mm"
+          ],
+          "found_in_pdf": true
+        },
+        {
+          "label": "Rutting",
+          "tier_check": "Low 4-10 mm",
+          "phrases_tried": [
+            "4-10 mm",
+            "4 to 10 mm",
+            "4 - 10 mm"
+          ],
+          "found_in_pdf": true
+        },
+        {
+          "label": "Rutting",
+          "tier_check": "High > 10 mm",
+          "phrases_tried": [
+            "more than 10 mm",
+            "greater than 10 mm",
+            "10 mm"
+          ],
+          "found_in_pdf": true
+        },
+        {
+          "label": "Potholes",
+          "tier_check": "Small 25 mm 200 mm",
+          "phrases_tried": [
+            "25 mm deep and 200 mm wide",
+            "25 mm deep",
+            "200 mm wide"
+          ],
+          "found_in_pdf": true
+        },
+        {
+          "label": "Potholes",
+          "tier_check": "Medium 25-50 mm 500 mm",
+          "phrases_tried": [
+            "25 to 50 mm",
+            "500 mm wide"
+          ],
+          "found_in_pdf": true
+        },
+        {
+          "label": "Potholes",
+          "tier_check": "Large > 50 mm > 500 mm",
+          "phrases_tried": [
+            "50 mm deep",
+            "500 mm width"
+          ],
+          "found_in_pdf": true
+        },
+        {
+          "label": "Edge Cracking",
+          "tier_check": "Medium loss up to 10%",
+          "phrases_tried": [
+            "10%",
+            "upto 10%",
+            "up to 10"
+          ],
+          "found_in_pdf": true
+        },
+        {
+          "label": "Edge Cracking",
+          "tier_check": "High loss > 10%",
+          "phrases_tried": [
+            "more than 10%",
+            "10%"
+          ],
+          "found_in_pdf": true
+        }
+      ]
+    },
+    "round_4_prompt_audit": {
+      "status": "pass",
+      "prompts": {
+        "v1_stage2": {
+          "length_chars": 12879,
+          "contains_irc_marker": true,
+          "forbids_non_irc_labels": true,
+          "missing_types": [],
+          "n_types_named": 18,
+          "has_severity_criteria": true,
+          "has_section_citations": true,
+          "status": "pass"
+        },
+        "v2_stage2": {
+          "length_chars": 14892,
+          "contains_irc_marker": true,
+          "forbids_non_irc_labels": true,
+          "missing_types": [],
+          "n_types_named": 18,
+          "has_severity_criteria": true,
+          "has_section_citations": true,
+          "status": "pass"
+        }
+      },
+      "n_irc_types": 18
+    }
+  }
+}
