@@ -92,12 +92,27 @@ body {
 .date-filter { display: flex; align-items: center; gap: 8px; }
 .date-filter label { font-size: 12px; color: var(--text-secondary); }
 
-/* Date group headers */
-.date-group { margin-top: 28px; }
+/* Date groups — collapsed by default */
+.date-group { margin-top: 18px; }
 .date-group:first-child { margin-top: 0; }
-.date-header { font-size: 13px; font-weight: 600; color: var(--text-secondary);
-  text-transform: uppercase; letter-spacing: 0.5px; padding: 6px 0;
-  border-bottom: 1px solid var(--border); margin-bottom: 14px; }
+.date-header { display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); cursor: pointer; user-select: none;
+  transition: background var(--transition); }
+.date-header:hover { background: var(--surface-hover); }
+.date-header .caret {
+  display: inline-block; width: 12px; transition: transform var(--transition);
+  color: var(--text-tertiary); font-size: 12px;
+}
+.date-group.expanded .caret { transform: rotate(90deg); }
+.date-header .date-label { font-size: 14px; font-weight: 600; color: var(--text); flex: 1; }
+.date-header .date-count {
+  background: var(--tag-bg); color: var(--text-secondary);
+  padding: 2px 10px; border-radius: 999px;
+  font-size: 11px; font-weight: 600;
+}
+.date-cards { display: none; margin-top: 14px; }
+.date-group.expanded .date-cards { display: block; }
 
 /* Card grid */
 .grid { display: grid; gap: 16px;
@@ -106,12 +121,27 @@ body {
   border-radius: var(--radius-lg); overflow: hidden; transition: all var(--transition); }
 .card:hover { box-shadow: var(--shadow); border-color: var(--border-strong); }
 .card-thumb { aspect-ratio: 4 / 3; background: var(--bg); overflow: hidden;
-  position: relative; }
+  position: relative; cursor: pointer; transition: background var(--transition); }
+.card-thumb:hover { background: var(--border); }
 .card-thumb img { width: 100%; height: 100%; object-fit: cover; display: block;
-  transition: opacity var(--transition); }
+  transition: opacity var(--transition); cursor: default; }
 .card-thumb .placeholder { position: absolute; inset: 0; display: flex;
-  align-items: center; justify-content: center; color: var(--text-tertiary);
-  font-size: 12px; }
+  flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; color: var(--text-tertiary); font-size: 12px;
+  text-align: center; padding: 12px; pointer-events: none; }
+.card-thumb .placeholder .ph-icon {
+  width: 28px; height: 28px; border: 2px solid var(--text-tertiary);
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 600;
+}
+.card-thumb .placeholder.loading .ph-icon {
+  border-color: var(--accent); border-top-color: transparent;
+  animation: spin 0.8s linear infinite;
+}
+.card-thumb .placeholder.loading .ph-text { color: var(--accent); }
+.card-thumb .placeholder.error { color: var(--red); }
+.card-thumb img.loaded { animation: fadeIn 0.25s ease-out; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 .card-body { padding: 12px 14px; }
 .card-status { display: inline-flex; align-items: center; gap: 6px; font-size: 11px;
   font-weight: 600; padding: 3px 8px; border-radius: 999px; margin-bottom: 8px; }
@@ -140,10 +170,29 @@ body {
   border-radius: 50%; animation: spin 0.6s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* Pagination */
-.pagination { display: flex; justify-content: center; gap: 8px; align-items: center;
-  margin-top: 24px; }
-.pagination .info { color: var(--text-secondary); font-size: 13px; padding: 0 12px; }
+/* Infinite-scroll sentinel + footer */
+.scroll-sentinel { height: 1px; margin: 60px 0 0; }
+.scroll-footer { display: flex; justify-content: center; align-items: center;
+  gap: 10px; padding: 24px 0; color: var(--text-tertiary); font-size: 13px; }
+.scroll-footer.loading { color: var(--text-secondary); }
+.scroll-footer.done { color: var(--text-tertiary); font-style: italic; }
+
+/* Autoload toggle in controls row */
+.autoload-toggle { display: inline-flex; align-items: center; gap: 8px;
+  cursor: pointer; user-select: none; font-size: 12px; color: var(--text-secondary); }
+.autoload-toggle input { display: none; }
+.autoload-toggle .switch {
+  position: relative; width: 32px; height: 18px; border-radius: 999px;
+  background: var(--border-strong); transition: background var(--transition);
+}
+.autoload-toggle .switch::after {
+  content: ''; position: absolute; top: 2px; left: 2px;
+  width: 14px; height: 14px; border-radius: 50%; background: white;
+  transition: transform var(--transition);
+}
+.autoload-toggle input:checked + .switch { background: var(--green); }
+.autoload-toggle input:checked + .switch::after { transform: translateX(14px); }
+.autoload-toggle.on { color: var(--green); font-weight: 600; }
 
 /* Modal */
 .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4);
@@ -207,6 +256,12 @@ body {
       <button class="tab" data-status="failed">Failed <span class="badge" id="b-failed">0</span></button>
     </div>
     <div class="date-filter">
+      <label class="autoload-toggle" id="autoload-toggle"
+             title="When ON, images load automatically as dates expand and as you scroll. When OFF, you click each card to load its image. Default OFF to preserve Cloudinary bandwidth.">
+        <input type="checkbox" id="autoload-input" />
+        <span class="switch"></span>
+        <span id="autoload-label">Auto-load images: OFF</span>
+      </label>
       <label>From:</label>
       <input type="date" id="date-from" class="input" />
       <label>To:</label>
@@ -218,16 +273,13 @@ body {
 
   <div id="content">
     <div class="empty-state">
-      <h2>Not connected</h2>
-      <p>Enter API URL above and click Connect.</p>
+      <h2>Loading...</h2>
     </div>
   </div>
 
-  <div class="pagination" id="pagination" style="display:none">
-    <button class="btn" id="prev-btn">← Previous</button>
-    <span class="info" id="page-info">—</span>
-    <button class="btn" id="next-btn">Next →</button>
-  </div>
+  <!-- Endless-scroll sentinel + status footer -->
+  <div class="scroll-sentinel" id="scroll-sentinel"></div>
+  <div class="scroll-footer" id="scroll-footer"></div>
 </main>
 
 <!-- Delete confirmation modal -->
@@ -280,20 +332,36 @@ const DEFAULT_API_BASE = window.location.origin && window.location.origin !== 'n
 const state = {
   apiBase: LS.getItem('dash_api_base') || DEFAULT_API_BASE,
   apiKey:  LS.getItem('dash_api_key')  || '',
+  // Filters
   status: 'all',
   dateFrom: null,
   dateTo: null,
-  page: 0,
+  // Endless-scroll pagination
   pageSize: 50,
+  offset: 0,
   total: 0,
-  items: [],
+  hasMore: true,
   loading: false,
+  // Accumulating rows + UI state
+  allRows: [],                       // every row fetched so far
+  expandedDates: new Set(),          // YYYY-MM-DD strings that are open
+  loadedImageIds: new Set(),         // assessment_ids whose <img> is loaded
+  // Toggle: when true, expanding a date loads all its images AND scrolling
+  // viewport triggers IntersectionObserver loads. When false (default),
+  // user must click each card to load its image.
+  autoLoad: LS.getItem('dash_autoload') === '1',
+  // Modal-pending state
   pendingDeleteId: null,
   pendingReclassifyId: null,
 };
 
 document.getElementById('api-base').value = state.apiBase;
 document.getElementById('api-key').value  = state.apiKey;
+// Reflect persisted autoload setting in the toggle on first render
+document.getElementById('autoload-input').checked = state.autoLoad;
+document.getElementById('autoload-label').textContent =
+  `Auto-load images: ${state.autoLoad ? 'ON' : 'OFF'}`;
+if (state.autoLoad) document.getElementById('autoload-toggle').classList.add('on');
 
 // ============================================================
 // Utilities
@@ -340,23 +408,76 @@ function fmtDateLong(ts) {
 }
 
 // ============================================================
-// Lazy image loading via IntersectionObserver
-// Images stay as placeholder until card scrolls into viewport AND the
-// active tab is showing them — exactly as the user asked, to preserve
-// the Cloudinary bandwidth quota.
+// IntersectionObserver — image-card lazy load (only fires when autoload=ON
+// AND the card is in viewport). Cards observed only after their date group
+// is expanded. Each card loads at most once.
 // ============================================================
-const lazyObserver = new IntersectionObserver((entries) => {
+const cardImageObserver = new IntersectionObserver((entries) => {
   for (const e of entries) {
     if (e.isIntersecting) {
-      const img = e.target.querySelector('img[data-src]');
-      if (img && !img.src) {
-        img.src = img.dataset.src;
-        img.removeAttribute('data-src');
-      }
-      lazyObserver.unobserve(e.target);
+      loadCardImage(e.target);
+      cardImageObserver.unobserve(e.target);
     }
   }
 }, { rootMargin: '200px 0px' });
+
+// IntersectionObserver — endless scroll. Fires when the sentinel
+// approaches the bottom; triggers next page fetch.
+const scrollSentinelObserver = new IntersectionObserver((entries) => {
+  for (const e of entries) {
+    if (e.isIntersecting && state.hasMore && !state.loading) {
+      loadNextPage();
+    }
+  }
+}, { rootMargin: '400px 0px' });
+
+// ============================================================
+// Image loading — actually swap data-src into src.
+// Idempotent — safe to call multiple times on the same card.
+// ============================================================
+function loadCardImage(cardEl) {
+  if (!cardEl) return;
+  const id = cardEl.dataset.id;
+  if (state.loadedImageIds.has(id)) return;
+  const img = cardEl.querySelector('img[data-src]');
+  const placeholder = cardEl.querySelector('.placeholder');
+  if (!img) return;
+  // Show loading state on placeholder
+  if (placeholder) {
+    placeholder.classList.add('loading');
+    const text = placeholder.querySelector('.ph-text');
+    if (text) text.textContent = 'loading…';
+  }
+  img.onload = () => {
+    state.loadedImageIds.add(id);
+    img.classList.add('loaded');
+    if (placeholder) placeholder.style.display = 'none';
+  };
+  img.onerror = () => {
+    if (placeholder) {
+      placeholder.classList.remove('loading');
+      placeholder.classList.add('error');
+      const text = placeholder.querySelector('.ph-text');
+      if (text) text.textContent = 'image unavailable';
+    }
+  };
+  img.src = img.dataset.src;
+  img.removeAttribute('data-src');
+}
+
+function loadAllImagesInDateGroup(dateKey) {
+  const group = document.querySelector(`.date-group[data-date="${dateKey}"]`);
+  if (!group) return;
+  for (const c of group.querySelectorAll('.card')) loadCardImage(c);
+}
+
+function observeCardsForAutoload(scope) {
+  if (!state.autoLoad) return;
+  const cards = (scope || document).querySelectorAll('.card');
+  for (const c of cards) {
+    if (!state.loadedImageIds.has(c.dataset.id)) cardImageObserver.observe(c);
+  }
+}
 
 // ============================================================
 // Rendering
@@ -364,13 +485,6 @@ const lazyObserver = new IntersectionObserver((entries) => {
 function renderEmpty(msg) {
   document.getElementById('content').innerHTML =
     `<div class="empty-state"><h2>${msg}</h2></div>`;
-  document.getElementById('pagination').style.display = 'none';
-}
-
-function renderLoading() {
-  document.getElementById('content').innerHTML =
-    `<div class="empty-state"><span class="spinner"></span>
-       <p style="margin-top:12px">Loading...</p></div>`;
 }
 
 function statusLabel(s) {
@@ -394,14 +508,19 @@ function renderCard(row) {
   const time = fmtTime(row.created_at);
   const addr = row.address ? row.address.slice(0, 80) : '';
   const showReclass = status === 'rejected_non_pavement' || status === 'failed';
+  const alreadyLoaded = state.loadedImageIds.has(row.id);
   return `
     <div class="card" data-id="${row.id}">
-      <div class="card-thumb">
+      <div class="card-thumb" data-load-id="${row.id}" title="Click to load image">
         ${row.image_url
-          ? `<img data-src="${row.image_url}" alt="" loading="lazy"
-               onerror="this.style.display='none';this.parentNode.querySelector('.placeholder').style.display='flex'" />
-             <div class="placeholder" style="display:none">image unavailable</div>`
-          : `<div class="placeholder">no image</div>`}
+          ? `<img ${alreadyLoaded ? 'src' : 'data-src'}="${row.image_url}"
+                 alt="" class="${alreadyLoaded ? 'loaded' : ''}" />
+             <div class="placeholder" style="${alreadyLoaded ? 'display:none' : ''}">
+               <div class="ph-icon">↓</div>
+               <div class="ph-text">Click to load</div>
+             </div>`
+          : `<div class="placeholder"><div class="ph-icon">×</div>
+               <div class="ph-text">no image URL</div></div>`}
       </div>
       <div class="card-body">
         <div class="card-status s-${status}">${statusLabel(status)}</div>
@@ -424,82 +543,167 @@ function renderCard(row) {
   `;
 }
 
-function renderItems() {
-  if (!state.items.length) { renderEmpty('No images match the current filter.'); return; }
-  // Group by date
+function renderAllGroups() {
+  if (!state.allRows.length) {
+    if (state.loading) {
+      document.getElementById('content').innerHTML =
+        `<div class="empty-state"><span class="spinner"></span>
+           <p style="margin-top:12px">Loading…</p></div>`;
+    } else {
+      renderEmpty('No images match the current filter.');
+    }
+    return;
+  }
+  // Group rows by date (YYYY-MM-DD)
   const byDate = new Map();
-  for (const row of state.items) {
+  for (const row of state.allRows) {
     const dk = fmtDate(row.created_at);
     if (!byDate.has(dk)) byDate.set(dk, []);
     byDate.get(dk).push(row);
   }
   const groupKeys = [...byDate.keys()].sort().reverse();
   const html = groupKeys.map(dk => {
-    const cards = byDate.get(dk).map(renderCard).join('');
-    return `<section class="date-group">
-              <div class="date-header">${fmtDateLong(dk + 'T00:00:00')}</div>
-              <div class="grid">${cards}</div>
+    const rows = byDate.get(dk);
+    const isOpen = state.expandedDates.has(dk);
+    const cards = isOpen
+      ? `<div class="grid">${rows.map(renderCard).join('')}</div>`
+      : '';
+    return `<section class="date-group ${isOpen ? 'expanded' : ''}" data-date="${dk}">
+              <div class="date-header" data-date="${dk}">
+                <span class="caret">▶</span>
+                <span class="date-label">${fmtDateLong(dk + 'T00:00:00')}</span>
+                <span class="date-count">${rows.length}</span>
+              </div>
+              <div class="date-cards">${cards}</div>
             </section>`;
   }).join('');
   document.getElementById('content').innerHTML = html;
-  // Wire lazy-load
-  for (const c of document.querySelectorAll('.card')) lazyObserver.observe(c);
-  // Wire action buttons
+  // Wire date headers (click to expand/collapse)
+  for (const h of document.querySelectorAll('.date-header')) {
+    h.addEventListener('click', onDateHeaderClick);
+  }
+  // Wire card thumbs (click to load image) + action buttons
+  for (const t of document.querySelectorAll('.card-thumb[data-load-id]')) {
+    t.addEventListener('click', onThumbClick);
+  }
   for (const b of document.querySelectorAll('[data-action]')) {
     b.addEventListener('click', onActionClick);
   }
-  // Pagination
-  const totalPages = Math.max(1, Math.ceil(state.total / state.pageSize));
-  document.getElementById('pagination').style.display = 'flex';
-  document.getElementById('page-info').textContent =
-    `Page ${state.page+1} of ${totalPages} · ${state.total} total`;
-  document.getElementById('prev-btn').disabled = state.page === 0;
-  document.getElementById('next-btn').disabled = state.page+1 >= totalPages;
+  // If autoload is ON, observe newly-visible cards for viewport entry
+  if (state.autoLoad) observeCardsForAutoload();
+  // Re-observe sentinel for endless scroll
+  scrollSentinelObserver.observe(document.getElementById('scroll-sentinel'));
+}
+
+function updateScrollFooter() {
+  const f = document.getElementById('scroll-footer');
+  if (state.loading && state.allRows.length > 0) {
+    f.className = 'scroll-footer loading';
+    f.innerHTML = '<span class="spinner"></span> loading more…';
+  } else if (!state.hasMore && state.allRows.length > 0) {
+    f.className = 'scroll-footer done';
+    f.innerHTML = `· end of list — ${state.total} total ·`;
+  } else if (!state.allRows.length && !state.loading) {
+    f.className = 'scroll-footer';
+    f.innerHTML = '';
+  } else {
+    f.className = 'scroll-footer';
+    f.innerHTML = '';
+  }
 }
 
 // ============================================================
-// Data loading
+// Click handlers
+// ============================================================
+function onDateHeaderClick(ev) {
+  const dk = ev.currentTarget.dataset.date;
+  const group = document.querySelector(`.date-group[data-date="${dk}"]`);
+  if (!group) return;
+  const wasOpen = state.expandedDates.has(dk);
+  if (wasOpen) {
+    state.expandedDates.delete(dk);
+  } else {
+    state.expandedDates.add(dk);
+  }
+  // Re-render this one group only (avoid re-rendering everything)
+  renderAllGroups();
+  // If we just opened it AND autoload is ON, load every card's image
+  if (!wasOpen && state.autoLoad) {
+    loadAllImagesInDateGroup(dk);
+  }
+}
+
+function onThumbClick(ev) {
+  // If the click came through an already-loaded <img>, do nothing
+  const id = ev.currentTarget.dataset.loadId;
+  if (state.loadedImageIds.has(id)) return;
+  loadCardImage(ev.currentTarget.closest('.card'));
+}
+
+// ============================================================
+// Data loading — endless scroll
 // ============================================================
 async function loadSummary() {
   try {
     const s = await api('/dashboard/summary');
     document.getElementById('b-all').textContent = s.total || 0;
-    for (const [st, n] of Object.entries(s.by_status || {})) {
+    for (const st of ['pending','processing','classified','expert_review',
+                      'rejected_non_pavement','failed']) {
       const el = document.getElementById('b-' + st);
-      if (el) el.textContent = n;
+      if (el) el.textContent = (s.by_status && s.by_status[st]) || 0;
     }
-  } catch (e) { /* badges optional */ console.warn('summary failed:', e); }
+  } catch (e) { console.warn('summary failed:', e); }
 }
 
-async function loadList() {
-  if (state.loading) return;
+async function loadNextPage() {
+  if (state.loading || !state.hasMore) return;
   state.loading = true;
-  renderLoading();
+  updateScrollFooter();
   try {
     const params = new URLSearchParams();
     params.set('status', state.status);
     if (state.dateFrom) params.set('date_from', state.dateFrom + 'T00:00:00');
     if (state.dateTo)   params.set('date_to',   state.dateTo   + 'T23:59:59');
     params.set('limit',  state.pageSize);
-    params.set('offset', state.page * state.pageSize);
+    params.set('offset', state.offset);
     const r = await api('/dashboard/list?' + params.toString());
-    state.items = r.items || [];
-    state.total = r.total || 0;
-    renderItems();
+    const items = r.items || [];
+    state.allRows.push(...items);
+    state.offset += items.length;
+    state.total = r.total || state.allRows.length;
+    state.hasMore = state.allRows.length < state.total && items.length > 0;
+    renderAllGroups();
   } catch (e) {
     renderEmpty(`Error: ${e.message}`);
   } finally {
     state.loading = false;
+    updateScrollFooter();
   }
+}
+
+function resetAndReload() {
+  // Tab change or date-filter change — wipe accumulated rows + scroll back up
+  state.allRows = [];
+  state.offset = 0;
+  state.total = 0;
+  state.hasMore = true;
+  state.expandedDates = new Set();
+  // Note: loadedImageIds is NOT cleared — if user re-clicks same image,
+  // we shouldn't refetch it. Cleared only when they manually refresh.
+  window.scrollTo({ top: 0, behavior: 'instant' });
+  renderAllGroups();
+  loadNextPage();
 }
 
 // ============================================================
 // Actions
 // ============================================================
 function onActionClick(ev) {
+  // Don't let the click bubble to the parent .card-thumb's load handler
+  ev.stopPropagation();
   const id = ev.currentTarget.dataset.id;
   const action = ev.currentTarget.dataset.action;
-  const row = state.items.find(r => r.id === id);
+  const row = state.allRows.find(r => r.id === id);
   if (!row) return;
   if (action === 'delete') {
     state.pendingDeleteId = id;
@@ -525,7 +729,12 @@ async function performDelete() {
     const cn = r.cloudinary?.result || 'skipped';
     toast(`Deleted ${id.slice(0,8)} (Cloudinary: ${cn})`, 'success');
     state.pendingDeleteId = null;
-    await loadAll();
+    // Optimistic local removal — don't refetch everything
+    state.allRows = state.allRows.filter(r => r.id !== id);
+    state.loadedImageIds.delete(id);
+    state.total = Math.max(0, state.total - 1);
+    renderAllGroups();
+    loadSummary();  // refresh tab badges
   } catch (e) {
     toast(`Delete failed: ${e.message}`, 'error');
   }
@@ -539,7 +748,18 @@ async function performReclassify() {
     await api(`/dashboard/reclassify/${id}`, { method: 'POST' });
     toast(`Sent ${id.slice(0,8)} back to AI pipeline`, 'success');
     state.pendingReclassifyId = null;
-    await loadAll();
+    // Mark the local row as pending so the UI updates without a full refetch
+    const row = state.allRows.find(r => r.id === id);
+    if (row) {
+      row.status = 'pending';
+      row.distress_types = [];
+      row.severity = 'None';
+      row.stage1_label = null;
+      row.stage1_confidence = null;
+      row.stage2_confidence = null;
+    }
+    renderAllGroups();
+    loadSummary();
   } catch (e) {
     toast(`Re-classify failed: ${e.message}`, 'error');
   }
@@ -548,8 +768,13 @@ async function performReclassify() {
 async function loadAll() {
   setConnStatus('', 'connecting…');
   try {
-    await Promise.all([loadSummary(), loadList()]);
-    // Use just the host:port for the pill, full URL is too long
+    await loadSummary();
+    state.allRows = [];
+    state.offset = 0;
+    state.total = 0;
+    state.hasMore = true;
+    state.expandedDates = new Set();
+    await loadNextPage();
     let label = state.apiBase;
     try { const u = new URL(state.apiBase); label = u.host || state.apiBase; } catch {}
     setConnStatus('ok', label);
@@ -602,29 +827,37 @@ for (const t of document.querySelectorAll('.tab')) {
     document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
     t.classList.add('active');
     state.status = t.dataset.status;
-    state.page = 0;
-    loadList();
+    resetAndReload();
   });
 }
 
 document.getElementById('apply-date-btn').addEventListener('click', () => {
   state.dateFrom = document.getElementById('date-from').value || null;
   state.dateTo   = document.getElementById('date-to').value   || null;
-  state.page = 0;
-  loadList();
+  resetAndReload();
 });
 document.getElementById('clear-date-btn').addEventListener('click', () => {
   document.getElementById('date-from').value = '';
   document.getElementById('date-to').value = '';
-  state.dateFrom = null; state.dateTo = null; state.page = 0;
-  loadList();
+  state.dateFrom = null; state.dateTo = null;
+  resetAndReload();
 });
 
-document.getElementById('prev-btn').addEventListener('click', () => {
-  if (state.page > 0) { state.page--; loadList(); }
-});
-document.getElementById('next-btn').addEventListener('click', () => {
-  state.page++; loadList();
+// Autoload toggle — when flipped ON, observe all currently-rendered cards;
+// when flipped OFF, stop observing (user must click-to-load).
+document.getElementById('autoload-input').addEventListener('change', (ev) => {
+  state.autoLoad = ev.target.checked;
+  LS.setItem('dash_autoload', state.autoLoad ? '1' : '0');
+  document.getElementById('autoload-label').textContent =
+    `Auto-load images: ${state.autoLoad ? 'ON' : 'OFF'}`;
+  document.getElementById('autoload-toggle')
+    .classList.toggle('on', state.autoLoad);
+  if (state.autoLoad) {
+    // Load everything currently expanded immediately, then observe future
+    // cards. Spec: "load on date press AND when scrolling down".
+    for (const dk of state.expandedDates) loadAllImagesInDateGroup(dk);
+    observeCardsForAutoload();
+  }
 });
 
 document.getElementById('delete-confirm').addEventListener('click', performDelete);
