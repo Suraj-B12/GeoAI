@@ -103,9 +103,13 @@ class WorkerMetrics:
     last_total_time_ms: float = 0.0
 
     # Rolling averages (last 50 images)
+    _recent_stage0_ms: deque = field(default_factory=lambda: deque(maxlen=50))
     _recent_stage1_ms: deque = field(default_factory=lambda: deque(maxlen=50))
     _recent_stage2_ms: deque = field(default_factory=lambda: deque(maxlen=50))
     _recent_total_ms: deque = field(default_factory=lambda: deque(maxlen=50))
+
+    # Pre-filter rejection count (Stage 0 said NO)
+    images_rejected_non_pavement: int = 0
 
     last_processed_at: Optional[datetime] = None
     last_processed_id: Optional[str] = None
@@ -114,20 +118,31 @@ class WorkerMetrics:
     current_image_id: Optional[str] = None
 
     # Per-image live progress (cleared between images)
-    current_stage: Optional[str] = None  # 'downloading' | 'stage1' | 'stage2' | None
+    current_stage: Optional[str] = None
+    # 'downloading' | 'pavement_filter' | 'stage1' | 'stage2' | None
     current_stage_started_at: Optional[datetime] = None
-    current_stage1_time_ms: float = 0.0  # Stage 1 timing for the in-flight image
-    current_stage2_time_ms: float = 0.0  # Stage 2 timing for the in-flight image
-    current_skipped_stage2: bool = False  # True if Stage 1 said Normal -> Stage 2 skipped
+    current_stage0_time_ms: float = 0.0
+    current_stage1_time_ms: float = 0.0
+    current_stage2_time_ms: float = 0.0
+    current_skipped_stage2: bool = False
+    last_stage0_time_ms: float = 0.0
 
-    def record_timing(self, s1_ms: float, s2_ms: float):
+    def record_timing(self, s0_ms: float, s1_ms: float, s2_ms: float):
+        self.last_stage0_time_ms = s0_ms
         self.last_stage1_time_ms = s1_ms
         self.last_stage2_time_ms = s2_ms
-        self.last_total_time_ms = s1_ms + s2_ms
-        self._recent_stage1_ms.append(s1_ms)
+        self.last_total_time_ms = s0_ms + s1_ms + s2_ms
+        if s0_ms > 0:
+            self._recent_stage0_ms.append(s0_ms)
+        if s1_ms > 0:
+            self._recent_stage1_ms.append(s1_ms)
         if s2_ms > 0:
             self._recent_stage2_ms.append(s2_ms)
-        self._recent_total_ms.append(s1_ms + s2_ms)
+        self._recent_total_ms.append(s0_ms + s1_ms + s2_ms)
+
+    @property
+    def avg_stage0_ms(self) -> float:
+        return sum(self._recent_stage0_ms) / len(self._recent_stage0_ms) if self._recent_stage0_ms else 0.0
 
     @property
     def avg_stage1_ms(self) -> float:
@@ -153,6 +168,7 @@ class WorkerMetrics:
                 self.current_stage_started_at.isoformat()
                 if self.current_stage_started_at else None
             ),
+            "current_stage0_time_ms": round(self.current_stage0_time_ms, 1),
             "current_stage1_time_ms": round(self.current_stage1_time_ms, 1),
             "current_stage2_time_ms": round(self.current_stage2_time_ms, 1),
             "current_skipped_stage2": self.current_skipped_stage2,
@@ -162,9 +178,12 @@ class WorkerMetrics:
             "images_classified": self.images_classified,
             "images_flagged_review": self.images_flagged_review,
             "images_failed": self.images_failed,
+            "images_rejected_non_pavement": self.images_rejected_non_pavement,
+            "last_stage0_time_ms": round(self.last_stage0_time_ms, 1),
             "last_stage1_time_ms": round(self.last_stage1_time_ms, 1),
             "last_stage2_time_ms": round(self.last_stage2_time_ms, 1),
             "last_total_time_ms": round(self.last_total_time_ms, 1),
+            "avg_stage0_time_ms": round(self.avg_stage0_ms, 1),
             "avg_stage1_time_ms": round(self.avg_stage1_ms, 1),
             "avg_stage2_time_ms": round(self.avg_stage2_ms, 1),
             "avg_total_time_ms": round(self.avg_total_ms, 1),
@@ -438,6 +457,7 @@ class PipelineWorker:
         loop = asyncio.get_event_loop()
 
         # Reset per-image state
+        self.metrics.current_stage0_time_ms = 0.0
         self.metrics.current_stage1_time_ms = 0.0
         self.metrics.current_stage2_time_ms = 0.0
         self.metrics.current_skipped_stage2 = False
@@ -452,10 +472,15 @@ class PipelineWorker:
         # 2. Stage 0 — pavement pre-filter (conservative; rejects only clear non-pavement)
         self._enter_stage("pavement_filter")
         pavement = await loop.run_in_executor(None, self.classifier.predict_is_pavement, img)
+        s0_time = pavement.get("time_ms", 0.0)
+        self.metrics.current_stage0_time_ms = s0_time
         if not pavement["is_pavement"]:
             # Clear NO decision — reject WITHOUT running Stage 1/2.
             # Operator can re-classify from dashboard if this was a false reject.
             self._enter_stage(None)
+            # Record Stage 0 timing in the rolling average so the dashboard
+            # shows accurate pre-filter cost on rejects too.
+            self.metrics.record_timing(s0_time, 0.0, 0.0)
             await update_assessment(self.supabase, image_id, {
                 "status": "rejected_non_pavement",
                 "pavement_filter_decision": pavement["decision"],
@@ -469,6 +494,7 @@ class PipelineWorker:
             })
             # Local metrics — counts as "processed" but routes through a separate path
             self.metrics.images_processed += 1
+            self.metrics.images_rejected_non_pavement += 1
             print(f"[Worker] {image_id[:8]} rejected_non_pavement "
                   f"(decision={pavement['decision']!r}, raw={pavement['raw']!r})")
             return
@@ -520,13 +546,15 @@ class PipelineWorker:
             "description": s2.get("description") or "",
             "stage2_confidence": s2_conf,
             "needs_expert_review": final_status == "expert_review",
-            "processing_time_ms": s1_time + s2_time,
+            "processing_time_ms": s0_time + s1_time + s2_time,
             "pavement_filter_decision": pavement["decision"],
             "pavement_filter_raw": pavement["raw"],
             "pavement_filter_at": datetime.now(timezone.utc).isoformat(),
             "raw_response": {
+                "stage0_pavement_raw": pavement.get("raw", ""),
                 "stage1_raw": s1.get("stage1_raw", ""),
                 "stage2_raw": s2.get("stage2_raw", ""),
+                "stage0_time_ms": s0_time,
                 "stage1_time_ms": s1_time,
                 "stage2_time_ms": s2_time,
                 # Cascade telemetry: did Stage 2's first pass (with adapter)
@@ -550,7 +578,7 @@ class PipelineWorker:
             self.metrics.images_classified += 1
         elif final_status == "expert_review":
             self.metrics.images_flagged_review += 1
-        self.metrics.record_timing(s1_time, s2_time)
+        self.metrics.record_timing(s0_time, s1_time, s2_time)
         self.metrics.last_processed_at = datetime.now(timezone.utc)
         self.metrics.last_processed_id = image_id
         self.metrics.last_error = None

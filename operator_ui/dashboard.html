@@ -46,6 +46,24 @@ body {
 .header-right { display: flex; gap: 12px; align-items: center; }
 .input { font: inherit; padding: 8px 12px; border: 1px solid var(--border-strong);
   border-radius: 8px; background: var(--surface); color: var(--text); }
+
+/* Connection pill — shows live status, clickable to open override */
+.conn-pill { display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 12px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  background: var(--tag-bg); color: var(--text-secondary);
+  cursor: pointer; user-select: none; transition: background var(--transition); }
+.conn-pill:hover { background: var(--border); }
+.conn-pill.ok { background: var(--green-light); color: var(--green); }
+.conn-pill.err { background: var(--red-light); color: var(--red); }
+.conn-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.conn-pill.ok .conn-dot { animation: pulse 1.5s infinite ease-in-out; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+/* Override bar — hidden by default */
+.override-bar { display: none; max-width: 1440px; margin: 0 auto;
+  padding: 12px 32px; gap: 12px; align-items: center; background: var(--surface);
+  border-bottom: 1px solid var(--border); }
+.override-bar.shown { display: flex; }
 .btn { font: inherit; padding: 8px 16px; border: 1px solid var(--border-strong);
   border-radius: 8px; background: var(--surface); color: var(--text);
   font-weight: 500; cursor: pointer; transition: all var(--transition); font-size: 13px; }
@@ -159,15 +177,23 @@ body {
       <span class="tag">Image Dashboard</span>
     </div>
     <div class="header-right">
-      <input id="api-base" class="input" placeholder="API base URL"
-             style="width:280px" />
-      <input id="api-key" class="input" placeholder="API key (optional)" type="password"
-             style="width:200px" />
-      <button id="connect-btn" class="btn btn-primary">Connect</button>
-      <a href="/operator" class="btn btn-ghost">← Operator</a>
+      <a href="/operator" class="btn btn-ghost" style="text-decoration:none">← Operator</a>
+      <span id="conn-pill" class="conn-pill" title="Click to override API URL">
+        <span class="conn-dot"></span>
+        <span id="conn-text">connecting…</span>
+      </span>
     </div>
   </div>
 </header>
+
+<!-- Hidden override bar — click connection pill above to open -->
+<div class="override-bar" id="override-bar">
+  <input id="api-base" class="input" placeholder="API base URL (auto)" style="width:320px" />
+  <input id="api-key" class="input" placeholder="API key (empty when auth off)"
+         type="password" style="width:220px" />
+  <button id="connect-btn" class="btn btn-primary">Save + Reload</button>
+  <button id="close-override-btn" class="btn btn-ghost">Close</button>
+</div>
 
 <main class="main">
   <div class="controls-row">
@@ -520,20 +546,56 @@ async function performReclassify() {
 }
 
 async function loadAll() {
-  await Promise.all([loadSummary(), loadList()]);
+  setConnStatus('', 'connecting…');
+  try {
+    await Promise.all([loadSummary(), loadList()]);
+    // Use just the host:port for the pill, full URL is too long
+    let label = state.apiBase;
+    try { const u = new URL(state.apiBase); label = u.host || state.apiBase; } catch {}
+    setConnStatus('ok', label);
+  } catch (e) {
+    setConnStatus('err', 'connection error');
+  }
 }
 
 // ============================================================
 // Wiring
 // ============================================================
+// Connection pill + override bar
+const overrideBar = document.getElementById('override-bar');
+const connPill = document.getElementById('conn-pill');
+const connText = document.getElementById('conn-text');
+
+function setConnStatus(kind, text) {
+  connPill.className = 'conn-pill ' + (kind || '');
+  connText.textContent = text;
+}
+
+connPill.addEventListener('click', () => {
+  overrideBar.classList.toggle('shown');
+});
+document.getElementById('close-override-btn').addEventListener('click',
+  () => overrideBar.classList.remove('shown'));
+
 document.getElementById('connect-btn').addEventListener('click', () => {
-  state.apiBase = document.getElementById('api-base').value.trim();
-  state.apiKey  = document.getElementById('api-key').value.trim();
-  LS.setItem('dash_api_base', state.apiBase);
-  LS.setItem('dash_api_key',  state.apiKey);
+  const newBase = document.getElementById('api-base').value.trim().replace(/\/$/, '');
+  const newKey  = document.getElementById('api-key').value.trim();
+  if (newBase) {
+    state.apiBase = newBase;
+    LS.setItem('dash_api_base', newBase);
+  }
+  if (newKey !== state.apiKey) {
+    state.apiKey = newKey;
+    LS.setItem('dash_api_key', newKey);
+  }
+  overrideBar.classList.remove('shown');
   state.page = 0;
   loadAll();
 });
+
+// Pre-populate override fields (in case user opens to inspect/edit)
+document.getElementById('api-base').value = state.apiBase;
+document.getElementById('api-key').value  = state.apiKey;
 
 for (const t of document.querySelectorAll('.tab')) {
   t.addEventListener('click', (e) => {

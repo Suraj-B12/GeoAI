@@ -229,7 +229,11 @@ if _test_fixtures_enabled() and TEST_FIXTURES_DIR.exists():
 @app.get("/health", response_model=HealthResponse)
 @limiter.limit("60/minute")
 async def health(request: Request):
-    """Check server and model status."""
+    """Check server and model status — also exposes the active production
+    pipeline config (adapter on/off, prompt version, taxonomy, pre-filter)
+    so the operator UI can render an accurate Pipeline panel."""
+    adapter_disabled = os.environ.get("DISABLE_ADAPTER", "").lower() in ("1", "true", "yes")
+    prompts_version = os.environ.get("PROMPTS_VERSION", "v2")
     try:
         clf = get_classifier()
         return HealthResponse(
@@ -238,6 +242,10 @@ async def health(request: Request):
             model_name=clf.model_path,
             device=clf.device,
             adapter_loaded=clf.has_adapter,
+            adapter_disabled_in_config=adapter_disabled,
+            prompts_version=prompts_version,
+            taxonomy="IRC:82-2015",
+            pavement_filter_enabled=True,
         )
     except Exception:
         return HealthResponse(
@@ -246,6 +254,10 @@ async def health(request: Request):
             model_name="unknown",
             device="unknown",
             adapter_loaded=False,
+            adapter_disabled_in_config=adapter_disabled,
+            prompts_version=prompts_version,
+            taxonomy="IRC:82-2015",
+            pavement_filter_enabled=True,
         )
 
 

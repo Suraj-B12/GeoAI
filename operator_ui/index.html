@@ -161,18 +161,50 @@ body {
   margin-bottom: 12px;
 }
 
-/* ============ CONFIG BAR (API + worker) ============ */
+/* ============ CONFIG BAR — collapsed by default ============ */
+/* The API URL auto-detects from window.location.origin. The config bar is
+   only visible if the operator clicks the connection-status pill to
+   override (e.g. for a Cloudflare tunnel URL). Default state = collapsed. */
 .config-bar {
+  display: none;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 16px 20px;
-  display: grid;
-  grid-template-columns: 1fr 1fr auto;
+  grid-template-columns: 1fr 1fr auto auto;
   gap: 16px;
-  align-items: center;
+  align-items: end;
   box-shadow: var(--shadow-sm);
+  margin-bottom: 16px;
 }
+.config-bar.shown { display: grid; }
+.controls-bar {
+  display: flex; gap: 12px; align-items: center;
+  margin-bottom: 24px;
+}
+.pipeline-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 18px;
+  margin-bottom: 24px;
+}
+.pipeline-item { display: flex; flex-direction: column; gap: 4px; }
+.pipeline-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.8px;
+  text-transform: uppercase; color: var(--text-tertiary);
+}
+.pipeline-value {
+  font-size: 13px; font-weight: 600; color: var(--text);
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+}
+.pipeline-value.muted { color: var(--text-secondary); font-style: italic; font-family: inherit; }
+.pipeline-value.ok { color: var(--green); }
+.pipeline-value.warn { color: var(--amber); }
+.connection-status { cursor: pointer; }
 .config-field {
   display: flex;
   flex-direction: column;
@@ -747,11 +779,12 @@ body {
   <div class="header-inner">
     <div class="header-left">
       <div class="logo">GeoAI</div>
-      <span class="tag">Operator Dashboard</span>
+      <span class="tag">Operator</span>
     </div>
     <div class="header-right">
+      <a href="/dashboard" class="btn btn-sm" style="text-decoration:none">Image Dashboard →</a>
       <button id="btn-help" class="help-toggle" type="button">? Help</button>
-      <span id="connection-status" class="status-pill unknown">
+      <span id="connection-status" class="status-pill unknown" title="Click to override API URL">
         <span class="status-dot"></span>
         <span id="connection-text">Connecting...</span>
       </span>
@@ -761,20 +794,52 @@ body {
 
 <div class="main">
 
-  <!-- Config + Controls -->
-  <div class="config-bar">
+  <!-- Pipeline panel — shows the active production config -->
+  <div class="pipeline-panel" id="pipeline-panel" title="Active production pipeline (read from /health)">
+    <div class="pipeline-item">
+      <span class="pipeline-label">Model</span>
+      <span class="pipeline-value" id="pipe-model">loading…</span>
+    </div>
+    <div class="pipeline-item">
+      <span class="pipeline-label">Adapter</span>
+      <span class="pipeline-value" id="pipe-adapter">loading…</span>
+    </div>
+    <div class="pipeline-item">
+      <span class="pipeline-label">Prompts</span>
+      <span class="pipeline-value" id="pipe-prompts">loading…</span>
+    </div>
+    <div class="pipeline-item">
+      <span class="pipeline-label">Taxonomy</span>
+      <span class="pipeline-value" id="pipe-taxonomy">loading…</span>
+    </div>
+    <div class="pipeline-item">
+      <span class="pipeline-label">Pavement pre-filter</span>
+      <span class="pipeline-value" id="pipe-prefilter">loading…</span>
+    </div>
+    <div class="pipeline-item">
+      <span class="pipeline-label">Device</span>
+      <span class="pipeline-value" id="pipe-device">loading…</span>
+    </div>
+  </div>
+
+  <!-- Start / Stop controls -->
+  <div class="controls-bar">
+    <button id="btn-start" class="btn btn-success">▶ Start Pipeline</button>
+    <button id="btn-stop" class="btn btn-danger" disabled>■ Stop</button>
+  </div>
+
+  <!-- API override (hidden by default — click the connection pill to open) -->
+  <div class="config-bar" id="config-bar">
     <div class="config-field">
-      <label for="api-base">API Base URL</label>
-      <input id="api-base" type="text" placeholder="http://localhost:8000" />
+      <label for="api-base">API Base URL (override)</label>
+      <input id="api-base" type="text" placeholder="auto-detected" />
     </div>
     <div class="config-field">
       <label for="api-key">API Key (optional)</label>
-      <input id="api-key" type="password" placeholder="Leave empty if auth is disabled" />
+      <input id="api-key" type="password" placeholder="empty when auth is off" />
     </div>
-    <div class="controls">
-      <button id="btn-start" class="btn btn-success">Start Pipeline</button>
-      <button id="btn-stop" class="btn btn-danger" disabled>Stop</button>
-    </div>
+    <button id="btn-config-save" class="btn">Save</button>
+    <button id="btn-config-close" class="btn">Close</button>
   </div>
 
   <!-- Help Overview Panel (toggleable) -->
@@ -933,14 +998,24 @@ body {
         <div class="metric-sub">images / minute</div>
       </div>
       <div class="metric">
-        <div class="metric-label"><span class="label-row">Avg Stage 1 <span class="help-icon" data-tip="Rolling average of Stage 1 inference time (last 50 images). Stage 1 is the binary 'distress vs normal' detector — should be fast (~2s on A5000).">?</span></span></div>
-        <div class="metric-value" id="m-avg-s1">—</div>
-        <div class="metric-sub">last 50 images</div>
+        <div class="metric-label"><span class="label-row">Avg Stage 0 <span class="help-icon" data-tip="Rolling average of the pavement pre-filter time (last 50 images). Stage 0 runs BEFORE Stage 1 — a small VLM call that decides if the image actually shows pavement. Should be ~2-3s.">?</span></span></div>
+        <div class="metric-value" id="m-avg-s0">—</div>
+        <div class="metric-sub">pre-filter</div>
       </div>
       <div class="metric">
-        <div class="metric-label"><span class="label-row">Avg Stage 2 <span class="help-icon" data-tip="Rolling average of Stage 2 inference time (last 50 images). Stage 2 generates the structured distress-type response — slower than Stage 1 (~5-30s) because it generates more tokens.">?</span></span></div>
+        <div class="metric-label"><span class="label-row">Avg Stage 1 <span class="help-icon" data-tip="Rolling average of Stage 1 inference time (last 50 images). Stage 1 is the binary 'distress vs normal' detector — should be fast (~2s on A5000).">?</span></span></div>
+        <div class="metric-value" id="m-avg-s1">—</div>
+        <div class="metric-sub">distress detection</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label"><span class="label-row">Avg Stage 2 <span class="help-icon" data-tip="Rolling average of Stage 2 inference time (last 50 images). Stage 2 generates the structured IRC:82 distress-type response — slower than Stage 1 (~10-30s) because it generates more tokens.">?</span></span></div>
         <div class="metric-value" id="m-avg-s2">—</div>
-        <div class="metric-sub">last 50 images</div>
+        <div class="metric-sub">IRC:82 classification</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label"><span class="label-row">Rejected (non-pavement) <span class="help-icon" data-tip="Cumulative count of images rejected by the Stage 0 pre-filter for not showing pavement. Operator can review + recover false positives in the Image Dashboard.">?</span></span></div>
+        <div class="metric-value" id="m-rejected-nonpvmt">0</div>
+        <div class="metric-sub">since worker start</div>
       </div>
       <div class="metric">
         <div class="metric-label"><span class="label-row">Avg Confidence S1 <span class="help-icon" data-tip="Average Stage 1 confidence over the last hour. Computed from raw model logits via softmax over 'Normal' vs 'Distress' first-token probabilities. Higher = model is more decisive.">?</span></span></div>
@@ -983,12 +1058,15 @@ body {
     </div>
   </div>
 
-  <!-- ============ MODEL VERSION ============ -->
-  <div class="section">
+  <!-- Adapter switcher hidden by default — only shown when
+       DISABLE_ADAPTER is OFF (i.e., we're running an experimental A/B config).
+       In production (DISABLE_ADAPTER=true), the Pipeline panel above shows
+       the truth and this section stays hidden to prevent accidental switches. -->
+  <div class="section" id="adapter-section" style="display:none">
     <div class="section-title">
       <span class="label-row">
-        Model Version
-        <span class="help-icon" data-tip="The currently loaded LoRA adapter (or the base model if none). Switching adapters takes ~30s while the model reloads on the GPU. The worker pauses for that window — any in-flight image will fail and be released back to pending.">?</span>
+        Adapter Switching (experimental mode)
+        <span class="help-icon" data-tip="Adapter switching is only available when DISABLE_ADAPTER env var is unset/false. In production, the base model + v2 IRC prompts is the only configuration that runs.">?</span>
       </span>
     </div>
     <div class="panel" id="adapter-panel">
@@ -1242,8 +1320,10 @@ function renderMetrics(payload) {
   // Performance
   document.getElementById('m-throughput-hr').textContent = q.throughput_last_hour ?? 0;
   document.getElementById('m-throughput-min').textContent = q.throughput_last_minute ?? 0;
+  document.getElementById('m-avg-s0').textContent = fmtMs(w.avg_stage0_time_ms);
   document.getElementById('m-avg-s1').textContent = fmtMs(w.avg_stage1_time_ms);
   document.getElementById('m-avg-s2').textContent = fmtMs(w.avg_stage2_time_ms);
+  document.getElementById('m-rejected-nonpvmt').textContent = w.images_rejected_non_pavement ?? 0;
   document.getElementById('m-conf-s1').textContent = fmtPct(q.avg_stage1_confidence_last_hour);
   document.getElementById('m-conf-s2').textContent = fmtPct(q.avg_stage2_confidence_last_hour);
 
@@ -1736,7 +1816,68 @@ async function pollTraining() {
   }
 }
 
+// ============================================================
+// PIPELINE PANEL — reads /health to show the actual prod config
+// ============================================================
+async function loadPipelineHealth() {
+  try {
+    const h = await apiCall('/health');
+    const setText = (id, txt, kind) => {
+      const el = document.getElementById(id);
+      el.textContent = txt;
+      el.className = 'pipeline-value' + (kind ? ' ' + kind : '');
+    };
+    setText('pipe-model', h.model_name || 'unknown');
+    if (h.adapter_disabled_in_config) {
+      setText('pipe-adapter', 'disabled (production)', 'ok');
+    } else if (h.adapter_loaded) {
+      setText('pipe-adapter', 'loaded — experimental', 'warn');
+    } else {
+      setText('pipe-adapter', 'none', 'muted');
+    }
+    setText('pipe-prompts',
+      h.prompts_version === 'v2' ? 'v2 Improved Baseline' : (h.prompts_version || 'unknown'),
+      'ok');
+    setText('pipe-taxonomy', h.taxonomy || 'IRC:82-2015', 'ok');
+    setText('pipe-prefilter', h.pavement_filter_enabled ? 'enabled' : 'off',
+            h.pavement_filter_enabled ? 'ok' : 'warn');
+    setText('pipe-device', h.device || '—');
+
+    // Hide the adapter switching section in production (DISABLE_ADAPTER=true).
+    // Only show it when explicitly in an A/B experimental mode.
+    const adapterSection = document.getElementById('adapter-section');
+    if (adapterSection) {
+      adapterSection.style.display = h.adapter_disabled_in_config ? 'none' : 'block';
+    }
+  } catch (e) {
+    document.getElementById('pipe-model').textContent = '(health check failed)';
+  }
+}
+
+// ============================================================
+// CONFIG-BAR TOGGLE — click connection pill to open overrides
+// ============================================================
+const configBar = document.getElementById('config-bar');
+const connStatusEl = document.getElementById('connection-status');
+connStatusEl.classList.add('connection-status');
+connStatusEl.addEventListener('click', () => configBar.classList.toggle('shown'));
+document.getElementById('btn-config-close').addEventListener('click',
+  () => configBar.classList.remove('shown'));
+document.getElementById('btn-config-save').addEventListener('click', () => {
+  const newBase = apiBaseInput.value.trim().replace(/\/$/, '');
+  const newKey  = apiKeyInput.value.trim();
+  if (newBase) localStorage.setItem('operator_api_base', newBase);
+  if (newKey)  localStorage.setItem('operator_api_key', newKey);
+  configBar.classList.remove('shown');
+  // Reload everything against the new base
+  pollNow(); pollRecent(); loadAdapters(); pollTraining();
+  loadPipelineHealth();
+});
+
+// ============================================================
 // Initial fetches + start streams
+// ============================================================
+loadPipelineHealth();
 pollNow();
 pollRecent();
 loadAdapters();
@@ -1745,6 +1886,7 @@ startSSE();
 recentTimer = setInterval(pollRecent, RECENT_REFRESH_MS);
 _adapterPollTimer = setInterval(loadAdapters, 30_000);   // adapter list rarely changes
 _trainPollTimer = setInterval(pollTraining, 5_000);      // training metrics every 5s
+setInterval(loadPipelineHealth, 60_000);                  // pipeline config rarely changes
 
 // Cleanup on navigation
 window.addEventListener('beforeunload', () => {

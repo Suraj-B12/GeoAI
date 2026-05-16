@@ -80,6 +80,22 @@ class HealthResponse(BaseModel):
     model_name: str = Field(description="Name/path of the loaded model")
     device: str = Field(description="GPU device being used")
     adapter_loaded: bool = Field(description="Whether a LoRA adapter is loaded")
+    adapter_disabled_in_config: bool = Field(
+        default=False,
+        description="DISABLE_ADAPTER env var is true — production runs the base model only.",
+    )
+    prompts_version: str = Field(
+        default="v2",
+        description="Active prompt set: v1 (plain baseline) or v2 (Improved Baseline + IRC:82).",
+    )
+    taxonomy: str = Field(
+        default="IRC:82-2015",
+        description="Distress taxonomy in use for label canonicalization.",
+    )
+    pavement_filter_enabled: bool = Field(
+        default=True,
+        description="Stage 0 pre-filter active in the worker pipeline.",
+    )
 
 
 class ExpertCorrectionRequest(BaseModel):
