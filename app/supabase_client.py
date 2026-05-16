@@ -279,6 +279,174 @@ async def get_recent_processed(
 
 
 # ============================================================
+# Dashboard browse API (paginated, status-filtered)
+# ============================================================
+async def list_assessments_for_dashboard(
+    client: httpx.AsyncClient,
+    status: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> dict:
+    """
+    Paginated list for the operator dashboard.
+
+    Returns:
+      {
+        items: [{...row metadata, NO heavy fields...}],
+        total: int,  # total matching rows (for pagination)
+      }
+
+    Image URLs are returned but the client decides when to actually load
+    them (the dashboard uses loading='lazy' + tab-based reveal to control
+    bandwidth).
+    """
+    select = (
+        "id,image_url,address,latitude,longitude,status,"
+        "stage1_label,stage1_confidence,distress_types,severity,"
+        "stage2_confidence,needs_expert_review,pavement_filter_decision,"
+        "created_at,processed_at"
+    )
+    filters = []
+    if status and status != "all":
+        # Comma-separated whitelist support: "classified,expert_review"
+        statuses = [s.strip() for s in status.split(",") if s.strip()]
+        if len(statuses) == 1:
+            filters.append(f"status=eq.{statuses[0]}")
+        else:
+            filters.append(f"status=in.({','.join(statuses)})")
+    if date_from:
+        filters.append(f"created_at=gte.{date_from}")
+    if date_to:
+        filters.append(f"created_at=lte.{date_to}")
+
+    limit = max(1, min(200, int(limit)))
+    offset = max(0, int(offset))
+
+    # Count via HEAD with Prefer: count=exact
+    count_url = "/rest/v1/assessments?select=id"
+    if filters:
+        count_url += "&" + "&".join(filters)
+    count_resp = await client.head(count_url, headers={"Prefer": "count=exact"})
+    total = 0
+    if "content-range" in count_resp.headers:
+        # Format: "0-49/250"
+        try:
+            total = int(count_resp.headers["content-range"].split("/")[-1])
+        except (ValueError, IndexError):
+            total = 0
+
+    list_url = f"/rest/v1/assessments?select={select}&order=created_at.desc"
+    list_url += f"&limit={limit}&offset={offset}"
+    if filters:
+        list_url += "&" + "&".join(filters)
+    resp = await client.get(list_url)
+    _check(resp)
+    items = resp.json() or []
+
+    return {"items": items, "total": total, "limit": limit, "offset": offset}
+
+
+async def hard_delete_assessment(
+    client: httpx.AsyncClient,
+    assessment_id: str,
+) -> dict:
+    """
+    Hard-delete an assessment row from Supabase.
+
+    Returns {'image_url': str|None, 'photo_id': int|None} so the caller can
+    chain a Cloudinary delete if image_url points there. Photo-table delete
+    cascades via ON DELETE CASCADE on the foreign key.
+    """
+    if not assessment_id or len(assessment_id) > 64:
+        raise ValueError(f"invalid assessment_id: {assessment_id!r}")
+
+    # Fetch metadata before delete (for Cloudinary cleanup downstream)
+    meta_resp = await client.get(
+        f"/rest/v1/assessments?id=eq.{assessment_id}"
+        "&select=id,image_url,photo_id&limit=1"
+    )
+    _check(meta_resp)
+    meta_rows = meta_resp.json() or []
+    if not meta_rows:
+        return {"deleted": False, "reason": "not_found"}
+    meta = meta_rows[0]
+
+    del_resp = await client.delete(f"/rest/v1/assessments?id=eq.{assessment_id}")
+    _check(del_resp)
+    return {
+        "deleted": True,
+        "id": assessment_id,
+        "image_url": meta.get("image_url"),
+        "photo_id": meta.get("photo_id"),
+    }
+
+
+async def reset_for_reclassify(
+    client: httpx.AsyncClient,
+    assessment_id: str,
+) -> dict:
+    """
+    Reset a single assessment row back to 'pending' so the worker re-runs it.
+    Used by the dashboard's "Send back to AI pipeline" button.
+    """
+    if not assessment_id or len(assessment_id) > 64:
+        raise ValueError(f"invalid assessment_id: {assessment_id!r}")
+    payload = {
+        "status": "pending",
+        "processed_at": None,
+        "stage1_label": None,
+        "stage1_confidence": None,
+        "is_distressed": None,
+        "distress_types": None,
+        "severity": None,
+        "description": None,
+        "stage2_confidence": None,
+        "needs_expert_review": False,
+        "processing_time_ms": None,
+        "raw_response": None,
+        "pavement_filter_decision": None,
+        "pavement_filter_raw": None,
+        "pavement_filter_at": None,
+        "error_message": None,
+        "attempt_count": 0,
+        "worker_id": None,
+        "claimed_at": None,
+    }
+    resp = await client.patch(
+        f"/rest/v1/assessments?id=eq.{assessment_id}",
+        json=payload,
+        headers={"Prefer": "return=representation"},
+    )
+    _check(resp)
+    rows = resp.json() or []
+    return {"reset": bool(rows), "id": assessment_id}
+
+
+async def dashboard_summary(client: httpx.AsyncClient) -> dict:
+    """
+    Aggregate counts by status, for the dashboard's tab badges.
+    """
+    resp = await client.get("/rest/v1/assessments?select=status,created_at")
+    _check(resp)
+    rows = resp.json() or []
+    from collections import Counter
+    statuses = Counter(r.get("status", "unknown") for r in rows)
+    # Date histogram for filter dropdown
+    dates: Counter = Counter()
+    for r in rows:
+        ca = (r.get("created_at") or "")[:10]
+        if ca:
+            dates[ca] += 1
+    return {
+        "total": len(rows),
+        "by_status": dict(statuses.most_common()),
+        "by_date": sorted(dates.items(), reverse=True)[:60],  # last 60 days
+    }
+
+
+# ============================================================
 # Image download
 # ============================================================
 

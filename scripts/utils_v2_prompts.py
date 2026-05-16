@@ -33,6 +33,11 @@ from scripts.utils import (
     ALL_DISTRESS_TYPES,
     IRC_SEVERITY_CRITERIA,
     STAGE2_FEW_SHOT_EXAMPLES,
+    # Pavement pre-filter is the SAME in v1 and v2 — it's a small, focused
+    # screening task and persona/stakes framing doesn't help here. Re-export
+    # so the model.py prompt-selector finds it under both versions.
+    PAVEMENT_FILTER_SYSTEM_PROMPT as PAVEMENT_FILTER_SYSTEM_PROMPT_V2,
+    PAVEMENT_FILTER_USER_PROMPT as PAVEMENT_FILTER_USER_PROMPT_V2,
 )
 
 

@@ -208,6 +208,66 @@ STAGE1_USER_PROMPT = (
     "Respond with exactly one word: Normal or Distress."
 )
 
+
+# ============================================================
+# Stage 0 — pavement pre-filter
+# ============================================================
+# Runs BEFORE Stage 1. Designed to be CONSERVATIVE: only rejects an image
+# when it is clearly not a road/pavement photo (selfies, indoor scenes,
+# random objects, signs alone, sky). Real but damaged/poor-quality road
+# photos must pass through, even when they look bad — false rejects cost
+# real data, false accepts cost only a downstream Normal/Unknown classification.
+#
+# Output protocol:
+#   YES     — image contains visible road/pavement surface, send to Stage 1
+#   NO      — image contains no road/pavement, mark rejected_non_pavement
+#   UNSURE  — model is uncertain. Treated as YES (let it through, operator
+#             can still review in dashboard if confidence is low).
+PAVEMENT_FILTER_SYSTEM_PROMPT = (
+    "You are screening photos submitted to a road maintenance reporting "
+    "system. Your job is to decide whether a photo contains visible road "
+    "or pavement surface that an inspector should look at.\n\n"
+
+    "DEFINITION OF 'PAVEMENT' (be GENEROUS):\n"
+    "  Any visible road, street, footpath, parking lot, driveway, or "
+    "vehicle path surface. Includes:\n"
+    "    - Asphalt (black) — paved or unpaved sections\n"
+    "    - Concrete (gray) — slabs, footpaths, kerbs\n"
+    "    - Brick paving, cobblestones, stone\n"
+    "    - Bituminous surfaces of any age, dry or wet\n"
+    "    - Damaged surfaces: cracked, broken, potholed, raveling, eroded\n"
+    "    - Muddy or unpaved roads with visible road bed\n"
+    "    - Distant pavement in the frame (even partial) — counts\n"
+    "    - Pavement visible at any angle: top-down, oblique, eye-level\n"
+    "    - Poor lighting, blur, or low quality — still counts if pavement is visible\n\n"
+
+    "NOT PAVEMENT (clearly reject only these):\n"
+    "    - People (selfies, group photos, faces) WITHOUT any visible road\n"
+    "    - Animals alone, indoor scenes, food, hands, body parts\n"
+    "    - Pure sky, water, fields, walls, ceilings\n"
+    "    - Signboards, billboards, posters photographed close-up alone\n"
+    "    - Vehicles photographed close-up with no road visible\n"
+    "    - Documents, screens, books, art\n"
+    "    - Random objects (toys, tools, clothes) without road context\n\n"
+
+    "DECISION RULE — BE GENEROUS, ERR ON THE SIDE OF KEEPING:\n"
+    "  • If you see ANY pavement surface anywhere in the image → YES\n"
+    "  • If pavement is partially visible behind other things → YES\n"
+    "  • If the image is blurry / dark / low-quality but pavement is "
+    "discernible → YES\n"
+    "  • If there's NO pavement visible anywhere in the image → NO\n"
+    "  • If you genuinely cannot tell → UNSURE (do not say NO unless certain)\n\n"
+
+    "Respond with exactly one word: YES, NO, or UNSURE."
+)
+
+PAVEMENT_FILTER_USER_PROMPT = (
+    "<image>\n"
+    "Does this image contain any visible road or pavement surface? "
+    "Be generous — partial / damaged / blurry pavement still counts. "
+    "Reply with exactly one word: YES, NO, or UNSURE."
+)
+
 # --- Stage 2: Distress Type Classification (IRC:82-2015) ---
 # Few-shot examples use IRC:82 canonical names exclusively.
 STAGE2_FEW_SHOT_EXAMPLES = """
@@ -363,6 +423,33 @@ def build_stage2_training_response(class_ids: list[int]) -> str:
 # ============================================================
 # Response Parsing
 # ============================================================
+
+def parse_pavement_filter_response(text: str) -> str:
+    """
+    Parse the pavement pre-filter (Stage 0) response.
+
+    Returns:
+        'yes'    — image contains pavement, send to Stage 1
+        'no'     — image clearly contains no pavement, reject
+        'unsure' — model can't tell; treated as 'yes' downstream (do not reject)
+    """
+    if not text:
+        return "unsure"
+    t = text.strip().upper()
+    # Strip common formatting (period, quotes, newlines)
+    for c in '.,!?\'"`':
+        t = t.replace(c, "")
+    t = t.split()[0] if t.split() else ""
+    if t in ("YES", "Y", "PAVEMENT", "ROAD"):
+        return "yes"
+    if t in ("NO", "N", "NOT"):
+        return "no"
+    if t in ("UNSURE", "MAYBE", "UNCERTAIN", "UNKNOWN"):
+        return "unsure"
+    # Unparseable — default to UNSURE (which means "let it through" downstream).
+    # Never default to NO on unparseable, that would silently lose real data.
+    return "unsure"
+
 
 def parse_stage1_response(text: str) -> int:
     """

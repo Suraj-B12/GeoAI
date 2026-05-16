@@ -449,7 +449,31 @@ class PipelineWorker:
         img.load()  # force decode so BytesIO can be released
         img_w, img_h = img.size
 
-        # 2. Stage 1 — binary detection
+        # 2. Stage 0 — pavement pre-filter (conservative; rejects only clear non-pavement)
+        self._enter_stage("pavement_filter")
+        pavement = await loop.run_in_executor(None, self.classifier.predict_is_pavement, img)
+        if not pavement["is_pavement"]:
+            # Clear NO decision — reject WITHOUT running Stage 1/2.
+            # Operator can re-classify from dashboard if this was a false reject.
+            self._enter_stage(None)
+            await update_assessment(self.supabase, image_id, {
+                "status": "rejected_non_pavement",
+                "pavement_filter_decision": pavement["decision"],
+                "pavement_filter_raw": pavement["raw"],
+                "pavement_filter_at": datetime.now(timezone.utc).isoformat(),
+                "image_width": img_w,
+                "image_height": img_h,
+                "processed_at": datetime.now(timezone.utc).isoformat(),
+                "needs_expert_review": False,
+                "error_message": None,
+            })
+            # Local metrics — counts as "processed" but routes through a separate path
+            self.metrics.images_processed += 1
+            print(f"[Worker] {image_id[:8]} rejected_non_pavement "
+                  f"(decision={pavement['decision']!r}, raw={pavement['raw']!r})")
+            return
+
+        # 3. Stage 1 — binary detection (Normal vs Distress)
         self._enter_stage("stage1")
         s1 = await loop.run_in_executor(None, self.classifier.predict_stage1, img)
         self.metrics.current_stage1_time_ms = s1.get("stage1_time_ms", 0.0)
@@ -497,6 +521,9 @@ class PipelineWorker:
             "stage2_confidence": s2_conf,
             "needs_expert_review": final_status == "expert_review",
             "processing_time_ms": s1_time + s2_time,
+            "pavement_filter_decision": pavement["decision"],
+            "pavement_filter_raw": pavement["raw"],
+            "pavement_filter_at": datetime.now(timezone.utc).isoformat(),
             "raw_response": {
                 "stage1_raw": s1.get("stage1_raw", ""),
                 "stage2_raw": s2.get("stage2_raw", ""),

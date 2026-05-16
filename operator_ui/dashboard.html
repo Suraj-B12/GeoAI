@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>GeoAI — Image Dashboard</title>
+<style>
+@font-face {
+  font-family: 'SK Modernist';
+  src: url('https://cdn.jsdelivr.net/npm/@fontsource/inter/files/inter-latin-400-normal.woff2') format('woff2');
+  font-weight: 400; font-display: swap;
+}
+:root {
+  --bg: #f5f5f4; --surface: #ffffff; --surface-hover: #fafaf9;
+  --border: #e7e5e4; --border-strong: #d6d3d1;
+  --text: #1c1917; --text-secondary: #78716c; --text-tertiary: #a8a29e;
+  --accent: #1c1917;
+  --red: #dc2626; --red-light: #fef2f2;
+  --amber: #d97706; --amber-light: #fffbeb;
+  --green: #16a34a; --green-light: #f0fdf4;
+  --blue: #2563eb; --blue-light: #eff6ff;
+  --purple: #7c3aed; --purple-light: #f5f3ff;
+  --tag-bg: #f5f5f4;
+  --radius: 12px; --radius-lg: 16px;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --transition: 0.15s ease;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'SK Modernist','Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+  background: var(--bg); color: var(--text); line-height: 1.5;
+  -webkit-font-smoothing: antialiased; min-height: 100vh;
+}
+
+/* Header */
+.header { background: var(--surface); border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 50; }
+.header-inner { max-width: 1440px; margin: 0 auto; padding: 0 32px;
+  display: flex; align-items: center; justify-content: space-between; height: 64px; }
+.logo { font-size: 15px; font-weight: 700; letter-spacing: -0.3px; }
+.tag { font-size: 11px; font-weight: 600; padding: 3px 8px;
+  border-radius: 6px; background: var(--tag-bg); color: var(--text-secondary);
+  text-transform: uppercase; letter-spacing: 0.5px; }
+.header-left { display: flex; align-items: center; gap: 24px; }
+.header-right { display: flex; gap: 12px; align-items: center; }
+.input { font: inherit; padding: 8px 12px; border: 1px solid var(--border-strong);
+  border-radius: 8px; background: var(--surface); color: var(--text); }
+.btn { font: inherit; padding: 8px 16px; border: 1px solid var(--border-strong);
+  border-radius: 8px; background: var(--surface); color: var(--text);
+  font-weight: 500; cursor: pointer; transition: all var(--transition); font-size: 13px; }
+.btn:hover { background: var(--surface-hover); }
+.btn-primary { background: var(--accent); color: white; border-color: var(--accent); }
+.btn-primary:hover { background: #44403c; }
+.btn-danger { background: var(--red); color: white; border-color: var(--red); }
+.btn-danger:hover { background: #b91c1c; }
+.btn-ghost { background: transparent; border-color: transparent; }
+.btn-ghost:hover { background: var(--surface-hover); }
+
+/* Main layout */
+.main { max-width: 1440px; margin: 0 auto; padding: 24px 32px 80px; }
+.controls-row { display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 16px; margin-bottom: 20px; }
+.tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+.tab { padding: 8px 14px; border: 1px solid var(--border); border-radius: 10px;
+  background: var(--surface); color: var(--text-secondary); cursor: pointer;
+  font-size: 13px; font-weight: 500; display: inline-flex; gap: 8px; align-items: center;
+  transition: all var(--transition); }
+.tab:hover { background: var(--surface-hover); }
+.tab.active { background: var(--accent); color: white; border-color: var(--accent); }
+.tab .badge { background: rgba(0,0,0,0.08); color: inherit; padding: 1px 7px;
+  border-radius: 999px; font-size: 11px; font-weight: 600; }
+.tab.active .badge { background: rgba(255,255,255,0.2); }
+.date-filter { display: flex; align-items: center; gap: 8px; }
+.date-filter label { font-size: 12px; color: var(--text-secondary); }
+
+/* Date group headers */
+.date-group { margin-top: 28px; }
+.date-group:first-child { margin-top: 0; }
+.date-header { font-size: 13px; font-weight: 600; color: var(--text-secondary);
+  text-transform: uppercase; letter-spacing: 0.5px; padding: 6px 0;
+  border-bottom: 1px solid var(--border); margin-bottom: 14px; }
+
+/* Card grid */
+.grid { display: grid; gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.card { background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); overflow: hidden; transition: all var(--transition); }
+.card:hover { box-shadow: var(--shadow); border-color: var(--border-strong); }
+.card-thumb { aspect-ratio: 4 / 3; background: var(--bg); overflow: hidden;
+  position: relative; }
+.card-thumb img { width: 100%; height: 100%; object-fit: cover; display: block;
+  transition: opacity var(--transition); }
+.card-thumb .placeholder { position: absolute; inset: 0; display: flex;
+  align-items: center; justify-content: center; color: var(--text-tertiary);
+  font-size: 12px; }
+.card-body { padding: 12px 14px; }
+.card-status { display: inline-flex; align-items: center; gap: 6px; font-size: 11px;
+  font-weight: 600; padding: 3px 8px; border-radius: 999px; margin-bottom: 8px; }
+.s-classified { background: var(--green-light); color: var(--green); }
+.s-expert_review { background: var(--amber-light); color: var(--amber); }
+.s-pending { background: var(--blue-light); color: var(--blue); }
+.s-processing { background: var(--purple-light); color: var(--purple); }
+.s-failed { background: var(--red-light); color: var(--red); }
+.s-rejected_non_pavement { background: var(--tag-bg); color: var(--text-secondary); }
+.s-done { background: var(--green-light); color: var(--green); }
+.card-types { font-size: 13px; font-weight: 500; margin-bottom: 6px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card-types.empty { color: var(--text-tertiary); font-weight: 400; font-style: italic; }
+.card-meta { font-size: 11px; color: var(--text-secondary); line-height: 1.45; }
+.card-meta-row { display: flex; justify-content: space-between; gap: 6px; }
+.card-addr { color: var(--text-secondary); font-size: 11px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 4px; }
+.card-actions { display: flex; gap: 6px; padding: 0 14px 14px; }
+.card-actions .btn { padding: 5px 10px; font-size: 11px; flex: 1; }
+
+/* Empty / loading states */
+.empty-state { text-align: center; padding: 80px 20px; color: var(--text-tertiary); }
+.empty-state h2 { font-size: 18px; color: var(--text-secondary); margin-bottom: 8px; }
+.spinner { display: inline-block; width: 14px; height: 14px;
+  border: 2px solid var(--border); border-top-color: var(--accent);
+  border-radius: 50%; animation: spin 0.6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Pagination */
+.pagination { display: flex; justify-content: center; gap: 8px; align-items: center;
+  margin-top: 24px; }
+.pagination .info { color: var(--text-secondary); font-size: 13px; padding: 0 12px; }
+
+/* Modal */
+.modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+  display: none; align-items: center; justify-content: center; z-index: 100;
+  padding: 20px; }
+.modal-backdrop.show { display: flex; }
+.modal { background: var(--surface); border-radius: var(--radius-lg);
+  max-width: 520px; width: 100%; padding: 24px; box-shadow: var(--shadow); }
+.modal h3 { font-size: 17px; margin-bottom: 8px; }
+.modal p { font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+.modal-preview { width: 100%; max-height: 200px; object-fit: cover;
+  border-radius: 8px; margin: 12px 0; background: var(--bg); }
+
+/* Toast */
+.toast { position: fixed; bottom: 24px; right: 24px; background: var(--accent);
+  color: white; padding: 12px 18px; border-radius: var(--radius);
+  box-shadow: var(--shadow); z-index: 200;
+  transform: translateY(80px); opacity: 0; transition: all 0.3s ease; }
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast.error { background: var(--red); }
+.toast.success { background: var(--green); }
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-inner">
+    <div class="header-left">
+      <div class="logo">GeoAI</div>
+      <span class="tag">Image Dashboard</span>
+    </div>
+    <div class="header-right">
+      <input id="api-base" class="input" placeholder="API base URL"
+             style="width:280px" />
+      <input id="api-key" class="input" placeholder="API key (optional)" type="password"
+             style="width:200px" />
+      <button id="connect-btn" class="btn btn-primary">Connect</button>
+      <a href="/operator" class="btn btn-ghost">← Operator</a>
+    </div>
+  </div>
+</header>
+
+<main class="main">
+  <div class="controls-row">
+    <div class="tabs" id="tabs">
+      <button class="tab active" data-status="all">All <span class="badge" id="b-all">0</span></button>
+      <button class="tab" data-status="pending">Pending <span class="badge" id="b-pending">0</span></button>
+      <button class="tab" data-status="processing">Processing <span class="badge" id="b-processing">0</span></button>
+      <button class="tab" data-status="classified">Classified <span class="badge" id="b-classified">0</span></button>
+      <button class="tab" data-status="expert_review">Expert review <span class="badge" id="b-expert_review">0</span></button>
+      <button class="tab" data-status="rejected_non_pavement">Non-pavement <span class="badge" id="b-rejected_non_pavement">0</span></button>
+      <button class="tab" data-status="failed">Failed <span class="badge" id="b-failed">0</span></button>
+    </div>
+    <div class="date-filter">
+      <label>From:</label>
+      <input type="date" id="date-from" class="input" />
+      <label>To:</label>
+      <input type="date" id="date-to" class="input" />
+      <button id="apply-date-btn" class="btn">Apply</button>
+      <button id="clear-date-btn" class="btn btn-ghost">Clear</button>
+    </div>
+  </div>
+
+  <div id="content">
+    <div class="empty-state">
+      <h2>Not connected</h2>
+      <p>Enter API URL above and click Connect.</p>
+    </div>
+  </div>
+
+  <div class="pagination" id="pagination" style="display:none">
+    <button class="btn" id="prev-btn">← Previous</button>
+    <span class="info" id="page-info">—</span>
+    <button class="btn" id="next-btn">Next →</button>
+  </div>
+</main>
+
+<!-- Delete confirmation modal -->
+<div class="modal-backdrop" id="delete-modal">
+  <div class="modal">
+    <h3>Permanently delete this image?</h3>
+    <p>This will hard-delete the row from Supabase AND remove the image from
+       Cloudinary (if configured). <strong>This cannot be undone.</strong></p>
+    <img id="delete-preview" class="modal-preview" alt="" />
+    <p id="delete-detail" style="font-size:12px;font-family:ui-monospace,Menlo,monospace"></p>
+    <div class="modal-actions">
+      <button class="btn" id="delete-cancel">Cancel</button>
+      <button class="btn btn-danger" id="delete-confirm">Delete permanently</button>
+    </div>
+  </div>
+</div>
+
+<!-- Reclassify confirmation modal -->
+<div class="modal-backdrop" id="reclass-modal">
+  <div class="modal">
+    <h3>Send back to AI pipeline?</h3>
+    <p>This will reset the image status to <code>pending</code> and clear
+       all previous predictions. The worker will re-run pavement filter
+       + Stage 1 + Stage 2 on it.</p>
+    <img id="reclass-preview" class="modal-preview" alt="" />
+    <p id="reclass-detail" style="font-size:12px;font-family:ui-monospace,Menlo,monospace"></p>
+    <div class="modal-actions">
+      <button class="btn" id="reclass-cancel">Cancel</button>
+      <button class="btn btn-primary" id="reclass-confirm">Send to pipeline</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+// ============================================================
+// Config + persistent UI state
+// ============================================================
+const LS = window.localStorage;
+const state = {
+  apiBase: LS.getItem('dash_api_base') || '',
+  apiKey:  LS.getItem('dash_api_key')  || '',
+  status: 'all',
+  dateFrom: null,
+  dateTo: null,
+  page: 0,
+  pageSize: 50,
+  total: 0,
+  items: [],
+  loading: false,
+  pendingDeleteId: null,
+  pendingReclassifyId: null,
+};
+
+document.getElementById('api-base').value = state.apiBase;
+document.getElementById('api-key').value  = state.apiKey;
+
+// ============================================================
+// Utilities
+// ============================================================
+function toast(msg, kind='info') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show ' + kind;
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+async function api(path, opts={}) {
+  if (!state.apiBase) throw new Error('API base not set');
+  const url = state.apiBase.replace(/\/$/, '') + path;
+  const headers = Object.assign({}, opts.headers || {});
+  if (state.apiKey) headers['X-API-Key'] = state.apiKey;
+  const resp = await fetch(url, Object.assign({}, opts, { headers }));
+  if (!resp.ok) {
+    let detail = resp.statusText;
+    try { detail = (await resp.json()).detail || detail; } catch {}
+    throw new Error(`HTTP ${resp.status}: ${detail}`);
+  }
+  return resp.json();
+}
+
+function fmtTime(ts) {
+  if (!ts) return '—';
+  const d = new Date(ts);
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+function fmtDate(ts) {
+  if (!ts) return '—';
+  return new Date(ts).toISOString().slice(0, 10);
+}
+function fmtDateLong(ts) {
+  if (!ts) return '—';
+  const d = new Date(ts);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const yest  = new Date(today); yest.setDate(yest.getDate()-1);
+  const ds = new Date(d); ds.setHours(0,0,0,0);
+  if (ds.getTime() === today.getTime()) return 'Today';
+  if (ds.getTime() === yest.getTime())  return 'Yesterday';
+  return d.toLocaleDateString([], { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+}
+
+// ============================================================
+// Lazy image loading via IntersectionObserver
+// Images stay as placeholder until card scrolls into viewport AND the
+// active tab is showing them — exactly as the user asked, to preserve
+// the Cloudinary bandwidth quota.
+// ============================================================
+const lazyObserver = new IntersectionObserver((entries) => {
+  for (const e of entries) {
+    if (e.isIntersecting) {
+      const img = e.target.querySelector('img[data-src]');
+      if (img && !img.src) {
+        img.src = img.dataset.src;
+        img.removeAttribute('data-src');
+      }
+      lazyObserver.unobserve(e.target);
+    }
+  }
+}, { rootMargin: '200px 0px' });
+
+// ============================================================
+// Rendering
+// ============================================================
+function renderEmpty(msg) {
+  document.getElementById('content').innerHTML =
+    `<div class="empty-state"><h2>${msg}</h2></div>`;
+  document.getElementById('pagination').style.display = 'none';
+}
+
+function renderLoading() {
+  document.getElementById('content').innerHTML =
+    `<div class="empty-state"><span class="spinner"></span>
+       <p style="margin-top:12px">Loading...</p></div>`;
+}
+
+function statusLabel(s) {
+  return {
+    pending:'Pending', processing:'Processing', classified:'Classified',
+    expert_review:'Expert review', rejected_non_pavement:'Non-pavement',
+    failed:'Failed', done:'Done',
+  }[s] || s;
+}
+
+function renderCard(row) {
+  const status = row.status || 'pending';
+  const types = (row.distress_types || []).filter(t => t && t !== 'Unknown' && t !== 'Normal');
+  const typesText = types.length ? types.join(', ')
+                    : (row.stage1_label === 'Normal' ? 'Normal pavement' : '—');
+  const sev = row.severity && row.severity !== 'None' ? ` (${row.severity})` : '';
+  const conf1 = row.stage1_confidence != null
+                ? `s1: ${(row.stage1_confidence*100).toFixed(0)}%` : '';
+  const conf2 = row.stage2_confidence != null && row.stage2_confidence > 0
+                ? `s2: ${(row.stage2_confidence*100).toFixed(0)}%` : '';
+  const time = fmtTime(row.created_at);
+  const addr = row.address ? row.address.slice(0, 80) : '';
+  const showReclass = status === 'rejected_non_pavement' || status === 'failed';
+  return `
+    <div class="card" data-id="${row.id}">
+      <div class="card-thumb">
+        ${row.image_url
+          ? `<img data-src="${row.image_url}" alt="" loading="lazy"
+               onerror="this.style.display='none';this.parentNode.querySelector('.placeholder').style.display='flex'" />
+             <div class="placeholder" style="display:none">image unavailable</div>`
+          : `<div class="placeholder">no image</div>`}
+      </div>
+      <div class="card-body">
+        <div class="card-status s-${status}">${statusLabel(status)}</div>
+        <div class="card-types ${types.length ? '' : 'empty'}">${typesText}${sev}</div>
+        <div class="card-meta">
+          <div class="card-meta-row">
+            <span>${time}</span>
+            <span>${conf1}${conf1 && conf2 ? ' · ' : ''}${conf2}</span>
+          </div>
+        </div>
+        ${addr ? `<div class="card-addr">${addr}</div>` : ''}
+      </div>
+      <div class="card-actions">
+        ${showReclass
+          ? `<button class="btn" data-action="reclassify" data-id="${row.id}">Send to AI</button>`
+          : ''}
+        <button class="btn btn-danger" data-action="delete" data-id="${row.id}">Delete</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderItems() {
+  if (!state.items.length) { renderEmpty('No images match the current filter.'); return; }
+  // Group by date
+  const byDate = new Map();
+  for (const row of state.items) {
+    const dk = fmtDate(row.created_at);
+    if (!byDate.has(dk)) byDate.set(dk, []);
+    byDate.get(dk).push(row);
+  }
+  const groupKeys = [...byDate.keys()].sort().reverse();
+  const html = groupKeys.map(dk => {
+    const cards = byDate.get(dk).map(renderCard).join('');
+    return `<section class="date-group">
+              <div class="date-header">${fmtDateLong(dk + 'T00:00:00')}</div>
+              <div class="grid">${cards}</div>
+            </section>`;
+  }).join('');
+  document.getElementById('content').innerHTML = html;
+  // Wire lazy-load
+  for (const c of document.querySelectorAll('.card')) lazyObserver.observe(c);
+  // Wire action buttons
+  for (const b of document.querySelectorAll('[data-action]')) {
+    b.addEventListener('click', onActionClick);
+  }
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(state.total / state.pageSize));
+  document.getElementById('pagination').style.display = 'flex';
+  document.getElementById('page-info').textContent =
+    `Page ${state.page+1} of ${totalPages} · ${state.total} total`;
+  document.getElementById('prev-btn').disabled = state.page === 0;
+  document.getElementById('next-btn').disabled = state.page+1 >= totalPages;
+}
+
+// ============================================================
+// Data loading
+// ============================================================
+async function loadSummary() {
+  try {
+    const s = await api('/dashboard/summary');
+    document.getElementById('b-all').textContent = s.total || 0;
+    for (const [st, n] of Object.entries(s.by_status || {})) {
+      const el = document.getElementById('b-' + st);
+      if (el) el.textContent = n;
+    }
+  } catch (e) { /* badges optional */ console.warn('summary failed:', e); }
+}
+
+async function loadList() {
+  if (state.loading) return;
+  state.loading = true;
+  renderLoading();
+  try {
+    const params = new URLSearchParams();
+    params.set('status', state.status);
+    if (state.dateFrom) params.set('date_from', state.dateFrom + 'T00:00:00');
+    if (state.dateTo)   params.set('date_to',   state.dateTo   + 'T23:59:59');
+    params.set('limit',  state.pageSize);
+    params.set('offset', state.page * state.pageSize);
+    const r = await api('/dashboard/list?' + params.toString());
+    state.items = r.items || [];
+    state.total = r.total || 0;
+    renderItems();
+  } catch (e) {
+    renderEmpty(`Error: ${e.message}`);
+  } finally {
+    state.loading = false;
+  }
+}
+
+// ============================================================
+// Actions
+// ============================================================
+function onActionClick(ev) {
+  const id = ev.currentTarget.dataset.id;
+  const action = ev.currentTarget.dataset.action;
+  const row = state.items.find(r => r.id === id);
+  if (!row) return;
+  if (action === 'delete') {
+    state.pendingDeleteId = id;
+    document.getElementById('delete-preview').src = row.image_url || '';
+    document.getElementById('delete-detail').textContent =
+      `id: ${id}\nstatus: ${row.status}\ncreated: ${row.created_at}`;
+    document.getElementById('delete-modal').classList.add('show');
+  } else if (action === 'reclassify') {
+    state.pendingReclassifyId = id;
+    document.getElementById('reclass-preview').src = row.image_url || '';
+    document.getElementById('reclass-detail').textContent =
+      `id: ${id}\ncurrent status: ${row.status}\nfilter decision: ${row.pavement_filter_decision || 'n/a'}`;
+    document.getElementById('reclass-modal').classList.add('show');
+  }
+}
+
+async function performDelete() {
+  const id = state.pendingDeleteId;
+  if (!id) return;
+  document.getElementById('delete-modal').classList.remove('show');
+  try {
+    const r = await api(`/dashboard/delete/${id}?confirm=true`, { method: 'DELETE' });
+    const cn = r.cloudinary?.result || 'skipped';
+    toast(`Deleted ${id.slice(0,8)} (Cloudinary: ${cn})`, 'success');
+    state.pendingDeleteId = null;
+    await loadAll();
+  } catch (e) {
+    toast(`Delete failed: ${e.message}`, 'error');
+  }
+}
+
+async function performReclassify() {
+  const id = state.pendingReclassifyId;
+  if (!id) return;
+  document.getElementById('reclass-modal').classList.remove('show');
+  try {
+    await api(`/dashboard/reclassify/${id}`, { method: 'POST' });
+    toast(`Sent ${id.slice(0,8)} back to AI pipeline`, 'success');
+    state.pendingReclassifyId = null;
+    await loadAll();
+  } catch (e) {
+    toast(`Re-classify failed: ${e.message}`, 'error');
+  }
+}
+
+async function loadAll() {
+  await Promise.all([loadSummary(), loadList()]);
+}
+
+// ============================================================
+// Wiring
+// ============================================================
+document.getElementById('connect-btn').addEventListener('click', () => {
+  state.apiBase = document.getElementById('api-base').value.trim();
+  state.apiKey  = document.getElementById('api-key').value.trim();
+  LS.setItem('dash_api_base', state.apiBase);
+  LS.setItem('dash_api_key',  state.apiKey);
+  state.page = 0;
+  loadAll();
+});
+
+for (const t of document.querySelectorAll('.tab')) {
+  t.addEventListener('click', (e) => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    state.status = t.dataset.status;
+    state.page = 0;
+    loadList();
+  });
+}
+
+document.getElementById('apply-date-btn').addEventListener('click', () => {
+  state.dateFrom = document.getElementById('date-from').value || null;
+  state.dateTo   = document.getElementById('date-to').value   || null;
+  state.page = 0;
+  loadList();
+});
+document.getElementById('clear-date-btn').addEventListener('click', () => {
+  document.getElementById('date-from').value = '';
+  document.getElementById('date-to').value = '';
+  state.dateFrom = null; state.dateTo = null; state.page = 0;
+  loadList();
+});
+
+document.getElementById('prev-btn').addEventListener('click', () => {
+  if (state.page > 0) { state.page--; loadList(); }
+});
+document.getElementById('next-btn').addEventListener('click', () => {
+  state.page++; loadList();
+});
+
+document.getElementById('delete-confirm').addEventListener('click', performDelete);
+document.getElementById('delete-cancel').addEventListener('click', () => {
+  state.pendingDeleteId = null;
+  document.getElementById('delete-modal').classList.remove('show');
+});
+document.getElementById('reclass-confirm').addEventListener('click', performReclassify);
+document.getElementById('reclass-cancel').addEventListener('click', () => {
+  state.pendingReclassifyId = null;
+  document.getElementById('reclass-modal').classList.remove('show');
+});
+
+// Auto-connect if creds in localStorage
+if (state.apiBase) {
+  setTimeout(loadAll, 100);
+}
+</script>
+</body>
+</html>

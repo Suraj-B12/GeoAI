@@ -23,6 +23,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from scripts.utils import (
     CONFIDENCE_THRESHOLD,
+    PAVEMENT_FILTER_SYSTEM_PROMPT,
+    PAVEMENT_FILTER_USER_PROMPT,
+    parse_pavement_filter_response,
     parse_stage1_response,
     parse_stage2_response,
 )
@@ -247,19 +250,21 @@ class PavementClassifier:
         return inputs, input_length
 
     def _run_inference_with_scores(
-        self, image: Image.Image, system_prompt: str, user_prompt: str
+        self, image: Image.Image, system_prompt: str, user_prompt: str,
+        max_new_tokens: int = 200,
     ) -> tuple[str, tuple, torch.Tensor]:
         """
         Run inference and return (decoded_text, score_tensors, generated_ids).
 
         Each score tensor has shape (vocab_size,) — one per generated token.
+        Stage 0/1 pass smaller max_new_tokens (8-20) for speed.
         """
         inputs, input_length = self._build_inputs(image, system_prompt, user_prompt)
 
         with torch.inference_mode():
             output = self._model.generate(
                 **inputs,
-                max_new_tokens=200,
+                max_new_tokens=max_new_tokens,
                 do_sample=False,
                 temperature=None,
                 top_p=None,
@@ -360,6 +365,42 @@ class PavementClassifier:
 
         # Clamp to [0, 1] (should already be, but safety)
         return round(max(0.0, min(1.0, confidence)), 4)
+
+    def predict_is_pavement(self, image: Image.Image) -> dict:
+        """
+        Stage 0 — pavement pre-filter. Runs BEFORE Stage 1.
+
+        Designed to be CONSERVATIVE: only rejects images that are clearly
+        NOT road/pavement. Damaged, blurry, partial, or low-quality pavement
+        photos always pass through. False rejects cost real data; false
+        accepts only cost a downstream Normal/Unknown classification.
+
+        Returns:
+            {
+                'is_pavement': bool,        # True if 'yes' OR 'unsure'
+                'decision':    str,         # 'yes' | 'no' | 'unsure'
+                'raw':         str,         # full VLM response
+                'time_ms':     float,
+            }
+        Thread-safe.
+        """
+        image = image.convert("RGB")
+        with self._lock:
+            t0 = time.time()
+            raw, _scores, _ids = self._run_inference_with_scores(
+                image, PAVEMENT_FILTER_SYSTEM_PROMPT,
+                PAVEMENT_FILTER_USER_PROMPT, max_new_tokens=8,
+            )
+            dt = (time.time() - t0) * 1000.0
+        decision = parse_pavement_filter_response(raw)
+        # 'unsure' is treated as pavement — never reject on uncertainty.
+        is_pavement = decision in ("yes", "unsure")
+        return {
+            "is_pavement": is_pavement,
+            "decision": decision,
+            "raw": raw,
+            "time_ms": round(dt, 1),
+        }
 
     def predict_stage1(self, image: Image.Image) -> dict:
         """
