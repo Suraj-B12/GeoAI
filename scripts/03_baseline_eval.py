@@ -41,7 +41,7 @@ from sklearn.metrics import (
     recall_score,
 )
 from tqdm import tqdm
-from transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration
+from transformers import AutoProcessor  # noqa: F401  (kept for callers)
 
 # --- Graceful interrupt handling ---
 _interrupted = False
@@ -101,6 +101,11 @@ def print_system_info():
     print(f"{'='*60}\n")
 
 
+# Populated by load_model() — the resolved model family/class/quantization,
+# recorded into eval result JSONs so every run states what it actually ran.
+LAST_LOAD_INFO: dict = {}
+
+
 def print_vram_usage(label: str = ""):
     """Print current VRAM usage."""
     if torch.cuda.is_available():
@@ -111,76 +116,45 @@ def print_vram_usage(label: str = ""):
 
 def load_model(model_path: str, adapter_path: str = None, quant_bits: int = None):
     """
-    Load Qwen2.5-VL model with optional LoRA adapter.
+    Load a VLM (+ optional LoRA adapter) for evaluation.
+
+    Delegates to scripts/model_loader.load_vlm — the SAME code path the
+    production server uses (app/model.py). This matters for A/B validity: if
+    evaluation and production loaded models differently (different attention
+    impl, different pixel budget, different quantization fallback), any
+    measured difference between two models could be an artefact of the loader
+    rather than the model.
 
     quant_bits: 0 = fp16/bf16 (no quantization), 4 = 4-bit, 8 = 8-bit.
     Falls back to QUANTIZATION_BITS env var, then defaults to 4.
-    """
-    from transformers import BitsAndBytesConfig
 
-    os.environ.setdefault(
-        "PYTORCH_CUDA_ALLOC_CONF",
-        "max_split_size_mb:512,garbage_collection_threshold:0.9",
-    )
+    Model family is resolved from the checkpoint config, so this works for
+    Qwen2.5-VL and Qwen3-VL alike.
+    """
+    from scripts.model_loader import load_vlm
 
     if quant_bits is None:
         quant_bits = int(os.environ.get("QUANTIZATION_BITS", "4"))
 
-    bnb_config = None
-    if quant_bits == 4:
-        bnb_config = BitsAndBytesConfig(
-            load_in_4bit=True,
-            bnb_4bit_quant_type="nf4",
-            bnb_4bit_compute_dtype=torch.bfloat16,
-            bnb_4bit_use_double_quant=True,
-        )
-    elif quant_bits == 8:
-        bnb_config = BitsAndBytesConfig(load_in_8bit=True)
-
-    # Select best attention implementation
-    attn_impl = "sdpa"
-    try:
-        import flash_attn  # noqa: F401
-        if torch.cuda.is_available() and torch.cuda.get_device_properties(0).major >= 8:
-            attn_impl = "flash_attention_2"
-            print("Using Flash Attention 2")
-    except ImportError:
-        pass
-
-    quant_label = f"{quant_bits}-bit" if bnb_config else "fp16/bf16 (no quantization)"
-    print(f"Loading model: {model_path}")
-    print(f"  Attention: {attn_impl} | Quantization: {quant_label}")
-
-    load_kwargs = dict(
-        device_map="auto",
-        torch_dtype=torch.bfloat16,
-        trust_remote_code=True,
-        attn_implementation=attn_impl,
-    )
-    if bnb_config:
-        load_kwargs["quantization_config"] = bnb_config
-
-    model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-        model_path,
-        **load_kwargs,
-    )
-
-    if adapter_path:
-        from peft import PeftModel
-        print(f"Loading LoRA adapter: {adapter_path}")
-        model = PeftModel.from_pretrained(model, adapter_path)
-
-    processor = AutoProcessor.from_pretrained(
-        model_path,
-        trust_remote_code=True,
+    model, processor, info = load_vlm(
+        model_path=model_path,
+        quantization_bits=quant_bits,
+        adapter_path=adapter_path,
         min_pixels=MIN_PIXELS,
         max_pixels=MAX_PIXELS,
+        run_self_test=True,
     )
 
-    model.eval()
+    # Expose what actually loaded so eval JSONs can record the true config.
+    global LAST_LOAD_INFO
+    LAST_LOAD_INFO = info
+
     print_vram_usage("after model load")
-    print(f"Processor pixel limits: min={MIN_PIXELS}, max={MAX_PIXELS}")
-    print(f"Model device: {next(model.parameters()).device}")
+    print(f"Model: {info['model_path']} | family={info['model_type']} "
+          f"| class={info['model_class']} | quant={info['quantization_bits']}-bit"
+          f"{' (OOM fallback)' if info['oom_fallback_used'] else ''}")
+    print(f"Processor pixel limits: min={info['min_pixels']}, max={info['max_pixels']}")
+    print(f"Model device: {info['device']}")
 
     return model, processor
 

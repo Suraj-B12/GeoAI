@@ -96,6 +96,34 @@ class HealthResponse(BaseModel):
         default=True,
         description="Stage 0 pre-filter active in the worker pipeline.",
     )
+    model_family: str = Field(
+        default="unknown",
+        description="Resolved model family from the checkpoint config (e.g. qwen2_5_vl, qwen3_vl).",
+    )
+    model_class: str = Field(
+        default="unknown",
+        description="transformers class actually used to load the model.",
+    )
+    quantization_bits: int = Field(
+        default=-1,
+        description="Quantization actually in effect (0=bf16). -1 when unknown.",
+    )
+    oom_fallback_used: bool = Field(
+        default=False,
+        description="True if the loader had to drop precision to fit VRAM.",
+    )
+    max_image_pixels: int = Field(
+        default=0,
+        description="Effective processor pixel cap (may be auto-reduced from the requested value).",
+    )
+    stage2_confidence_mode: str = Field(
+        default="sequence",
+        description="Stage 2 confidence metric: 'sequence' (all tokens) or 'field' (DISTRESS_TYPES only).",
+    )
+    vram_used_gb: float = Field(
+        default=0.0,
+        description="VRAM in use after model load, in GB.",
+    )
 
 
 class ExpertCorrectionRequest(BaseModel):

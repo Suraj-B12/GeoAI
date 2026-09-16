@@ -28,6 +28,7 @@ import argparse
 import gc
 import json
 import os
+import re
 import sys
 import time
 import xml.etree.ElementTree as ET
@@ -313,7 +314,13 @@ def evaluate(args):
         print(f"Prompts: V1 (current scripts/utils.py)")
 
     # Checkpoint config — crash-resume support
-    ckpt_name = f"attain_{args.subset}_{args.prompts_version}_"
+    # The model MUST be part of the checkpoint identity. Without it, an
+    # interrupted run of model A leaves a checkpoint that a later run of
+    # model B silently resumes from, producing a results file that mixes two
+    # models' predictions while claiming to be model B. That would corrupt an
+    # A/B comparison invisibly.
+    model_slug = re.sub(r"[^A-Za-z0-9]+", "-", args.model).strip("-").lower()
+    ckpt_name = f"attain_{args.subset}_{args.prompts_version}_{model_slug}_"
     ckpt_name += "adapter" if args.adapter_path else "baseline"
     ckpt_path = EVAL_DIR / f".{ckpt_name}_checkpoint.json"
     ckpt_tmp = EVAL_DIR / f".{ckpt_name}_checkpoint.tmp"
@@ -342,8 +349,25 @@ def evaluate(args):
             per_class_tp = defaultdict(int, state.get("per_class_tp", {}))
             per_class_fp = defaultdict(int, state.get("per_class_fp", {}))
             per_class_fn = defaultdict(int, state.get("per_class_fn", {}))
-            processed_image_names = {r["image"] for r in results}
-            print(f"Resumed from checkpoint: {len(results)} images already processed")
+            # Belt-and-braces: even with a model-specific filename, verify the
+            # recorded run identity matches before trusting these rows.
+            ck_model = state.get("model_path")
+            ck_prompts = state.get("prompts_version")
+            if (ck_model is not None and ck_model != args.model) or                (ck_prompts is not None and ck_prompts != args.prompts_version):
+                print(f"WARNING: checkpoint was produced by model={ck_model!r} "
+                      f"prompts={ck_prompts!r} but this run is model={args.model!r} "
+                      f"prompts={args.prompts_version!r}. REFUSING to resume — "
+                      f"starting fresh to avoid mixing two models' predictions.")
+                results = []
+                in_dist_correct = in_dist_total = 0
+                zero_shot_correct = zero_shot_total = 0
+                sev_correct = sev_total = 0
+                per_class_tp = defaultdict(int)
+                per_class_fp = defaultdict(int)
+                per_class_fn = defaultdict(int)
+            else:
+                processed_image_names = {r["image"] for r in results}
+                print(f"Resumed from checkpoint: {len(results)} images already processed")
         except Exception as e:
             print(f"WARNING: checkpoint {ckpt_path} unreadable ({e}), starting fresh")
             results = []
@@ -351,6 +375,9 @@ def evaluate(args):
     def save_checkpoint():
         """Atomic-ish checkpoint via .tmp + replace, with .bak fallback for Windows."""
         state = {
+            "model_path": args.model,
+            "prompts_version": args.prompts_version,
+            "adapter_path": args.adapter_path,
             "results": results,
             "in_dist_correct": in_dist_correct,
             "in_dist_total": in_dist_total,
@@ -509,6 +536,17 @@ def evaluate(args):
         },
         "per_class": per_class_metrics,
         "adapter_path": args.adapter_path,
+        # Model provenance — REQUIRED for A/B validity. Without this, two
+        # result files are indistinguishable and a comparison table cannot
+        # state what was actually compared.
+        "model_path": args.model,
+        "model_family": baseline_eval.LAST_LOAD_INFO.get("model_type"),
+        "model_class": baseline_eval.LAST_LOAD_INFO.get("model_class"),
+        "quantization_bits": baseline_eval.LAST_LOAD_INFO.get("quantization_bits"),
+        "attn_implementation": baseline_eval.LAST_LOAD_INFO.get("attn_implementation"),
+        "max_pixels": baseline_eval.LAST_LOAD_INFO.get("max_pixels"),
+        "oom_fallback_used": baseline_eval.LAST_LOAD_INFO.get("oom_fallback_used"),
+        "max_samples": args.max_samples,
     }
 
     # Print summary

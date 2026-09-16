@@ -565,6 +565,14 @@ class PipelineWorker:
                 # broader-taxonomy types? See app/model.py predict_stage2.
                 "stage2_used_fallback": s2.get("stage2_used_fallback", False),
                 "stage2_primary_raw": s2.get("stage2_primary_raw"),
+                # Both Stage 2 confidence metrics on every row. The active one
+                # is written to the stage2_confidence column; the other is kept
+                # here so the review threshold can be re-calibrated later from
+                # real production data without re-running inference.
+                "stage2_confidence_field": s2.get("stage2_confidence_field"),
+                "stage2_confidence_sequence": s2.get("stage2_confidence_sequence"),
+                "stage2_confidence_mode": s2.get("stage2_confidence_mode"),
+                "stage2_field_span_found": s2.get("stage2_field_span_found"),
             },
             "image_width": img_w,
             "image_height": img_h,

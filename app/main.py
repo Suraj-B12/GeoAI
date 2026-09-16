@@ -236,6 +236,7 @@ async def health(request: Request):
     prompts_version = os.environ.get("PROMPTS_VERSION", "v2")
     try:
         clf = get_classifier()
+        info = clf.load_info
         return HealthResponse(
             status="ok",
             model_loaded=clf.is_loaded,
@@ -246,6 +247,15 @@ async def health(request: Request):
             prompts_version=prompts_version,
             taxonomy="IRC:82-2015",
             pavement_filter_enabled=True,
+            # Report what ACTUALLY loaded, not what was requested — the loader
+            # can auto-reduce the pixel budget or drop precision to fit VRAM.
+            model_family=info.get("model_type", "unknown"),
+            model_class=info.get("model_class", "unknown"),
+            quantization_bits=info.get("quantization_bits", -1),
+            oom_fallback_used=info.get("oom_fallback_used", False),
+            max_image_pixels=info.get("max_pixels", 0),
+            stage2_confidence_mode=clf.confidence_mode,
+            vram_used_gb=info.get("vram_used_gb", 0.0),
         )
     except Exception:
         return HealthResponse(

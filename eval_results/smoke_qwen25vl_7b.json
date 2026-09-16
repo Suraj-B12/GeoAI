@@ -1,0 +1,385 @@
+{
+  "model": "Qwen/Qwen2.5-VL-7B-Instruct",
+  "adapter": null,
+  "prompts_version": "v2",
+  "confidence_mode": "sequence",
+  "load_info": {
+    "model_path": "Qwen/Qwen2.5-VL-7B-Instruct",
+    "model_type": "qwen2_5_vl",
+    "model_class": "AutoModelForImageTextToText",
+    "attn_implementation": "sdpa",
+    "requested_quantization_bits": 0,
+    "quantization_bits": 0,
+    "min_pixels": 7168,
+    "max_pixels": 4840000,
+    "oom_fallback_used": false,
+    "processor_pixel_mode": "min_pixels/max_pixels",
+    "device": "cuda:0",
+    "hf_device_map_summary": {
+      "0": 1
+    },
+    "fully_on_gpu": true,
+    "self_test": {
+      "ok": true,
+      "error": null,
+      "elapsed_s": 2.21,
+      "reply": "OK"
+    },
+    "reserved_gb_before_cleanup": 32.35,
+    "reserved_gb_after_cleanup": 16.84,
+    "vram_allocated_gb": 16.65,
+    "vram_reserved_gb": 16.84,
+    "vram_used_gb": 18.22,
+    "vram_total_gb": 25.76
+  },
+  "preflight": {
+    "gpu": "NVIDIA RTX A5000",
+    "free_gb": 24.43,
+    "total_gb": 25.76,
+    "params_b": 8.29,
+    "verdict": "ok",
+    "recommended_max_pixels": 4840000,
+    "weights_gb": 16.58,
+    "activations_gb": 3.01,
+    "needed_gb": 19.6,
+    "visual_tokens": 6173
+  },
+  "load_seconds": 27.2,
+  "checks": [
+    {
+      "name": "model loads",
+      "ok": true,
+      "detail": "27s on cuda:0",
+      "hard": true
+    },
+    {
+      "name": "loader self-test",
+      "ok": true,
+      "detail": "synthetic image generated a reply",
+      "hard": true
+    },
+    {
+      "name": "model family resolved",
+      "ok": true,
+      "detail": "qwen2_5_vl via AutoModelForImageTextToText",
+      "hard": true
+    },
+    {
+      "name": "no OOM fallback",
+      "ok": true,
+      "detail": "running bf16 (no quantization)",
+      "hard": false
+    },
+    {
+      "name": "model fully on GPU",
+      "ok": true,
+      "detail": "placement={'0': 1} \u2014 CPU/disk offload makes inference 10-30x slower and invalidates timing comparisons",
+      "hard": true
+    },
+    {
+      "name": "stage 1 token ids cached",
+      "ok": true,
+      "detail": "Normal=[12206] Distress=[23356, 673]",
+      "hard": true
+    },
+    {
+      "name": "alligator_D20.jpg: stage 0 decision valid",
+      "ok": true,
+      "detail": "'yes' in 6001ms \u2014 raw='YES'",
+      "hard": true
+    },
+    {
+      "name": "alligator_D20.jpg: stage 0 accepts real pavement",
+      "ok": true,
+      "detail": "fixtures are real RDD road photos; a reject here means the pre-filter prompt is broken for this model",
+      "hard": true
+    },
+    {
+      "name": "alligator_D20.jpg: stage 1 label valid",
+      "ok": true,
+      "detail": "Normal conf=0.961 (7654ms)",
+      "hard": true
+    },
+    {
+      "name": "alligator_D20.jpg: stage 1 confidence in range",
+      "ok": true,
+      "detail": "0.9614",
+      "hard": true
+    },
+    {
+      "name": "alligator_D20.jpg: stage 1 detects damage",
+      "ok": false,
+      "detail": "fixtures are known-damaged RDD images (D00/D20/D40)",
+      "hard": false
+    },
+    {
+      "name": "alligator_D20.jpg: stage 2 returned types",
+      "ok": true,
+      "detail": "['Unknown']",
+      "hard": true
+    },
+    {
+      "name": "alligator_D20.jpg: all labels are IRC:82 canonical",
+      "ok": true,
+      "detail": "['Unknown']",
+      "hard": true
+    },
+    {
+      "name": "alligator_D20.jpg: severity is DB-writable",
+      "ok": true,
+      "detail": "'None' (DB CHECK allows exactly these five)",
+      "hard": true
+    },
+    {
+      "name": "alligator_D20.jpg: description non-empty",
+      "ok": true,
+      "detail": "The image shows a clean asphalt surface with no visible distress according to IR",
+      "hard": true
+    },
+    {
+      "name": "alligator_D20.jpg: both confidences computed",
+      "ok": true,
+      "detail": "field=0.8005 sequence=0.8005 (active=sequence)",
+      "hard": true
+    },
+    {
+      "name": "alligator_D20.jpg: field span located",
+      "ok": false,
+      "detail": "falls back to whole-sequence confidence when not found",
+      "hard": false
+    },
+    {
+      "name": "corrupt.jpg: decodable",
+      "ok": false,
+      "detail": "skipped \u2014 UnidentifiedImageError (expected for corrupt fixtures)",
+      "hard": false
+    },
+    {
+      "name": "longitudinal_D00.jpg: stage 0 decision valid",
+      "ok": true,
+      "detail": "'yes' in 900ms \u2014 raw='YES'",
+      "hard": true
+    },
+    {
+      "name": "longitudinal_D00.jpg: stage 0 accepts real pavement",
+      "ok": true,
+      "detail": "fixtures are real RDD road photos; a reject here means the pre-filter prompt is broken for this model",
+      "hard": true
+    },
+    {
+      "name": "longitudinal_D00.jpg: stage 1 label valid",
+      "ok": true,
+      "detail": "Normal conf=0.588 (1150ms)",
+      "hard": true
+    },
+    {
+      "name": "longitudinal_D00.jpg: stage 1 confidence in range",
+      "ok": true,
+      "detail": "0.5883",
+      "hard": true
+    },
+    {
+      "name": "longitudinal_D00.jpg: stage 1 detects damage",
+      "ok": false,
+      "detail": "fixtures are known-damaged RDD images (D00/D20/D40)",
+      "hard": false
+    },
+    {
+      "name": "longitudinal_D00.jpg: stage 2 returned types",
+      "ok": true,
+      "detail": "['Longitudinal Cracking', 'Transverse Cracking']",
+      "hard": true
+    },
+    {
+      "name": "longitudinal_D00.jpg: all labels are IRC:82 canonical",
+      "ok": true,
+      "detail": "['Longitudinal Cracking', 'Transverse Cracking']",
+      "hard": true
+    },
+    {
+      "name": "longitudinal_D00.jpg: severity is DB-writable",
+      "ok": true,
+      "detail": "'Low' (DB CHECK allows exactly these five)",
+      "hard": true
+    },
+    {
+      "name": "longitudinal_D00.jpg: description non-empty",
+      "ok": true,
+      "detail": "Multiple fine cracks are observed running parallel to the road centerline and ac",
+      "hard": true
+    },
+    {
+      "name": "longitudinal_D00.jpg: both confidences computed",
+      "ok": true,
+      "detail": "field=0.75 sequence=0.77 (active=sequence)",
+      "hard": true
+    },
+    {
+      "name": "longitudinal_D00.jpg: field span located",
+      "ok": true,
+      "detail": "falls back to whole-sequence confidence when not found",
+      "hard": false
+    },
+    {
+      "name": "pothole_D40.jpg: stage 0 decision valid",
+      "ok": true,
+      "detail": "'yes' in 900ms \u2014 raw='YES'",
+      "hard": true
+    },
+    {
+      "name": "pothole_D40.jpg: stage 0 accepts real pavement",
+      "ok": true,
+      "detail": "fixtures are real RDD road photos; a reject here means the pre-filter prompt is broken for this model",
+      "hard": true
+    },
+    {
+      "name": "pothole_D40.jpg: stage 1 label valid",
+      "ok": true,
+      "detail": "Distress conf=0.588 (1345ms)",
+      "hard": true
+    },
+    {
+      "name": "pothole_D40.jpg: stage 1 confidence in range",
+      "ok": true,
+      "detail": "0.5883",
+      "hard": true
+    },
+    {
+      "name": "pothole_D40.jpg: stage 1 detects damage",
+      "ok": true,
+      "detail": "fixtures are known-damaged RDD images (D00/D20/D40)",
+      "hard": false
+    },
+    {
+      "name": "pothole_D40.jpg: stage 2 returned types",
+      "ok": true,
+      "detail": "['Longitudinal Cracking', 'Transverse Cracking']",
+      "hard": true
+    },
+    {
+      "name": "pothole_D40.jpg: all labels are IRC:82 canonical",
+      "ok": true,
+      "detail": "['Longitudinal Cracking', 'Transverse Cracking']",
+      "hard": true
+    },
+    {
+      "name": "pothole_D40.jpg: severity is DB-writable",
+      "ok": true,
+      "detail": "'Medium' (DB CHECK allows exactly these five)",
+      "hard": true
+    },
+    {
+      "name": "pothole_D40.jpg: description non-empty",
+      "ok": true,
+      "detail": "Multiple cracks are visible, including both longitudinal and transverse patterns",
+      "hard": true
+    },
+    {
+      "name": "pothole_D40.jpg: both confidences computed",
+      "ok": true,
+      "detail": "field=0.792 sequence=0.7314 (active=sequence)",
+      "hard": true
+    },
+    {
+      "name": "pothole_D40.jpg: field span located",
+      "ok": true,
+      "detail": "falls back to whole-sequence confidence when not found",
+      "hard": false
+    },
+    {
+      "name": "field confidence >= sequence confidence",
+      "ok": true,
+      "detail": "expected: restricting to label tokens removes high-entropy prose",
+      "hard": false
+    }
+  ],
+  "per_image": [
+    {
+      "fixture": "alligator_D20.jpg",
+      "stage0": {
+        "decision": "yes",
+        "is_pavement": true,
+        "time_ms": 6001.0
+      },
+      "stage1": {
+        "stage1_label": "Normal",
+        "stage1_confidence": 0.9614,
+        "stage1_time_ms": 7653.9
+      },
+      "stage2": {
+        "distress_types": [
+          "Unknown"
+        ],
+        "severity": "None",
+        "description": "The image shows a clean asphalt surface with no visible distress according to IRC:82-2015 criteria.",
+        "confidence_active": 0.8005,
+        "confidence_field": 0.8005,
+        "confidence_sequence": 0.8005,
+        "field_span_found": false,
+        "time_ms": 11989.2
+      }
+    },
+    {
+      "fixture": "longitudinal_D00.jpg",
+      "stage0": {
+        "decision": "yes",
+        "is_pavement": true,
+        "time_ms": 900.0
+      },
+      "stage1": {
+        "stage1_label": "Normal",
+        "stage1_confidence": 0.5883,
+        "stage1_time_ms": 1149.8
+      },
+      "stage2": {
+        "distress_types": [
+          "Longitudinal Cracking",
+          "Transverse Cracking"
+        ],
+        "severity": "Low",
+        "description": "Multiple fine cracks are observed running parallel to the road centerline and across the lane, indicative of early-stage longitudinal and transverse cracking (IRC:82 \u00a77.3.4, \u00a77.3.5).",
+        "confidence_active": 0.77,
+        "confidence_field": 0.75,
+        "confidence_sequence": 0.77,
+        "field_span_found": true,
+        "time_ms": 17195.4
+      }
+    },
+    {
+      "fixture": "pothole_D40.jpg",
+      "stage0": {
+        "decision": "yes",
+        "is_pavement": true,
+        "time_ms": 900.1
+      },
+      "stage1": {
+        "stage1_label": "Distress",
+        "stage1_confidence": 0.5883,
+        "stage1_time_ms": 1345.1
+      },
+      "stage2": {
+        "distress_types": [
+          "Longitudinal Cracking",
+          "Transverse Cracking"
+        ],
+        "severity": "Medium",
+        "description": "Multiple cracks are visible, including both longitudinal and transverse patterns, indicating moderate distress (IRC:82 \u00a77.3.4, \u00a77.3.5).",
+        "confidence_active": 0.7314,
+        "confidence_field": 0.792,
+        "confidence_sequence": 0.7314,
+        "field_span_found": true,
+        "time_ms": 15184.7
+      }
+    }
+  ],
+  "confidence_comparison": {
+    "avg_field": 0.7808,
+    "avg_sequence": 0.7673,
+    "delta": 0.0135,
+    "n": 3,
+    "clear_threshold_field": 1,
+    "clear_threshold_sequence": 1,
+    "threshold": 0.8
+  },
+  "passed": true
+}

@@ -70,16 +70,36 @@ try:
     patterns = [
         "output_scores=True", "return_dict_in_generate=True",
         "_compute_stage1_confidence", "_compute_sequence_confidence",
+        "_compute_field_confidence",  # field-restricted Stage 2 confidence
+        "_find_field_token_span",
         "needs_expert_review", "torch.softmax", "torch.log_softmax",
         "_normal_token_ids", "_distress_token_ids",
-        "peft bug #2586",  # Must NOT merge on quantized model
-        "flash_attention_2",  # Dynamic attention selection
-        "PYTORCH_CUDA_ALLOC_CONF",  # Memory fragmentation prevention
+        "predict_is_pavement",  # Stage 0 pre-filter
     ]
     missing = [p for p in patterns if p not in code]
     check("model.py structure", len(missing) == 0, f"Missing: {missing}")
 except Exception as e:
     check("model.py structure", False, str(e))
+
+# ---- TEST 3b: model_loader.py guardrails ----
+# These guardrails used to live inline in app/model.py. They now live in the
+# shared loader that BOTH production and evaluation use — assert they survived
+# the move, because silently losing any of them is a production hazard.
+try:
+    code = open("scripts/model_loader.py", encoding="utf-8").read()
+    patterns = [
+        "peft #2586",            # must never merge_and_unload on a quantized base
+        "flash_attention_2",     # dynamic attention selection
+        "PYTORCH_CUDA_ALLOC_CONF",  # fragmentation prevention
+        "OutOfMemoryError",      # OOM fallback ladder
+        "def self_test",         # load-time end-to-end verification
+        "def preflight_vram",    # VRAM check before loading
+        "def resolve_model_class",  # family-agnostic class resolution
+    ]
+    missing = [p for p in patterns if p not in code]
+    check("model_loader.py guardrails", len(missing) == 0, f"Missing: {missing}")
+except Exception as e:
+    check("model_loader.py guardrails", False, str(e))
 
 # ---- TEST 4: security.py ----
 try:
@@ -104,11 +124,23 @@ except Exception as e:
 # ---- TEST 6: Training YAML ----
 try:
     y = open("configs/qwen25vl_qlora_sft.yaml", encoding="utf-8").read()
+    # These assert the config as HARDENED during Phase 2a (commits ec4cffb ->
+    # 5c539f1 + bb05df8). The previous version of this test still asserted the
+    # pre-hardening values (label_smoothing 0.1, template qwen2_5_vl, liger on,
+    # plain adamw_8bit) and had therefore been failing since 2026-05-01 while
+    # the YAML was correct. Each value below is load-bearing:
     patterns = [
-        "weight_decay: 0.05", "label_smoothing_factor: 0.1", "load_best_model_at_end: true",
-        "neftune_noise_alpha: 5.0", "template: qwen2_5_vl",
-        "flash_attn: fa2", "enable_liger_kernel: true", "gradient_checkpointing: true",
-        "optim: adamw_8bit",
+        "weight_decay: 0.05",
+        "label_smoothing_factor: 0.0",   # 0.1 OOM'd at step 1 (5GB log_softmax)
+        "load_best_model_at_end: false",  # would force save_steps % eval_steps
+        "neftune_noise_alpha: 5.0",
+        "template: qwen2_vl",            # qwen2_5_vl no longer exists in LF
+        "flash_attn: fa2",
+        "enable_liger_kernel: false",    # Liger is incompatible with QLoRA
+        "gradient_checkpointing: true",
+        "optim: paged_adamw_8bit",       # canonical QLoRA optimizer for <=24GB
+        "per_device_train_batch_size: 1",
+        "gradient_accumulation_steps: 32",
     ]
     missing = [p for p in patterns if p not in y]
     check("training YAML", len(missing) == 0, f"Missing: {missing}")

@@ -15,12 +15,12 @@ import time
 
 import torch
 from PIL import Image
-from transformers import AutoProcessor, BitsAndBytesConfig, Qwen2_5_VLForConditionalGeneration
 
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from scripts.model_loader import load_vlm
 from scripts.utils import (
     CONFIDENCE_THRESHOLD,
     PAVEMENT_FILTER_SYSTEM_PROMPT,
@@ -55,14 +55,46 @@ else:
     _ACTIVE_PROMPTS = "v1_plain"
 print(f"[PavementClassifier] Active prompt set: {_ACTIVE_PROMPTS}")
 
+# Stage 2 confidence metric
+# =========================
+# 'sequence' (default) = geometric mean over EVERY generated token, including
+#     the free-text DESCRIPTION. This is the metric all existing results and
+#     the 0.80 review threshold were calibrated against, so it stays the
+#     default — switching it silently would change how many images get routed
+#     to expert review, which is a data-quality decision, not a code decision.
+# 'field'    = geometric mean over the DISTRESS_TYPES value tokens only. Better
+#     aligned with what the confidence is supposed to mean (how sure is the
+#     model about the CLASSIFICATION), but it produces systematically higher
+#     numbers, so the threshold must be re-calibrated on real data before it
+#     becomes the default.
+# Both values are computed and returned on every call regardless of this
+# setting — see predict_stage2().
+# Stage 1 generation budget. The answer is one word; 12 tokens leaves room for
+# a stray "Distress." or a short preamble while keeping the step count low.
+# Override via env if a future model needs more headroom.
+STAGE1_MAX_NEW_TOKENS = int(os.environ.get("STAGE1_MAX_NEW_TOKENS", "12"))
+
+STAGE2_CONFIDENCE_MODE = os.environ.get("STAGE2_CONFIDENCE_MODE", "sequence").lower()
+if STAGE2_CONFIDENCE_MODE not in ("sequence", "field"):
+    print(f"[PavementClassifier] WARNING: unknown STAGE2_CONFIDENCE_MODE "
+          f"{STAGE2_CONFIDENCE_MODE!r} — falling back to 'sequence'")
+    STAGE2_CONFIDENCE_MODE = "sequence"
+print(f"[PavementClassifier] Stage 2 confidence mode: {STAGE2_CONFIDENCE_MODE}")
+
 
 class PavementClassifier:
     """
-    Thread-safe pavement distress classifier using Qwen2.5-VL.
+    Thread-safe pavement distress classifier for Qwen-family VLMs.
+
+    Model-agnostic: the concrete class is resolved from the checkpoint config
+    by scripts/model_loader.py, so MODEL_PATH can point at Qwen2.5-VL or
+    Qwen3-VL (or any family transformers maps) without code changes.
 
     Extracts real confidence scores from model logits:
       - Stage 1: softmax probability over "Normal" vs "Distress" tokens
-      - Stage 2: geometric mean of per-token probabilities (sequence confidence)
+      - Stage 2: geometric mean of per-token probabilities, computed over
+        either the DISTRESS_TYPES field only ('field', default) or the whole
+        generation ('sequence', legacy). Both are always reported.
     """
 
     def __init__(
@@ -79,6 +111,7 @@ class PavementClassifier:
         self._processor = None
         self._device = None
         self._loaded = False
+        self._load_info: dict = {}
 
         # Cached token IDs for Stage 1 confidence extraction
         self._normal_token_ids = []
@@ -142,58 +175,13 @@ class PavementClassifier:
         }
 
     def _load_model(self, quantization_bits: int) -> None:
-        """Load model, processor, and cache target token IDs."""
-        print(f"[PavementClassifier] Loading model: {self.model_path}")
-        print(f"[PavementClassifier] Quantization: {quantization_bits}-bit")
+        """Load model, processor, and cache target token IDs.
 
-        # Reduce CUDA memory fragmentation for large model inference
-        os.environ.setdefault(
-            "PYTORCH_CUDA_ALLOC_CONF",
-            "max_split_size_mb:512,garbage_collection_threshold:0.9",
-        )
-
-        if quantization_bits == 4:
-            bnb_config = BitsAndBytesConfig(
-                load_in_4bit=True,
-                bnb_4bit_quant_type="nf4",
-                bnb_4bit_compute_dtype=torch.bfloat16,
-                bnb_4bit_use_double_quant=True,
-            )
-        elif quantization_bits == 8:
-            bnb_config = BitsAndBytesConfig(load_in_8bit=True)
-        else:
-            bnb_config = None
-
-        # Select best attention implementation dynamically:
-        # Flash Attention 2 > SDPA > Eager
-        attn_impl = "sdpa"  # safe default (PyTorch native)
-        try:
-            import flash_attn  # noqa: F401
-            if torch.cuda.is_available():
-                cc = torch.cuda.get_device_properties(0).major
-                if cc >= 8:  # Ampere+ (A6000, RTX 30xx/40xx)
-                    attn_impl = "flash_attention_2"
-                    print(f"[PavementClassifier] Using Flash Attention 2 (compute {cc}.x)")
-        except ImportError:
-            print("[PavementClassifier] flash-attn not installed, using SDPA")
-
-        self._model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-            self.model_path,
-            quantization_config=bnb_config,
-            device_map="auto",
-            torch_dtype=torch.bfloat16,
-            trust_remote_code=True,
-            attn_implementation=attn_impl,
-        )
-
-        if self.adapter_path:
-            from peft import PeftModel
-            print(f"[PavementClassifier] Loading adapter: {self.adapter_path}")
-            self._model = PeftModel.from_pretrained(self._model, self.adapter_path)
-            # Do NOT call merge_and_unload() on a quantized model —
-            # known peft bug #2586 produces broken weights when merging
-            # QLoRA adapters onto a 4-bit base. Keep as PeftModel for inference.
-
+        Delegates to scripts/model_loader.load_vlm so the production path and
+        the evaluation path (scripts/03_baseline_eval.py) load models through
+        identical code — otherwise an A/B comparison between two models could
+        be confounded by a difference in how they were loaded.
+        """
         # Cap visual tokens at the processor level. RoadSide / Cloudinary photos
         # can be 3000x3000+ — without this, attention O(n^2) blows past 24GB VRAM
         # for high-res inputs (confirmed empirically with a 3456x3456 image).
@@ -201,15 +189,20 @@ class PavementClassifier:
         # Match the values used in scripts/03_baseline_eval.py for consistency.
         max_pixels = int(os.environ.get("MAX_IMAGE_PIXELS", str(2200 * 2200)))
         min_pixels = int(os.environ.get("MIN_IMAGE_PIXELS", str(256 * 28)))
-        self._processor = AutoProcessor.from_pretrained(
-            self.model_path,
-            trust_remote_code=True,
+
+        self._model, self._processor, self._load_info = load_vlm(
+            model_path=self.model_path,
+            quantization_bits=quantization_bits,
+            adapter_path=self.adapter_path,
             min_pixels=min_pixels,
             max_pixels=max_pixels,
+            # Self-test is worth 2s at startup: it catches a broken
+            # template/processor pairing before any citizen photo is marked
+            # 'failed' in the DB. Disable only for fast local iteration.
+            run_self_test=os.environ.get("SKIP_MODEL_SELFTEST", "").lower()
+            not in ("1", "true", "yes"),
         )
-        print(f"[PavementClassifier] Processor pixel limits: min={min_pixels}, max={max_pixels}")
-        self._model.eval()
-        self._device = str(next(self._model.parameters()).device)
+        self._device = self._load_info["device"]
         self._loaded = True
 
         # Cache token IDs for "Normal" and "Distress" for fast confidence extraction.
@@ -327,44 +320,118 @@ class PavementClassifier:
 
         return round(confidence, 4)
 
+    def _token_log_probs(self, scores: tuple, generated_ids: torch.Tensor) -> list[float]:
+        """Per-token log-probability of the token the model actually generated.
+
+        Index i of the returned list corresponds to generated token i, so it
+        can be sliced by a token span. Non-finite values and special tokens
+        become None so slicing stays aligned with the token sequence.
+        """
+        out: list[float] = []
+        num_tokens = min(len(scores), generated_ids.shape[0])
+        for i in range(num_tokens):
+            token_id = generated_ids[i].item()
+            if token_id <= 0:  # special / padding
+                out.append(None)
+                continue
+            log_prob = torch.log_softmax(scores[i][0].float(), dim=0)[token_id].item()
+            out.append(log_prob if math.isfinite(log_prob) else None)
+        return out
+
+    @staticmethod
+    def _geomean(log_probs: list[float]) -> float:
+        """Geometric mean of probabilities = exp(mean(log p_i)). 0.0 if empty."""
+        vals = [lp for lp in log_probs if lp is not None]
+        if not vals:
+            return 0.0
+        return round(max(0.0, min(1.0, math.exp(sum(vals) / len(vals)))), 4)
+
     def _compute_sequence_confidence(self, scores: tuple, generated_ids: torch.Tensor) -> float:
         """
-        Compute sequence-level confidence as the geometric mean of per-token probabilities.
+        Sequence-level confidence: geometric mean over EVERY generated token.
 
-        This is equivalent to exp(mean(log(p_i))) and represents how "sure" the model
-        was about the entire generated response. Range: [0.0, 1.0].
+        Equivalent to exp(mean(log(p_i))). This is the legacy Stage 2 metric.
+        Note it includes the free-text DESCRIPTION sentence, which is
+        inherently high-entropy (many phrasings are equally valid), so it
+        systematically understates confidence in the actual classification.
+        Kept for continuity and for the paper's comparison table.
 
         No inflation, no manipulation — pure model probability.
         """
         if not scores or len(scores) == 0:
             return 0.0
+        return self._geomean(self._token_log_probs(scores, generated_ids))
 
-        log_probs = []
-        num_tokens = min(len(scores), generated_ids.shape[0])
+    def _find_field_token_span(
+        self, generated_ids: torch.Tensor, field: str = "DISTRESS_TYPES"
+    ) -> tuple[int, int] | None:
+        """
+        Locate the token span covering the VALUE of a structured output field.
 
-        for i in range(num_tokens):
-            logits = scores[i][0].float()  # (vocab_size,)
-            token_id = generated_ids[i].item()
+        Decodes cumulative prefixes to build a token -> character offset map,
+        finds `FIELD:` in the decoded text, and returns the [start, end) token
+        indices covering the text from after the colon to the end of that line.
 
-            # Skip special/padding tokens
-            if token_id <= 0:
-                continue
+        Returns None when the field is absent or the span is too short to be a
+        meaningful estimate — the caller then falls back to whole-sequence
+        confidence rather than reporting a number computed from 1 token.
+        """
+        tokenizer = self._processor.tokenizer
+        ids = generated_ids.tolist()
+        if not ids:
+            return None
 
-            log_prob = torch.log_softmax(logits, dim=0)[token_id].item()
+        # Cumulative prefix decode gives an exact char offset per token
+        # boundary, which token-by-token decoding does not (byte-level BPE
+        # merges split multi-byte characters across tokens).
+        offsets: list[int] = []
+        for i in range(len(ids)):
+            offsets.append(len(tokenizer.decode(ids[: i + 1], skip_special_tokens=True)))
+        full_text = tokenizer.decode(ids, skip_special_tokens=True)
 
-            # Guard against -inf
-            if math.isfinite(log_prob):
-                log_probs.append(log_prob)
+        marker_pos = full_text.upper().find(f"{field}:")
+        if marker_pos == -1:
+            return None
+        value_start = marker_pos + len(field) + 1
+        line_end = full_text.find("\n", value_start)
+        if line_end == -1:
+            line_end = len(full_text)
+        if line_end <= value_start:
+            return None
 
-        if not log_probs:
-            return 0.0
+        # Map char range -> token range. A token belongs to the span if its
+        # end offset lands inside (value_start, line_end].
+        start_tok, end_tok = None, None
+        for i, end_off in enumerate(offsets):
+            if start_tok is None and end_off > value_start:
+                start_tok = i
+            if end_off <= line_end:
+                end_tok = i + 1
+        if start_tok is None or end_tok is None or end_tok <= start_tok:
+            return None
+        # Fewer than 2 tokens is too thin an estimate to trust.
+        if end_tok - start_tok < 2:
+            return None
+        return start_tok, end_tok
 
-        # Geometric mean of probabilities = exp(mean of log-probs)
-        avg_log_prob = sum(log_probs) / len(log_probs)
-        confidence = math.exp(avg_log_prob)
+    def _compute_field_confidence(
+        self, scores: tuple, generated_ids: torch.Tensor, field: str = "DISTRESS_TYPES"
+    ) -> tuple[float, bool]:
+        """
+        Confidence restricted to the tokens that carry the classification.
 
-        # Clamp to [0, 1] (should already be, but safety)
-        return round(max(0.0, min(1.0, confidence)), 4)
+        Returns (confidence, used_field_span). When the span cannot be located
+        the whole-sequence value is returned with used_field_span=False, so the
+        caller always gets a usable number and can record which path was taken.
+        """
+        if not scores or len(scores) == 0:
+            return 0.0, False
+        log_probs = self._token_log_probs(scores, generated_ids)
+        span = self._find_field_token_span(generated_ids, field)
+        if span is None:
+            return self._geomean(log_probs), False
+        start, end = span
+        return self._geomean(log_probs[start:end]), True
 
     def predict_is_pavement(self, image: Image.Image) -> dict:
         """
@@ -412,8 +479,16 @@ class PavementClassifier:
 
         with self._lock:
             s1_start = time.time()
+            # Stage 1 answers with a single word ("Normal" / "Distress"), so a
+            # 200-token budget buys nothing and costs real time: measured 4.7s
+            # at max_new_tokens=200 vs 1.2s at a small budget, for the same
+            # 2-token output. Confidence reads only the FIRST token's logits,
+            # so the smaller budget cannot change the score. A model that
+            # rambles past the budget produces an unparseable response, which
+            # already defaults to Distress + 0.0 confidence -> expert review.
             stage1_raw, s1_scores, s1_gen_ids = self._run_inference_with_scores(
-                image, STAGE1_SYSTEM_PROMPT, STAGE1_USER_PROMPT
+                image, STAGE1_SYSTEM_PROMPT, STAGE1_USER_PROMPT,
+                max_new_tokens=STAGE1_MAX_NEW_TOKENS,
             )
             s1_time = (time.time() - s1_start) * 1000
 
@@ -493,7 +568,9 @@ class PavementClassifier:
             stage2_raw, s2_scores, s2_gen_ids = self._run_inference_with_scores(
                 image, STAGE2_SYSTEM_PROMPT, STAGE2_USER_PROMPT
             )
-            s2_confidence = self._compute_sequence_confidence(s2_scores, s2_gen_ids)
+            s2_conf_seq = self._compute_sequence_confidence(s2_scores, s2_gen_ids)
+            s2_conf_field, field_ok = self._compute_field_confidence(s2_scores, s2_gen_ids)
+            s2_confidence = s2_conf_field if STAGE2_CONFIDENCE_MODE == "field" else s2_conf_seq
             parsed = parse_stage2_response(stage2_raw)
 
             used_fallback = False
@@ -520,7 +597,13 @@ class PavementClassifier:
                         stage2_raw = fb_raw
                         s2_scores = fb_scores
                         s2_gen_ids = fb_gen_ids
-                        s2_confidence = self._compute_sequence_confidence(fb_scores, fb_gen_ids)
+                        s2_conf_seq = self._compute_sequence_confidence(fb_scores, fb_gen_ids)
+                        s2_conf_field, field_ok = self._compute_field_confidence(
+                            fb_scores, fb_gen_ids
+                        )
+                        s2_confidence = (
+                            s2_conf_field if STAGE2_CONFIDENCE_MODE == "field" else s2_conf_seq
+                        )
                         parsed = fb_parsed
                         print(f"[PavementClassifier] Stage 2 cascade: fallback recovered '{fb_parsed.get('distress_types')}'")
                 except Exception as e:
@@ -534,6 +617,13 @@ class PavementClassifier:
             "severity": parsed["severity"],
             "description": parsed["description"],
             "stage2_confidence": s2_confidence,
+            # Both metrics are always reported so the review threshold can be
+            # calibrated from real data instead of guessed, and so switching
+            # STAGE2_CONFIDENCE_MODE never loses the other number.
+            "stage2_confidence_field": s2_conf_field,
+            "stage2_confidence_sequence": s2_conf_seq,
+            "stage2_confidence_mode": STAGE2_CONFIDENCE_MODE,
+            "stage2_field_span_found": field_ok,
             "stage2_time_ms": round(s2_time, 1),
             "stage2_raw": stage2_raw,
             "stage2_used_fallback": used_fallback,
@@ -578,6 +668,9 @@ class PavementClassifier:
             result["stage2_raw"] = s2["stage2_raw"]
             result["stage2_used_fallback"] = s2.get("stage2_used_fallback", False)
             result["stage2_primary_raw"] = s2.get("stage2_primary_raw")
+            result["stage2_confidence_field"] = s2.get("stage2_confidence_field")
+            result["stage2_confidence_sequence"] = s2.get("stage2_confidence_sequence")
+            result["stage2_confidence_mode"] = s2.get("stage2_confidence_mode")
 
             # Flag for expert review if EITHER stage has low confidence
             result["needs_expert_review"] = (
@@ -601,6 +694,17 @@ class PavementClassifier:
     @property
     def has_adapter(self) -> bool:
         return self.adapter_path is not None
+
+    @property
+    def load_info(self) -> dict:
+        """What actually got loaded — family, class, real quantization, pixel
+        budget, whether the OOM fallback fired, self-test result. Reported by
+        /health so the operator sees the true config, not the requested one."""
+        return dict(self._load_info)
+
+    @property
+    def confidence_mode(self) -> str:
+        return STAGE2_CONFIDENCE_MODE
 
 
 # ============================================================

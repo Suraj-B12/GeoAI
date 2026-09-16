@@ -241,8 +241,13 @@ Capstone/
 │   ├── 04_post_finetune_eval.py       # Evaluate fine-tuned model + comparison table
 │   ├── 05_setup_training_config.py    # Fix YAML paths for current machine
 │   ├── 06_incremental_retrain.py      # Retrain on expert corrections (will output versioned adapters)
-│   ├── 07_cross_dataset_eval.py      # (NEEDS BUILDING) Evaluate model on Attain dataset for cross-dataset zero-shot generalization
-│   └── validate_all.py               # 13-test validation suite
+│   ├── 07_cross_dataset_eval.py      # Attain cross-dataset eval (--prompts-version, --model, crash-resumable; checkpoints are model-scoped)
+│   ├── irc82_taxonomy.py             # IRC:82-2015 taxonomy — 18 vision-only types, single source of truth
+│   ├── utils_v2_prompts.py           # v2 "Improved Baseline" prompts (production)
+│   ├── model_loader.py               # Family-agnostic VLM loader + VRAM/OOM/offload guardrails + load-time self-test
+│   ├── smoke_test_model.py           # Pre-flight gate for a model swap — must pass before trusting a new checkpoint
+│   ├── compare_model_ab.py           # Model A/B comparison (refuses to compare runs that differ in more than the model)
+│   └── validate_all.py               # 14-test validation suite
 ├── app/
 │   ├── main.py                        # FastAPI: /classify, /classify/stream, /classify/base64, /health, /retrain/*, /corrections, /adapters/*
 │   ├── model.py                       # PavementClassifier: predict_stage1(), predict_stage2(), predict(), confidence extraction
@@ -266,14 +271,50 @@ Capstone/
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `MODEL_PATH` | `Qwen/Qwen2.5-VL-7B-Instruct` | Model to load |
+| `MODEL_PATH` | `Qwen/Qwen2.5-VL-7B-Instruct` | Model to load. Family-agnostic since `scripts/model_loader.py` — `Qwen/Qwen3-VL-8B-Instruct` works with no code change. |
 | `DISABLE_ADAPTER` | `true` in production .env | Skip LoRA loading entirely. Production runs pure base model. |
 | `PROMPTS_VERSION` | `v2` (default in app/model.py) | `v2` = Improved Baseline (production). `v1` = Plain Baseline (paper experiments only). |
 | `ADAPTER_PATH` | Unset in production | LoRA adapter directory. Used only when `DISABLE_ADAPTER=false` for A/B experiments. |
 | `QUANTIZATION_BITS` | `4` | 4-bit or 8-bit quantization. Set `0` on A5000 for fp16. |
+| `STAGE2_CONFIDENCE_MODE` | `sequence` | `sequence` = geomean over all generated tokens (legacy, what the 0.80 threshold was calibrated on). `field` = geomean over the DISTRESS_TYPES tokens only. Both values are recorded on every row regardless. |
+| `STAGE1_MAX_NEW_TOKENS` | `12` | Stage 1 answers with one word. Was 200, which cost ~4x the time for identical output. |
+| `SKIP_MODEL_SELFTEST` | Unset (self-test ON) | Skips the 2s load-time synthetic-image check. Leave ON in production. |
 | `API_KEYS` | Empty (auth disabled) | Comma-separated API keys |
 | `CORS_ORIGINS` | `*` | Allowed CORS origins |
 | `PROJECT_ROOT` | Auto-detected | Project root path |
+
+### Model loading (scripts/model_loader.py — single source of truth)
+
+Production (`app/model.py`) and evaluation (`scripts/03_baseline_eval.py`, which
+`07_cross_dataset_eval.py` imports) load models through the SAME function. If they diverged,
+an A/B comparison between two models could be measuring a loader difference rather than a
+model difference. Guardrails, all of which fire automatically:
+
+1. **Family resolution** from `config.model_type` via `AutoModelForImageTextToText`, falling
+   back to the explicit Qwen2.5-VL class. Untested families load with a loud warning.
+2. **VRAM pre-flight** — parameter count pulled from HF Hub metadata (no download), compared
+   against free VRAM; auto-reduces `max_pixels` when tight.
+3. **OOM fallback ladder** — bf16 → 4-bit → clear error, instead of dying mid-batch.
+4. **Processor kwarg compatibility** — `min_pixels`/`max_pixels` are Qwen-specific; falls back
+   to a `size` dict, then to defaults.
+5. **Load-time self-test** — a synthetic image through the full template → processor → generate
+   path. Catches a broken model/template pairing at startup (2s) instead of writing `failed`
+   rows for real citizen photos.
+6. **CPU/disk offload detection** — `device_map="auto"` silently offloads when it thinks VRAM
+   is short, which is invisible in accuracy metrics and 10-30x slower. Now reported and warned.
+7. **Allocator cleanup** — see the performance note below.
+
+### Measured performance findings (RTX A5000 24GB, 2026-09-15)
+
+| Finding | Evidence |
+|---|---|
+| Sharded loading leaves ~16 GB of cached allocator blocks; on Windows WDDM the driver spills the excess into system RAM instead of OOMing, silently. `empty_cache()` after load: 16.65 GB tensors / **32.35 GB reserved** / 0.00 GB free → 16.84 GB reserved / 7.54 GB free. | Stage 1 inference **23.5s → 4.7s** on a fixed 512x512 fixture, measured 5x in one process |
+| Stage 1 used `max_new_tokens=200` to produce a 2-token answer | **4.73s → 1.20s** for identical output |
+| **The v2 IRC prompts cost ~8x throughput** vs the pre-IRC prompts. This predates any 2026-09 change — it is the price of the full 18-type taxonomy + severity criteria + 6-step protocol + few-shot block in every prompt. | `attain_baseline_v2_run.log` (pre-IRC): **4.54 s/image** over 769 images. `irc_audit_100.log` (IRC prompts, same machine/model/quantization): **37.94 s/image** over 100 images. |
+| flash-attn is NOT installed and has no prebuilt wheel for Windows + cp312 + torch 2.5.1. SDPA is the fallback and is correct, just slower. | `pip download flash-attn --only-binary=:all:` → "no matching distribution" |
+
+Throughput planning: budget ~12s/image for small images (512x512) and **~40s/image for
+full-size phone photos** under the IRC prompts. The prompt cost, not the model, dominates.
 
 ## How to Run (Quick Reference)
 

@@ -1,0 +1,383 @@
+{
+  "model": "Qwen/Qwen3-VL-8B-Instruct",
+  "adapter": null,
+  "prompts_version": "v2",
+  "confidence_mode": "sequence",
+  "load_info": {
+    "model_path": "Qwen/Qwen3-VL-8B-Instruct",
+    "model_type": "qwen3_vl",
+    "model_class": "AutoModelForImageTextToText",
+    "attn_implementation": "sdpa",
+    "requested_quantization_bits": 0,
+    "quantization_bits": 0,
+    "min_pixels": 7168,
+    "max_pixels": 4840000,
+    "oom_fallback_used": false,
+    "processor_pixel_mode": "min_pixels/max_pixels",
+    "device": "cuda:0",
+    "hf_device_map_summary": {
+      "0": 1
+    },
+    "fully_on_gpu": true,
+    "self_test": {
+      "ok": true,
+      "error": null,
+      "elapsed_s": 3.45,
+      "reply": "OK"
+    },
+    "reserved_gb_before_cleanup": 34.05,
+    "reserved_gb_after_cleanup": 17.75,
+    "vram_allocated_gb": 17.56,
+    "vram_reserved_gb": 17.75,
+    "vram_used_gb": 19.13,
+    "vram_total_gb": 25.76
+  },
+  "preflight": {
+    "gpu": "NVIDIA RTX A5000",
+    "free_gb": 24.43,
+    "total_gb": 25.76,
+    "params_b": 8.77,
+    "verdict": "ok",
+    "recommended_max_pixels": 4840000,
+    "weights_gb": 17.53,
+    "activations_gb": 3.01,
+    "needed_gb": 20.55,
+    "visual_tokens": 6173
+  },
+  "load_seconds": 30.3,
+  "checks": [
+    {
+      "name": "model loads",
+      "ok": true,
+      "detail": "30s on cuda:0",
+      "hard": true
+    },
+    {
+      "name": "loader self-test",
+      "ok": true,
+      "detail": "synthetic image generated a reply",
+      "hard": true
+    },
+    {
+      "name": "model family resolved",
+      "ok": true,
+      "detail": "qwen3_vl via AutoModelForImageTextToText",
+      "hard": true
+    },
+    {
+      "name": "no OOM fallback",
+      "ok": true,
+      "detail": "running bf16 (no quantization)",
+      "hard": false
+    },
+    {
+      "name": "model fully on GPU",
+      "ok": true,
+      "detail": "placement={'0': 1} \u2014 CPU/disk offload makes inference 10-30x slower and invalidates timing comparisons",
+      "hard": true
+    },
+    {
+      "name": "stage 1 token ids cached",
+      "ok": true,
+      "detail": "Normal=[12206] Distress=[23356, 673]",
+      "hard": true
+    },
+    {
+      "name": "alligator_D20.jpg: stage 0 decision valid",
+      "ok": true,
+      "detail": "'yes' in 9668ms \u2014 raw='YES'",
+      "hard": true
+    },
+    {
+      "name": "alligator_D20.jpg: stage 0 accepts real pavement",
+      "ok": true,
+      "detail": "fixtures are real RDD road photos; a reject here means the pre-filter prompt is broken for this model",
+      "hard": true
+    },
+    {
+      "name": "alligator_D20.jpg: stage 1 label valid",
+      "ok": true,
+      "detail": "Normal conf=0.562 (8108ms)",
+      "hard": true
+    },
+    {
+      "name": "alligator_D20.jpg: stage 1 confidence in range",
+      "ok": true,
+      "detail": "0.5622",
+      "hard": true
+    },
+    {
+      "name": "alligator_D20.jpg: stage 1 detects damage",
+      "ok": false,
+      "detail": "fixtures are known-damaged RDD images (D00/D20/D40)",
+      "hard": false
+    },
+    {
+      "name": "alligator_D20.jpg: stage 2 returned types",
+      "ok": true,
+      "detail": "['Normal']",
+      "hard": true
+    },
+    {
+      "name": "alligator_D20.jpg: all labels are IRC:82 canonical",
+      "ok": true,
+      "detail": "['Normal']",
+      "hard": true
+    },
+    {
+      "name": "alligator_D20.jpg: severity is DB-writable",
+      "ok": true,
+      "detail": "'None' (DB CHECK allows exactly these five)",
+      "hard": true
+    },
+    {
+      "name": "alligator_D20.jpg: description non-empty",
+      "ok": true,
+      "detail": "The pavement surface appears uniform, with no visible cracks, deformation, or di",
+      "hard": true
+    },
+    {
+      "name": "alligator_D20.jpg: both confidences computed",
+      "ok": true,
+      "detail": "field=1.0 sequence=0.9156 (active=sequence)",
+      "hard": true
+    },
+    {
+      "name": "alligator_D20.jpg: field span located",
+      "ok": true,
+      "detail": "falls back to whole-sequence confidence when not found",
+      "hard": false
+    },
+    {
+      "name": "corrupt.jpg: decodable",
+      "ok": false,
+      "detail": "skipped \u2014 UnidentifiedImageError (expected for corrupt fixtures)",
+      "hard": false
+    },
+    {
+      "name": "longitudinal_D00.jpg: stage 0 decision valid",
+      "ok": true,
+      "detail": "'yes' in 1416ms \u2014 raw='YES'",
+      "hard": true
+    },
+    {
+      "name": "longitudinal_D00.jpg: stage 0 accepts real pavement",
+      "ok": true,
+      "detail": "fixtures are real RDD road photos; a reject here means the pre-filter prompt is broken for this model",
+      "hard": true
+    },
+    {
+      "name": "longitudinal_D00.jpg: stage 1 label valid",
+      "ok": true,
+      "detail": "Distress conf=1.000 (1735ms)",
+      "hard": true
+    },
+    {
+      "name": "longitudinal_D00.jpg: stage 1 confidence in range",
+      "ok": true,
+      "detail": "1.0",
+      "hard": true
+    },
+    {
+      "name": "longitudinal_D00.jpg: stage 1 detects damage",
+      "ok": true,
+      "detail": "fixtures are known-damaged RDD images (D00/D20/D40)",
+      "hard": false
+    },
+    {
+      "name": "longitudinal_D00.jpg: stage 2 returned types",
+      "ok": true,
+      "detail": "['Hairline Cracks']",
+      "hard": true
+    },
+    {
+      "name": "longitudinal_D00.jpg: all labels are IRC:82 canonical",
+      "ok": true,
+      "detail": "['Hairline Cracks']",
+      "hard": true
+    },
+    {
+      "name": "longitudinal_D00.jpg: severity is DB-writable",
+      "ok": true,
+      "detail": "'Low' (DB CHECK allows exactly these five)",
+      "hard": true
+    },
+    {
+      "name": "longitudinal_D00.jpg: description non-empty",
+      "ok": true,
+      "detail": "Fine, isolated cracks less than 1 mm wide are visible on the pavement surface, c",
+      "hard": true
+    },
+    {
+      "name": "longitudinal_D00.jpg: both confidences computed",
+      "ok": true,
+      "detail": "field=0.9976 sequence=0.914 (active=sequence)",
+      "hard": true
+    },
+    {
+      "name": "longitudinal_D00.jpg: field span located",
+      "ok": true,
+      "detail": "falls back to whole-sequence confidence when not found",
+      "hard": false
+    },
+    {
+      "name": "pothole_D40.jpg: stage 0 decision valid",
+      "ok": true,
+      "detail": "'yes' in 1420ms \u2014 raw='YES'",
+      "hard": true
+    },
+    {
+      "name": "pothole_D40.jpg: stage 0 accepts real pavement",
+      "ok": true,
+      "detail": "fixtures are real RDD road photos; a reject here means the pre-filter prompt is broken for this model",
+      "hard": true
+    },
+    {
+      "name": "pothole_D40.jpg: stage 1 label valid",
+      "ok": true,
+      "detail": "Distress conf=1.000 (1748ms)",
+      "hard": true
+    },
+    {
+      "name": "pothole_D40.jpg: stage 1 confidence in range",
+      "ok": true,
+      "detail": "1.0",
+      "hard": true
+    },
+    {
+      "name": "pothole_D40.jpg: stage 1 detects damage",
+      "ok": true,
+      "detail": "fixtures are known-damaged RDD images (D00/D20/D40)",
+      "hard": false
+    },
+    {
+      "name": "pothole_D40.jpg: stage 2 returned types",
+      "ok": true,
+      "detail": "['Hairline Cracks']",
+      "hard": true
+    },
+    {
+      "name": "pothole_D40.jpg: all labels are IRC:82 canonical",
+      "ok": true,
+      "detail": "['Hairline Cracks']",
+      "hard": true
+    },
+    {
+      "name": "pothole_D40.jpg: severity is DB-writable",
+      "ok": true,
+      "detail": "'Low' (DB CHECK allows exactly these five)",
+      "hard": true
+    },
+    {
+      "name": "pothole_D40.jpg: description non-empty",
+      "ok": true,
+      "detail": "Fine, short cracks visible on the surface, consistent with IRC:82 \u00a77.3.2, with n",
+      "hard": true
+    },
+    {
+      "name": "pothole_D40.jpg: both confidences computed",
+      "ok": true,
+      "detail": "field=0.9459 sequence=0.8749 (active=sequence)",
+      "hard": true
+    },
+    {
+      "name": "pothole_D40.jpg: field span located",
+      "ok": true,
+      "detail": "falls back to whole-sequence confidence when not found",
+      "hard": false
+    },
+    {
+      "name": "field confidence >= sequence confidence",
+      "ok": true,
+      "detail": "expected: restricting to label tokens removes high-entropy prose",
+      "hard": false
+    }
+  ],
+  "per_image": [
+    {
+      "fixture": "alligator_D20.jpg",
+      "stage0": {
+        "decision": "yes",
+        "is_pavement": true,
+        "time_ms": 9668.5
+      },
+      "stage1": {
+        "stage1_label": "Normal",
+        "stage1_confidence": 0.5622,
+        "stage1_time_ms": 8107.5
+      },
+      "stage2": {
+        "distress_types": [
+          "Normal"
+        ],
+        "severity": "None",
+        "description": "The pavement surface appears uniform, with no visible cracks, deformation, or disintegration as defined in IRC:82-2015 (Sections 7.2 to 7.5).",
+        "confidence_active": 0.9156,
+        "confidence_field": 1.0,
+        "confidence_sequence": 0.9156,
+        "field_span_found": true,
+        "time_ms": 83958.0
+      }
+    },
+    {
+      "fixture": "longitudinal_D00.jpg",
+      "stage0": {
+        "decision": "yes",
+        "is_pavement": true,
+        "time_ms": 1415.7
+      },
+      "stage1": {
+        "stage1_label": "Distress",
+        "stage1_confidence": 1.0,
+        "stage1_time_ms": 1735.2
+      },
+      "stage2": {
+        "distress_types": [
+          "Hairline Cracks"
+        ],
+        "severity": "Low",
+        "description": "Fine, isolated cracks less than 1 mm wide are visible on the pavement surface, consistent with IRC:82 \u00a77.3.2.",
+        "confidence_active": 0.914,
+        "confidence_field": 0.9976,
+        "confidence_sequence": 0.914,
+        "field_span_found": true,
+        "time_ms": 99613.1
+      }
+    },
+    {
+      "fixture": "pothole_D40.jpg",
+      "stage0": {
+        "decision": "yes",
+        "is_pavement": true,
+        "time_ms": 1420.4
+      },
+      "stage1": {
+        "stage1_label": "Distress",
+        "stage1_confidence": 1.0,
+        "stage1_time_ms": 1747.9
+      },
+      "stage2": {
+        "distress_types": [
+          "Hairline Cracks"
+        ],
+        "severity": "Low",
+        "description": "Fine, short cracks visible on the surface, consistent with IRC:82 \u00a77.3.2, with no clear orientation or interconnection.",
+        "confidence_active": 0.8749,
+        "confidence_field": 0.9459,
+        "confidence_sequence": 0.8749,
+        "field_span_found": true,
+        "time_ms": 99645.3
+      }
+    }
+  ],
+  "confidence_comparison": {
+    "avg_field": 0.9812,
+    "avg_sequence": 0.9015,
+    "delta": 0.0797,
+    "n": 3,
+    "clear_threshold_field": 3,
+    "clear_threshold_sequence": 3,
+    "threshold": 0.8
+  },
+  "passed": true
+}
