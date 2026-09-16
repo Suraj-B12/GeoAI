@@ -702,8 +702,27 @@ The mobile app inserts a row here for every uploaded photo. The pipeline does NO
 | `address` | TEXT | Reverse-geocoded street address |
 | `latitude`, `longitude` | DOUBLE PRECISION | GPS from phone |
 | `created_at` | TIMESTAMPTZ | Upload time |
+| `captured_at` | TIMESTAMPTZ, nullable | Original photo capture time when known; added by migration 005 |
 
 **Trigger:** `trg_sync_photo_to_assessment` — `AFTER INSERT ON photos FOR EACH ROW`. Creates a corresponding `assessments` row with `photo_id` FK, `status='pending'`, copies `image_url/lat/long/address`, preserves `created_at` for FIFO queue ordering.
+
+#### Native iOS capture timestamps
+
+Before using the native iOS app to upload timestamp-bearing reports, run [migrations/005_photos_captured_at.sql](migrations/005_photos_captured_at.sql) in the same Supabase project's SQL editor using a database-owner/admin session. The existing `public.photos` table and photo-to-assessment integration are prerequisites. Keep privileged database credentials out of the mobile app. This migration is supplied for deployment; it has not been applied to a live database as part of this change.
+
+Migration 005 adds nullable `photos.captured_at` and reloads the PostgREST schema cache. It is repeatable and performs no backfill, row updates, RLS or grant changes. Clients should send a known capture timestamp in ISO 8601 format with an explicit timezone, or null when unavailable. Existing rows remain null because an upload timestamp cannot establish when a photo was taken. `created_at` remains the upload timestamp, and the unchanged trigger still copies it into `assessments.created_at` for FIFO queue ordering. Latitude and longitude continue using their existing columns. Projects using column-specific grants must ensure the existing upload role can insert `captured_at`.
+
+The native iOS read path supports older schemas by retrying without `captured_at` only when that column is missing. In migrated schemas, an explicit null remains unknown capture time and unknown day/night. Only older schemas or snapshots that omit the field entirely retain the legacy upload/queue-time display fallback. Applying this migration does not change backend inference or queue processing.
+
+Verify the column after deployment with this read-only query; expect `timestamp with time zone` and `YES`:
+
+```sql
+SELECT column_name, data_type, is_nullable
+FROM information_schema.columns
+WHERE table_schema = 'public'
+  AND table_name = 'photos'
+  AND column_name = 'captured_at';
+```
 
 ### `assessments` table
 | Column | Type | Purpose |
@@ -916,6 +935,7 @@ Capstone/
 |   +-- 002_photos_integration.sql     # photos→assessments trigger + backfill
 |   +-- 003_expert_ui_anon_access.sql  # anon RLS for expert UI + reviewer_name col
 |   +-- 004_training_runs.sql          # NEW — training heartbeat table (QLoRA progress)
+|   +-- 005_photos_captured_at.sql      # nullable photo capture time; upload/FIFO time unchanged
 |   +-- test_data_pending_rows.sql     # smoke-test fixture inserts (test_fixtures URLs)
 +-- test_fixtures/                     # RDD images + corrupt.jpg for ENABLE_TEST_FIXTURES=1 mount
 +-- paper/
