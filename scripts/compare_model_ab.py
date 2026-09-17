@@ -233,7 +233,16 @@ def main() -> int:
     md_path = EVAL_DIR / f"{args.out}.md"
     md_path.write_text(md, encoding="utf-8")
 
-    print(md)
+    # The markdown contains non-cp1252 characters (Δ, ≥). Files are written as
+    # UTF-8 and are fine; only the Windows console encoding is the problem, so
+    # degrade the CONSOLE copy rather than failing after the work is done.
+    try:
+        print(md)
+    except UnicodeEncodeError:
+        enc = sys.stdout.encoding or "ascii"
+        print(md.encode(enc, errors="replace").decode(enc, errors="replace"))
+        print(f"\n[note] console encoding is {enc}; some characters were replaced "
+              f"above. The written .md file is full UTF-8.")
     print(f"\nWritten: {json_path}\n         {md_path}")
     return 0
 

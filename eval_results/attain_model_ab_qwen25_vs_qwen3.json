@@ -1,0 +1,454 @@
+{
+  "comparison": "Qwen2.5-VL-7B vs Qwen3-VL-8B",
+  "validity": {
+    "identical_conditions": true,
+    "mismatches": [],
+    "subset": "WS_V2.0",
+    "n_images": 100,
+    "prompts_version": "v2",
+    "adapter_path": null
+  },
+  "models": {
+    "A": {
+      "model_path": "Qwen/Qwen2.5-VL-7B-Instruct",
+      "model_family": "qwen2_5_vl",
+      "model_class": "Qwen2_5_VLForConditionalGeneration",
+      "quantization_bits": 0,
+      "attn_implementation": "sdpa",
+      "max_pixels": 4840000,
+      "oom_fallback_used": false
+    },
+    "B": {
+      "model_path": "Qwen/Qwen3-VL-8B-Instruct",
+      "model_family": "qwen3_vl",
+      "model_class": "AutoModelForImageTextToText",
+      "quantization_bits": 0,
+      "attn_implementation": "sdpa",
+      "max_pixels": 4840000,
+      "oom_fallback_used": false
+    }
+  },
+  "headline": {
+    "tier1_in_distribution": {
+      "A": 0.4726,
+      "B": 0.4384,
+      "delta_pp": -3.42
+    },
+    "tier2_zero_shot": {
+      "A": 0.0,
+      "B": 0.04,
+      "delta_pp": 4.0
+    },
+    "severity": {
+      "A": 0.02,
+      "B": 0.29,
+      "delta_pp": 27.0
+    },
+    "stage1_distress_rate": {
+      "A": 0.69,
+      "B": 0.99,
+      "delta_pp": 30.0
+    },
+    "multi_class_rate": {
+      "A": 0.69,
+      "B": 0.66,
+      "delta_pp": -3.0
+    }
+  },
+  "per_class": {
+    "Alligator crack": {
+      "tier": "in-dist",
+      "A": {
+        "f1": 0.1364,
+        "precision": 0.375,
+        "recall": 0.0833,
+        "tp": 3,
+        "fp": 5,
+        "fn": 33
+      },
+      "B": {
+        "f1": 0.5185,
+        "precision": 0.4667,
+        "recall": 0.5833,
+        "tp": 21,
+        "fp": 24,
+        "fn": 15
+      },
+      "f1_delta": 0.3821
+    },
+    "Block crack": {
+      "tier": "zero-shot",
+      "A": {
+        "f1": 0.0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 12
+      },
+      "B": {
+        "f1": 0.0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 12
+      },
+      "f1_delta": 0
+    },
+    "Linear crack": {
+      "tier": "in-dist",
+      "A": {
+        "f1": 0.7389,
+        "precision": 0.8406,
+        "recall": 0.6591,
+        "tp": 58,
+        "fp": 11,
+        "fn": 30
+      },
+      "B": {
+        "f1": 0.5366,
+        "precision": 0.9429,
+        "recall": 0.375,
+        "tp": 33,
+        "fp": 2,
+        "fn": 55
+      },
+      "f1_delta": -0.2023
+    },
+    "Patch": {
+      "tier": "zero-shot",
+      "A": {
+        "f1": 0.0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 0
+      },
+      "B": {
+        "f1": 0.0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 0
+      },
+      "f1_delta": 0
+    },
+    "Patch and utility cut": {
+      "tier": "zero-shot",
+      "A": {
+        "f1": 0.0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 0
+      },
+      "B": {
+        "f1": 0.0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 0
+      },
+      "f1_delta": 0
+    },
+    "Pothole": {
+      "tier": "in-dist",
+      "A": {
+        "f1": 0.3404,
+        "precision": 0.32,
+        "recall": 0.3636,
+        "tp": 8,
+        "fp": 17,
+        "fn": 14
+      },
+      "B": {
+        "f1": 0.3922,
+        "precision": 0.3448,
+        "recall": 0.4545,
+        "tp": 10,
+        "fp": 19,
+        "fn": 12
+      },
+      "f1_delta": 0.0518
+    },
+    "Raveling": {
+      "tier": "zero-shot",
+      "A": {
+        "f1": 0.0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 4
+      },
+      "B": {
+        "f1": 0.1277,
+        "precision": 0.0698,
+        "recall": 0.75,
+        "tp": 3,
+        "fp": 40,
+        "fn": 1
+      },
+      "f1_delta": 0.1277
+    },
+    "Weathering": {
+      "tier": "zero-shot",
+      "A": {
+        "f1": 0.0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 84
+      },
+      "B": {
+        "f1": 0.0235,
+        "precision": 1.0,
+        "recall": 0.0119,
+        "tp": 1,
+        "fp": 0,
+        "fn": 83
+      },
+      "f1_delta": 0.0235
+    }
+  },
+  "label_emissions": {
+    "A": {
+      "Longitudinal Cracking": 69,
+      "Transverse Cracking": 42,
+      "Potholes": 25,
+      "Alligator Cracking": 8,
+      "Bleeding": 1
+    },
+    "B": {
+      "Alligator Cracking": 45,
+      "Ravelling": 43,
+      "Longitudinal Cracking": 35,
+      "Potholes": 29,
+      "Normal": 10,
+      "Hungry Surface": 1,
+      "Hairline Cracks": 1,
+      "Transverse Cracking": 1
+    }
+  },
+  "head_to_head": {
+    "n_compared": 100,
+    "A_strictly_better": 24,
+    "B_strictly_better": 24,
+    "tied_both_correct_on_at_least_1": 28,
+    "tied_both_wrong_or_partial": 24,
+    "examples": [
+      {
+        "image": "Attain_SMP_WS_v2_000002.jpg",
+        "winner": "A",
+        "gt": [
+          "Alligator crack",
+          "Linear crack",
+          "Weathering"
+        ],
+        "A_pred": [
+          "Alligator crack",
+          "Linear crack"
+        ],
+        "B_pred": [
+          "Linear crack",
+          "Raveling"
+        ]
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000003.jpg",
+        "winner": "B",
+        "gt": [
+          "Block crack",
+          "Linear crack",
+          "Raveling",
+          "Weathering"
+        ],
+        "A_pred": [
+          "Linear crack"
+        ],
+        "B_pred": [
+          "Linear crack",
+          "Raveling"
+        ]
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000005.jpg",
+        "winner": "B",
+        "gt": [
+          "Block crack",
+          "Linear crack",
+          "Raveling",
+          "Weathering"
+        ],
+        "A_pred": [
+          "Linear crack"
+        ],
+        "B_pred": [
+          "Linear crack",
+          "Raveling"
+        ]
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000006.jpg",
+        "winner": "B",
+        "gt": [
+          "Block crack",
+          "Linear crack",
+          "Raveling",
+          "Weathering"
+        ],
+        "A_pred": [
+          "Linear crack"
+        ],
+        "B_pred": [
+          "Linear crack",
+          "Raveling"
+        ]
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000007.jpg",
+        "winner": "B",
+        "gt": [
+          "Alligator crack",
+          "Block crack",
+          "Linear crack",
+          "Pothole",
+          "Weathering"
+        ],
+        "A_pred": [
+          "Linear crack"
+        ],
+        "B_pred": [
+          "Alligator crack",
+          "Pothole"
+        ]
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000008.jpg",
+        "winner": "A",
+        "gt": [
+          "Alligator crack",
+          "Block crack",
+          "Linear crack",
+          "Pothole",
+          "Weathering"
+        ],
+        "A_pred": [
+          "Linear crack",
+          "Pothole"
+        ],
+        "B_pred": [
+          "Alligator crack",
+          "Raveling"
+        ]
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000009.jpg",
+        "winner": "B",
+        "gt": [
+          "Alligator crack",
+          "Block crack",
+          "Linear crack",
+          "Pothole",
+          "Weathering"
+        ],
+        "A_pred": [
+          "Linear crack"
+        ],
+        "B_pred": [
+          "Alligator crack",
+          "Pothole"
+        ]
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000010.jpg",
+        "winner": "B",
+        "gt": [
+          "Alligator crack",
+          "Block crack",
+          "Linear crack",
+          "Pothole",
+          "Weathering"
+        ],
+        "A_pred": [
+          "Linear crack"
+        ],
+        "B_pred": [
+          "Alligator crack",
+          "Linear crack"
+        ]
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000017.jpg",
+        "winner": "A",
+        "gt": [
+          "Linear crack",
+          "Pothole",
+          "Weathering"
+        ],
+        "A_pred": [
+          "Linear crack"
+        ],
+        "B_pred": [
+          "Alligator crack",
+          "Raveling"
+        ]
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000018.jpg",
+        "winner": "A",
+        "gt": [
+          "Linear crack",
+          "Pothole",
+          "Weathering"
+        ],
+        "A_pred": [
+          "Linear crack",
+          "Pothole"
+        ],
+        "B_pred": [
+          "Alligator crack",
+          "Raveling"
+        ]
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000019.jpg",
+        "winner": "A",
+        "gt": [
+          "Linear crack",
+          "Pothole",
+          "Weathering"
+        ],
+        "A_pred": [
+          "Linear crack"
+        ],
+        "B_pred": [
+          "Alligator crack",
+          "Raveling"
+        ]
+      },
+      {
+        "image": "Attain_SMP_WS_v2_000020.jpg",
+        "winner": "A",
+        "gt": [
+          "Linear crack",
+          "Pothole",
+          "Weathering"
+        ],
+        "A_pred": [
+          "Linear crack"
+        ],
+        "B_pred": [
+          "Alligator crack",
+          "Raveling"
+        ]
+      }
+    ]
+  }
+}

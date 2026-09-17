@@ -1,0 +1,2149 @@
+{
+  "summary": {
+    "subset": "WS_V2.0",
+    "n_images": 100,
+    "n_processed": 100,
+    "tier1_in_distribution": {
+      "instances": 146,
+      "correct": 64,
+      "accuracy": 0.4384
+    },
+    "tier2_zero_shot": {
+      "instances": 100,
+      "correct": 4,
+      "accuracy": 0.04
+    },
+    "severity": {
+      "instances": 100,
+      "correct": 29,
+      "accuracy": 0.29
+    },
+    "per_class": {
+      "Alligator crack": {
+        "tier": "in-dist",
+        "tp": 21,
+        "fp": 24,
+        "fn": 15,
+        "precision": 0.4667,
+        "recall": 0.5833,
+        "f1": 0.5185
+      },
+      "Block crack": {
+        "tier": "zero-shot",
+        "tp": 0,
+        "fp": 0,
+        "fn": 12,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "Linear crack": {
+        "tier": "in-dist",
+        "tp": 33,
+        "fp": 2,
+        "fn": 55,
+        "precision": 0.9429,
+        "recall": 0.375,
+        "f1": 0.5366
+      },
+      "Patch": {
+        "tier": "zero-shot",
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "Patch and utility cut": {
+        "tier": "zero-shot",
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0
+      },
+      "Pothole": {
+        "tier": "in-dist",
+        "tp": 10,
+        "fp": 19,
+        "fn": 12,
+        "precision": 0.3448,
+        "recall": 0.4545,
+        "f1": 0.3922
+      },
+      "Raveling": {
+        "tier": "zero-shot",
+        "tp": 3,
+        "fp": 40,
+        "fn": 1,
+        "precision": 0.0698,
+        "recall": 0.75,
+        "f1": 0.1277
+      },
+      "Weathering": {
+        "tier": "zero-shot",
+        "tp": 1,
+        "fp": 0,
+        "fn": 83,
+        "precision": 1.0,
+        "recall": 0.0119,
+        "f1": 0.0235
+      }
+    },
+    "adapter_path": null,
+    "model_path": "Qwen/Qwen3-VL-8B-Instruct",
+    "model_family": "qwen3_vl",
+    "model_class": "AutoModelForImageTextToText",
+    "quantization_bits": 0,
+    "attn_implementation": "sdpa",
+    "max_pixels": 4840000,
+    "oom_fallback_used": false,
+    "max_samples": 100,
+    "prompts_version": "v2",
+    "rescored": {
+      "reason": "PIPELINE_TO_ATTAIN was keyed on pre-IRC labels; canonical IRC names 'Ravelling' and 'Hungry Surface' were silently dropped during scoring (neither TP nor FP).",
+      "labels_recovered": {
+        "Ravelling": 43,
+        "Hungry Surface": 1
+      },
+      "before": {
+        "tier1_accuracy": 0.4384,
+        "tier2_accuracy": 0.0,
+        "severity_accuracy": 0.29,
+        "per_class": {
+          "Block crack": {
+            "tier": "zero-shot",
+            "tp": 0,
+            "fp": 0,
+            "fn": 12,
+            "precision": 0,
+            "recall": 0.0,
+            "f1": 0
+          },
+          "Linear crack": {
+            "tier": "in-dist",
+            "tp": 33,
+            "fp": 2,
+            "fn": 55,
+            "precision": 0.9429,
+            "recall": 0.375,
+            "f1": 0.5366
+          },
+          "Alligator crack": {
+            "tier": "in-dist",
+            "tp": 21,
+            "fp": 24,
+            "fn": 15,
+            "precision": 0.4667,
+            "recall": 0.5833,
+            "f1": 0.5185
+          },
+          "Pothole": {
+            "tier": "in-dist",
+            "tp": 10,
+            "fp": 19,
+            "fn": 12,
+            "precision": 0.3448,
+            "recall": 0.4545,
+            "f1": 0.3922
+          },
+          "Raveling": {
+            "tier": "zero-shot",
+            "tp": 0,
+            "fp": 0,
+            "fn": 4,
+            "precision": 0,
+            "recall": 0.0,
+            "f1": 0
+          },
+          "Weathering": {
+            "tier": "zero-shot",
+            "tp": 0,
+            "fp": 0,
+            "fn": 84,
+            "precision": 0,
+            "recall": 0.0,
+            "f1": 0
+          }
+        }
+      }
+    }
+  },
+  "per_image_results": [
+    {
+      "image": "Attain_SMP_WS_v2_000001.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Alligator crack",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Alligator Cracking",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Alligator crack",
+        "Raveling"
+      ],
+      "pred_severity": "High",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking, Ravelling\nSEVERITY: High\nDESCRIPTION: Severe alligator cracking with visible spalling and loose aggregate indicating advanced disintegration (IRC:82 \u00a77.3.3, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000002.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Alligator crack",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Raveling"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Ravelling\nSEVERITY: Medium\nDESCRIPTION: A medium-depth longitudinal crack (3-6 mm width) runs along the wheel path alongside visible surface loss of fine aggregates indicating early-stage ravelling (IRC:82 \u00a77.3.4, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000003.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Raveling",
+        "Linear crack",
+        "Block crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Raveling"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Ravelling\nSEVERITY: Medium\nDESCRIPTION: A continuous longitudinal crack ~4mm wide running along the wheel path, accompanied by visible loss of fine aggregates and rough surface texture indicating medium-stage ravelling (IRC:82 \u00a77.3.4, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000004.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Raveling",
+        "Linear crack",
+        "Block crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Alligator Cracking"
+      ],
+      "pred_attain": [
+        "Alligator crack",
+        "Linear crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Alligator Cracking\nSEVERITY: Medium\nDESCRIPTION: A network of interconnected cracks forming an alligator pattern alongside a parallel longitudinal crack, both exhibiting moderate width and spalling indicative of structural fatigue (IRC:82 \u00a77.3.3, \u00a77.3.4)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000005.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Raveling",
+        "Linear crack",
+        "Block crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Raveling"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Ravelling\nSEVERITY: Medium\nDESCRIPTION: A longitudinal crack running along the wheel path with visible loss of fine aggregates and rough surface texture indicating medium-severity ravelling (IRC:82 \u00a77.3.4, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000006.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Raveling",
+        "Linear crack",
+        "Block crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Raveling"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Ravelling\nSEVERITY: Medium\nDESCRIPTION: A longitudinal crack running parallel to the road centerline with visible loss of fine aggregates and rough surface texture indicating medium severity ravelling (IRC:82 \u00a77.3.4, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000007.jpg",
+      "gt_attain": [
+        "Block crack",
+        "Linear crack",
+        "Alligator crack",
+        "Pothole",
+        "Weathering"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Alligator Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Alligator crack",
+        "Pothole"
+      ],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking, Potholes\nSEVERITY: High, Medium\nDESCRIPTION: Severe alligator cracking with visible spalling and loose pieces, alongside a medium-sized pothole (25-50 mm deep, 200-500 mm wide) indicating advanced structural failure (IRC:82 \u00a77.3.3, \u00a77.5.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000008.jpg",
+      "gt_attain": [
+        "Block crack",
+        "Linear crack",
+        "Alligator crack",
+        "Pothole",
+        "Weathering"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Alligator Cracking",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Alligator crack",
+        "Raveling"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking, Ravelling\nSEVERITY: Medium\nDESCRIPTION: Interconnected alligator cracking with visible aggregate loss and surface roughness indicating medium-stage ravelling (IRC:82 \u00a77.3.3, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000009.jpg",
+      "gt_attain": [
+        "Block crack",
+        "Linear crack",
+        "Alligator crack",
+        "Pothole",
+        "Weathering"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Alligator Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Alligator crack",
+        "Pothole"
+      ],
+      "pred_severity": "High",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking, Potholes\nSEVERITY: High\nDESCRIPTION: Severe alligator cracking with visible spalling and an adjacent pothole indicating advanced structural failure (IRC:82 \u00a77.3.3, \u00a77.5.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000010.jpg",
+      "gt_attain": [
+        "Block crack",
+        "Linear crack",
+        "Alligator crack",
+        "Pothole",
+        "Weathering"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Alligator Cracking"
+      ],
+      "pred_attain": [
+        "Alligator crack",
+        "Linear crack"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Alligator Cracking\nSEVERITY: Medium\nDESCRIPTION: Interconnected alligator cracking with visible spalling and a longitudinal crack running parallel to the road centerline, both indicating medium severity distress (IRC:82 \u00a77.3.3, \u00a77.3.4)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000011.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Alligator crack",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Alligator Cracking",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Alligator crack",
+        "Raveling"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking, Ravelling\nSEVERITY: Medium\nDESCRIPTION: Interconnected alligator cracking with visible spalling and surface roughness indicating medium-stage ravelling (IRC:82 \u00a77.3.3, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000012.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Alligator crack",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Alligator Cracking",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Alligator crack",
+        "Raveling"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking, Ravelling\nSEVERITY: Medium\nDESCRIPTION: Interconnected alligator cracking with visible aggregate loss and surface roughness indicates medium-severity distress (IRC:82 \u00a77.3.3, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000013.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Alligator crack",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Alligator Cracking",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Alligator crack",
+        "Raveling"
+      ],
+      "pred_severity": "High",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking, Ravelling\nSEVERITY: High\nDESCRIPTION: Severe alligator cracking with visible spalling and loose aggregate indicating advanced disintegration (IRC:82 \u00a77.3.3, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000014.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Alligator crack",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Alligator Cracking",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Alligator crack",
+        "Raveling"
+      ],
+      "pred_severity": "High",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking, Ravelling\nSEVERITY: High\nDESCRIPTION: Severe alligator cracking with visible spalling and loose aggregate indicating advanced disintegration (IRC:82 \u00a77.3.3, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000015.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Alligator crack",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Alligator Cracking",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Alligator crack",
+        "Raveling"
+      ],
+      "pred_severity": "High",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking, Ravelling\nSEVERITY: High\nDESCRIPTION: Severe alligator cracking with visible spalling and loose aggregate indicating advanced disintegration (IRC:82 \u00a77.3.3, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000016.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Alligator crack",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Alligator Cracking",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Alligator crack",
+        "Raveling"
+      ],
+      "pred_severity": "High",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking, Ravelling\nSEVERITY: High\nDESCRIPTION: Severe alligator cracking with visible spalling and loose aggregate indicating advanced disintegration (IRC:82 \u00a77.3.3, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000017.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Pothole",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Alligator Cracking",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Alligator crack",
+        "Raveling"
+      ],
+      "pred_severity": "High",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking, Ravelling\nSEVERITY: High\nDESCRIPTION: Severe alligator cracking with visible spalling and loose aggregate indicating advanced disintegration (IRC:82 \u00a77.3.3, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000018.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Pothole",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Alligator Cracking",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Alligator crack",
+        "Raveling"
+      ],
+      "pred_severity": "High",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking, Ravelling\nSEVERITY: High\nDESCRIPTION: Severe alligator cracking with visible spalling and loose aggregate indicating advanced disintegration (IRC:82 \u00a77.3.3, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000019.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Pothole",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Alligator Cracking",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Alligator crack",
+        "Raveling"
+      ],
+      "pred_severity": "High",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking, Ravelling\nSEVERITY: High\nDESCRIPTION: Severe alligator cracking with visible spalling and loose aggregate indicating advanced disintegration (IRC:82 \u00a77.3.3, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000020.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Pothole",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Alligator Cracking",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Alligator crack",
+        "Raveling"
+      ],
+      "pred_severity": "High",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking, Ravelling\nSEVERITY: High\nDESCRIPTION: Severe alligator cracking with visible spalling and loose aggregate indicating advanced disintegration (IRC:82 \u00a77.3.3, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000021.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Pothole",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Raveling"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Ravelling\nSEVERITY: Medium\nDESCRIPTION: A 4-5 mm wide longitudinal crack running along the wheel path and visible surface loss of fine aggregates indicating medium-stage ravelling (IRC:82 \u00a77.3.4, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000022.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Pothole",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Raveling"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Ravelling\nSEVERITY: Medium\nDESCRIPTION: A longitudinal crack ~3-6 mm wide running along the wheel path with visible loss of fine aggregates and rough surface texture indicating medium severity distress (IRC:82 \u00a77.3.4, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000023.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Alligator crack",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Alligator Cracking",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Alligator crack",
+        "Raveling"
+      ],
+      "pred_severity": "High",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking, Ravelling\nSEVERITY: High\nDESCRIPTION: Severe alligator cracking with visible spalling and loose aggregate indicating advanced disintegration (IRC:82 \u00a77.3.3, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000024.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Alligator crack",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Pothole"
+      ],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Potholes\nSEVERITY: Medium, Medium\nDESCRIPTION: A longitudinal crack ~3-6 mm wide running along the wheel path with visible spalling, and a medium-sized pothole (~25-50 mm deep, 200-500 mm wide) indicating advanced distress (IRC:82 \u00a77.3.4, \u00a77.5.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000025.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Alligator crack",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Alligator Cracking",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Alligator crack",
+        "Raveling"
+      ],
+      "pred_severity": "High",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking, Ravelling\nSEVERITY: High\nDESCRIPTION: Severe alligator cracking with visible spalling and loose aggregate indicating advanced disintegration (IRC:82 \u00a77.3.3, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000026.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Alligator crack",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Potholes",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Pothole",
+        "Raveling"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Potholes, Ravelling\nSEVERITY: Medium\nDESCRIPTION: A medium-sized pothole (25-50 mm deep, 200-500 mm wide) and surrounding ravelling (loose particles, binder worn to rough surface) indicate advanced surface disintegration (IRC:82 \u00a77.5.3, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000027.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Pothole",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Alligator Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Alligator crack",
+        "Pothole"
+      ],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking, Potholes\nSEVERITY: High, Medium\nDESCRIPTION: Severe alligator cracking with visible spalling and a medium-sized pothole indicating advanced structural failure (IRC:82 \u00a77.3.3, \u00a77.5.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000028.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Pothole",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Alligator Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Alligator crack",
+        "Pothole"
+      ],
+      "pred_severity": "High",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking, Potholes\nSEVERITY: High\nDESCRIPTION: Severe alligator cracking (>6mm with spalling) and an adjacent pothole indicate advanced structural failure (IRC:82 \u00a77.3.3, \u00a77.5.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000029.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Pothole",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Alligator Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Alligator crack",
+        "Pothole"
+      ],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking, Potholes\nSEVERITY: High, Medium\nDESCRIPTION: Severe alligator cracking with visible spalling and a medium-sized pothole (25-50 mm deep, 200-500 mm wide) indicating advanced structural failure (IRC:82 \u00a77.3.3, \u00a77.5.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000030.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Pothole",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Alligator Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Alligator crack",
+        "Pothole"
+      ],
+      "pred_severity": "High",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking, Potholes\nSEVERITY: High\nDESCRIPTION: Severe alligator cracking (>6mm with spalling) and an adjacent pothole indicate advanced structural failure (IRC:82 \u00a77.3.3, \u00a77.5.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000031.jpg",
+      "gt_attain": [
+        "Linear crack",
+        "Patch and utility cut- Low",
+        "Weathering",
+        "Pothole"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Potholes",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Pothole",
+        "Raveling"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Potholes, Ravelling\nSEVERITY: Medium\nDESCRIPTION: A medium-sized pothole (25-50 mm deep, 200-500 mm wide) and surrounding surface exhibiting loose aggregate particles indicative of early-stage ravelling (IRC:82 \u00a77.5.3, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000032.jpg",
+      "gt_attain": [
+        "Linear crack",
+        "Patch and utility cut- Low",
+        "Weathering",
+        "Pothole"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Potholes",
+        "Alligator Cracking"
+      ],
+      "pred_attain": [
+        "Alligator crack",
+        "Pothole"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Potholes, Alligator Cracking\nSEVERITY: Medium\nDESCRIPTION: A medium-sized pothole (25-50 mm deep, 200-500 mm wide) and surrounding alligator cracking (width/depth 3-6 mm, interconnected with slight spalling) indicate advanced surface disintegration (IRC:82 \u00a77.5.3, \u00a77.3.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000033.jpg",
+      "gt_attain": [
+        "Linear crack",
+        "Patch and utility cut- Low",
+        "Weathering",
+        "Pothole"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Potholes",
+        "Alligator Cracking"
+      ],
+      "pred_attain": [
+        "Alligator crack",
+        "Pothole"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Potholes, Alligator Cracking\nSEVERITY: Medium\nDESCRIPTION: A medium-sized pothole (25-50 mm deep, 200-500 mm wide) and surrounding alligator cracking (width/depth 3-6 mm, interconnected with slight spalling) indicate advanced surface disintegration (IRC:82 \u00a77.5.3, \u00a77.3.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000034.jpg",
+      "gt_attain": [
+        "Linear crack",
+        "Patch and utility cut- Low",
+        "Weathering",
+        "Pothole"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Potholes",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Pothole",
+        "Raveling"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Potholes, Ravelling\nSEVERITY: Medium\nDESCRIPTION: A medium-sized pothole (25-50 mm deep, 200-500 mm wide) and surrounding surface exhibiting loose aggregate particles indicative of early-stage ravelling (IRC:82 \u00a77.5.3, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000035.jpg",
+      "gt_attain": [
+        "Patch and utility cut- Low",
+        "Weathering",
+        "Alligator crack",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Potholes",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Pothole",
+        "Raveling"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Potholes, Ravelling\nSEVERITY: Medium\nDESCRIPTION: Multiple potholes (25-50 mm deep, 200-500 mm wide) and widespread surface loss of fine aggregates indicating medium-severity ravelling (IRC:82 \u00a77.5.3, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000036.jpg",
+      "gt_attain": [
+        "Patch and utility cut- Low",
+        "Weathering",
+        "Alligator crack",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Pothole"
+      ],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Potholes\nSEVERITY: High, Medium\nDESCRIPTION: A high-severity longitudinal crack (>6mm wide, frequent) and medium-sized potholes (25-50mm deep, 200-500mm wide) indicate advanced structural distress (IRC:82 \u00a77.3.4, \u00a77.5.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000037.jpg",
+      "gt_attain": [
+        "Linear crack",
+        "Weathering"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Low",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking\nSEVERITY: Low\nDESCRIPTION: A narrow, single longitudinal crack running parallel to the road centerline, consistent with IRC:82 \u00a77.3.4."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000038.jpg",
+      "gt_attain": [
+        "Linear crack",
+        "Weathering"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Low",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking\nSEVERITY: Low\nDESCRIPTION: A narrow, single longitudinal crack running parallel to the road centerline, consistent with IRC:82 \u00a77.3.4."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000039.jpg",
+      "gt_attain": [
+        "Linear crack",
+        "Weathering"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Low",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking\nSEVERITY: Low\nDESCRIPTION: A single longitudinal crack ~2mm wide runs along the wheel path with no secondary damage (IRC:82 \u00a77.3.4)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000040.jpg",
+      "gt_attain": [
+        "Linear crack",
+        "Weathering"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Raveling"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Ravelling\nSEVERITY: Medium\nDESCRIPTION: A longitudinal crack ~3-6 mm wide running along the wheel path, accompanied by visible loss of fine aggregates and a rough surface indicating medium-stage ravelling (IRC:82 \u00a77.3.4, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000041.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Low",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking\nSEVERITY: Low\nDESCRIPTION: A single longitudinal crack ~2mm wide runs along the wheel path with no secondary damage (IRC:82 \u00a77.3.4)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000042.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Low",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking\nSEVERITY: Low\nDESCRIPTION: A narrow, single longitudinal crack running parallel to the road centerline, consistent with IRC:82 \u00a77.3.4."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000043.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Low",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking\nSEVERITY: Low\nDESCRIPTION: A single longitudinal crack ~2mm wide runs along the wheel path with no secondary damage (IRC:82 \u00a77.3.4)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000044.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Low",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking\nSEVERITY: Low\nDESCRIPTION: A single longitudinal crack ~2mm wide runs along the wheel path with no secondary damage (IRC:82 \u00a77.3.4)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000045.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Raveling"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Ravelling\nSEVERITY: Medium\nDESCRIPTION: A 3-6 mm wide longitudinal crack and visible loss of fine aggregates indicating medium severity distress (IRC:82 \u00a77.3.4, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000046.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [
+        "Longitudinal Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Low",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking\nSEVERITY: Low\nDESCRIPTION: A single longitudinal crack ~2mm wide runs along the wheel path with no secondary damage (IRC:82 \u00a77.3.4)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000047.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [
+        "Longitudinal Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Low",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking\nSEVERITY: Low\nDESCRIPTION: A single longitudinal crack ~2mm wide runs along the wheel path with no secondary damage (IRC:82 \u00a77.3.4)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000048.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [
+        "Longitudinal Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Low",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking\nSEVERITY: Low\nDESCRIPTION: A single longitudinal crack ~2mm wide runs along the wheel path with no secondary damage (IRC:82 \u00a77.3.4)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000049.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [
+        "Normal"
+      ],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Normal - No distress detected\nSEVERITY: N/A\nDESCRIPTION: The pavement surface shows no visible distress per IRC:82-2015 taxonomy (IRC:82 \u00a77.1), with no cracks, deformation, or disintegration observed."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000050.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [
+        "Hungry Surface"
+      ],
+      "pred_attain": [
+        "Weathering"
+      ],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Hungry Surface\nSEVERITY: N/A\nDESCRIPTION: The pavement surface appears dry, gray, and sandy with visible loss of fine aggregates, consistent with a hungry surface (IRC:82 \u00a77.2.4)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000051.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [
+        "Normal"
+      ],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Normal - No distress detected\nSEVERITY: N/A\nDESCRIPTION: The pavement surface shows no visible distress per IRC:82-2015 taxonomy (IRC:82 \u00a77.1), with no cracks, deformation, or disintegration observed."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000052.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [
+        "Hairline Cracks"
+      ],
+      "pred_attain": [],
+      "pred_severity": "Low",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Hairline Cracks\nSEVERITY: Low\nDESCRIPTION: Multiple fine, short cracks (<1 mm wide) are visible across the surface, consistent with isolated hairline cracks as per IRC:82 \u00a77.3.2."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000053.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Low",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking\nSEVERITY: Low\nDESCRIPTION: A single longitudinal crack ~2mm wide runs along the wheel path with no secondary damage (IRC:82 \u00a77.3.4)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000054.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Normal"
+      ],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Normal - No distress detected\nSEVERITY: N/A\nDESCRIPTION: The pavement surface shows no visible distress per IRC:82-2015 taxonomy (IRC:82 \u00a77.1), with no cracks, deformation, or disintegration observed."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000055.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Pothole",
+        "Linear crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Raveling"
+      ],
+      "pred_severity": "Low",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Ravelling\nSEVERITY: Low\nDESCRIPTION: A narrow longitudinal crack (~1-3 mm width) runs along the wheel path and is accompanied by early-stage loss of fine aggregates, indicating initial ravelling (IRC:82 \u00a77.3.4, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000056.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Pothole",
+        "Linear crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [
+        "Longitudinal Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Low",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking\nSEVERITY: Low\nDESCRIPTION: A single longitudinal crack ~2mm wide runs along the wheel path with no secondary damage (IRC:82 \u00a77.3.4)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000057.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Pothole",
+        "Linear crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Raveling"
+      ],
+      "pred_severity": "Low",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Ravelling\nSEVERITY: Low\nDESCRIPTION: A narrow longitudinal crack (~1-3 mm width) runs parallel to the road centerline, and the surface exhibits early-stage aggregate loss consistent with initial ravelling (IRC:82 \u00a77.3.4, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000058.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Pothole",
+        "Linear crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Raveling"
+      ],
+      "pred_severity": "Low",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Ravelling\nSEVERITY: Low\nDESCRIPTION: A narrow longitudinal crack (~1-3 mm width) runs parallel to the road centerline, and the surface exhibits early-stage aggregate loss consistent with low-severity ravelling (IRC:82 \u00a77.3.4, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000059.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Alligator crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Low",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Transverse Cracking\nSEVERITY: Low\nDESCRIPTION: A longitudinal crack runs parallel to the road centerline and a transverse crack crosses the lane, both appearing as fine cracks < 3 mm wide and infrequent (IRC:82 \u00a77.3.4, \u00a77.3.5)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000060.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Alligator crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [
+        "Longitudinal Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Low",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking\nSEVERITY: Low\nDESCRIPTION: A single longitudinal crack ~2mm wide runs along the wheel path with no secondary damage (IRC:82 \u00a77.3.4)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000061.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Alligator crack",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Raveling"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Ravelling\nSEVERITY: Medium\nDESCRIPTION: A longitudinal crack running along the wheel path with visible loss of fine aggregates and rough surface texture indicating medium severity ravelling (IRC:82 \u00a77.3.4, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000062.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Alligator crack",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Alligator Cracking",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Alligator crack",
+        "Raveling"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking, Ravelling\nSEVERITY: Medium\nDESCRIPTION: Interconnected alligator cracking with visible aggregate loss indicating medium-stage ravelling (IRC:82 \u00a77.3.3, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000063.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Alligator crack",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Alligator Cracking",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Alligator crack",
+        "Raveling"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking, Ravelling\nSEVERITY: Medium\nDESCRIPTION: Interconnected alligator cracking with visible aggregate loss and surface roughness indicating medium-stage ravelling (IRC:82 \u00a77.3.3, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000064.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Alligator crack",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Raveling"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Ravelling\nSEVERITY: Medium\nDESCRIPTION: A longitudinal crack ~3-6 mm wide running along the wheel path with visible loss of fine aggregates indicating medium severity ravelling (IRC:82 \u00a77.3.4, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000065.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Alligator crack",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Raveling"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Ravelling\nSEVERITY: Medium\nDESCRIPTION: A longitudinal crack running along the wheel path with visible loss of fine aggregates indicating medium-stage ravelling (IRC:82 \u00a77.3.4, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000066.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Alligator crack",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Pothole"
+      ],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking, Potholes\nSEVERITY: Medium, Small\nDESCRIPTION: A medium-severity longitudinal crack (~3-6 mm wide, frequent) and a small pothole (<25 mm deep, <200 mm wide) are present, indicating localized structural distress (IRC:82 \u00a77.3.4, \u00a77.5.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000067.jpg",
+      "gt_attain": [
+        "Weathering"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Alligator Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Alligator crack",
+        "Pothole"
+      ],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking, Potholes\nSEVERITY: High, Medium\nDESCRIPTION: Severe alligator cracking with visible spalling and loose pieces, alongside a medium-sized pothole (25-50 mm deep, 200-500 mm wide) indicating advanced structural failure (IRC:82 \u00a77.3.3, \u00a77.5.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000068.jpg",
+      "gt_attain": [
+        "Weathering"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Alligator Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Alligator crack",
+        "Pothole"
+      ],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking, Potholes\nSEVERITY: High, Medium\nDESCRIPTION: Severe alligator cracking with visible spalling and a medium-sized pothole (25-50 mm deep, 200-500 mm wide) indicate advanced structural failure (IRC:82 \u00a77.3.3, \u00a77.5.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000069.jpg",
+      "gt_attain": [
+        "Weathering"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Alligator Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Alligator crack",
+        "Pothole"
+      ],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking, Potholes\nSEVERITY: High, Medium\nDESCRIPTION: Severe alligator cracking with visible spalling and a medium-sized pothole (25-50 mm deep, 200-500 mm wide) indicate advanced structural failure (IRC:82 \u00a77.3.3, \u00a77.5.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000070.jpg",
+      "gt_attain": [
+        "Weathering"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Alligator Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Alligator crack",
+        "Pothole"
+      ],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking, Potholes\nSEVERITY: High, Medium\nDESCRIPTION: Severe alligator cracking with visible spalling and a medium-sized pothole (25-50 mm deep, 200-500 mm wide) indicate advanced structural failure (IRC:82 \u00a77.3.3, \u00a77.5.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000071.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Patch and utility cut- Low",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Potholes",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Pothole",
+        "Raveling"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Potholes, Ravelling\nSEVERITY: Medium\nDESCRIPTION: A medium-sized pothole (25-50 mm deep, 200-500 mm wide) and surrounding surface exhibiting loose aggregate particles indicating medium-stage ravelling (IRC:82 \u00a77.5.3, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000072.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Patch and utility cut- Low",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Potholes",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Pothole",
+        "Raveling"
+      ],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Potholes, Ravelling\nSEVERITY: Small, Medium\nDESCRIPTION: A small pothole (\u226425mm deep, \u2264200mm wide) and surrounding medium-severity ravelling (surface rough with loss of aggregates) are present, indicating localized disintegration (IRC:82 \u00a77.5.3, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000073.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Patch and utility cut- Low",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Potholes",
+        "Alligator Cracking"
+      ],
+      "pred_attain": [
+        "Alligator crack",
+        "Pothole"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Potholes, Alligator Cracking\nSEVERITY: Medium\nDESCRIPTION: A medium-sized pothole (25-50 mm deep, 200-500 mm wide) and surrounding alligator cracking (width/depth 3-6 mm, interconnected with slight spalling) indicate advanced surface disintegration (IRC:82 \u00a77.5.3, \u00a77.3.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000074.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Patch and utility cut- Low",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Potholes",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Pothole",
+        "Raveling"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Potholes, Ravelling\nSEVERITY: Medium\nDESCRIPTION: A medium-sized pothole (25-50 mm deep, 200-500 mm wide) and surrounding surface exhibiting loose aggregate particles indicating medium-stage ravelling (IRC:82 \u00a77.5.3, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000075.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Patch and utility cut- Low"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Alligator Cracking",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Alligator crack",
+        "Raveling"
+      ],
+      "pred_severity": "High",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking, Ravelling\nSEVERITY: High\nDESCRIPTION: Severe alligator cracking with visible spalling and loose aggregate indicating advanced disintegration (IRC:82 \u00a77.3.3, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000076.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Patch and utility cut- Low"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Alligator Cracking",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Alligator crack",
+        "Raveling"
+      ],
+      "pred_severity": "High",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking, Ravelling\nSEVERITY: High\nDESCRIPTION: Severe alligator cracking with visible spalling and loose aggregate indicating advanced disintegration (IRC:82 \u00a77.3.3, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000077.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Patch and utility cut- Low",
+        "Alligator crack",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Alligator Cracking",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Alligator crack",
+        "Raveling"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking, Ravelling\nSEVERITY: Medium\nDESCRIPTION: Interconnected alligator cracking with visible aggregate loss and surface roughness indicating medium-stage ravelling (IRC:82 \u00a77.3.3, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000078.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Patch and utility cut- Low",
+        "Alligator crack",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Alligator Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Alligator crack",
+        "Pothole"
+      ],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking, Potholes\nSEVERITY: High, Medium\nDESCRIPTION: Severe alligator cracking with visible spalling and a medium-sized pothole (25-50 mm deep, 200-500 mm wide) indicating advanced structural failure (IRC:82 \u00a77.3.3, \u00a77.5.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000079.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Patch and utility cut- Low",
+        "Alligator crack",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Alligator Cracking",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Alligator crack",
+        "Raveling"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking, Ravelling\nSEVERITY: Medium\nDESCRIPTION: Interconnected alligator cracking with visible aggregate loss and surface roughness indicating medium-stage ravelling (IRC:82 \u00a77.3.3, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000080.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Patch and utility cut- Low",
+        "Alligator crack",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Alligator Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Alligator crack",
+        "Pothole"
+      ],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking, Potholes\nSEVERITY: High, Medium\nDESCRIPTION: Severe alligator cracking with visible spalling and loose pieces, alongside a medium-sized pothole (25-50 mm deep, 200-500 mm wide) indicating advanced structural failure (IRC:82 \u00a77.3.3, \u00a77.5.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000081.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Patch and utility cut- Low",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Alligator Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Alligator crack",
+        "Pothole"
+      ],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking, Potholes\nSEVERITY: High, Medium\nDESCRIPTION: Severe alligator cracking with visible spalling and a medium-sized pothole (25-50 mm deep, 200-500 mm wide) indicating advanced structural failure (IRC:82 \u00a77.3.3, \u00a77.5.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000082.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Patch and utility cut- Low",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Potholes",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Pothole",
+        "Raveling"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Potholes, Ravelling\nSEVERITY: Medium\nDESCRIPTION: A medium-sized pothole (25-50 mm deep, 200-500 mm wide) with adjacent surface aggregate loss indicating early-stage ravelling (IRC:82 \u00a77.5.3, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000083.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Patch and utility cut- Low",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Potholes",
+        "Ravelling"
+      ],
+      "pred_attain": [
+        "Pothole",
+        "Raveling"
+      ],
+      "pred_severity": "Medium",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Potholes, Ravelling\nSEVERITY: Medium\nDESCRIPTION: A medium-sized pothole (25-50 mm deep, 200-500 mm wide) with visible exposed layers and adjacent surface ravelling indicating binder wear and aggregate loss (IRC:82 \u00a77.5.3, \u00a77.5.2)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000084.jpg",
+      "gt_attain": [
+        "Weathering",
+        "Patch and utility cut- Low",
+        "Linear crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Alligator Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Alligator crack",
+        "Pothole"
+      ],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking, Potholes\nSEVERITY: High, Medium\nDESCRIPTION: Severe alligator cracking with visible spalling and a medium-sized pothole (25-50 mm deep, 200-500 mm wide) indicating advanced structural failure (IRC:82 \u00a77.3.3, \u00a77.5.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000085.jpg",
+      "gt_attain": [
+        "Block crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [
+        "Alligator Cracking"
+      ],
+      "pred_attain": [
+        "Alligator crack"
+      ],
+      "pred_severity": "High",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking\nSEVERITY: High\nDESCRIPTION: Interconnected web-pattern cracking forming small irregular blocks (>6mm width/depth with spalling) indicates advanced fatigue cracking (IRC:82 \u00a77.3.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000086.jpg",
+      "gt_attain": [
+        "Block crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [
+        "Alligator Cracking"
+      ],
+      "pred_attain": [
+        "Alligator crack"
+      ],
+      "pred_severity": "High",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking\nSEVERITY: High\nDESCRIPTION: Interconnected web-pattern cracks forming small irregular blocks (>6mm width/depth with spalling) indicate advanced fatigue cracking (IRC:82 \u00a77.3.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000087.jpg",
+      "gt_attain": [
+        "Block crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [
+        "Alligator Cracking"
+      ],
+      "pred_attain": [
+        "Alligator crack"
+      ],
+      "pred_severity": "High",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking\nSEVERITY: High\nDESCRIPTION: Interconnected web-pattern cracking forming small irregular blocks (>6mm width/depth with spalling) indicates advanced fatigue cracking (IRC:82 \u00a77.3.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000088.jpg",
+      "gt_attain": [
+        "Block crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [
+        "Alligator Cracking"
+      ],
+      "pred_attain": [
+        "Alligator crack"
+      ],
+      "pred_severity": "High",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking\nSEVERITY: High\nDESCRIPTION: Interconnected web-pattern cracks forming small irregular blocks (>6mm width/depth with spalling) indicate advanced fatigue cracking (IRC:82 \u00a77.3.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000129.jpg",
+      "gt_attain": [
+        "Linear crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [
+        "Normal"
+      ],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Normal - No distress detected\nSEVERITY: N/A\nDESCRIPTION: The pavement surface appears intact with no visible distresses per IRC:82-2015 taxonomy (IRC:82 \u00a77.1)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000130.jpg",
+      "gt_attain": [
+        "Linear crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [
+        "Normal"
+      ],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Normal - No distress detected\nSEVERITY: N/A\nDESCRIPTION: The pavement surface appears intact with no visible distresses per IRC:82-2015 taxonomy (IRC:82 \u00a77.1)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000131.jpg",
+      "gt_attain": [
+        "Linear crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [
+        "Normal"
+      ],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Normal - No distress detected\nSEVERITY: N/A\nDESCRIPTION: The pavement surface appears intact with no visible distresses per IRC:82-2015 taxonomy (IRC:82 \u00a77.1)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000132.jpg",
+      "gt_attain": [
+        "Linear crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [
+        "Normal"
+      ],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Normal - No distress detected\nSEVERITY: N/A\nDESCRIPTION: The pavement surface appears intact with no visible distresses per IRC:82-2015 taxonomy (IRC:82 \u00a77.1)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000134.jpg",
+      "gt_attain": [
+        "Linear crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [
+        "Normal"
+      ],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Normal - No distress detected\nSEVERITY: N/A\nDESCRIPTION: The pavement surface shows no visible distresses as per IRC:82-2015 taxonomy (IRC:82 \u00a77.1), with no cracks, deformation, or disintegration observed."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000135.jpg",
+      "gt_attain": [
+        "Linear crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [
+        "Normal"
+      ],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Normal - No distress detected\nSEVERITY: N/A\nDESCRIPTION: The pavement surface appears intact with no visible distresses per IRC:82-2015 taxonomy (IRC:82 \u00a77.1)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000136.jpg",
+      "gt_attain": [
+        "Patch and utility cut- Low",
+        "Alligator crack",
+        "Linear crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": false,
+      "stage1_raw": "Normal",
+      "stage2_raw": null
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000137.jpg",
+      "gt_attain": [
+        "Patch and utility cut- Low",
+        "Alligator crack",
+        "Linear crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [
+        "Normal"
+      ],
+      "pred_attain": [],
+      "pred_severity": "Unknown",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Normal - No distress detected\nSEVERITY: N/A\nDESCRIPTION: The pavement surface shows no visible distresses as per IRC:82-2015 taxonomy (IRC:82 \u00a77.1), with no cracks, deformation, or disintegration observed."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000138.jpg",
+      "gt_attain": [
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "gt_severity_top": "Low",
+      "pred_pipeline": [
+        "Longitudinal Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Low",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking\nSEVERITY: Low\nDESCRIPTION: A single longitudinal crack ~2mm wide runs along the wheel path with no secondary damage (IRC:82 \u00a77.3.4)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000139.jpg",
+      "gt_attain": [
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Longitudinal Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "pred_severity": "Low",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Longitudinal Cracking\nSEVERITY: Low\nDESCRIPTION: A single longitudinal crack ~2mm wide runs along the wheel path with no secondary damage (IRC:82 \u00a77.3.4)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000140.jpg",
+      "gt_attain": [
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Alligator Cracking"
+      ],
+      "pred_attain": [
+        "Alligator crack"
+      ],
+      "pred_severity": "High",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking\nSEVERITY: High\nDESCRIPTION: Interconnected web-pattern cracking forming small irregular blocks (>6mm width/depth with spalling) indicates advanced structural failure (IRC:82 \u00a77.3.3)."
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000141.jpg",
+      "gt_attain": [
+        "Linear crack",
+        "Alligator crack"
+      ],
+      "gt_severity_top": "High",
+      "pred_pipeline": [
+        "Alligator Cracking"
+      ],
+      "pred_attain": [
+        "Alligator crack"
+      ],
+      "pred_severity": "High",
+      "is_distressed_pred": true,
+      "stage1_raw": "Distress",
+      "stage2_raw": "DISTRESS_TYPES: Alligator Cracking\nSEVERITY: High\nDESCRIPTION: Interconnected web-pattern cracking forming small irregular blocks (>6mm width/depth with spalling) indicates advanced structural failure (IRC:82 \u00a77.3.3)."
+    }
+  ]
+}

@@ -238,6 +238,7 @@ def _norm(s: str) -> str:
 
 
 PIPELINE_TO_ATTAIN = {
+    # --- legacy pre-IRC pipeline labels (kept so old result files re-score) ---
     "Longitudinal Crack (D00)":  ["Linear crack"],
     "Transverse Crack (D10)":    ["Linear crack"],
     "Alligator Crack (D20)":     ["Alligator crack"],
@@ -246,6 +247,27 @@ PIPELINE_TO_ATTAIN = {
     "Inlaid Patch (D44)":        ["Patch and utility cut", "Patch"],
     "Raveling":                  ["Raveling"],
     "Weathering/Oxidation":      ["Weathering"],
+
+    # --- canonical IRC:82-2015 names (what the pipeline emits since 73e5863) ---
+    # WITHOUT these, two IRC labels fell through the fuzzy matcher and were
+    # silently DROPPED — scored as neither true positive nor false positive:
+    #   "Ravelling"      (IRC spells it with two Ls; the key above has one)
+    #   "Hungry Surface" (IRC's name for what Attain calls Weathering)
+    # That understated Tier 2 zero-shot accuracy for every IRC-era run: a model
+    # could name the right distress and score zero for it.
+    "Longitudinal Cracking":     ["Linear crack"],
+    "Transverse Cracking":       ["Linear crack"],
+    "Alligator Cracking":        ["Alligator crack"],
+    "Potholes":                  ["Pothole"],
+    "Ravelling":                 ["Raveling"],
+    "Hungry Surface":            ["Weathering"],
+    "Skin Patch":                ["Patch and utility cut", "Patch"],
+    # NOTE: Attain's "Block crack" is deliberately NOT reachable. The IRC:82
+    # taxonomy has no Block Cracking entry and canonicalize_to_irc() folds
+    # block crack into Alligator Cracking. Mapping Alligator Cracking back to
+    # Block crack would inflate both classes, so Block crack scores 0 by
+    # construction under the IRC taxonomy. That is a taxonomy-scope limitation
+    # to disclose, not a model failure to measure.
 }
 
 
