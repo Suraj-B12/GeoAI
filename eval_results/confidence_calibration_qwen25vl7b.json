@@ -1,0 +1,815 @@
+{
+  "model": "Qwen/Qwen2.5-VL-7B-Instruct",
+  "n_images_run": 40,
+  "n_with_stage2": 37,
+  "n_correct": 37,
+  "threshold": 0.8,
+  "seconds_total": 2802.7,
+  "seconds_per_image": 70.1,
+  "field_span_found_rate": 1.0,
+  "metrics": {
+    "field": {
+      "mean_correct": 0.8278,
+      "mean_wrong": null,
+      "separation": null,
+      "auc": NaN,
+      "auto_accepted": 27,
+      "auto_accepted_pct": 73.0,
+      "auto_accepted_wrong": 0,
+      "auto_accept_error_rate_pct": 0.0,
+      "sent_to_expert": 10
+    },
+    "sequence": {
+      "mean_correct": 0.7712,
+      "mean_wrong": null,
+      "separation": null,
+      "auc": NaN,
+      "auto_accepted": 4,
+      "auto_accepted_pct": 10.8,
+      "auto_accepted_wrong": 0,
+      "auto_accept_error_rate_pct": 0.0,
+      "sent_to_expert": 33
+    }
+  },
+  "per_image": [
+    {
+      "image": "Attain_SMP_WS_v2_000001.jpg",
+      "gt": [
+        "Alligator crack",
+        "Linear crack",
+        "Weathering"
+      ],
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "correct": true,
+      "field": 0.8663,
+      "sequence": 0.777,
+      "field_span_found": true,
+      "stage1_confidence": 0.7216
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000002.jpg",
+      "gt": [
+        "Alligator crack",
+        "Linear crack",
+        "Weathering"
+      ],
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Alligator Cracking"
+      ],
+      "pred_attain": [
+        "Alligator crack",
+        "Linear crack"
+      ],
+      "correct": true,
+      "field": 0.818,
+      "sequence": 0.7717,
+      "field_span_found": true,
+      "stage1_confidence": 0.7216
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000003.jpg",
+      "gt": [
+        "Block crack",
+        "Linear crack",
+        "Raveling",
+        "Weathering"
+      ],
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "correct": true,
+      "field": 0.8984,
+      "sequence": 0.7671,
+      "field_span_found": true,
+      "stage1_confidence": 0.7216
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000004.jpg",
+      "gt": [
+        "Block crack",
+        "Linear crack",
+        "Raveling",
+        "Weathering"
+      ],
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "correct": true,
+      "field": 0.8568,
+      "sequence": 0.7586,
+      "field_span_found": true,
+      "stage1_confidence": 0.8067
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000005.jpg",
+      "gt": [
+        "Block crack",
+        "Linear crack",
+        "Raveling",
+        "Weathering"
+      ],
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "correct": true,
+      "field": 0.871,
+      "sequence": 0.765,
+      "field_span_found": true,
+      "stage1_confidence": 0.7216
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000006.jpg",
+      "gt": [
+        "Block crack",
+        "Linear crack",
+        "Raveling",
+        "Weathering"
+      ],
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "correct": true,
+      "field": 0.8694,
+      "sequence": 0.7612,
+      "field_span_found": true,
+      "stage1_confidence": 0.7449
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000007.jpg",
+      "gt": [
+        "Alligator crack",
+        "Block crack",
+        "Linear crack",
+        "Pothole",
+        "Weathering"
+      ],
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "correct": true,
+      "field": 0.84,
+      "sequence": 0.763,
+      "field_span_found": true,
+      "stage1_confidence": 0.9321
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000008.jpg",
+      "gt": [
+        "Alligator crack",
+        "Block crack",
+        "Linear crack",
+        "Pothole",
+        "Weathering"
+      ],
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Pothole"
+      ],
+      "correct": true,
+      "field": 0.7791,
+      "sequence": 0.7915,
+      "field_span_found": true,
+      "stage1_confidence": 0.8564
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000009.jpg",
+      "gt": [
+        "Alligator crack",
+        "Block crack",
+        "Linear crack",
+        "Pothole",
+        "Weathering"
+      ],
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "correct": true,
+      "field": 0.8329,
+      "sequence": 0.7687,
+      "field_span_found": true,
+      "stage1_confidence": 0.9057
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000010.jpg",
+      "gt": [
+        "Alligator crack",
+        "Block crack",
+        "Linear crack",
+        "Pothole",
+        "Weathering"
+      ],
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "correct": true,
+      "field": 0.8854,
+      "sequence": 0.7726,
+      "field_span_found": true,
+      "stage1_confidence": 0.8246
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000011.jpg",
+      "gt": [
+        "Alligator crack",
+        "Linear crack",
+        "Weathering"
+      ],
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "correct": true,
+      "field": 0.8687,
+      "sequence": 0.7626,
+      "field_span_found": true,
+      "stage1_confidence": 0.8411
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000012.jpg",
+      "gt": [
+        "Alligator crack",
+        "Linear crack",
+        "Weathering"
+      ],
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "correct": true,
+      "field": 0.853,
+      "sequence": 0.7742,
+      "field_span_found": true,
+      "stage1_confidence": 0.9057
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000013.jpg",
+      "gt": [
+        "Alligator crack",
+        "Linear crack",
+        "Weathering"
+      ],
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "correct": true,
+      "field": 0.8589,
+      "sequence": 0.7532,
+      "field_span_found": true,
+      "stage1_confidence": 0.8564
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000014.jpg",
+      "gt": [
+        "Alligator crack",
+        "Linear crack",
+        "Weathering"
+      ],
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "correct": true,
+      "field": 0.8769,
+      "sequence": 0.7623,
+      "field_span_found": true,
+      "stage1_confidence": 0.7874
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000015.jpg",
+      "gt": [
+        "Alligator crack",
+        "Linear crack",
+        "Weathering"
+      ],
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "correct": true,
+      "field": 0.8599,
+      "sequence": 0.7523,
+      "field_span_found": true,
+      "stage1_confidence": 0.8246
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000016.jpg",
+      "gt": [
+        "Alligator crack",
+        "Linear crack",
+        "Weathering"
+      ],
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "correct": true,
+      "field": 0.8828,
+      "sequence": 0.765,
+      "field_span_found": true,
+      "stage1_confidence": 0.8833
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000017.jpg",
+      "gt": [
+        "Linear crack",
+        "Pothole",
+        "Weathering"
+      ],
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "correct": true,
+      "field": 0.8145,
+      "sequence": 0.7469,
+      "field_span_found": true,
+      "stage1_confidence": 0.7668
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000018.jpg",
+      "gt": [
+        "Linear crack",
+        "Pothole",
+        "Weathering"
+      ],
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Pothole"
+      ],
+      "correct": true,
+      "field": 0.735,
+      "sequence": 0.7663,
+      "field_span_found": true,
+      "stage1_confidence": 0.7874
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000019.jpg",
+      "gt": [
+        "Linear crack",
+        "Pothole",
+        "Weathering"
+      ],
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "correct": true,
+      "field": 0.8233,
+      "sequence": 0.747,
+      "field_span_found": true,
+      "stage1_confidence": 0.7449
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000020.jpg",
+      "gt": [
+        "Linear crack",
+        "Pothole",
+        "Weathering"
+      ],
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "correct": true,
+      "field": 0.8682,
+      "sequence": 0.7901,
+      "field_span_found": true,
+      "stage1_confidence": 0.9392
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000021.jpg",
+      "gt": [
+        "Linear crack",
+        "Pothole",
+        "Weathering"
+      ],
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "correct": true,
+      "field": 0.8086,
+      "sequence": 0.758,
+      "field_span_found": true,
+      "stage1_confidence": 0.8411
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000022.jpg",
+      "gt": [
+        "Linear crack",
+        "Pothole",
+        "Weathering"
+      ],
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "correct": true,
+      "field": 0.8395,
+      "sequence": 0.7489,
+      "field_span_found": true,
+      "stage1_confidence": 0.8564
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000023.jpg",
+      "gt": [
+        "Alligator crack",
+        "Linear crack",
+        "Weathering"
+      ],
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Pothole"
+      ],
+      "correct": true,
+      "field": 0.7884,
+      "sequence": 0.795,
+      "field_span_found": true,
+      "stage1_confidence": 0.8833
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000024.jpg",
+      "gt": [
+        "Alligator crack",
+        "Linear crack",
+        "Weathering"
+      ],
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "correct": true,
+      "field": 0.8425,
+      "sequence": 0.7642,
+      "field_span_found": true,
+      "stage1_confidence": 0.895
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000025.jpg",
+      "gt": [
+        "Alligator crack",
+        "Linear crack",
+        "Weathering"
+      ],
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Pothole"
+      ],
+      "correct": true,
+      "field": 0.7867,
+      "sequence": 0.7593,
+      "field_span_found": true,
+      "stage1_confidence": 0.8704
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000026.jpg",
+      "gt": [
+        "Alligator crack",
+        "Linear crack",
+        "Weathering"
+      ],
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Pothole"
+      ],
+      "correct": true,
+      "field": 0.8346,
+      "sequence": 0.8069,
+      "field_span_found": true,
+      "stage1_confidence": 0.9057
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000027.jpg",
+      "gt": [
+        "Linear crack",
+        "Pothole",
+        "Weathering"
+      ],
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Pothole"
+      ],
+      "correct": true,
+      "field": 0.7708,
+      "sequence": 0.7764,
+      "field_span_found": true,
+      "stage1_confidence": 0.8564
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000028.jpg",
+      "gt": [
+        "Linear crack",
+        "Pothole",
+        "Weathering"
+      ],
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Alligator Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Alligator crack",
+        "Linear crack",
+        "Pothole"
+      ],
+      "correct": true,
+      "field": 0.8089,
+      "sequence": 0.7632,
+      "field_span_found": true,
+      "stage1_confidence": 0.9057
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000029.jpg",
+      "gt": [
+        "Linear crack",
+        "Pothole",
+        "Weathering"
+      ],
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "correct": true,
+      "field": 0.841,
+      "sequence": 0.7582,
+      "field_span_found": true,
+      "stage1_confidence": 0.8704
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000030.jpg",
+      "gt": [
+        "Linear crack",
+        "Pothole",
+        "Weathering"
+      ],
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Pothole"
+      ],
+      "correct": true,
+      "field": 0.7986,
+      "sequence": 0.7967,
+      "field_span_found": true,
+      "stage1_confidence": 0.8564
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000031.jpg",
+      "gt": [
+        "Linear crack",
+        "Patch and utility cut- Low",
+        "Pothole",
+        "Weathering"
+      ],
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Pothole"
+      ],
+      "correct": true,
+      "field": 0.7995,
+      "sequence": 0.7694,
+      "field_span_found": true,
+      "stage1_confidence": 0.8246
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000032.jpg",
+      "gt": [
+        "Linear crack",
+        "Patch and utility cut- Low",
+        "Pothole",
+        "Weathering"
+      ],
+      "pred_pipeline": [
+        "Potholes",
+        "Longitudinal Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Pothole"
+      ],
+      "correct": true,
+      "field": 0.7659,
+      "sequence": 0.7531,
+      "field_span_found": true,
+      "stage1_confidence": 0.9057
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000033.jpg",
+      "gt": [
+        "Linear crack",
+        "Patch and utility cut- Low",
+        "Pothole",
+        "Weathering"
+      ],
+      "pred_pipeline": [
+        "Potholes",
+        "Longitudinal Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Pothole"
+      ],
+      "correct": true,
+      "field": 0.7676,
+      "sequence": 0.7823,
+      "field_span_found": true,
+      "stage1_confidence": 0.8704
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000034.jpg",
+      "gt": [
+        "Linear crack",
+        "Patch and utility cut- Low",
+        "Pothole",
+        "Weathering"
+      ],
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Bleeding"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "correct": true,
+      "field": 0.8042,
+      "sequence": 0.8256,
+      "field_span_found": true,
+      "stage1_confidence": 0.6446
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000035.jpg",
+      "gt": [
+        "Alligator crack",
+        "Linear crack",
+        "Patch and utility cut- Low",
+        "Weathering"
+      ],
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Pothole"
+      ],
+      "correct": true,
+      "field": 0.8432,
+      "sequence": 0.814,
+      "field_span_found": true,
+      "stage1_confidence": 0.8833
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000036.jpg",
+      "gt": [
+        "Alligator crack",
+        "Linear crack",
+        "Patch and utility cut- Low",
+        "Weathering"
+      ],
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Potholes"
+      ],
+      "pred_attain": [
+        "Linear crack",
+        "Pothole"
+      ],
+      "correct": true,
+      "field": 0.8494,
+      "sequence": 0.8178,
+      "field_span_found": true,
+      "stage1_confidence": 0.895
+    },
+    {
+      "image": "Attain_SMP_WS_v2_000038.jpg",
+      "gt": [
+        "Linear crack",
+        "Weathering"
+      ],
+      "pred_pipeline": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "pred_attain": [
+        "Linear crack"
+      ],
+      "correct": true,
+      "field": 0.7191,
+      "sequence": 0.7292,
+      "field_span_found": true,
+      "stage1_confidence": 0.5297
+    }
+  ]
+}
