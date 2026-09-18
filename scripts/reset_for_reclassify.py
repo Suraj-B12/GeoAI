@@ -73,13 +73,18 @@ def main():
     parser.add_argument("--include-pending", action="store_true",
                         help="Also reset rows currently in 'pending' status "
                              "(useful if a previous run touched them mid-stream)")
+    parser.add_argument("--include-expert-reviewed", action="store_true",
+                        help="Also re-queue rows an expert has already reviewed. "
+                             "OFF by default: an expert correction is ground "
+                             "truth for Phase 3 retraining, and re-queueing it "
+                             "lets the model overwrite the status a human set.")
     args = parser.parse_args()
 
     base, key = load_key()
 
     # 1. Inspect current state
     print("Fetching current row counts...")
-    rows = request_json(f"{base}/rest/v1/assessments?select=id,status", key)
+    rows = request_json(f"{base}/rest/v1/assessments?select=id,status,expert_reviewed", key)
     counts = Counter(r.get("status", "unknown") for r in rows)
     print(f"Total rows: {len(rows)}")
     for s, n in counts.most_common():
@@ -90,10 +95,21 @@ def main():
     if args.include_pending:
         target_statuses.add("pending")
     targets = [r for r in rows if r.get("status") in target_statuses]
+    n_reviewed = sum(1 for r in targets if r.get("expert_reviewed"))
+    if not args.include_expert_reviewed:
+        targets = [r for r in targets if not r.get("expert_reviewed")]
     n_target = len(targets)
     print()
     print(f"Will reset {n_target} rows in statuses: {sorted(target_statuses)}")
     print(f"  (skipping {sum(1 for r in rows if r.get('status') == 'processing')} in-flight)")
+    if n_reviewed:
+        if args.include_expert_reviewed:
+            print(f"  WARNING: {n_reviewed} expert-reviewed rows ARE included "
+                  f"(--include-expert-reviewed) - the worker will overwrite the "
+                  f"status a human set")
+        else:
+            print(f"  (protecting {n_reviewed} expert-reviewed rows - pass "
+                  f"--include-expert-reviewed to re-queue them too)")
 
     if not args.apply:
         print()

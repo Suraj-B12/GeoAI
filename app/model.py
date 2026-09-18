@@ -20,6 +20,7 @@ import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from scripts import confidence as _conf
 from scripts.model_loader import load_vlm
 from scripts.utils import (
     CONFIDENCE_THRESHOLD,
@@ -57,29 +58,71 @@ print(f"[PavementClassifier] Active prompt set: {_ACTIVE_PROMPTS}")
 
 # Stage 2 confidence metric
 # =========================
-# 'sequence' (default) = geometric mean over EVERY generated token, including
-#     the free-text DESCRIPTION. This is the metric all existing results and
-#     the 0.80 review threshold were calibrated against, so it stays the
-#     default — switching it silently would change how many images get routed
-#     to expert review, which is a data-quality decision, not a code decision.
-# 'field'    = geometric mean over the DISTRESS_TYPES value tokens only. Better
-#     aligned with what the confidence is supposed to mean (how sure is the
-#     model about the CLASSIFICATION), but it produces systematically higher
-#     numbers, so the threshold must be re-calibrated on real data before it
-#     becomes the default.
-# Both values are computed and returned on every call regardless of this
-# setting — see predict_stage2().
+# 'field' (default since 2026-09-17) = geometric mean over the DISTRESS_TYPES
+#     value tokens only. This is what the confidence is supposed to mean: how
+#     sure is the model about the CLASSIFICATION.
+# 'sequence' = geometric mean over EVERY generated token, including the
+#     free-text DESCRIPTION. Kept selectable so the pre-2026-09-17 results
+#     stay reproducible, but it should not be used as a gate.
+#
+# Why the default moved (scripts/calibrate_confidence.py, n=37 Attain images,
+# eval_results/confidence_calibration_qwen25vl7b.json):
+#
+#       metric    mean(correct)  mean(wrong)   AUC     auto-accept @0.80
+#       field        0.8295        0.8185     0.613        27/37
+#       sequence     0.7670        0.7927     0.231         4/37
+#
+# AUC 0.5 means the score carries no information. 'sequence' scored 0.231 —
+# it ranked WRONG predictions ABOVE right ones, because the geomean was
+# dominated by free-text prose where a confidently-worded mistake reads as
+# high probability and a hedged correct answer reads as low. A gate built on
+# an inverted signal is worse than no gate: it sends good predictions to the
+# expert and waves bad ones through. 'field' is only weakly positive (0.613),
+# but it is on the correct side of 0.5.
+#
+# Both values are computed and returned on EVERY call regardless of this
+# setting, and the worker writes both into raw_response — so the threshold
+# can be re-calibrated from real expert corrections without re-running
+# inference, and switching modes never loses the other number.
 # Stage 1 generation budget. The answer is one word; 12 tokens leaves room for
 # a stray "Distress." or a short preamble while keeping the step count low.
 # Override via env if a future model needs more headroom.
 STAGE1_MAX_NEW_TOKENS = int(os.environ.get("STAGE1_MAX_NEW_TOKENS", "12"))
 
-STAGE2_CONFIDENCE_MODE = os.environ.get("STAGE2_CONFIDENCE_MODE", "sequence").lower()
+STAGE2_CONFIDENCE_MODE = os.environ.get("STAGE2_CONFIDENCE_MODE", "field").lower()
 if STAGE2_CONFIDENCE_MODE not in ("sequence", "field"):
     print(f"[PavementClassifier] WARNING: unknown STAGE2_CONFIDENCE_MODE "
-          f"{STAGE2_CONFIDENCE_MODE!r} — falling back to 'sequence'")
-    STAGE2_CONFIDENCE_MODE = "sequence"
+          f"{STAGE2_CONFIDENCE_MODE!r} — falling back to 'field'")
+    STAGE2_CONFIDENCE_MODE = "field"
 print(f"[PavementClassifier] Stage 2 confidence mode: {STAGE2_CONFIDENCE_MODE}")
+
+# Sentinel for PavementClassifier.reload(): distinguishes "adapter argument was
+# not supplied" from "adapter explicitly set to None (run the base model)".
+_UNCHANGED = object()
+
+# Weight storage formats the loader supports. Quantization changes WHAT IS
+# STORED, not what is computed: bnb_4bit_compute_dtype is bfloat16, so every
+# matmul dequantizes back to bf16 first. Activations, attention, the KV cache
+# and the logits we read confidence from are bf16 in all three modes.
+QUANTIZATION_LABELS = {
+    0: "bf16 (no quantization)",
+    4: "4-bit NF4",
+    8: "8-bit int8",
+}
+
+QUANTIZATION_OPTIONS = [
+    {"bits": 0, "label": QUANTIZATION_LABELS[0], "weights_gb": 16.6,
+     "note": "Highest fidelity, 16 bits per weight. Leaves roughly 7 GB of "
+             "headroom on a 24 GB card, which is tight for 1728px phone "
+             "photos - large images can push the allocator into spilling."},
+    {"bits": 4, "label": QUANTIZATION_LABELS[4], "weights_gb": 4.3,
+     "note": "Production default. NF4 levels sit at the quantiles of a normal "
+             "distribution, block-wise over 64 weights, with the block scales "
+             "themselves quantized. About 4.13 bits per weight effective."},
+    {"bits": 8, "label": QUANTIZATION_LABELS[8], "weights_gb": 8.6,
+     "note": "Middle ground. Rarely the right pick: int8 has neither bf16 "
+             "fidelity nor the compactness of NF4."},
+]
 
 
 class PavementClassifier:
@@ -119,41 +162,80 @@ class PavementClassifier:
 
         self._load_model(quantization_bits)
 
-    def reload_adapter(self, new_adapter_path: str | None) -> dict:
-        """Hot-swap the LoRA adapter without restarting the server.
+    def reload(
+        self,
+        quantization_bits: int | None = None,
+        adapter_path=_UNCHANGED,
+    ) -> dict:
+        """Rebuild the model in place with a different precision and/or adapter.
 
-        Tears down the current model entirely (PeftModel + base model)
-        and rebuilds from scratch with the new adapter. Safer than
-        peft's set_adapter()/load_adapter() which has edge cases on
-        4-bit quantized bases (peft #2586 territory). Takes ~30s.
+        Tears the current model down entirely and reloads from scratch. This is
+        deliberately heavier than the peft set_adapter()/load_adapter() path,
+        which has edge cases on 4-bit quantized bases (peft #2586 territory),
+        and it is the ONLY correct way to change quantization: the weight
+        storage format is fixed at load time and cannot be converted in place.
 
-        new_adapter_path:
-            - None or "" -> base model only (no adapter)
-            - path to dir with adapter_config.json -> load that adapter
+        Takes ~30-60s. The lock serialises against predict_*, so an in-flight
+        image blocks the swap rather than corrupting it — but the worker should
+        be stopped first so nothing sits waiting on a 60s reload mid-batch.
 
-        Returns: {"adapter_path": str|None, "device": str, "loaded_at": iso}
+        quantization_bits:
+            None -> keep the current setting
+            0    -> bf16, no quantization (~16.6 GB for a 7B, best fidelity)
+            4    -> NF4 + double quant (~4.3 GB, production default)
+            8    -> int8 (~8.6 GB)
+        adapter_path:
+            omitted -> keep the current adapter
+            None or "" -> base model only
+            str     -> directory containing adapter_config.json
+
+        Everything is validated BEFORE the working model is torn down, and a
+        failed load restores the previous configuration, so a bad argument can
+        never leave the process with no model at all.
+
+        Returns the runtime descriptor (see runtime_info()).
         """
         from datetime import datetime, timezone
 
-        new_adapter_path = new_adapter_path or None
-        if new_adapter_path is not None:
-            # Validate the directory has the right files BEFORE tearing
-            # down the working model. A bad path here would otherwise leave
-            # us with no model loaded.
-            from pathlib import Path
-            p = Path(new_adapter_path)
-            if not p.is_dir():
-                raise ValueError(f"adapter path is not a directory: {new_adapter_path}")
-            if not (p / "adapter_config.json").exists():
-                raise ValueError(
-                    f"adapter path missing adapter_config.json: {new_adapter_path}"
-                )
+        # ---- validate first, mutate nothing ----
+        if quantization_bits is None:
+            quantization_bits = self.quantization_bits
+        if quantization_bits not in (0, 4, 8):
+            raise ValueError(
+                f"quantization_bits must be 0 (bf16), 4 or 8 - got {quantization_bits!r}"
+            )
+
+        if adapter_path is _UNCHANGED:
+            new_adapter_path = self.adapter_path
+        else:
+            new_adapter_path = adapter_path or None
+            if new_adapter_path is not None:
+                from pathlib import Path
+                ap = Path(new_adapter_path)
+                if not ap.is_dir():
+                    raise ValueError(f"adapter path is not a directory: {new_adapter_path}")
+                if not (ap / "adapter_config.json").exists():
+                    raise ValueError(
+                        f"adapter path missing adapter_config.json: {new_adapter_path}"
+                    )
+
+        prev_bits, prev_adapter = self.quantization_bits, self.adapter_path
+        if (quantization_bits == prev_bits
+                and new_adapter_path == prev_adapter
+                and self._loaded):
+            # Nothing to do. Reloading anyway costs a minute of GPU time and
+            # drops the worker for no reason.
+            info = self.runtime_info()
+            info["reloaded"] = False
+            info["reason"] = "already running this configuration"
+            return info
 
         with self._lock:
-            print(f"[PavementClassifier] Hot-swap adapter: {self.adapter_path!r} -> {new_adapter_path!r}")
+            print(f"[PavementClassifier] Reload: quantization {prev_bits} -> "
+                  f"{quantization_bits}, adapter {prev_adapter!r} -> {new_adapter_path!r}")
 
-            # Free the old model BEFORE loading the new one — otherwise we
-            # need 2x VRAM for the swap moment. Drop refs + empty cache.
+            # Free the old model BEFORE loading the new one - otherwise we need
+            # 2x VRAM for the swap moment. Drop refs + empty cache.
             self._model = None
             self._processor = None
             self._loaded = False
@@ -166,12 +248,72 @@ class PavementClassifier:
                 pass
 
             self.adapter_path = new_adapter_path
-            self._load_model(self.quantization_bits)
+            self.quantization_bits = quantization_bits
+            try:
+                self._load_model(quantization_bits)
+            except Exception:
+                # The requested configuration did not load. Restore the one
+                # that was working so the API does not come back with a dead
+                # model, then re-raise so the operator sees the real error.
+                print(f"[PavementClassifier] Reload FAILED at {quantization_bits}-bit - "
+                      f"restoring previous configuration ({prev_bits}-bit)")
+                self.adapter_path = prev_adapter
+                self.quantization_bits = prev_bits
+                self._load_model(prev_bits)
+                raise
 
+        info = self.runtime_info()
+        info["reloaded"] = True
+        info["previous"] = {"quantization_bits": prev_bits, "adapter_path": prev_adapter}
+        info["loaded_at"] = datetime.now(timezone.utc).isoformat()
+        return info
+
+    def reload_adapter(self, new_adapter_path: str | None) -> dict:
+        """Backwards-compatible wrapper: swap the adapter, keep the precision.
+
+        Kept because /operator/adapters/switch and its dashboard control have
+        already shipped against this signature.
+        """
+        return self.reload(quantization_bits=None, adapter_path=new_adapter_path)
+
+    def runtime_info(self) -> dict:
+        """Everything an operator needs to know about what is loaded right now.
+
+        `quantization_bits` is the REQUESTED setting; `quantization_effective`
+        is what the loader actually ended up with, which differs when the OOM
+        fallback ladder fires. The dashboard shows both so a silent downgrade
+        is visible rather than hidden.
+        """
+        info = dict(self._load_info)
+        vram = {}
+        try:
+            if torch.cuda.is_available():
+                free_b, total_b = torch.cuda.mem_get_info()
+                vram = {
+                    "total_gb": round(total_b / 1024 ** 3, 2),
+                    "free_gb": round(free_b / 1024 ** 3, 2),
+                    "used_gb": round((total_b - free_b) / 1024 ** 3, 2),
+                    "gpu_name": torch.cuda.get_device_name(0),
+                }
+        except Exception:
+            pass
         return {
+            "model_path": self.model_path,
             "adapter_path": self.adapter_path,
+            "quantization_bits": self.quantization_bits,
+            "quantization_label": QUANTIZATION_LABELS.get(
+                self.quantization_bits, f"{self.quantization_bits}-bit"),
+            "quantization_effective": info.get("quantization_bits", self.quantization_bits),
+            "oom_fallback_used": info.get("oom_fallback_used", False),
+            "model_family": info.get("model_type", "unknown"),
+            "model_class": info.get("model_class", "unknown"),
+            "max_image_pixels": info.get("max_pixels", 0),
+            "stage2_confidence_mode": STAGE2_CONFIDENCE_MODE,
+            "prompts_version": _ACTIVE_PROMPTS,
             "device": self._device,
-            "loaded_at": datetime.now(timezone.utc).isoformat(),
+            "is_loaded": self._loaded,
+            "vram": vram,
+            "options": QUANTIZATION_OPTIONS,
         }
 
     def _load_model(self, quantization_bits: int) -> None:
@@ -320,118 +462,56 @@ class PavementClassifier:
 
         return round(confidence, 4)
 
-    def _token_log_probs(self, scores: tuple, generated_ids: torch.Tensor) -> list[float]:
-        """Per-token log-probability of the token the model actually generated.
+    # ------------------------------------------------------------------
+    # Stage 2 confidence
+    # ------------------------------------------------------------------
+    # The maths lives in scripts/confidence.py so that production and the
+    # offline evaluation scripts cannot drift apart. These methods stay as
+    # thin delegates because scripts/validate_all.py asserts their presence
+    # here, and because the call sites read better with them.
 
-        Index i of the returned list corresponds to generated token i, so it
-        can be sliced by a token span. Non-finite values and special tokens
-        become None so slicing stays aligned with the token sequence.
-        """
-        out: list[float] = []
-        num_tokens = min(len(scores), generated_ids.shape[0])
-        for i in range(num_tokens):
-            token_id = generated_ids[i].item()
-            if token_id <= 0:  # special / padding
-                out.append(None)
-                continue
-            log_prob = torch.log_softmax(scores[i][0].float(), dim=0)[token_id].item()
-            out.append(log_prob if math.isfinite(log_prob) else None)
-        return out
+    def _token_log_probs(self, scores: tuple, generated_ids: torch.Tensor) -> list:
+        """Per-token log-probability of each generated token. See confidence.py."""
+        return _conf.token_log_probs(scores, generated_ids)
 
     @staticmethod
-    def _geomean(log_probs: list[float]) -> float:
-        """Geometric mean of probabilities = exp(mean(log p_i)). 0.0 if empty."""
-        vals = [lp for lp in log_probs if lp is not None]
-        if not vals:
-            return 0.0
-        return round(max(0.0, min(1.0, math.exp(sum(vals) / len(vals)))), 4)
+    def _geomean(log_probs: list) -> float:
+        """Geometric mean of probabilities = exp(mean(log p_i))."""
+        return _conf.geomean(log_probs)
 
-    def _compute_sequence_confidence(self, scores: tuple, generated_ids: torch.Tensor) -> float:
+    def _compute_stage2_sequence(self, scores, generated_ids) -> float:
+        return _conf.sequence_confidence(scores, generated_ids)
+
+    def _compute_sequence_confidence(self, scores: tuple,
+                                     generated_ids: torch.Tensor) -> float:
+        """Geometric mean over EVERY generated token (legacy Stage 2 metric).
+
+        Includes the free-text DESCRIPTION, which is high-entropy prose; this
+        is why it was measured anti-correlated with correctness. Retained for
+        continuity and for the paper comparison table, not used as the gate.
         """
-        Sequence-level confidence: geometric mean over EVERY generated token.
+        return _conf.sequence_confidence(scores, generated_ids)
 
-        Equivalent to exp(mean(log(p_i))). This is the legacy Stage 2 metric.
-        Note it includes the free-text DESCRIPTION sentence, which is
-        inherently high-entropy (many phrasings are equally valid), so it
-        systematically understates confidence in the actual classification.
-        Kept for continuity and for the paper's comparison table.
+    def _find_field_token_span(self, generated_ids: torch.Tensor,
+                               field: str = "DISTRESS_TYPES"):
+        """Token span covering the VALUE of a structured output field.
 
-        No inflation, no manipulation — pure model probability.
+        None when absent or under two tokens; the caller then falls back to
+        whole-sequence confidence rather than trusting a one-token estimate.
         """
-        if not scores or len(scores) == 0:
-            return 0.0
-        return self._geomean(self._token_log_probs(scores, generated_ids))
+        return _conf.find_field_token_span(
+            self._processor.tokenizer, generated_ids, field)
 
-    def _find_field_token_span(
-        self, generated_ids: torch.Tensor, field: str = "DISTRESS_TYPES"
-    ) -> tuple[int, int] | None:
+    def _compute_field_confidence(self, scores: tuple, generated_ids: torch.Tensor,
+                                  field: str = "DISTRESS_TYPES") -> tuple:
+        """Confidence over the classification tokens only.
+
+        Returns (confidence, used_field_span); on a failed span lookup the
+        whole-sequence value comes back with used_field_span=False so the
+        fallback is recorded rather than silent.
         """
-        Locate the token span covering the VALUE of a structured output field.
-
-        Decodes cumulative prefixes to build a token -> character offset map,
-        finds `FIELD:` in the decoded text, and returns the [start, end) token
-        indices covering the text from after the colon to the end of that line.
-
-        Returns None when the field is absent or the span is too short to be a
-        meaningful estimate — the caller then falls back to whole-sequence
-        confidence rather than reporting a number computed from 1 token.
-        """
-        tokenizer = self._processor.tokenizer
-        ids = generated_ids.tolist()
-        if not ids:
-            return None
-
-        # Cumulative prefix decode gives an exact char offset per token
-        # boundary, which token-by-token decoding does not (byte-level BPE
-        # merges split multi-byte characters across tokens).
-        offsets: list[int] = []
-        for i in range(len(ids)):
-            offsets.append(len(tokenizer.decode(ids[: i + 1], skip_special_tokens=True)))
-        full_text = tokenizer.decode(ids, skip_special_tokens=True)
-
-        marker_pos = full_text.upper().find(f"{field}:")
-        if marker_pos == -1:
-            return None
-        value_start = marker_pos + len(field) + 1
-        line_end = full_text.find("\n", value_start)
-        if line_end == -1:
-            line_end = len(full_text)
-        if line_end <= value_start:
-            return None
-
-        # Map char range -> token range. A token belongs to the span if its
-        # end offset lands inside (value_start, line_end].
-        start_tok, end_tok = None, None
-        for i, end_off in enumerate(offsets):
-            if start_tok is None and end_off > value_start:
-                start_tok = i
-            if end_off <= line_end:
-                end_tok = i + 1
-        if start_tok is None or end_tok is None or end_tok <= start_tok:
-            return None
-        # Fewer than 2 tokens is too thin an estimate to trust.
-        if end_tok - start_tok < 2:
-            return None
-        return start_tok, end_tok
-
-    def _compute_field_confidence(
-        self, scores: tuple, generated_ids: torch.Tensor, field: str = "DISTRESS_TYPES"
-    ) -> tuple[float, bool]:
-        """
-        Confidence restricted to the tokens that carry the classification.
-
-        Returns (confidence, used_field_span). When the span cannot be located
-        the whole-sequence value is returned with used_field_span=False, so the
-        caller always gets a usable number and can record which path was taken.
-        """
-        if not scores or len(scores) == 0:
-            return 0.0, False
-        log_probs = self._token_log_probs(scores, generated_ids)
-        span = self._find_field_token_span(generated_ids, field)
-        if span is None:
-            return self._geomean(log_probs), False
-        start, end = span
-        return self._geomean(log_probs[start:end]), True
+        return _conf.field_confidence(
+            self._processor.tokenizer, scores, generated_ids, field)
 
     def predict_is_pavement(self, image: Image.Image) -> dict:
         """

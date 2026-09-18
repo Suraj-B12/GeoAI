@@ -33,6 +33,10 @@ data/*.json
 data/*.csv
 
 # In-flight eval checkpoints (and their .bak fallback files)
+# Resume state for long runs, rewritten after every image - scratch, not results.
+# The finished report next to them (same name without _checkpoint) is committed.
+eval_results/*_checkpoint.json
+eval_results/*_checkpoint.json.bak
 eval_results/.stage*_checkpoint*.json
 eval_results/.stage*_checkpoint*.json.bak
 eval_results/.stage*_checkpoint*.tmp

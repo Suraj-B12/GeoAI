@@ -65,6 +65,10 @@ except Exception as e:
     check("schemas.py", False, str(e))
 
 # ---- TEST 3: model.py structure ----
+# Stage 1 confidence maths stays inline here (it is a two-token softmax tied to
+# the cached class token IDs). Stage 2 confidence moved to scripts/confidence.py
+# so production and the eval scripts share one implementation - test 3c asserts
+# that module still does the real logit work.
 try:
     code = open("app/model.py", encoding="utf-8").read()
     patterns = [
@@ -72,14 +76,40 @@ try:
         "_compute_stage1_confidence", "_compute_sequence_confidence",
         "_compute_field_confidence",  # field-restricted Stage 2 confidence
         "_find_field_token_span",
-        "needs_expert_review", "torch.softmax", "torch.log_softmax",
+        "needs_expert_review", "torch.softmax",
         "_normal_token_ids", "_distress_token_ids",
         "predict_is_pavement",  # Stage 0 pre-filter
+        "scripts import confidence",  # Stage 2 maths is delegated, not copied
     ]
     missing = [p for p in patterns if p not in code]
     check("model.py structure", len(missing) == 0, f"Missing: {missing}")
 except Exception as e:
     check("model.py structure", False, str(e))
+
+# ---- TEST 3c: confidence.py is the single source of the Stage 2 maths ----
+# If this module ever stops computing from real logits, or app/model.py grows
+# its own copy again, every confidence number in the paper becomes suspect.
+try:
+    code = open("scripts/confidence.py", encoding="utf-8").read()
+    patterns = [
+        "torch.log_softmax",        # real per-token log-probabilities
+        "def token_log_probs",
+        "def geomean",
+        "def sequence_confidence",
+        "def field_confidence",
+        "def find_field_token_span",
+        "def both_confidences",     # callers must be able to record both
+    ]
+    missing = [p for p in patterns if p not in code]
+    model_code = open("app/model.py", encoding="utf-8").read()
+    # A second implementation in model.py would silently diverge from this one.
+    duplicated = "torch.log_softmax" in model_code
+    check("confidence.py single source",
+          len(missing) == 0 and not duplicated,
+          f"Missing: {missing}" + ("; log_softmax duplicated in app/model.py"
+                                   if duplicated else ""))
+except Exception as e:
+    check("confidence.py single source", False, str(e))
 
 # ---- TEST 3b: model_loader.py guardrails ----
 # These guardrails used to live inline in app/model.py. They now live in the

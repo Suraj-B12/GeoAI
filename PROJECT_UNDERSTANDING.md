@@ -72,10 +72,36 @@ methods separately so the dashboard can render live per-stage progress.
 ### Confidence is real, not heuristic
 - **Stage 1** — softmax over the *first sub-token* logits of "Normal" vs "Distress" only (token
   IDs cached at load). Falls back to full-vocab max-prob if the model emits something else first.
-- **Stage 2** — geometric mean of per-token probabilities, `exp(mean(log p_i))` across all
-  generated tokens. Long structured answers therefore cap around ~0.75, which is *why* a large
-  share of real Bengaluru photos land in expert review.
+- **Stage 2** — geometric mean of per-token probabilities, `exp(mean(log p_i))`, restricted since
+  2026-09-17 to the tokens of the `DISTRESS_TYPES:` value (`STAGE2_CONFIDENCE_MODE=field`).
+  The old whole-sequence variant spanned the free-text DESCRIPTION, which capped long answers
+  around ~0.75 and — worse — was measured *anti-correlated* with correctness (AUC 0.231 vs 0.613
+  field-restricted, n=37). It is still computed and stored on every row, but no longer gates.
+  When the field span cannot be located the whole-sequence value is returned and
+  `stage2_field_span_found=false` records that it happened.
 - `CONFIDENCE_THRESHOLD = 0.80` is defined exactly once, in `scripts/utils.py`.
+
+### Runtime precision switching (2026-09-18)
+
+Quantization cannot be changed in place - the weight storage format is fixed when
+the tensors are built - so switching means a full teardown and reload (~30-60s).
+`PavementClassifier.reload(quantization_bits, adapter_path)` owns that, validating
+every argument before the working model is dropped and restoring the previous
+configuration if the new one fails to load. `reload_adapter()` is now a thin
+wrapper over it.
+
+`POST /operator/runtime/quantization` wraps the reload in the orchestration the
+operator would otherwise have to do by hand: serialise against concurrent
+reloads, drain and stop the worker, reload, restart the worker - on every path
+including failures, so a rejected request cannot leave the pipeline stopped.
+The operator dashboard exposes this as a "Model Precision" panel.
+
+Compute dtype stays bf16 in every mode (`bnb_4bit_compute_dtype=torch.bfloat16`),
+so activations, attention, the KV cache and the logits that confidence is read
+from are unaffected by the choice. Only weight storage changes.
+
+Orchestration is covered GPU-free by `scripts/tests/test_operator_runtime.py`
+(30 checks against a fake classifier and worker).
 
 ### Safety defaults baked in
 - Unparseable Stage 1 -> treated as **Distress** with confidence 0.0 (never silently "Normal").

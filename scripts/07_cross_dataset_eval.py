@@ -42,6 +42,7 @@ from tqdm import tqdm
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+from scripts import confidence
 from scripts.utils import (
     EVAL_DIR,
     STAGE1_SYSTEM_PROMPT,
@@ -436,14 +437,16 @@ def evaluate(args):
                 model, processor, image,
                 S1_SYS, S1_USR, max_new_tokens=20
             )
+            _s2_scores = _s2_ids = None  # only set when Stage 2 runs
             s1_id = parse_stage1_response(s1_resp)
             is_distressed = s1_id == 1
 
             # Stage 2 only if Stage 1 says distressed (matches production pipeline)
             if is_distressed:
-                s2_resp = baseline_eval.run_inference(
+                s2_resp, _s2_scores, _s2_ids = baseline_eval.run_inference(
                     model, processor, image,
-                    S2_SYS, S2_USR, max_new_tokens=200
+                    S2_SYS, S2_USR, max_new_tokens=200,
+                    return_scores=True,
                 )
                 parsed = parse_stage2_response(s2_resp)
                 pred_pipeline = parsed["distress_types"]
@@ -490,7 +493,7 @@ def evaluate(args):
                 if pred_sev == gt_top_sev:
                     sev_correct += 1
 
-            results.append({
+            row = {
                 "image": img_path.name,
                 "gt_attain": list(gt_attain),
                 "gt_severity_top": gt_top_sev,
@@ -500,7 +503,15 @@ def evaluate(args):
                 "is_distressed_pred": is_distressed,
                 "stage1_raw": s1_resp,
                 "stage2_raw": s2_resp if is_distressed else None,
-            })
+            }
+            # Both Stage 2 confidence metrics, from the same module the
+            # production classifier uses (scripts/confidence.py). Recorded on
+            # every row so a later question about the expert-review gate can be
+            # answered from stored results instead of re-running the sweep.
+            if is_distressed and _s2_scores is not None:
+                row.update(confidence.both_confidences(
+                    processor.tokenizer, _s2_scores, _s2_ids))
+            results.append(row)
 
             image.close()
             del image

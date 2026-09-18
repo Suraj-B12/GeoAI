@@ -161,8 +161,18 @@ def load_model(model_path: str, adapter_path: str = None, quant_bits: int = None
 
 def run_inference(model, processor, image: Image.Image,
                   system_prompt: str, user_prompt: str,
-                  max_new_tokens: int = 150) -> str:
-    """Run a single inference and return the model's text response."""
+                  max_new_tokens: int = 150, return_scores: bool = False):
+    """Run a single inference and return the model text response.
+
+    With return_scores=True, returns (text, scores, generated_ids) instead, so
+    the caller can compute confidence from the generation logits.
+
+    Opt-in because output_scores=True keeps a [1, vocab] tensor per generated
+    step, which costs memory and a little time. Any caller running a full sweep
+    should still opt in: the 1,769 Attain images evaluated before this existed
+    produced no confidence data at all, so answering a later question about the
+    review gate meant paying for the entire sweep a second time.
+    """
     messages = [
         {"role": "system", "content": system_prompt},
         {
@@ -187,20 +197,30 @@ def run_inference(model, processor, image: Image.Image,
     ).to(device)
 
     with torch.inference_mode():
-        output_ids = model.generate(
+        gen = model.generate(
             **inputs,
             max_new_tokens=max_new_tokens,
             do_sample=False,
             temperature=None,
             top_p=None,
+            output_scores=return_scores,
+            return_dict_in_generate=return_scores,
         )
 
+    output_ids = gen.sequences if return_scores else gen
     # Decode only the new tokens
     generated_ids = output_ids[:, inputs["input_ids"].shape[1]:]
     response = processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
 
-    # Free VRAM from intermediates
-    del inputs, output_ids, generated_ids
+    if return_scores:
+        # Detach and keep only what the confidence maths needs.
+        scores = tuple(sc.detach() for sc in gen.scores)
+        gen_ids = generated_ids[0].detach().clone()
+        del inputs, output_ids, generated_ids, gen
+        torch.cuda.empty_cache()
+        return response.strip(), scores, gen_ids
+
+    del inputs, output_ids, generated_ids, gen
     torch.cuda.empty_cache()
 
     return response.strip()

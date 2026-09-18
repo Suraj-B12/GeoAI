@@ -275,8 +275,8 @@ Capstone/
 | `DISABLE_ADAPTER` | `true` in production .env | Skip LoRA loading entirely. Production runs pure base model. |
 | `PROMPTS_VERSION` | `v2` (default in app/model.py) | `v2` = Improved Baseline (production). `v1` = Plain Baseline (paper experiments only). |
 | `ADAPTER_PATH` | Unset in production | LoRA adapter directory. Used only when `DISABLE_ADAPTER=false` for A/B experiments. |
-| `QUANTIZATION_BITS` | `4` | 4-bit or 8-bit quantization. Set `0` on A5000 for fp16. |
-| `STAGE2_CONFIDENCE_MODE` | `sequence` | `sequence` = geomean over all generated tokens (legacy, what the 0.80 threshold was calibrated on). `field` = geomean over the DISTRESS_TYPES tokens only. Both values are recorded on every row regardless. |
+| `QUANTIZATION_BITS` | `4` | Weight storage format at startup: `4` = NF4 + double quant (~4.3 GB), `8` = int8 (~8.6 GB), `0` = bf16, no quantization (~16.6 GB). Compute is bf16 in all three — only storage changes. Changeable at runtime from the operator dashboard (Model Precision panel) without a restart; this env var only sets the boot default. **Note:** the `.env` line is commented out, so production has been running 4-bit despite the "use fp16 on A5000" note below. |
+| `STAGE2_CONFIDENCE_MODE` | `field` (since 2026-09-17) | `field` = geomean over the DISTRESS_TYPES tokens only (AUC 0.613). `sequence` = geomean over all generated tokens — the pre-2026-09-17 default, measured **anti-correlated** with correctness (AUC 0.231), kept only to reproduce old results. Both values are recorded on every row regardless. |
 | `STAGE1_MAX_NEW_TOKENS` | `12` | Stage 1 answers with one word. Was 200, which cost ~4x the time for identical output. |
 | `SKIP_MODEL_SELFTEST` | Unset (self-test ON) | Skips the 2s load-time synthetic-image check. Leave ON in production. |
 | `API_KEYS` | Empty (auth disabled) | Comma-separated API keys |
@@ -376,7 +376,37 @@ POST /classify/base64
   Body: {"image": "<base64-string>"}
   Response: same as /classify
 
-GET /health → {status, model_loaded, model_name, device, adapter_loaded}
+GET /health → {status, model_loaded, model_name, device, adapter_loaded,
+               adapter_disabled_in_config, prompts_version, taxonomy,
+               pavement_filter_enabled, model_family, model_class,
+               quantization_bits, oom_fallback_used, max_image_pixels,
+               stage2_confidence_mode, vram_used_gb}
+
+# Runtime precision control (operator dashboard "Model Precision" panel)
+GET /operator/runtime → {model_path, adapter_path, quantization_bits,
+                         quantization_label, quantization_effective,
+                         oom_fallback_used, model_family, model_class,
+                         max_image_pixels, stage2_confidence_mode,
+                         prompts_version, device, is_loaded,
+                         vram: {total_gb, free_gb, used_gb, gpu_name},
+                         options: [{bits, label, weights_gb, note}],
+                         worker_running, reload_in_progress}
+
+POST /operator/runtime/quantization
+  Body: {"quantization_bits": 0 | 4 | 8}     # 0 = bf16 (no quantization)
+  Rate limited to 4/minute — a reload is ~30-60s of GPU time.
+  Orchestration (all of it server-side, nothing for the operator to sequence):
+    1. serialise against any other in-flight reload (409 if one is running)
+    2. drain + stop the worker if it is running (in-flight image completes
+       on the OLD precision and is written normally)
+    3. tear the model down and rebuild at the new precision; on failure the
+       classifier restores the previous configuration so the server never
+       comes back with a dead model
+    4. restart the worker if and only if it was running before — on every
+       path including failures, so a bad request cannot leave the pipeline
+       silently stopped
+  Response: the runtime descriptor above, plus {reloaded, previous,
+            loaded_at, worker_restarted, worker_note}
 
 POST /retrain/start → {is_running, progress_pct, ...}
 GET /retrain/status → {is_running, progress_pct, ...}
@@ -410,7 +440,7 @@ Both `expert_ui/index.html` and `test_website/index.html` use the same design la
 
 ### predict_stage2(image) → dict
 - Runs type classification with STAGE2_SYSTEM_PROMPT/STAGE2_USER_PROMPT
-- Extracts confidence via geometric mean of per-token log-probabilities
+- Extracts confidence via geometric mean of per-token log-probabilities over the DISTRESS_TYPES value tokens (`STAGE2_CONFIDENCE_MODE=field`); falls back to the whole sequence when the field span cannot be located
 - Parses structured output (DISTRESS_TYPES/SEVERITY/DESCRIPTION fields)
 - Returns: `{distress_types, severity, description, stage2_confidence, stage2_time_ms, stage2_raw}`
 
@@ -420,8 +450,17 @@ Both `expert_ui/index.html` and `test_website/index.html` use the same design la
 - Flags `needs_expert_review` if either stage < 80% confidence
 
 ### Confidence Extraction (Real, NOT Heuristic)
-- **Stage 1:** Softmax probability over "Normal" vs "Distress" first-sub-token IDs only (cached at model load)
-- **Stage 2:** Geometric mean of per-token probabilities = `exp(mean(log(p_i)))` across all generated tokens
+- **Stage 1:** Softmax probability over "Normal" vs "Distress" first-sub-token IDs only (cached at model load). Unchanged since Phase 1.
+- **Stage 2:** Geometric mean of per-token probabilities `exp(mean(log(p_i)))`, restricted to the
+  tokens of the `DISTRESS_TYPES:` value (`STAGE2_CONFIDENCE_MODE=field`, default since 2026-09-17).
+  The whole-sequence variant is still computed and stored, but is **not** what the gate reads.
+- **Why the restriction:** the whole-sequence geomean averaged over the free-text DESCRIPTION.
+  Measured on 37 labelled images it scored AUC **0.231** — below 0.5, i.e. it ranked *wrong*
+  predictions *above* right ones, because confidently-worded prose reads as high probability.
+  Field-restricted scores AUC **0.613**. See `eval_results/confidence_calibration_qwen25vl7b.json`.
+- Both numbers are written to `assessments.raw_response` on every row
+  (`stage2_confidence_field` / `stage2_confidence_sequence` / `stage2_confidence_mode`), so the
+  0.80 threshold can be re-calibrated from real expert corrections with zero re-inference.
 - No string matching, no inflation, no manipulation — pure model probability
 
 ## User Preferences
