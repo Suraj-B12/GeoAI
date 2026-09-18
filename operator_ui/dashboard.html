@@ -320,7 +320,54 @@ body {
 // ============================================================
 // Config + persistent UI state
 // ============================================================
-const LS = window.localStorage;
+// localStorage THROWS on an opaque origin (file://, data:, blocked site
+// data), which killed this script before it could wire anything up. Same
+// failure and same fix as operator_ui/index.html.
+// Loaded from disk instead of from the API server: every request is then
+// cross-origin from an opaque origin and is blocked by the browser, whatever
+// the server CORS policy says. Warn loudly rather than rendering an empty
+// dashboard. Same situation as operator_ui/index.html.
+function isOpaqueOrigin() {
+  return window.location.protocol === 'file:'
+      || window.location.protocol === 'data:'
+      || window.location.origin === 'null'
+      || !window.location.origin;
+}
+
+if (isOpaqueOrigin()) {
+  window.addEventListener('DOMContentLoaded', () => {
+    const base = (window.location.origin && window.location.origin !== 'null')
+      ? window.location.origin : 'http://localhost:8000';
+    const bar = document.createElement('div');
+    bar.setAttribute('role', 'alert');
+    bar.style.cssText =
+      'background:#fef2f2;border:1px solid #fecaca;color:#991b1b;' +
+      'padding:14px 18px;margin:16px;border-radius:12px;font-size:13px;' +
+      'line-height:1.6;font-family:inherit';
+    bar.innerHTML =
+      '<b style="display:block;font-size:14px;margin-bottom:6px">' +
+      'Open this dashboard from the server, not from the file</b>' +
+      'This page was loaded straight off disk, so the browser blocks every ' +
+      'API request as coming from an unknown origin. Use the served address ' +
+      'instead: <code style="background:#fff;border:1px solid #fecaca;' +
+      'border-radius:6px;padding:2px 6px">' + base + '/dashboard</code>';
+    document.body.insertBefore(bar, document.body.firstChild);
+  });
+}
+
+const LS = {
+  getItem(key) {
+    try { return window.localStorage.getItem(key); } catch (e) { return null; }
+  },
+  setItem(key, value) {
+    try { window.localStorage.setItem(key, value); return true; }
+    catch (e) { return false; }
+  },
+  removeItem(key) {
+    try { window.localStorage.removeItem(key); return true; }
+    catch (e) { return false; }
+  },
+};
 // Default API base to the origin we're served from (FastAPI). Falls back to
 // localStorage override (set by typing in the input + clicking Connect), then
 // to window.location.origin. When the dashboard is opened from the FastAPI

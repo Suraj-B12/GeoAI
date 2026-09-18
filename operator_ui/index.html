@@ -205,6 +205,33 @@ body {
 .pipeline-value.ok { color: var(--green); }
 .pipeline-value.warn { color: var(--amber); }
 .connection-status { cursor: pointer; }
+.conn-help {
+  display: none;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  color: #991b1b;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.conn-help.shown { display: block; }
+.conn-help b { display: block; font-size: 14px; margin-bottom: 6px; }
+.conn-help span { display: block; margin-top: 6px; }
+.conn-help code {
+  display: block;
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: #fff;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 11.5px;
+  color: #7f1d1d;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
 .config-field {
   display: flex;
   flex-direction: column;
@@ -771,6 +798,14 @@ body {
 .adapter-status.ok    { background: #ecfdf5; color: #065f46; }
 .adapter-status.err   { background: #fef2f2; color: #991b1b; }
 .adapter-status.warn  { background: #fffbeb; color: #92400e; }
+.runtime-note {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-top: 10px;
+}
+.runtime-note b { color: var(--text); font-weight: 600; }
+.runtime-note .rt-warn { color: var(--amber); font-weight: 600; }
 </style>
 </head>
 <body>
@@ -820,7 +855,22 @@ body {
       <span class="pipeline-label">Device</span>
       <span class="pipeline-value" id="pipe-device">loading…</span>
     </div>
+    <div class="pipeline-item">
+      <span class="pipeline-label">Precision</span>
+      <span class="pipeline-value" id="pipe-precision">loading…</span>
+    </div>
+    <div class="pipeline-item">
+      <span class="pipeline-label">VRAM</span>
+      <span class="pipeline-value" id="pipe-vram">loading…</span>
+    </div>
+    <div class="pipeline-item">
+      <span class="pipeline-label">Stage 2 confidence</span>
+      <span class="pipeline-value" id="pipe-confmode">loading…</span>
+    </div>
   </div>
+
+  <!-- Shown only when the API cannot be reached -->
+  <div class="conn-help" id="conn-help"></div>
 
   <!-- Start / Stop controls -->
   <div class="controls-bar">
@@ -1005,32 +1055,32 @@ body {
       <div class="metric">
         <div class="metric-label"><span class="label-row">Avg Stage 0 <span class="help-icon" data-tip="Rolling average of the pavement pre-filter time (last 50 images). Stage 0 runs BEFORE Stage 1 — a small VLM call that decides if the image actually shows pavement. Should be ~2-3s.">?</span></span></div>
         <div class="metric-value" id="m-avg-s0">—</div>
-        <div class="metric-sub">pre-filter</div>
+        <div class="metric-sub" id="m-avg-s0-sub">pre-filter</div>
       </div>
       <div class="metric">
         <div class="metric-label"><span class="label-row">Avg Stage 1 <span class="help-icon" data-tip="Rolling average of Stage 1 inference time (last 50 images). Stage 1 is the binary 'distress vs normal' detector — should be fast (~2s on A5000).">?</span></span></div>
         <div class="metric-value" id="m-avg-s1">—</div>
-        <div class="metric-sub">distress detection</div>
+        <div class="metric-sub" id="m-avg-s1-sub">distress detection</div>
       </div>
       <div class="metric">
         <div class="metric-label"><span class="label-row">Avg Stage 2 <span class="help-icon" data-tip="Rolling average of Stage 2 inference time (last 50 images). Stage 2 generates the structured IRC:82 distress-type response — slower than Stage 1 (~10-30s) because it generates more tokens.">?</span></span></div>
         <div class="metric-value" id="m-avg-s2">—</div>
-        <div class="metric-sub">IRC:82 classification</div>
+        <div class="metric-sub" id="m-avg-s2-sub">IRC:82 classification</div>
       </div>
       <div class="metric">
         <div class="metric-label"><span class="label-row">Rejected (non-pavement) <span class="help-icon" data-tip="Cumulative count of images rejected by the Stage 0 pre-filter for not showing pavement. Operator can review + recover false positives in the Image Dashboard.">?</span></span></div>
         <div class="metric-value" id="m-rejected-nonpvmt">0</div>
-        <div class="metric-sub">since worker start</div>
+        <div class="metric-sub">all time</div>
       </div>
       <div class="metric">
         <div class="metric-label"><span class="label-row">Avg Confidence S1 <span class="help-icon" data-tip="Average Stage 1 confidence over the last hour. Computed from raw model logits via softmax over 'Normal' vs 'Distress' first-token probabilities. Higher = model is more decisive.">?</span></span></div>
         <div class="metric-value" id="m-conf-s1">—</div>
-        <div class="metric-sub">last hour</div>
+        <div class="metric-sub" id="m-conf-window">last hour</div>
       </div>
       <div class="metric">
-        <div class="metric-label"><span class="label-row">Avg Confidence S2 <span class="help-icon" data-tip="Average Stage 2 confidence over the last hour. Geometric mean of per-token probabilities across the entire generated response. Lower than S1 typically because it's averaging over many tokens, not just one.">?</span></span></div>
+        <div class="metric-label"><span class="label-row">Avg Confidence S2 <span class="help-icon" data-tip="Average Stage 2 confidence. Geometric mean of per-token probabilities over the DISTRESS_TYPES field only (STAGE2_CONFIDENCE_MODE=field). Lower than S1 because it averages several tokens rather than one, and it drops further when the model hedges by naming multiple distress types. Falls back to an all-time average when nothing was processed in the last hour.">?</span></span></div>
         <div class="metric-value" id="m-conf-s2">—</div>
-        <div class="metric-sub">last hour</div>
+        <div class="metric-sub" id="m-conf-window-2">last hour</div>
       </div>
     </div>
   </div>
@@ -1053,7 +1103,7 @@ body {
     <div class="panel">
       <div class="panel-title">
         <span class="label-row">
-          Per-Class Distribution (24h)
+          Per-Class Distribution <span id="dist-window">(24h)</span>
           <span class="help-icon" data-tip="Count of each distress type detected in the last 24 hours. Multi-label aware: an image with both Longitudinal Crack AND Pothole increments both bars. The bar widths are relative to the highest-count class.">?</span>
         </span>
       </div>
@@ -1067,6 +1117,31 @@ body {
        DISABLE_ADAPTER is OFF (i.e., we're running an experimental A/B config).
        In production (DISABLE_ADAPTER=true), the Pipeline panel above shows
        the truth and this section stays hidden to prevent accidental switches. -->
+  <div class="section" id="runtime-section">
+    <div class="section-title">
+      <span class="label-row">
+        Model Precision
+        <span class="help-icon" data-tip="Quantization sets how model weights are STORED. Compute stays bf16 in every mode - each matmul dequantizes first - so activations, attention and the logits confidence is read from are unaffected. Changing it requires a full model reload (~30-60s): the worker is drained, stopped, reloaded and restarted automatically.">?</span>
+      </span>
+    </div>
+    <div class="panel" id="runtime-panel">
+      <div class="adapter-row">
+        <div class="adapter-info">
+          <div class="adapter-label">Running now</div>
+          <div class="adapter-value" id="rt-current">loading…</div>
+        </div>
+        <div class="adapter-controls">
+          <select id="rt-select" class="adapter-select">
+            <option value="">— select precision —</option>
+          </select>
+          <button id="rt-apply-btn" class="btn btn-primary btn-sm" disabled>Apply</button>
+        </div>
+      </div>
+      <div class="runtime-note" id="rt-note"></div>
+      <div class="adapter-status" id="rt-status"></div>
+    </div>
+  </div>
+
   <div class="section" id="adapter-section" style="display:none">
     <div class="section-title">
       <span class="label-row">
@@ -1155,8 +1230,34 @@ body {
 // ============================================================
 // Config
 // ============================================================
+// Storage access that cannot take the page down.
+// localStorage THROWS (not returns null) when the page has an opaque origin:
+// opened from file://, rendered from a data: URL, or with site data blocked in
+// browser privacy settings. An unguarded getItem at the top of this script
+// therefore aborted everything below it - listeners, first fetches, timers -
+// leaving a dashboard that renders its static HTML and then does nothing at
+// all. Every read and write goes through these two helpers.
+const store = {
+  get(key, fallback = null) {
+    try {
+      const v = window.localStorage.getItem(key);
+      return v === null ? fallback : v;
+    } catch (e) {
+      return fallback;
+    }
+  },
+  set(key, value) {
+    try {
+      window.localStorage.setItem(key, value);
+      return true;
+    } catch (e) {
+      return false;  // private window / blocked storage: preference is not persisted
+    }
+  },
+};
+
 // API base resolution:
-//   1. localStorage override (user typed + saved)
+//   1. saved override (user typed + saved), when storage is readable
 //   2. window.location.origin if non-empty + not 'null' (served from FastAPI)
 //   3. fallback to localhost:8000 (file:// load, dev mode)
 // API key defaults to empty because the server has API_KEYS unset (auth off).
@@ -1177,10 +1278,10 @@ const stopBtn      = document.getElementById('btn-stop');
 const toastContainer = document.getElementById('toast-container');
 
 // Restore saved config
-apiBaseInput.value = localStorage.getItem('operator_api_base') || DEFAULTS.apiBase;
-apiKeyInput.value  = localStorage.getItem('operator_api_key')  || DEFAULTS.apiKey;
-apiBaseInput.addEventListener('change', () => localStorage.setItem('operator_api_base', apiBaseInput.value));
-apiKeyInput.addEventListener('change',  () => localStorage.setItem('operator_api_key',  apiKeyInput.value));
+apiBaseInput.value = store.get('operator_api_base') || DEFAULTS.apiBase;
+apiKeyInput.value  = store.get('operator_api_key')  || DEFAULTS.apiKey;
+apiBaseInput.addEventListener('change', () => store.set('operator_api_base', apiBaseInput.value));
+apiKeyInput.addEventListener('change',  () => store.set('operator_api_key',  apiKeyInput.value));
 
 let sseSource = null;
 let pollTimer = null;
@@ -1293,6 +1394,7 @@ function setRunning(running) {
 function renderMetrics(payload) {
   const w = payload.worker || {};
   const q = payload.queue || {};
+  hideConnectionHelp();
 
   // Connection pill
   const connEl = document.getElementById('connection-status');
@@ -1325,12 +1427,39 @@ function renderMetrics(payload) {
   // Performance
   document.getElementById('m-throughput-hr').textContent = q.throughput_last_hour ?? 0;
   document.getElementById('m-throughput-min').textContent = q.throughput_last_minute ?? 0;
-  document.getElementById('m-avg-s0').textContent = fmtMs(w.avg_stage0_time_ms);
-  document.getElementById('m-avg-s1').textContent = fmtMs(w.avg_stage1_time_ms);
-  document.getElementById('m-avg-s2').textContent = fmtMs(w.avg_stage2_time_ms);
-  document.getElementById('m-rejected-nonpvmt').textContent = w.images_rejected_non_pavement ?? 0;
+  // Prefer this worker session's rolling average (it reflects the precision
+  // and settings running right now). Fall back to the all-time figures from
+  // the database so the tiles are populated before the worker has processed
+  // anything, instead of three dashes on a table full of history.
+  const st = q.stage_times_ms || {};
+  const avgOrHistoric = (live, historic) =>
+    (live && live > 0) ? fmtMs(live) : (historic ? fmtMs(historic) : '—');
+  document.getElementById('m-avg-s0').textContent =
+    avgOrHistoric(w.avg_stage0_time_ms, st.stage0);
+  document.getElementById('m-avg-s1').textContent =
+    avgOrHistoric(w.avg_stage1_time_ms, st.stage1);
+  document.getElementById('m-avg-s2').textContent =
+    avgOrHistoric(w.avg_stage2_time_ms, st.stage2);
+  const liveTimings = (w.avg_stage1_time_ms || 0) > 0;
+  for (const wid of ['m-avg-s0-sub', 'm-avg-s1-sub', 'm-avg-s2-sub']) {
+    const el = document.getElementById(wid);
+    if (el) el.textContent = liveTimings ? 'this session' : 'all time';
+  }
+  // Prefer the database count: w.images_rejected_non_pavement is an in-process
+  // counter that resets to zero every time the worker restarts, so it read 0
+  // on a database holding 9 rejected rows.
+  document.getElementById('m-rejected-nonpvmt').textContent =
+    q.rejected_non_pavement_count ?? w.images_rejected_non_pavement ?? 0;
   document.getElementById('m-conf-s1').textContent = fmtPct(q.avg_stage1_confidence_last_hour);
   document.getElementById('m-conf-s2').textContent = fmtPct(q.avg_stage2_confidence_last_hour);
+  // The API falls back to an all-time average when the last-hour window is
+  // empty (the normal state for a caught-up queue). Say which one is shown
+  // rather than letting a stale-looking number imply it is recent.
+  const confWindowText = q.confidence_window === 'all_time' ? 'all time' : 'last hour';
+  for (const wid of ['m-conf-window', 'm-conf-window-2']) {
+    const el = document.getElementById(wid);
+    if (el) el.textContent = confWindowText;
+  }
 
   // Footer config
   if (w.config) {
@@ -1563,9 +1692,16 @@ async function fetchInFlightMeta(imageId) {
 
 function renderDistribution(items) {
   const container = document.getElementById('distribution');
+  const windowEl = document.getElementById('dist-window');
   if (!Array.isArray(items) || items.length === 0) {
+    if (windowEl) windowEl.textContent = '(24h)';
     container.innerHTML = '<div class="empty">No classifications yet.</div>';
     return;
+  }
+  // The API serves the 24h view when it has rows and an all-time aggregate
+  // otherwise. Label whichever one arrived.
+  if (windowEl) {
+    windowEl.textContent = items[0].window === 'all_time' ? '(all time)' : '(24h)';
   }
   const max = Math.max(...items.map(i => i.count || 0), 1);
   container.innerHTML = items.map(item => {
@@ -1625,6 +1761,13 @@ function escapeHtml(s) {
   }[c]));
 }
 
+// Attribute-safe escaping for values interpolated into value="..." etc.
+// Same escapes as escapeHtml; kept as its own name so call sites read as
+// intentional rather than accidental reuse.
+function escapeAttr(s) {
+  return escapeHtml(s);
+}
+
 // ============================================================
 // Polling / SSE
 // ============================================================
@@ -1632,11 +1775,70 @@ async function pollNow() {
   try {
     const m = await apiCall('/operator/metrics');
     renderMetrics(m);
+    _connErrorShown = false;
   } catch (e) {
     document.getElementById('connection-status').className = 'status-pill unknown';
-    document.getElementById('connection-text').textContent = 'Connection lost';
+    document.getElementById('connection-text').textContent = 'No API connection';
     document.getElementById('m-last-error').textContent = e.message;
+    showConnectionHelp(e);
   }
+}
+
+// A bare "Connection lost" leaves the operator with nowhere to go. The
+// overwhelmingly common cause is simply that the API server is not running,
+// so say that, and say the command that fixes it.
+let _connErrorShown = false;
+
+// Opened from disk rather than served by the API. Every request is then
+// cross-origin from an opaque ("null") origin, which browsers block outright
+// for local addresses regardless of the server CORS policy. This is the single
+// most common way the dashboard ends up looking dead, and it is not fixable
+// from the page - the fix is to load it from the server that serves the API.
+function isOpaqueOrigin() {
+  return window.location.protocol === 'file:'
+      || window.location.protocol === 'data:'
+      || window.location.origin === 'null'
+      || !window.location.origin;
+}
+
+function showConnectionHelp(err) {
+  if (_connErrorShown) return;
+  _connErrorShown = true;
+  const base = apiBase() || '(not set)';
+  const banner = document.getElementById('conn-help');
+  if (!banner) return;
+
+  if (isOpaqueOrigin()) {
+    const served = (base || 'http://localhost:8000') + '/operator';
+    banner.innerHTML =
+      '<b>Open this dashboard from the server, not from the file</b>' +
+      '<span>This page was loaded straight off disk, so the browser treats ' +
+      'every API request as coming from an unknown origin and blocks it. ' +
+      'No server setting can allow that. The API already serves this exact ' +
+      'page - use that address instead:</span>' +
+      '<code>' + escapeHtml(served) + '</code>' +
+      '<span>Image browser: <code style="display:inline;padding:2px 6px">' +
+      escapeHtml((base || 'http://localhost:8000') + '/dashboard') + '</code></span>' +
+      '<span>If the server is not running yet, start it first:</span>' +
+      '<code>venv/Scripts/python.exe -m uvicorn app.main:app --env-file .env ' +
+      '--host 0.0.0.0 --port 8000 --workers 1</code>';
+  } else {
+    banner.innerHTML =
+      '<b>Cannot reach the API at ' + escapeHtml(base) + '</b>' +
+      '<span>The most likely reason is that the server is not running. ' +
+      'Start it, then reload this page:</span>' +
+      '<code>venv/Scripts/python.exe -m uvicorn app.main:app --env-file .env ' +
+      '--host 0.0.0.0 --port 8000 --workers 1</code>' +
+      '<span>If it is running on a different address, click the status pill ' +
+      'at the top right and set the API base URL.</span>';
+  }
+  banner.classList.add('shown');
+}
+
+function hideConnectionHelp() {
+  const banner = document.getElementById('conn-help');
+  if (banner) banner.classList.remove('shown');
+  _connErrorShown = false;
 }
 
 async function pollRecent() {
@@ -1711,11 +1913,11 @@ function applyHelpVisibility(shown) {
   btnHelp.classList.toggle('active', shown);
   btnHelp.textContent = shown ? '× Close Help' : '? Help';
 }
-applyHelpVisibility(localStorage.getItem(HELP_KEY) === '1');
+applyHelpVisibility(store.get(HELP_KEY) === '1');
 btnHelp.addEventListener('click', () => {
   const next = !overview.classList.contains('shown');
   applyHelpVisibility(next);
-  localStorage.setItem(HELP_KEY, next ? '1' : '0');
+  store.set(HELP_KEY, next ? '1' : '0');
 });
 
 // ============================================================
@@ -1780,6 +1982,137 @@ adapterSwitchBtn.addEventListener('click', async () => {
   } catch (e) {
     setAdapterStatus('Switch failed: ' + e.message, 'err');
     adapterSelect.disabled = false;
+  }
+});
+
+// ============================================================
+// MODEL PRECISION (quantization) — inspect + switch
+// ============================================================
+const rtCurrent  = document.getElementById('rt-current');
+const rtSelect   = document.getElementById('rt-select');
+const rtApplyBtn = document.getElementById('rt-apply-btn');
+const rtStatus   = document.getElementById('rt-status');
+const rtNote     = document.getElementById('rt-note');
+let _rtPollTimer = null;
+let _rtSwapping  = false;
+
+function setRuntimeStatus(text, kind) {
+  if (!text) { rtStatus.classList.remove('shown'); return; }
+  rtStatus.className = 'adapter-status shown ' + (kind || 'info');
+  rtStatus.textContent = text;
+}
+
+async function loadRuntime() {
+  // Never clobber the UI mid-swap: the server is mid-reload and would report
+  // a transient state over the top of the operator's progress message.
+  if (_rtSwapping) return;
+  try {
+    const r = await apiCall('/operator/runtime');
+
+    const requested = r.quantization_bits;
+    const effective = r.quantization_effective;
+    rtCurrent.textContent = r.quantization_label || (requested + '-bit');
+
+    // Options list, current one marked and disabled.
+    const opts = ['<option value="">— select precision —</option>'];
+    for (const o of (r.options || [])) {
+      const isCur = (o.bits === requested);
+      opts.push(
+        '<option value="' + o.bits + '"' + (isCur ? ' disabled' : '') + '>' +
+        escapeHtml(o.label) + (isCur ? ' (current)' : '') +
+        ' — ~' + o.weights_gb + ' GB weights</option>'
+      );
+    }
+    rtSelect.innerHTML = opts.join('');
+    rtSelect.disabled = false;
+    rtApplyBtn.disabled = !rtSelect.value;
+
+    // Note line: what is loaded, VRAM, and any silent downgrade.
+    const v = r.vram || {};
+    const bits = [];
+    bits.push('<b>' + escapeHtml(r.model_family || 'unknown') + '</b> via ' +
+              escapeHtml(r.model_class || 'unknown'));
+    if (v.total_gb) {
+      bits.push(v.used_gb + ' / ' + v.total_gb + ' GB VRAM in use on ' +
+                escapeHtml(v.gpu_name || 'GPU'));
+    }
+    if (r.max_image_pixels) {
+      bits.push('image cap ' + Math.round(Math.sqrt(r.max_image_pixels)) + 'px equivalent');
+    }
+    if (r.oom_fallback_used) {
+      bits.push('<span class="rt-warn">requested ' + requested +
+                '-bit but the loader fell back to ' + effective +
+                '-bit to fit VRAM</span>');
+    }
+    const sel = (r.options || []).find(o => o.bits === requested);
+    if (sel) bits.push(escapeHtml(sel.note));
+    rtNote.innerHTML = bits.join(' · ');
+
+    if (r.reload_in_progress) {
+      setRuntimeStatus('A model reload is in progress…', 'info');
+      rtSelect.disabled = true;
+      rtApplyBtn.disabled = true;
+    }
+  } catch (e) {
+    rtCurrent.textContent = '(unavailable)';
+    rtNote.textContent = '';
+    setRuntimeStatus('Could not read runtime config: ' + e.message, 'err');
+  }
+}
+
+rtSelect.addEventListener('change', () => {
+  rtApplyBtn.disabled = !rtSelect.value;
+});
+
+rtApplyBtn.addEventListener('click', async () => {
+  const sel = rtSelect.value;
+  if (sel === '') return;
+  const bits = parseInt(sel, 10);
+  const label = rtSelect.options[rtSelect.selectedIndex].textContent.trim();
+
+  if (!confirm(
+    'Switch model precision to ' + label + '?\n\n' +
+    'The weight storage format cannot be changed in place, so the model is ' +
+    'fully torn down and reloaded. This takes 30-60 seconds.\n\n' +
+    'If the pipeline is running it will be drained and stopped first, then ' +
+    'restarted automatically once the new model is live. The image being ' +
+    'processed right now finishes normally before the swap begins.'
+  )) return;
+
+  _rtSwapping = true;
+  rtApplyBtn.disabled = true;
+  rtSelect.disabled = true;
+  setRuntimeStatus(
+    'Reloading the model at ' + label + '. This takes 30-60s — do not close this page.',
+    'info');
+
+  try {
+    const r = await apiCall('/operator/runtime/quantization', {
+      method: 'POST',
+      body: JSON.stringify({ quantization_bits: bits }),
+    });
+    if (r.reloaded === false) {
+      setRuntimeStatus('No change — ' + (r.reason || 'already running that configuration'), 'warn');
+    } else {
+      let msg = 'Now running ' + (r.quantization_label || bits + '-bit') +
+                ' on ' + (r.device || 'GPU');
+      if (r.oom_fallback_used) {
+        msg += ' — WARNING: the loader fell back to ' + r.quantization_effective +
+               '-bit because the requested precision did not fit VRAM';
+      }
+      if (r.worker_note) msg += '. ' + r.worker_note + '.';
+      setRuntimeStatus(msg, r.oom_fallback_used ? 'warn' : 'ok');
+      toast('Model reloaded at ' + (r.quantization_label || bits + '-bit'));
+    }
+  } catch (e) {
+    setRuntimeStatus('Switch failed: ' + e.message +
+                     ' (the previous configuration is still loaded)', 'err');
+  } finally {
+    _rtSwapping = false;
+    rtSelect.disabled = false;
+    await loadRuntime();
+    loadPipelineHealth();
+    pollNow();
   }
 });
 
@@ -1893,6 +2226,15 @@ async function loadPipelineHealth() {
     setText('pipe-prefilter', h.pavement_filter_enabled ? 'enabled' : 'off',
             h.pavement_filter_enabled ? 'ok' : 'warn');
     setText('pipe-device', h.device || '—');
+    const bitsLabel = h.quantization_bits === 0
+      ? 'bf16 (no quantization)'
+      : (h.quantization_bits > 0 ? h.quantization_bits + '-bit' : 'unknown');
+    setText('pipe-precision', bitsLabel + (h.oom_fallback_used ? ' (OOM fallback)' : ''),
+            h.oom_fallback_used ? 'warn' : 'ok');
+    setText('pipe-vram', h.vram_used_gb ? h.vram_used_gb.toFixed(1) + ' GB' : '—');
+    setText('pipe-confmode',
+            h.stage2_confidence_mode === 'field' ? 'field (DISTRESS_TYPES)' : (h.stage2_confidence_mode || 'unknown'),
+            h.stage2_confidence_mode === 'field' ? 'ok' : 'warn');
 
     // Hide the adapter switching section in production (DISABLE_ADAPTER=true).
     // Only show it when explicitly in an A/B experimental mode.
@@ -1917,18 +2259,23 @@ document.getElementById('btn-config-close').addEventListener('click',
 document.getElementById('btn-config-save').addEventListener('click', () => {
   const newBase = apiBaseInput.value.trim().replace(/\/$/, '');
   const newKey  = apiKeyInput.value.trim();
-  if (newBase) localStorage.setItem('operator_api_base', newBase);
-  if (newKey)  localStorage.setItem('operator_api_key', newKey);
+  if (newBase) store.set('operator_api_base', newBase);
+  if (newKey)  store.set('operator_api_key', newKey);
   configBar.classList.remove('shown');
   // Reload everything against the new base
   pollNow(); pollRecent(); loadAdapters(); pollTraining();
-  loadPipelineHealth();
+  loadPipelineHealth(); loadRuntime();
 });
 
 // ============================================================
 // Initial fetches + start streams
 // ============================================================
+// An opaque origin cannot possibly reach the API, so say so at once instead of
+// letting every panel sit on "loading..." until the first fetch times out.
+if (isOpaqueOrigin()) showConnectionHelp();
+
 loadPipelineHealth();
+loadRuntime();
 pollNow();
 pollRecent();
 loadAdapters();
@@ -1938,6 +2285,7 @@ recentTimer = setInterval(pollRecent, RECENT_REFRESH_MS);
 _adapterPollTimer = setInterval(loadAdapters, 30_000);   // adapter list rarely changes
 _trainPollTimer = setInterval(pollTraining, 5_000);      // training metrics every 5s
 setInterval(loadPipelineHealth, 60_000);                  // pipeline config rarely changes
+_rtPollTimer = setInterval(loadRuntime, 30_000);         // VRAM moves; precision rarely does
 
 // Cleanup on navigation
 window.addEventListener('beforeunload', () => {
@@ -1945,6 +2293,7 @@ window.addEventListener('beforeunload', () => {
   if (recentTimer) clearInterval(recentTimer);
   if (_adapterPollTimer) clearInterval(_adapterPollTimer);
   if (_trainPollTimer) clearInterval(_trainPollTimer);
+  if (_rtPollTimer) clearInterval(_rtPollTimer);
 });
 </script>
 </body>

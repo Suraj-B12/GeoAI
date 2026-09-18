@@ -680,6 +680,114 @@ async def operator_inflight(request: Request, id: str):
 
 
 # ============================================================
+# Runtime configuration — inspect + change model precision
+# ============================================================
+# Quantization cannot be changed in place: the weight storage format is fixed
+# when the tensors are built, so switching means a full teardown and reload
+# (~30-60s). That is disruptive enough to need real orchestration rather than
+# a bare call, so this endpoint owns the whole sequence:
+#
+#   1. serialise against any other reload (a second concurrent teardown would
+#      race the first one into a half-loaded model)
+#   2. stop the worker if it is running, draining the in-flight image so it is
+#      completed rather than failed and retried
+#   3. reload; on failure the classifier restores the previous configuration
+#      itself, so the server never comes back with a dead model
+#   4. restart the worker if and only if it was running before
+#
+# Held across the whole sequence so two operators clicking at once cannot
+# interleave a stop with someone else's start.
+_runtime_reload_lock = asyncio.Lock()
+
+VALID_QUANTIZATION_BITS = (0, 4, 8)
+
+
+@app.get("/operator/runtime", dependencies=[Depends(verify_api_key)])
+@limiter.limit("60/minute")
+async def operator_runtime(request: Request):
+    """What the GPU is actually running right now: model, precision, adapter,
+    live VRAM, and the precision options the operator can switch to."""
+    classifier = get_classifier()
+    info = classifier.runtime_info()
+    worker = get_worker()
+    info["worker_running"] = bool(worker and worker.is_running)
+    info["reload_in_progress"] = _runtime_reload_lock.locked()
+    return JSONResponse(info)
+
+
+@app.post("/operator/runtime/quantization", dependencies=[Depends(verify_api_key)])
+@limiter.limit("4/minute")  # a reload is ~30-60s of GPU time; do not let it be spammed
+async def operator_set_quantization(request: Request):
+    """Switch the model between bf16 and 4-bit/8-bit quantization.
+
+    Body: {"quantization_bits": 0 | 4 | 8}
+
+    0 keeps full bf16 weights (~16.6 GB for a 7B, highest fidelity, little
+    VRAM headroom for large photos). 4 is NF4 + double quant (~4.3 GB, the
+    production default). 8 is int8 (~8.6 GB).
+
+    Returns the new runtime descriptor plus what happened to the worker.
+    """
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="body must be JSON")
+
+    bits = body.get("quantization_bits")
+    if isinstance(bits, str) and bits.strip().lstrip("-").isdigit():
+        bits = int(bits)
+    if bits not in VALID_QUANTIZATION_BITS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"quantization_bits must be one of {list(VALID_QUANTIZATION_BITS)} "
+                   f"(0 = bf16, no quantization) - got {bits!r}",
+        )
+
+    if _runtime_reload_lock.locked():
+        raise HTTPException(
+            status_code=409,
+            detail="a model reload is already in progress - wait for it to finish",
+        )
+
+    classifier = get_classifier()
+    worker = get_worker()
+
+    async with _runtime_reload_lock:
+        was_running = bool(worker and worker.is_running)
+        worker_note = "worker was not running"
+        if was_running:
+            # Drain rather than cancel: the in-flight image finishes on the OLD
+            # precision and is written normally, instead of failing and being
+            # retried later under a different configuration.
+            await worker.stop(drain_timeout_seconds=90.0)
+            worker_note = "worker drained and stopped for the swap"
+
+        try:
+            result = await asyncio.to_thread(classifier.reload, bits)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except Exception as e:
+            raise HTTPException(
+                status_code=500,
+                detail=f"reload to {bits}-bit failed: {e}. The previous "
+                       f"configuration has been restored.",
+            )
+        finally:
+            # Restart on every path, including the failure paths above, so a
+            # bad request never silently leaves the pipeline stopped.
+            if was_running and worker:
+                try:
+                    await worker.start()
+                    worker_note = "worker stopped for the swap and restarted"
+                except Exception as e:
+                    worker_note = f"worker did NOT restart cleanly: {e}"
+
+    result["worker_restarted"] = was_running
+    result["worker_note"] = worker_note
+    return JSONResponse(result)
+
+
+# ============================================================
 # Adapter management — list / switch / inspect LoRA adapters
 # ============================================================
 ADAPTER_SEARCH_DIRS = [

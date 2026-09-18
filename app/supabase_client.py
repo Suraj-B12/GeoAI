@@ -213,22 +213,172 @@ async def get_worker_state(
     return rows[0] if rows else None
 
 
+async def _exact_count(client: httpx.AsyncClient, query: str) -> Optional[int]:
+    """Row count for a PostgREST filter, via the Content-Range header.
+
+    Returns None rather than raising: every caller here is decorating a
+    dashboard panel, and a missing number should degrade to a dash, not take
+    the whole metrics response down.
+    """
+    try:
+        resp = await client.get(
+            f"/rest/v1/assessments?select=id&{query}",
+            headers={"Prefer": "count=exact", "Range": "0-0"},
+        )
+        if resp.status_code >= 400:
+            return None
+        rng = resp.headers.get("content-range", "")
+        return int(rng.split("/")[-1]) if "/" in rng else None
+    except Exception:
+        return None
+
+
 async def get_pipeline_metrics(client: httpx.AsyncClient) -> dict:
     """
-    Read the pipeline_metrics view. Returns a single dict with all
-    aggregate counts used by the operator dashboard.
+    Read the pipeline_metrics view, then fill the gaps it cannot cover.
+
+    Two gaps, both of which showed as wrong numbers on the dashboard:
+
+    1. The view predates migration 004, so it has no count for
+       `rejected_non_pavement`. The dashboard was reading that figure from the
+       worker's in-memory counter instead, which resets to zero on every
+       restart - so a database holding 9 rejected images displayed 0.
+
+    2. The averaged confidences are windowed to the last hour. On a queue that
+       is caught up, that window is empty and both averages come back NULL, so
+       the performance panel reads as dead even though there is plenty of
+       history. We fall back to an all-time average and flag which one is being
+       shown, so the UI can label it honestly rather than imply it is recent.
     """
     resp = await client.get("/rest/v1/pipeline_metrics?select=*")
     _check(resp)
     rows = resp.json()
-    return rows[0] if rows else {}
+    out = rows[0] if rows else {}
+
+    out["rejected_non_pavement_count"] = await _exact_count(
+        client, "status=eq.rejected_non_pavement")
+
+    out["confidence_window"] = "last_hour"
+    if out.get("avg_stage1_confidence_last_hour") is None:
+        alltime = await _average_confidences(client)
+        if alltime:
+            out["avg_stage1_confidence_last_hour"] = alltime.get("stage1")
+            out["avg_stage2_confidence_last_hour"] = alltime.get("stage2")
+            out["confidence_window"] = "all_time"
+
+    # Per-stage latency. The dashboard previously took these from the worker
+    # rolling averages, which are in-process and start empty - so a fresh
+    # server showed a dash for all three even with a table full of timings.
+    out["stage_times_ms"] = await _average_stage_times(client)
+    return out
+
+
+async def _average_stage_times(client: httpx.AsyncClient) -> dict:
+    """All-time mean Stage 0/1/2 latency, read from raw_response.
+
+    The worker writes stage0_time_ms / stage1_time_ms / stage2_time_ms into
+    raw_response on every processed row. Stage 2 is averaged only over rows
+    where it actually ran: it is skipped for Normal images and for
+    non-pavement rejections, and counting those as zero would halve the
+    reported figure.
+    """
+    empty = {"stage0": None, "stage1": None, "stage2": None, "n": 0}
+    try:
+        resp = await client.get(
+            "/rest/v1/assessments"
+            "?select=raw_response&processed_at=not.is.null&limit=5000"
+        )
+        if resp.status_code >= 400:
+            return empty
+        buckets: dict[str, list] = {"stage0": [], "stage1": [], "stage2": []}
+        rows = resp.json() or []
+        for row in rows:
+            rr = row.get("raw_response")
+            if not isinstance(rr, dict):
+                continue
+            for stage, key in (("stage0", "stage0_time_ms"),
+                               ("stage1", "stage1_time_ms"),
+                               ("stage2", "stage2_time_ms")):
+                v = rr.get(key)
+                if isinstance(v, (int, float)) and v > 0:
+                    buckets[stage].append(v)
+        out = {k: (sum(v) / len(v) if v else None) for k, v in buckets.items()}
+        out["n"] = len(rows)
+        return out
+    except Exception:
+        return empty
+
+
+async def _average_confidences(client: httpx.AsyncClient) -> Optional[dict]:
+    """All-time mean Stage 1 / Stage 2 confidence over processed rows.
+
+    PostgREST has no AVG aggregate without an RPC, so this pulls the two
+    columns and averages client-side. The table is small (hundreds of rows);
+    revisit with a view if it ever reaches five figures.
+    """
+    try:
+        resp = await client.get(
+            "/rest/v1/assessments"
+            "?select=stage1_confidence,stage2_confidence"
+            "&processed_at=not.is.null&limit=5000"
+        )
+        if resp.status_code >= 400:
+            return None
+        rows = resp.json() or []
+        s1 = [r["stage1_confidence"] for r in rows if r.get("stage1_confidence") is not None]
+        # Stage 2 only runs on distressed images; zeros are "did not run", not
+        # "scored zero", and averaging them in would understate the metric.
+        s2 = [r["stage2_confidence"] for r in rows if (r.get("stage2_confidence") or 0) > 0]
+        if not s1:
+            return None
+        return {
+            "stage1": sum(s1) / len(s1),
+            "stage2": (sum(s2) / len(s2)) if s2 else None,
+        }
+    except Exception:
+        return None
 
 
 async def get_class_distribution(client: httpx.AsyncClient) -> list[dict]:
-    """Read pipeline_class_distribution view (list of {distress_type, count})."""
+    """Per-class counts for the distribution panel.
+
+    `pipeline_class_distribution` windows to the last 24 hours. Whenever the
+    queue is caught up - which is the normal state - that view returns an empty
+    list and the panel reads "No classifications yet" despite a table full of
+    results. So: use the view when it has data, otherwise aggregate all-time.
+
+    Each row carries `window` so the UI can label which one it is showing.
+    """
     resp = await client.get("/rest/v1/pipeline_class_distribution?select=*")
     _check(resp)
-    return resp.json() or []
+    rows = resp.json() or []
+    if rows:
+        for r in rows:
+            r["window"] = "24h"
+        return rows
+
+    # All-time fallback, aggregated here because PostgREST cannot GROUP BY
+    # over a jsonb array without a dedicated view.
+    try:
+        resp = await client.get(
+            "/rest/v1/assessments"
+            "?select=distress_types"
+            "&status=in.(classified,expert_review,done)"
+            "&limit=5000"
+        )
+        if resp.status_code >= 400:
+            return []
+        counts: dict[str, int] = {}
+        for row in resp.json() or []:
+            for t in (row.get("distress_types") or []):
+                if t:
+                    counts[t] = counts.get(t, 0) + 1
+        return [
+            {"distress_type": k, "count": v, "window": "all_time"}
+            for k, v in sorted(counts.items(), key=lambda kv: -kv[1])
+        ]
+    except Exception:
+        return []
 
 
 async def get_assessment_by_id(
