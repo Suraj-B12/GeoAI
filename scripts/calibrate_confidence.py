@@ -296,6 +296,59 @@ PRIMARY = "no_false_positives"
 
 
 # ============================================================
+# Crash-safe checkpointing
+# ============================================================
+# A bare write_text() truncates the file if the process dies mid-write, which
+# loses the ENTIRE run rather than the current image - the worst possible
+# failure for something that takes hours. Path.replace() is not a fix here:
+# atomic rename is unreliable on Windows whenever any other process (Search
+# Indexer, Defender, an open Explorer window) holds a read handle, which
+# 03_baseline_eval.py established empirically in commit 80aff92.
+#
+# So: rotate the existing file to .bak (a rename needs no write access on the
+# target), then write fresh. A crash mid-write leaves the previous good save
+# in .bak, and the loader falls back to it.
+
+def save_checkpoint(path: Path, data: dict) -> None:
+    """Write the checkpoint, keeping the previous save as .bak.
+
+    Save failures are non-fatal. A transient file lock must not kill a
+    multi-hour evaluation: the state is still in memory and the next image
+    will retry.
+    """
+    bak = path.with_suffix(".json.bak")
+    try:
+        if path.exists():
+            try:
+                if bak.exists():
+                    bak.unlink()
+                path.rename(bak)
+            except OSError:
+                pass  # cannot rotate - overwrite directly rather than stall
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f)
+    except OSError as e:
+        print(f"  [warn] checkpoint save failed: {e} - continuing in memory only")
+
+
+def load_checkpoint(path: Path):
+    """Load the checkpoint, falling back to .bak if the primary is corrupt."""
+    for cand in (path, path.with_suffix(".json.bak")):
+        if not cand.exists():
+            continue
+        try:
+            blob = json.loads(cand.read_text(encoding="utf-8"))
+            if cand != path:
+                print(f"  [resume] primary checkpoint was unreadable; "
+                      f"recovered {len(blob.get('rows', {}))} rows from {cand.name}")
+            return blob
+        except Exception as e:
+            print(f"  [warn] {cand.name} unreadable ({type(e).__name__}); "
+                  f"trying fallback")
+    return None
+
+
+# ============================================================
 # Metrics
 # ============================================================
 
@@ -423,23 +476,33 @@ def main() -> int:
 
     ckpt = EVAL_DIR / (Path(args.out).stem + "_checkpoint.json")
     done: dict = {}
-    if ckpt.exists() and not args.fresh:
-        blob = json.loads(ckpt.read_text(encoding="utf-8"))
-        if blob.get("_model") not in (None, args.model) or \
-           blob.get("_quant") not in (None, args.quantization_bits):
-            sys.exit(f"ERROR: {ckpt.name} was written by model "
-                     f"{blob.get('_model')!r} at {blob.get('_quant')}-bit. "
-                     f"Use --fresh or a different --out.")
-        done = blob.get("rows", {})
-        print(f"[resume] {len(done)} images already done")
+    if args.fresh:
+        # Explicitly discarding prior work: say how much, so a --fresh left in
+        # a restart command cannot silently throw away hours of GPU time.
+        prior = load_checkpoint(ckpt)
+        n_prior = len(prior.get("rows", {})) if prior else 0
+        if n_prior:
+            print(f"[fresh] DISCARDING {n_prior} completed images in "
+                  f"{ckpt.name} because --fresh was passed")
+    else:
+        blob = load_checkpoint(ckpt)
+        if blob:
+            if blob.get("_model") not in (None, args.model) or \
+               blob.get("_quant") not in (None, args.quantization_bits):
+                sys.exit(f"ERROR: {ckpt.name} was written by model "
+                         f"{blob.get('_model')!r} at {blob.get('_quant')}-bit. "
+                         f"Use --fresh or a different --out.")
+            done = blob.get("rows", {})
+            print(f"[resume] {len(done)} images already done - "
+                  f"re-running only what is missing")
 
     clf = PavementClassifier(model_path=args.model, adapter_path=None,
                              quantization_bits=args.quantization_bits)
 
     def save():
-        ckpt.write_text(json.dumps(
-            {"_model": args.model, "_quant": args.quantization_bits, "rows": done},
-            indent=2), encoding="utf-8")
+        save_checkpoint(ckpt, {"_model": args.model,
+                               "_quant": args.quantization_bits,
+                               "rows": done})
 
     t0 = time.time()
     for i, e in enumerate(rows_in, 1):
