@@ -112,9 +112,11 @@ QUANTIZATION_LABELS = {
 
 QUANTIZATION_OPTIONS = [
     {"bits": 0, "label": QUANTIZATION_LABELS[0], "weights_gb": 16.6,
-     "note": "Highest fidelity, 16 bits per weight. Leaves roughly 7 GB of "
-             "headroom on a 24 GB card, which is tight for 1728px phone "
-             "photos - large images can push the allocator into spilling."},
+     "note": "Highest fidelity, 16 bits per weight. NOT measured at the "
+             "production 1024x1024 image cap: the resolution study ran at "
+             "4-bit, peaking at 19.8 GB. bf16 adds ~12 GB of weights, which "
+             "very likely exceeds the 24 GB card and drops into the slow "
+             "paging regime (~25x slower). Measure before using in production."},
     {"bits": 4, "label": QUANTIZATION_LABELS[4], "weights_gb": 4.3,
      "note": "Production default. NF4 levels sit at the quantiles of a normal "
              "distribution, block-wise over 64 weights, with the block scales "

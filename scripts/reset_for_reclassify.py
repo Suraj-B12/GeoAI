@@ -23,6 +23,7 @@ import argparse
 import json
 import sys
 import time
+import urllib.error
 import urllib.request
 from collections import Counter
 from pathlib import Path
@@ -66,6 +67,25 @@ def request_json(url: str, key: str, method: str = "GET", body: dict | None = No
     return json.loads(body_text) if body_text else []
 
 
+def image_reachable(url, timeout: float = 20.0) -> bool:
+    """True if the image can be fetched. HEAD first; some hosts reject HEAD,
+    so fall back to a ranged GET for the first byte."""
+    if not url:
+        return False
+    for method, headers in (("HEAD", {}), ("GET", {"Range": "bytes=0-0"})):
+        try:
+            req = urllib.request.Request(url, method=method, headers=headers)
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                if 200 <= resp.status < 300:
+                    return True
+        except urllib.error.HTTPError as e:
+            if e.code in (404, 410):
+                return False  # definitively gone - no point retrying with GET
+        except Exception:
+            pass
+    return False
+
+
 def main():
     parser = argparse.ArgumentParser(description="Reset all rows for re-classification")
     parser.add_argument("--apply", action="store_true",
@@ -73,6 +93,13 @@ def main():
     parser.add_argument("--include-pending", action="store_true",
                         help="Also reset rows currently in 'pending' status "
                              "(useful if a previous run touched them mid-stream)")
+    parser.add_argument("--include-unreachable", action="store_true",
+                        help="Also reset rows whose image can no longer be "
+                             "downloaded. OFF by default: resetting clears the "
+                             "row's results, and a row whose image is gone "
+                             "(deleted from Cloudinary) can never be "
+                             "re-classified, so its only copy of the results "
+                             "would be destroyed and it would end as 'failed'.")
     parser.add_argument("--include-expert-reviewed", action="store_true",
                         help="Also re-queue rows an expert has already reviewed. "
                              "OFF by default: an expert correction is ground "
@@ -84,7 +111,7 @@ def main():
 
     # 1. Inspect current state
     print("Fetching current row counts...")
-    rows = request_json(f"{base}/rest/v1/assessments?select=id,status,expert_reviewed", key)
+    rows = request_json(f"{base}/rest/v1/assessments?select=id,status,expert_reviewed,image_url", key)
     counts = Counter(r.get("status", "unknown") for r in rows)
     print(f"Total rows: {len(rows)}")
     for s, n in counts.most_common():
@@ -98,6 +125,23 @@ def main():
     n_reviewed = sum(1 for r in targets if r.get("expert_reviewed"))
     if not args.include_expert_reviewed:
         targets = [r for r in targets if not r.get("expert_reviewed")]
+    # Image reachability. Checked BEFORE anything is cleared: a row reset for
+    # re-classification loses its current results, and if its image has since
+    # been deleted from the host the worker can never produce new ones.
+    unreachable = []
+    if not args.include_unreachable:
+        print(f"Checking that {len(targets)} images can still be downloaded...")
+        reachable = []
+        for r in targets:
+            if image_reachable(r.get("image_url")):
+                reachable.append(r)
+            else:
+                unreachable.append(r)
+        targets = reachable
+        if unreachable:
+            print(f"  protecting {len(unreachable)} rows whose image is gone - "
+                  f"their current results are kept (pass --include-unreachable "
+                  f"to reset them anyway)")
     n_target = len(targets)
     print()
     print(f"Will reset {n_target} rows in statuses: {sorted(target_statuses)}")

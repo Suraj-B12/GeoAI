@@ -276,7 +276,8 @@ Capstone/
 | `PROMPTS_VERSION` | `v2` (default in app/model.py) | `v2` = Improved Baseline (production). `v1` = Plain Baseline (paper experiments only). |
 | `ADAPTER_PATH` | Unset in production | LoRA adapter directory. Used only when `DISABLE_ADAPTER=false` for A/B experiments. |
 | `QUANTIZATION_BITS` | `4` | Weight storage format at startup: `4` = NF4 + double quant (~4.3 GB), `8` = int8 (~8.6 GB), `0` = bf16, no quantization (~16.6 GB). Compute is bf16 in all three — only storage changes. Changeable at runtime from the operator dashboard (Model Precision panel) without a restart; this env var only sets the boot default. **Note:** the `.env` line is commented out, so production has been running 4-bit despite the "use fp16 on A5000" note below. |
-| `STAGE2_CONFIDENCE_MODE` | `field` (since 2026-09-17) | `field` = geomean over the DISTRESS_TYPES tokens only (AUC 0.613). `sequence` = geomean over all generated tokens — the pre-2026-09-17 default, measured **anti-correlated** with correctness (AUC 0.231), kept only to reproduce old results. Both values are recorded on every row regardless. |
+| `STAGE2_CONFIDENCE_MODE` | `field` (since 2026-09-17) | `field` = geomean over the DISTRESS_TYPES tokens only. `sequence` = geomean over all generated tokens, the pre-2026-09-17 default. On 407 labelled Attain images, under the no-false-positives rule: field AUC **0.744**, sequence **0.373** (inverted). Under Jaccard ≥ 0.5 field is 0.473 — it detects over-prediction, not correctness in general. Always quote the rule with the AUC. Both values are recorded on every row. |
+| `MAX_IMAGE_PIXELS` | `1048576` (1024²) in production `.env`; code default 4,840,000 | Input resolution cap. Full-res 1736² photos need a 47.8 GB peak on the 24 GB card and page to system RAM (~272 s/image); at 1024² the peak is 19.8 GB and the whole worker takes ~11 s. No measured accuracy loss on 200 labelled Attain images down to 512². Measured at 4-bit only. See paper §6.6. |
 | `STAGE1_MAX_NEW_TOKENS` | `12` | Stage 1 answers with one word. Was 200, which cost ~4x the time for identical output. |
 | `SKIP_MODEL_SELFTEST` | Unset (self-test ON) | Skips the 2s load-time synthetic-image check. Leave ON in production. |
 | `API_KEYS` | Empty (auth disabled) | Comma-separated API keys |
@@ -313,8 +314,11 @@ model difference. Guardrails, all of which fire automatically:
 | **The v2 IRC prompts cost ~8x throughput** vs the pre-IRC prompts. This predates any 2026-09 change — it is the price of the full 18-type taxonomy + severity criteria + 6-step protocol + few-shot block in every prompt. | `attain_baseline_v2_run.log` (pre-IRC): **4.54 s/image** over 769 images. `irc_audit_100.log` (IRC prompts, same machine/model/quantization): **37.94 s/image** over 100 images. |
 | flash-attn is NOT installed and has no prebuilt wheel for Windows + cp312 + torch 2.5.1. SDPA is the fallback and is correct, just slower. | `pip download flash-attn --only-binary=:all:` → "no matching distribution" |
 
-Throughput planning: budget ~12s/image for small images (512x512) and **~40s/image for
-full-size phone photos** under the IRC prompts. The prompt cost, not the model, dominates.
+Throughput planning (re-measured 2026-09-23, whole worker, 4-bit, cache cleared between
+passes): **~11 s per phone photo at the production 1024² cap**. Uncapped 1736² photos took
+~272 s because they overflow the 24 GB card. Earlier figures in this table (including the
+"8x IRC prompt cost") were measured without clearing the allocator between images and may be
+inflated by the same overflow; re-measure before relying on them.
 
 ## How to Run (Quick Reference)
 
