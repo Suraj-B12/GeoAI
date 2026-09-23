@@ -1,0 +1,256 @@
+{
+  "gpu_total_gb": 23.99,
+  "quantization_bits": 4,
+  "summary": {
+    "native": {
+      "n": 2,
+      "tokens": 3844,
+      "median_total_s": 271.75,
+      "median_peak_reserved_gb": 47.82,
+      "fits_in_vram": false
+    },
+    "1280": {
+      "n": 6,
+      "tokens": 2025,
+      "median_total_s": 30.31,
+      "median_peak_reserved_gb": 26.2,
+      "fits_in_vram": false
+    },
+    "1024": {
+      "n": 6,
+      "tokens": 1296,
+      "median_total_s": 11.12,
+      "median_peak_reserved_gb": 19.76,
+      "fits_in_vram": true
+    },
+    "768": {
+      "n": 6,
+      "tokens": 729,
+      "median_total_s": 9.17,
+      "median_peak_reserved_gb": 16.07,
+      "fits_in_vram": true
+    }
+  },
+  "rows": [
+    {
+      "stage0_s": 1.82,
+      "stage1_s": 2.09,
+      "stage2_s": 27.1,
+      "total_s": 31.02,
+      "peak_allocated_gb": 19.0,
+      "peak_reserved_gb": 26.21,
+      "photo": "0719d399",
+      "cap": "1280",
+      "tokens": 2025
+    },
+    {
+      "stage0_s": 1.25,
+      "stage1_s": 1.48,
+      "stage2_s": 8.04,
+      "total_s": 10.76,
+      "peak_allocated_gb": 16.04,
+      "peak_reserved_gb": 19.76,
+      "photo": "0719d399",
+      "cap": "1024",
+      "tokens": 1296
+    },
+    {
+      "stage0_s": 0.81,
+      "stage1_s": 1.08,
+      "stage2_s": 8.47,
+      "total_s": 10.37,
+      "peak_allocated_gb": 13.99,
+      "peak_reserved_gb": 16.09,
+      "photo": "0719d399",
+      "cap": "768",
+      "tokens": 729
+    },
+    {
+      "stage0_s": 3.85,
+      "stage1_s": 5.75,
+      "stage2_s": 259.68,
+      "total_s": 269.28,
+      "peak_allocated_gb": 27.97,
+      "peak_reserved_gb": 47.82,
+      "photo": "0719d399",
+      "cap": "native",
+      "tokens": 3844
+    },
+    {
+      "stage0_s": 1.47,
+      "stage1_s": 1.53,
+      "stage2_s": 7.99,
+      "total_s": 11.01,
+      "peak_allocated_gb": 16.04,
+      "peak_reserved_gb": 19.75,
+      "photo": "09cbe35d",
+      "cap": "1024",
+      "tokens": 1296
+    },
+    {
+      "stage0_s": 0.8,
+      "stage1_s": 1.17,
+      "stage2_s": 7.11,
+      "total_s": 9.08,
+      "peak_allocated_gb": 13.99,
+      "peak_reserved_gb": 16.07,
+      "photo": "09cbe35d",
+      "cap": "768",
+      "tokens": 729
+    },
+    {
+      "stage0_s": 1.85,
+      "stage1_s": 2.21,
+      "stage2_s": 26.19,
+      "total_s": 30.25,
+      "peak_allocated_gb": 19.0,
+      "peak_reserved_gb": 26.2,
+      "photo": "09cbe35d",
+      "cap": "1280",
+      "tokens": 2025
+    },
+    {
+      "stage0_s": 3.91,
+      "stage1_s": 5.82,
+      "stage2_s": 262.0,
+      "total_s": 271.75,
+      "peak_allocated_gb": 27.97,
+      "peak_reserved_gb": 47.82,
+      "photo": "09cbe35d",
+      "cap": "native",
+      "tokens": 3844
+    },
+    {
+      "stage0_s": 1.04,
+      "stage1_s": 1.19,
+      "stage2_s": 6.94,
+      "total_s": 9.17,
+      "peak_allocated_gb": 13.99,
+      "peak_reserved_gb": 16.07,
+      "photo": "0ce50bfd",
+      "cap": "768",
+      "tokens": 729
+    },
+    {
+      "stage0_s": 1.86,
+      "stage1_s": 2.2,
+      "stage2_s": 26.07,
+      "total_s": 30.13,
+      "peak_allocated_gb": 19.0,
+      "peak_reserved_gb": 26.2,
+      "photo": "0ce50bfd",
+      "cap": "1280",
+      "tokens": 2025
+    },
+    {
+      "stage0_s": 1.24,
+      "stage1_s": 1.51,
+      "stage2_s": 8.71,
+      "total_s": 11.46,
+      "peak_allocated_gb": 16.04,
+      "peak_reserved_gb": 19.76,
+      "photo": "0ce50bfd",
+      "cap": "1024",
+      "tokens": 1296
+    },
+    {
+      "stage0_s": 1.83,
+      "stage1_s": 2.22,
+      "stage2_s": 26.25,
+      "total_s": 30.31,
+      "peak_allocated_gb": 19.0,
+      "peak_reserved_gb": 26.2,
+      "photo": "13e9fba4",
+      "cap": "1280",
+      "tokens": 2025
+    },
+    {
+      "stage0_s": 1.24,
+      "stage1_s": 1.5,
+      "stage2_s": 8.38,
+      "total_s": 11.12,
+      "peak_allocated_gb": 16.04,
+      "peak_reserved_gb": 19.76,
+      "photo": "13e9fba4",
+      "cap": "1024",
+      "tokens": 1296
+    },
+    {
+      "stage0_s": 0.81,
+      "stage1_s": 1.17,
+      "stage2_s": 7.73,
+      "total_s": 9.71,
+      "peak_allocated_gb": 13.99,
+      "peak_reserved_gb": 16.08,
+      "photo": "13e9fba4",
+      "cap": "768",
+      "tokens": 729
+    },
+    {
+      "stage0_s": 1.21,
+      "stage1_s": 1.5,
+      "stage2_s": 7.34,
+      "total_s": 10.05,
+      "peak_allocated_gb": 16.04,
+      "peak_reserved_gb": 19.75,
+      "photo": "15c42758",
+      "cap": "1024",
+      "tokens": 1296
+    },
+    {
+      "stage0_s": 0.81,
+      "stage1_s": 1.16,
+      "stage2_s": 6.97,
+      "total_s": 8.95,
+      "peak_allocated_gb": 13.99,
+      "peak_reserved_gb": 16.07,
+      "photo": "15c42758",
+      "cap": "768",
+      "tokens": 729
+    },
+    {
+      "stage0_s": 1.85,
+      "stage1_s": 2.14,
+      "stage2_s": 25.95,
+      "total_s": 29.93,
+      "peak_allocated_gb": 19.0,
+      "peak_reserved_gb": 26.2,
+      "photo": "15c42758",
+      "cap": "1280",
+      "tokens": 2025
+    },
+    {
+      "stage0_s": 0.85,
+      "stage1_s": 1.18,
+      "stage2_s": 7.01,
+      "total_s": 9.05,
+      "peak_allocated_gb": 13.99,
+      "peak_reserved_gb": 16.07,
+      "photo": "163ff37f",
+      "cap": "768",
+      "tokens": 729
+    },
+    {
+      "stage0_s": 1.83,
+      "stage1_s": 2.22,
+      "stage2_s": 27.41,
+      "total_s": 31.46,
+      "peak_allocated_gb": 19.0,
+      "peak_reserved_gb": 26.21,
+      "photo": "163ff37f",
+      "cap": "1280",
+      "tokens": 2025
+    },
+    {
+      "stage0_s": 1.24,
+      "stage1_s": 1.5,
+      "stage2_s": 9.34,
+      "total_s": 12.09,
+      "peak_allocated_gb": 16.04,
+      "peak_reserved_gb": 19.76,
+      "photo": "163ff37f",
+      "cap": "1024",
+      "tokens": 1296
+    }
+  ]
+}

@@ -134,12 +134,70 @@ def analyse(rows: list, metric: str, definition: str, thresholds: list) -> dict:
     return out
 
 
+def matched_operating_points(rows: list, prod_file: str, metric: str,
+                             candidates: list, L: str) -> list:
+    """Transfer a production threshold to a labelled set by matching review load.
+
+    Confidence distributions differ between datasets (Attain's field confidence
+    sits ~0.13 above production's), so "0.80 on Attain" and "0.80 in production"
+    are different operating points. What is comparable is the FRACTION of
+    images sent to review. For each candidate, take the production review load
+    it produces, find the labelled-set threshold with the same review load, and
+    read the error cost there - from the only data that has ground truth.
+    """
+    p = Path(prod_file)
+    if not p.is_absolute():
+        p = EVAL_DIR / prod_file
+    d = json.loads(p.read_text(encoding="utf-8"))
+    prod = sorted(r[metric] for r in d["per_image"]
+                  if r.get("ran_stage2") and r.get(metric) is not None)
+    md = [f"## Matched operating points (production: {p.name}, n={len(prod)})", ""]
+    print("\n" + L)
+    print(f"MATCHED OPERATING POINTS - production {p.name} (n={len(prod)})")
+    print(L)
+    for ds in sorted({r["dataset"] for r in rows}):
+        g = [r for r in rows if r["dataset"] == ds]
+        vals = sorted(r[metric] for r in g)
+        md += [f"### {ds} (n={len(g)})", "",
+               "| production threshold | production review load | "
+               "matched labelled threshold | definition | auto-accept error (95% CI) "
+               "| errors caught |",
+               "|---:|---:|---:|---|---:|---:|"]
+        print(f"\n{ds} (n={len(g)})")
+        for th in candidates:
+            load = sum(1 for x in prod if x < th) / len(prod)
+            m_th = vals[min(len(vals) - 1, int(load * len(vals)))]
+            acc = [r for r in g if r[metric] >= m_th]
+            for defn in ("no_false_positives", "any_overlap"):
+                neg = [r for r in g if not r["correct"][defn]]
+                bad = [r for r in acc if not r["correct"][defn]]
+                lo, hi = wilson(len(bad), len(acc))
+                err = 100 * len(bad) / len(acc) if acc else float("nan")
+                caught = len(neg) - len(bad)
+                print(f"  prod {th:.2f} (review {100 * load:4.0f}%) -> {ds} {m_th:.3f}  "
+                      f"{defn:<20} error {err:5.1f}% [{100 * lo:.0f}-{100 * hi:.0f}]  "
+                      f"caught {caught}/{len(neg)}")
+                md.append(f"| {th:.2f} | {100 * load:.0f}% | {m_th:.3f} | {defn} "
+                          f"| {err:.1f}% [{100 * lo:.0f}-{100 * hi:.0f}] "
+                          f"| {caught}/{len(neg)} ({100 * caught / len(neg):.0f}%) |")
+        md.append("")
+    return md
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--in", dest="inputs", action="append", required=True)
     ap.add_argument("--metric", default="field", choices=["field", "sequence"])
     ap.add_argument("--thresholds", default="0.70,0.72,0.75,0.78,0.80,0.82,0.85")
     ap.add_argument("--out", default="threshold_decision.md")
+    ap.add_argument("--production", default=None,
+                    help="production confidence file (e.g. "
+                         "uploaded_photos_confidence.json). Absolute thresholds "
+                         "do not transfer between datasets whose confidence "
+                         "distributions differ, so with this flag each candidate "
+                         "threshold is also evaluated at the MATCHED operating "
+                         "point: the labelled-set threshold that produces the same "
+                         "review load the candidate produces in production.")
     args = ap.parse_args()
     thresholds = [float(t) for t in args.thresholds.split(",")]
 
@@ -244,6 +302,10 @@ def main() -> int:
                 print("   " + line)
                 print("   " + note.strip())
                 md += [f"**0.80 vs 0.75.** {line}{note}", ""]
+
+    if args.production:
+        md += matched_operating_points(rows, args.production, args.metric,
+                                       [0.85, 0.80, 0.78, 0.75, 0.70], L)
 
     out = EVAL_DIR / args.out
     out.write_text("\n".join(md), encoding="utf-8")

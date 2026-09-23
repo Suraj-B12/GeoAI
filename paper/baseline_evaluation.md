@@ -2,6 +2,16 @@
 
 ## Paper-Ready Sections + Technical Notes
 
+> **Revision 2026-09-23.** Added: field-restricted Stage 2 confidence (§3.4), threshold
+> calibration on 407 labelled images (§3.5, §6.5), and an input-resolution study (§3.8,
+> §6.6, §7.6–7.8, T2.2–T2.5). Every figure in these sections is regenerated from stored
+> result files by the scripts named beside it, without re-running inference.
+>
+> **Not yet revised:** §3.3–3.4 (prompts), §6.1–6.3 and §7.3–7.4 describe the pre-IRC:82
+> taxonomy and a production pipeline that used the QLoRA adapter. Production has since
+> moved to the base model with IRC:82-aligned prompts and no adapter; the adapter is kept
+> for comparison only. Those sections need their own revision before submission.
+
 ---
 
 # PART I: ACADEMIC PAPER SECTIONS
@@ -141,12 +151,14 @@ DESCRIPTION: <one sentence description>
 ```
 
 **Confidence Extraction (Stage 2):**
-Stage 2 uses **geometric mean of per-token probabilities** across the entire generated sequence:
+Stage 2 uses the **geometric mean of per-token probabilities, restricted to the tokens that carry the classification**:
 1. For each generated token `t_i`, compute `log P(t_i | t_1, ..., t_{i-1})` from the logits
-2. Average all log-probabilities: `mean_log_prob = (1/N) * sum(log P(t_i))`
-3. Exponentiate: `confidence = exp(mean_log_prob)`
+2. Locate the token span covering the value of the `DISTRESS_TYPES:` field
+3. Average the log-probabilities over that span only and exponentiate: `confidence = exp(mean_log_prob)`
 
-This represents the model's average certainty per token. Unlike Stage 1's binary softmax, Stage 2 must evaluate confidence over a multi-token structured response, making geometric mean the appropriate metric. A sequence where the model is highly certain about every token yields a confidence close to 1.0; uncertainty on even a few tokens pulls the geometric mean down significantly.
+Unlike Stage 1's binary softmax, Stage 2 produces a multi-token structured response, so a sequence likelihood is the natural measure. What matters is which tokens enter it. Locating the span is not trivial: byte-level BPE splits multi-byte characters across token boundaries, so decoding token by token gives unreliable character offsets. We decode cumulative prefixes, which yields an exact character offset at every token boundary, and map the field's character range onto a token range. If the span cannot be located, or covers fewer than two tokens, the whole-sequence value is used and the fallback is recorded. Across 456 predictions (49 production, 407 calibration) the span was located every time.
+
+**Why the span is restricted.** An earlier version averaged over the entire response, including the free-text `DESCRIPTION` field. That prose is high-entropy: a fluent but wrong description reads as high-probability text, and a hedged but correct one reads as low. Measured against ground truth (§6.5), the whole-sequence score ranked wrong predictions *above* correct ones (AUC 0.373, below the 0.5 of chance). Both variants are computed and stored for every prediction, so the comparison can be repeated as labelled data accumulates. Implementation: `scripts/confidence.py`, shared by the production classifier and the evaluation scripts.
 
 **Response Parsing:**
 The parser extracts structured fields using prefix matching (`DISTRESS_TYPES:`, `SEVERITY:`, `DESCRIPTION:`). If structured parsing fails, a fallback keyword extraction scans for known distress type names in the raw text. If no distress types can be extracted, the result is labeled "Unknown" — which always falls below the 80% confidence threshold and triggers expert review.
@@ -155,11 +167,7 @@ The parser extracts structured fields using prefix matching (`DISTRESS_TYPES:`, 
 
 The confidence threshold is set at **80%** (0.80), defined once in `scripts/utils.py` and imported by all components. Any prediction where either Stage 1 or Stage 2 confidence falls below this threshold is flagged with `needs_expert_review = true`.
 
-**Threshold selection rationale:**
-- Below 50%: Model is essentially guessing — must be reviewed
-- 50-80%: Model has a direction but is uncertain — review improves accuracy
-- Above 80%: Model is confident — accept unless contradicted by field evidence
-- The 80% threshold will be empirically calibrated on the validation set after fine-tuning (Phase 2)
+**Calibration.** The value 0.80 was originally set a priori. It was then tested against ground truth on 407 Attain images (§6.5). Production confidences run lower than Attain's (mean 0.746 against 0.875), so an absolute threshold does not transfer between them; thresholds were instead compared at matched review load — the Attain threshold that sends the same fraction of images to review as the candidate does in production. At the review load implied by 0.80 in production (76%), the matched operating point auto-accepted wrong predictions at a rate of 3.0% (95% CI 1–8%) and caught 57 of 60 errors. Lowering to 0.75 (63% review load) doubled the auto-accept error rate to 6.0% (3–11%) and caught 51 of 60. The intervals overlap, so the difference is not statistically established at this sample size; every point estimate nevertheless favours 0.80, and it is retained.
 
 ### 3.6 Fine-Tuning Strategy (QLoRA)
 
@@ -210,6 +218,21 @@ After QLoRA training, the adapter must **never** be merged into the base model v
 | SDPA Fallback | PyTorch native scaled dot-product attention | Universal (no extra deps) |
 
 **Runtime auto-detection:** The system automatically detects GPU compute capability and installed packages at startup, selecting the best available attention implementation (Flash Attention 2 > SDPA > Eager) without manual configuration.
+
+### 3.8 Input Resolution Budget
+
+Qwen2.5-VL tokenises an image into one visual token per 28×28 pixel block, so a 1736×1736 smartphone photograph becomes 3,844 visual tokens before any text is added. The processor's `max_pixels` parameter caps this: an image above the budget is resized, preserving aspect ratio and rounding each side to a multiple of 28, until its area fits. JPEG compression, by contrast, does not change inference cost, because images are decoded to pixels before tokenisation.
+
+We evaluate caps of 1280², 1024², 768², 640² and 512² pixels against full resolution. Each downscaled view is produced with the processor's own `smart_resize` routine and bicubic resampling, so it is identical to what the production processor would produce under that cap. Two datasets answer different questions:
+
+- **Bengaluru uploads** — 57 citizen photographs that passed the pavement pre-filter, predominantly 1512 or 1728 px square. No labels exist, so this measures *change*: does the answer at a lower resolution match the answer at full resolution?
+- **Attain** — 200 labelled images. This measures *loss*: when an answer changes, is it a worse one? Attain frames come in three sizes (1484×504, 644×644 and 1932×1092); the 1280² and 1024² caps change only the 16 largest of the 200 frames, 768² changes 136, and 640² and 512² change all 200. Attain's evidence is therefore strongest at 768² and below.
+
+Acceptance criteria were fixed before the run: at most 2% of images flipping from Distress to Normal at Stage 1; Stage 1 label agreement ≥ 95%; mean Jaccard similarity of the Stage 2 distress-type set against full resolution ≥ 0.80; and on Attain, no significant accuracy drop (paired exact McNemar test, α = 0.05) and no point-estimate drop above 2 percentage points.
+
+After the first four images showed the second distress label changing even at mild caps, two control arms were added to separate lost detail from model instability. The 1024² view was re-encoded as JPEG at quality 95 — visually identical, with a mean change under 2 grey levels on sampled photographs — and at quality 75, one step below the quality of about 80 at which uploads are already stored (estimated from the files' quantisation tables for 56 of 57 photographs). Disagreement between the quality-95 arm and the plain 1024² view measures how much the answer changes under a perturbation that removes no information. The acceptance criteria were not relaxed when these arms were added; both are reported in §6.6.
+
+Timing was measured separately, with the allocator cache cleared and peak-memory counters reset before every pass, across all three worker stages (pavement pre-filter, detection and classification). Scripts: `scripts/resolution_ab.py` (accuracy and agreement), `scripts/resolution_timing.py` (timing and memory).
 
 ---
 
@@ -562,6 +585,97 @@ The adapter was promoted to `adapters/v2-rdd-2epochs-20260507/` and pointed at v
 | Stage 2 Accuracy (Attain Known) | ___ | ___ | ___ |
 | Stage 2 Accuracy (Attain Unknown) | ___ | ___ | ___ |
 
+### 6.5 Stage 2 Confidence Calibration
+
+We ran the production classifier (4-bit, IRC:82 prompts, no adapter) over 407 randomly sampled Attain images and recorded both confidence variants for each Stage 2 prediction. Multi-label correctness is ambiguous, so four definitions are reported. A confidence score's ranking quality is measured by AUC: the probability that a randomly chosen correct prediction scores above a randomly chosen incorrect one (0.5 means the score carries no information).
+
+**Table 6.5a — Stage 2 confidence AUC by correctness definition (Attain, n = 407)**
+
+| Correctness definition | Correct / wrong | Field-restricted | Whole-sequence |
+|---|---:|---:|---:|
+| No false positives (every predicted label is in ground truth) | 347 / 60 | **0.744 ± 0.030** | 0.373 ± 0.041 |
+| Any overlap (at least one predicted label is in ground truth) | 377 / 30 | 0.593 ± 0.051 | 0.593 ± 0.051 |
+| Jaccard ≥ 0.5 | 156 / 251 | 0.473 ± 0.029 | 0.453 ± 0.029 |
+| Exact set match | 15 / 392 | 0.415 ± 0.071 | 0.662 ± 0.078 |
+
+*± is the Hanley–McNeil standard error. Exact match has only 15 correct predictions and is not interpreted. Source: `eval_results/calib_attain_407.json`.*
+
+Two findings follow. First, the whole-sequence score used before this revision is **inverted** under the no-false-positives rule: at 0.373 it sits more than three standard errors below chance, meaning it gave higher confidence to predictions that contained a spurious label. Second, the field-restricted score is informative under that rule (0.744, eight standard errors above chance) but uninformative under Jaccard ≥ 0.5 (0.473). The restricted score falls as the model names more distress types, so it detects over-prediction and is blind to under-prediction, which the Jaccard rule also counts as an error. The choice of correctness definition, not the choice of metric, determines which conclusion a single AUC would report, which is why all four are given.
+
+**Production photographs.** On the 49 Bengaluru uploads that reached Stage 2, the restricted score separates committed predictions from hedged ones: single-label predictions averaged 0.961 (all 9 above 0.80), two-label predictions 0.698 (3 of 40 above 0.80). The gap is 0.264, against 0.041 for the whole-sequence score (0.809 against 0.768). The whole-sequence score occupied only the range 0.707–0.872 across all 49 predictions; the restricted score spans 0.545–0.990. These photographs have no expert labels, so this is a separation result, not an accuracy result. Source: `eval_results/uploaded_photos_confidence.json`.
+
+**Threshold at matched operating points.** Mean field-restricted confidence differs by dataset — 0.875 on Attain, 0.743 on RDD2022-India, 0.746 on the Bengaluru uploads — so an absolute threshold does not transfer. Table 6.5b compares thresholds at matched review load.
+
+**Table 6.5b — Error cost of each production threshold, read at the matched Attain operating point**
+
+| Production threshold | Production review load | Auto-accept error (95% CI) | Errors caught |
+|---:|---:|---:|---:|
+| 0.85 | 80% | 3.6% (1–10) | 57 / 60 |
+| **0.80** | **76%** | **3.0% (1–8)** | **57 / 60** |
+| 0.78 | 69% | 5.6% (3–11) | 53 / 60 |
+| 0.75 | 63% | 6.0% (3–11) | 51 / 60 |
+| 0.70 | 37% | 7.0% (4–11) | 42 / 60 |
+
+*No-false-positives definition, Attain n = 407; Wilson intervals. Source: `scripts/threshold_decision.py --in calib_attain_407.json --production uploaded_photos_confidence.json`.*
+
+**RDD2022-India** (250 images) was evaluated but is not used for calibration. Its images are dash-camera traffic scenes in which annotated distress occupies a median 7.6% of the frame, and the Stage 1 detector — built for close-up photographs — passed only 3 of 15 images in a pilot. It was run with Stage 1 bypassed; 51 of its 250 predictions named only distress types RDD does not annotate and were excluded rather than scored as errors the dataset cannot adjudicate.
+
+### 6.6 Input Resolution: Accuracy, Agreement and Cost
+
+**Table 6.6a — Agreement with full resolution, Bengaluru uploads (n = 57, no labels)**
+
+| Cap | Visual tokens (mean) | Stage 1 agreement | Distress → Normal | Stage 2 Jaccard vs full | Severity agreement |
+|---|---:|---:|---:|---:|---:|
+| Full | 3,208 | — | — | — | — |
+| 1280² | 1,886 | 98.2% | 1 | 0.779 | 82.6% |
+| 1024² | 1,254 | 91.2% | 1 | 0.732 | 78.3% |
+| 768² | 719 | 91.2% | 1 | 0.645 | 82.6% |
+| 640² | 481 | 96.5% | 0 | 0.703 | 73.9% |
+| 512² | 324 | 89.5% | 0 | 0.670 | 67.4% |
+
+*Stage 2 columns cover the 46 images that full resolution classifies as distressed. Source: `eval_results/resolution_ab.json`.*
+
+**Table 6.6b — Accuracy against ground truth, Attain (n = 200, paired with full resolution)**
+
+| Cap | Frames changed | No false positives: full → capped (worse / better, p) | Jaccard ≥ 0.5: full → capped (worse / better, p) |
+|---|---:|---|---|
+| 1024² | 16 | 88.0% → 87.5% (1 / 0, p = 1.00) | 38.5% → 38.0% (2 / 1, p = 1.00) |
+| 768² | 136 | 88.0% → 88.0% (2 / 2, p = 1.00) | 38.5% → 38.5% (9 / 9, p = 1.00) |
+| 640² | 200 | 88.0% → 88.0% (3 / 3, p = 1.00) | 38.5% → 40.0% (7 / 10, p = 0.63) |
+| 512² | 200 | 87.9% → 86.4% (5 / 2, p = 0.45) | 38.2% → 38.7% (13 / 14, p = 1.00) |
+
+*Exact two-sided McNemar test on discordant pairs. At 512², one frame named only types outside Attain's annotations and is excluded from that row (n = 199).*
+
+**Table 6.6c — Per-class recall against ground truth, Attain**
+
+| Class | n | Full | 1280² | 1024² | 768² | 640² | 512² |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Linear crack | 186 | 99.5% | 99.5% | 98.9% | 99.5% | 100.0% | 98.9% |
+| Alligator crack | 176 | 11.9% | 11.9% | 11.9% | 9.7% | 13.6% | 11.9% |
+| Pothole | 59 | 13.6% | 13.6% | 11.9% | 16.9% | 15.3% | 15.3% |
+
+*Patch, weathering, ravelling and block crack are never named at any resolution, including full, so their 0% recall is not a resolution effect.*
+
+**Table 6.6d — Control arms: same 1024² resolution, JPEG round-trip only**
+
+| Arm (compared with plain 1024²) | Stage 1 agreement | Stage 2 exact match | Stage 2 Jaccard | Attain accuracy, no false positives |
+|---|---:|---:|---:|---|
+| JPEG quality 95 (visually identical) | 100.0% | 81.6% | 0.881 | 87.5% → 88.0% (p = 1.00) |
+| JPEG quality 75 (uploads are stored at ≈80) | 96.5% | 67.3% | 0.793 | 87.5% → 88.0% (p = 1.00) |
+
+**Table 6.6e — Whole-worker time and peak GPU memory, measured in isolation (full-size 1736² photographs, 4-bit, 24 GB GPU)**
+
+| Cap | Visual tokens | Worker time, median | Peak reserved GPU memory | Fits in 24 GB | n |
+|---|---:|---:|---:|---|---:|
+| Full | 3,844 | 271.8 s | 47.8 GB | No | 2 |
+| 1280² | 2,025 | 30.3 s | 26.2 GB | No | 6 |
+| **1024²** | **1,296** | **11.1 s** | **19.8 GB** | **Yes** | 6 |
+| 768² | 729 | 9.2 s | 16.1 GB | Yes | 6 |
+
+*Pavement pre-filter + detection + classification. Source: `eval_results/resolution_timing.json`.*
+
+**Against the pre-registered criteria, every cap failed.** 1280² failed on Stage 2 Jaccard (0.779); 1024² and 768² on Stage 1 agreement (91.2%) and Jaccard; 640² on Jaccard; 512² on both. No cap failed the safety criterion (at most 1.8% Distress → Normal) or the Attain accuracy criterion. §7.6 explains why we nevertheless recommend 1024².
+
 ---
 
 ## 7. Discussion
@@ -613,6 +727,30 @@ Getting QLoRA on Qwen2.5-VL-7B to actually train end-to-end on a 24 GB consumer 
 7. `torch_empty_cache_steps: 4` — without this, allocator fragmentation balloons step times from 22s to 400s by step 25
 
 Most of these are not in the LLaMA-Factory documentation. We document them in `paper/PAPER_INGREDIENTS.md` §5 and the project's `CLAUDE.md` for future work.
+
+### 7.6 Why 1024² Is Recommended Despite Failing the Pre-Registered Criteria
+
+The Stage 2 agreement criterion assumed that the full-resolution answer is a stable reference. The control arms show it is not. A JPEG round-trip at quality 95, which removes no visible information, changes the distress-type set on 18.4% of images (Jaccard 0.881). Uploads are already stored as JPEG at a quality of about 80; one step further, at quality 75, the Jaccard falls to 0.793, below the 0.80 criterion. A criterion that is failed by compression close to what every upload already carries cannot distinguish resolution loss from the model's own instability; in hindsight it was mis-specified.
+
+The evidence that bears on *loss* points the other way. On Attain, paired accuracy is unchanged at every cap: the largest drop is 1.5 percentage points at 512² (p = 0.45), and the changes that do occur are symmetric — at 768², nine predictions became worse and nine became better under the Jaccard rule. Recall of the finest-grained class, linear cracking, stays between 98.9% and 100% at every cap. The answers change, but not in a direction that costs accuracy; the pattern is a re-sampling of an unstable second label rather than a systematic loss of detail.
+
+The Stage 1 changes are confined to uncertain images. Across all caps there were 19 Stage 1 flips on 7 images, and every one of those images had a full-resolution Stage 1 confidence below the 0.80 review threshold (the highest was 0.787). All three Distress → Normal flips were the same image, at full-resolution confidence 0.530. Every flipped image is routed to an expert at full resolution already, so capping changes no automated decision.
+
+We therefore recommend a cap of 1024² — the largest that fits in GPU memory (Table 6.6e) — and state plainly that this departs from the rule we set in advance. The Attain evidence at 1024² itself rests on the 16 frames that cap changes; the stronger evidence is that accuracy holds at 768² and below, where most or all frames are downscaled by comparable or greater factors.
+
+### 7.7 GPU Memory, Not Compute, Sets Production Throughput
+
+At full resolution a single worker pass reserves a peak of 47.8 GB of GPU memory on a 24 GB card. The classification stage accounts for it: On Windows the display driver (WDDM) does not raise an out-of-memory error in this case: it pages the overflow to system memory over PCIe, and the pass continues an order of magnitude more slowly. on the same full-size image the pavement pre-filter and detection stages, which encode the same image but generate only a few tokens, take 3.9 s and 5.8 s, while classification takes about 260 s. At the 1024² cap the whole worker runs in 11.1 s against 271.8 s, a 24× reduction, with peak memory at 19.8 GB.
+
+This also affects measurement. The PyTorch caching allocator keeps a pass's peak memory reserved after the pass ends, so any timing taken after a full-resolution image without clearing the cache inherits the overflowed state. In the first resolution run, the 1024² cap measured 109 s when timed immediately after a full-resolution pass and 10 s once the cache was cleared between passes. Throughput figures elsewhere in this project that were measured without this precaution should be re-measured.
+
+### 7.8 Limitations of the Calibration and Resolution Results
+
+- **No expert labels on production photographs.** On the Bengaluru uploads, the confidence and resolution results measure separation and change, not accuracy. Labelling a sample of those photographs is the most valuable next step.
+- **Domain gap.** Attain is vehicle-mounted New Zealand footage with wide frames; production is handheld close-ups from Bengaluru. Mean confidence differs by 0.13 between them, which is why thresholds were compared at matched review load.
+- **Calibration population.** The 407 Attain images were selected by a Stage 1 run made before the IRC:82 prompt revision; 274 of the 407 stored predictions (67%) reproduced under the current prompts. Rankings are unaffected, but absolute rates carry this caveat.
+- **Unstable second label.** An invisible perturbation changes 18% of Stage 2 answers. This caps how far any agreement metric can go and motivates prompts that ask for one primary distress type with optional secondaries.
+- **Configuration.** All results are for the 7B model at 4-bit on a single 24 GB GPU under Windows.
 
 ---
 
@@ -672,6 +810,8 @@ Most of these are not in the LLaMA-Factory documentation. We document them in `p
 
 These bounds control how many visual tokens the Qwen2.5-VL processor generates. More pixels = more tokens = more VRAM and compute.
 
+**Measured recommendation (§6.6, §7.6):** `MAX_PIXELS = 1,048,576` (1024²). At the current 4,840,000 cap a 1736² photograph is not downscaled and a worker pass reserves a peak of 47.8 GB of GPU memory; at 1024² it needs 19.8 GB and the worker runs 24× faster with no measured accuracy loss on labelled data. The production value remains 4,840,000 until this recommendation is applied.
+
 ### T2.3 Inference Performance
 
 | Stage | Image Size | Avg Time (7B fp16) | Avg Time (3B 4-bit) |
@@ -679,6 +819,14 @@ These bounds control how many visual tokens the Qwen2.5-VL processor generates. 
 | Stage 1 | 160x160 (GAPs) | 2.08 s | ~1.5 s |
 | Stage 2 | 512x512 (RDD) | 5.32 s | ~4.7 s |
 | Full Pipeline | Varies | ~7.4 s (if distressed) | ~6.2 s |
+
+The figures above were measured on small dataset images. Production smartphone photographs behave very differently (§6.6, Table 6.6e; 7B, 4-bit, IRC:82 prompts, whole worker including the pavement pre-filter):
+
+| Input | Visual tokens | Worker time (median) |
+|---|---:|---:|
+| 1736² photograph, full resolution | 3,844 | 271.8 s |
+| Same photograph, 1024² cap | 1,296 | 11.1 s |
+| Same photograph, 768² cap | 729 | 9.2 s |
 
 ### T2.4 Thread Safety
 
@@ -691,6 +839,8 @@ All model inference is wrapped in `threading.Lock()` to prevent concurrent acces
 | Qwen2.5-VL-7B | fp16, no quantization | ~14 GB | ~16 GB |
 | Qwen2.5-VL-7B | 4-bit NF4 | ~5.5 GB | ~7.3 GB |
 | Qwen2.5-VL-3B | 4-bit NF4 | ~2 GB | ~3 GB |
+
+The table above is weights at rest. Peak memory during Stage 2 inference on a 1736² photograph (7B, 4-bit) is dominated by activations and grows steeply with input resolution: 47.8 GB reserved at full resolution, 26.2 GB at a 1280² cap, 19.8 GB at 1024² and 16.1 GB at 768² (`scripts/resolution_timing.py`). Anything above physical memory is paged to system RAM by the Windows driver rather than failing, which is why the full-resolution pass is roughly 25× slower rather than crashing.
 
 ## T3. API and Deployment Architecture
 
