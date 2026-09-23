@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # GeoAI / Pavement Distress Pipeline — failsafe startup script
 # ============================================================
 # Single command to launch the entire production stack.
@@ -22,7 +22,7 @@ param(
     [switch]$Watchdog,          # auto-restart server on crash
     [switch]$SkipChecks,        # skip pre-flight (use only for fast iteration)
     [int]$Port = 8000,          # uvicorn port
-    [string]$Host = '0.0.0.0'   # uvicorn host
+    [string]$BindHost = '0.0.0.0'   # uvicorn host. Not $Host: that is a read-only PowerShell automatic variable, and declaring it aborts the script before it runs.
 )
 
 $ErrorActionPreference = "Stop"
@@ -69,7 +69,15 @@ if (-not $SkipChecks) {
     Write-Step "Pre-flight checks"
 
     # 1. venv exists
-    $venvPy = Join-Path $ProjectRoot "venv\Scripts\python.exe"
+    # From here on the script only launches a native process and reads its exit
+# code. uvicorn writes its INFO log lines to stderr. With
+# ErrorActionPreference=Stop, PowerShell 5.1 turns every stderr line into a
+# terminating NativeCommandError as soon as output is redirected - to a log
+# file, or by a service wrapper such as NSSM - so the server was killed on its
+# very first log line. Crash detection below uses $LASTEXITCODE, not
+# PowerShell errors, so Continue is the correct setting for this section.
+$ErrorActionPreference = "Continue"
+$venvPy = Join-Path $ProjectRoot "venv\Scripts\python.exe"
     if (-not (Test-Path $venvPy)) {
         Write-FAIL "venv not found at $venvPy"
         Write-Host "    Recreate it:  python -m venv venv;  .\venv\Scripts\Activate.ps1;  uv pip install -r requirements.txt"
@@ -205,11 +213,19 @@ Write-Host ""
 # ============================================================
 # Run uvicorn (foreground)
 # ============================================================
+# From here on the script only launches a native process and reads its exit
+# code. uvicorn writes its INFO log lines to stderr. With
+# ErrorActionPreference=Stop, PowerShell 5.1 turns every stderr line into a
+# terminating NativeCommandError as soon as output is redirected - to a log
+# file, or by a service wrapper such as NSSM - so the server was killed on its
+# very first log line. Crash detection below uses $LASTEXITCODE, not
+# PowerShell errors, so Continue is the correct setting for this section.
+$ErrorActionPreference = "Continue"
 $venvPy = Join-Path $ProjectRoot "venv\Scripts\python.exe"
 $uvicornArgs = @(
     "-m", "uvicorn", "app.main:app",
     "--env-file", ".env",
-    "--host", $Host,
+    "--host", $BindHost,
     "--port", $Port,
     "--workers", "1"
 )

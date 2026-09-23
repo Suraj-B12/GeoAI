@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # GeoAI health check — single-shot diagnostic
 # ============================================================
 # Verifies the production stack is functional. Designed to be runnable
@@ -46,7 +46,7 @@ try {
     if ($h.prompts_version) { Check-OK "prompts: $($h.prompts_version)" }
     if ($h.pavement_filter_enabled) { Check-OK "pavement pre-filter enabled" }
 } catch {
-    Check-FAIL "server not reachable on port $Port: $_"
+    Check-FAIL "server not reachable on port ${Port}: $_"
 }
 
 # 2. UIs serve correctly

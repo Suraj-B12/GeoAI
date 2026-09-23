@@ -1,4 +1,4 @@
-# =============================================================
+﻿# =============================================================
 # Install QLoRA training as a Windows service (NSSM)
 # =============================================================
 # Purpose: a 12-24h training run must survive RDP disconnects, user logouts,
