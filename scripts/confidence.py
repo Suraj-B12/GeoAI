@@ -23,7 +23,12 @@ the span:
             anti-correlated with correctness (AUC 0.231, n=37): fluent wrong
             answers score high, hedged right answers score low.
   field     only the tokens of the DISTRESS_TYPES value — the classification
-            itself. This is the production default since 2026-09-17.
+            itself. The production default since 2026-09-17.
+  primary   the JOINT probability (product, not geometric mean) of the first
+            label the model names; secondary labels do not lower it. Recorded
+            on every row, not used as the gate: on 407 labelled Attain images
+            it did not separate right first labels from wrong ones (AUC 0.468)
+            where `field` did (0.635). eval_results/primary_confidence.md.
 
 Locating the field span is the fiddly part. Byte-level BPE splits multi-byte
 characters across token boundaries, so a token-by-token decode does not give
@@ -78,21 +83,28 @@ def sequence_confidence(scores: tuple, generated_ids) -> float:
     return geomean(token_log_probs(scores, generated_ids))
 
 
-def find_field_token_span(tokenizer, generated_ids,
-                          field: str = "DISTRESS_TYPES") -> Optional[tuple]:
-    """Token range [start, end) covering the value of `field` in the output.
+def joint(log_probs: list) -> float:
+    """Joint probability = exp(sum(log p_i)). 0.0 if empty.
 
-    Returns None when the field is absent, empty, or shorter than two tokens —
-    fewer than two tokens is too thin an estimate to be worth trusting, and the
-    caller falls back to the whole sequence.
+    For a label that spans several tokens this is the probability the model
+    gave to that exact label, not an average over its pieces.
     """
-    ids = generated_ids.tolist()
+    vals = [lp for lp in log_probs if lp is not None]
+    if not vals:
+        return 0.0
+    return round(max(0.0, min(1.0, math.exp(sum(vals)))), 4)
+
+
+def _field_value_range(tokenizer, ids: list, field: str) -> Optional[tuple]:
+    """(offsets, full_text, value_start, line_end) for `field`, or None.
+
+    offsets[i] is the character length of the decoded prefix ids[:i+1].
+    Decoding the prefix cumulatively gives an exact offset at every token
+    boundary. Decoding token by token does not, because byte-level BPE splits
+    multi-byte characters across tokens.
+    """
     if not ids:
         return None
-
-    # Cumulative prefix decode gives an exact character offset per token
-    # boundary, which token-by-token decoding does not (byte-level BPE merges
-    # split multi-byte characters across tokens).
     offsets: list = []
     for i in range(len(ids)):
         offsets.append(len(tokenizer.decode(ids[: i + 1], skip_special_tokens=True)))
@@ -107,6 +119,21 @@ def find_field_token_span(tokenizer, generated_ids,
         line_end = len(full_text)
     if line_end <= value_start:
         return None
+    return offsets, full_text, value_start, line_end
+
+
+def find_field_token_span(tokenizer, generated_ids,
+                          field: str = "DISTRESS_TYPES") -> Optional[tuple]:
+    """Token range [start, end) covering the value of `field` in the output.
+
+    Returns None when the field is absent, empty, or shorter than two tokens —
+    fewer than two tokens is too thin an estimate to be worth trusting, and the
+    caller falls back to the whole sequence.
+    """
+    found = _field_value_range(tokenizer, generated_ids.tolist(), field)
+    if found is None:
+        return None
+    offsets, _full_text, value_start, line_end = found
 
     # Map char range -> token range. A token belongs to the span if its end
     # offset lands inside (value_start, line_end].
@@ -140,6 +167,81 @@ def field_confidence(tokenizer, scores: tuple, generated_ids,
         return geomean(lp), False
     start, end = span
     return geomean(lp[start:end]), True
+
+
+def find_type_item_spans(tokenizer, generated_ids,
+                         field: str = "DISTRESS_TYPES") -> list:
+    """Token span of each comma-separated label in the field, in output order.
+
+    Returns [(label_text, start_tok, end_tok), ...]. The split matches the
+    parser in scripts/utils.py, which also splits the value on commas, so
+    label_text canonicalises to the same name the parser produced.
+
+    A token belongs to a label if its characters overlap the label's
+    characters. The leading-space token (" Pot") therefore goes to its label.
+    Separator tokens (",") belong to no label. Unlike the whole-field span,
+    a single-token label is kept: one token is the whole label.
+    """
+    found = _field_value_range(tokenizer, generated_ids.tolist(), field)
+    if found is None:
+        return []
+    offsets, full_text, value_start, line_end = found
+
+    items = []
+    pos = value_start
+    for piece in full_text[value_start:line_end].split(","):
+        lead = len(piece) - len(piece.lstrip())
+        text = piece.strip()
+        if text:
+            a = pos + lead
+            items.append((text, a, a + len(text)))
+        pos += len(piece) + 1  # +1 for the comma
+
+    spans = []
+    for text, a, b in items:
+        toks = [i for i, end_off in enumerate(offsets)
+                if end_off > a and (offsets[i - 1] if i else 0) < b]
+        if toks:
+            spans.append((text, toks[0], toks[-1] + 1))
+    return spans
+
+
+def type_confidences(tokenizer, scores: tuple, generated_ids,
+                     field: str = "DISTRESS_TYPES") -> list:
+    """Confidence of each label the model named, in output order.
+
+    `joint` is the probability of that exact label. The first label's joint
+    probability is unconditional: it is where the model chose the primary
+    type. Every later label's probability is CONDITIONAL on the labels
+    already written, so later labels cannot be ranked against the first by
+    this number. `geomean` is recorded for comparison only. It favours long
+    names, because the tokens after the first are close to certain.
+    """
+    if not scores or len(scores) == 0:
+        return []
+    lp = token_log_probs(scores, generated_ids)
+    return [{"label": text,
+             "joint": joint(lp[s:e]),
+             "geomean": geomean(lp[s:e]),
+             "n_tokens": e - s}
+            for text, s, e in find_type_item_spans(tokenizer, generated_ids, field)]
+
+
+def primary_entry(type_confs: list, primary_label: Optional[str],
+                  canonicalize) -> Optional[dict]:
+    """The type_confidences entry that produced the parser's primary label.
+
+    Usually the first label. It is not the first one when the parser dropped
+    that label (for example "Other Distress", which canonicalises to None).
+    Returns None when no label matches, for example a "Normal" answer or a
+    keyword-fallback parse. The caller then falls back and records that.
+    """
+    if not primary_label:
+        return None
+    for tc in type_confs:
+        if canonicalize(tc["label"]) == primary_label:
+            return tc
+    return None
 
 
 def both_confidences(tokenizer, scores: tuple, generated_ids,

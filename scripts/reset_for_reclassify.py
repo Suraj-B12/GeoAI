@@ -100,6 +100,11 @@ def main():
                              "(deleted from Cloudinary) can never be "
                              "re-classified, so its only copy of the results "
                              "would be destroyed and it would end as 'failed'.")
+    parser.add_argument("--processed-before", default=None, metavar="ISO_TIME",
+                        help="Only reset rows processed before this time (e.g. "
+                             "2026-09-23T10:00:00Z): re-run what an older "
+                             "pipeline version produced and leave rows the "
+                             "current version already classified untouched.")
     parser.add_argument("--include-expert-reviewed", action="store_true",
                         help="Also re-queue rows an expert has already reviewed. "
                              "OFF by default: an expert correction is ground "
@@ -111,7 +116,7 @@ def main():
 
     # 1. Inspect current state
     print("Fetching current row counts...")
-    rows = request_json(f"{base}/rest/v1/assessments?select=id,status,expert_reviewed,image_url", key)
+    rows = request_json(f"{base}/rest/v1/assessments?select=id,status,expert_reviewed,image_url,processed_at", key)
     counts = Counter(r.get("status", "unknown") for r in rows)
     print(f"Total rows: {len(rows)}")
     for s, n in counts.most_common():
@@ -122,6 +127,14 @@ def main():
     if args.include_pending:
         target_statuses.add("pending")
     targets = [r for r in rows if r.get("status") in target_statuses]
+    if args.processed_before:
+        from datetime import datetime
+        cutoff = datetime.fromisoformat(args.processed_before.replace("Z", "+00:00"))
+        before = len(targets)
+        targets = [r for r in targets if r.get("processed_at") and
+                   datetime.fromisoformat(r["processed_at"].replace("Z", "+00:00")) < cutoff]
+        print(f"  --processed-before {args.processed_before}: {len(targets)} of {before} "
+              f"candidate rows were processed earlier")
     n_reviewed = sum(1 for r in targets if r.get("expert_reviewed"))
     if not args.include_expert_reviewed:
         targets = [r for r in targets if not r.get("expert_reviewed")]

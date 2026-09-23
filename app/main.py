@@ -67,6 +67,7 @@ from app.security import (
     validate_image,
     verify_api_key,
 )
+from app.deletion import DeleteError, delete_everywhere
 from app.supabase_client import (
     build_image_client,
     build_supabase_client,
@@ -74,7 +75,6 @@ from app.supabase_client import (
     get_assessment_by_id,
     get_class_distribution,
     get_pipeline_metrics,
-    hard_delete_assessment,
     list_assessments_for_dashboard,
     reset_for_reclassify,
     get_recent_processed,
@@ -457,9 +457,12 @@ async def classify_stream(
                 }
 
                 result["distress_types"] = s2["distress_types"]
+                result["primary_distress_type"] = s2.get("primary_distress_type")
+                result["secondary_distress_types"] = s2.get("secondary_distress_types") or []
                 result["severity"] = s2["severity"]
                 result["description"] = s2["description"]
                 result["stage2_confidence"] = s2["stage2_confidence"]
+                result["stage2_confidence_primary"] = s2.get("stage2_confidence_primary")
                 result["stage2_time_ms"] = s2["stage2_time_ms"]
                 result["stage2_raw"] = s2["stage2_raw"]
 
@@ -1016,91 +1019,18 @@ async def dashboard_list(
         raise HTTPException(status_code=502, detail=f"Supabase fetch failed: {e}")
 
 
-def _extract_cloudinary_public_id(image_url: str) -> Optional[str]:
-    """
-    Extract the Cloudinary public_id from a delivery URL.
-
-    Examples:
-      https://res.cloudinary.com/demo/image/upload/v1234567/folder/abc123.jpg
-        -> 'folder/abc123'
-      https://res.cloudinary.com/demo/image/upload/folder/abc123
-        -> 'folder/abc123'
-    Returns None if the URL doesn't look like Cloudinary.
-    """
-    if not image_url or "cloudinary.com" not in image_url:
-        return None
-    try:
-        # Find the segment after '/upload/' and before the file extension
-        after_upload = image_url.split("/upload/", 1)[1]
-        # Strip the version prefix if present (v1234567/...)
-        parts = after_upload.split("/")
-        if parts[0].startswith("v") and parts[0][1:].isdigit():
-            parts = parts[1:]
-        # Reassemble and strip extension
-        path = "/".join(parts)
-        # Strip extension (.jpg, .png, etc.) from the last component
-        if "." in path.split("/")[-1]:
-            path = path.rsplit(".", 1)[0]
-        # Strip query string if any
-        if "?" in path:
-            path = path.split("?")[0]
-        return path or None
-    except (IndexError, ValueError):
-        return None
-
-
-async def _cloudinary_destroy(public_id: str) -> dict:
-    """
-    Hit Cloudinary's /destroy endpoint to remove an image.
-
-    Requires CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET
-    env vars. Returns {'result': 'ok'|'not found'|'error', 'detail': ...}.
-
-    Silently returns {'result': 'skipped'} if creds are missing — Supabase
-    delete still proceeds so the row is gone, image just lives on as orphan.
-    Operator can run a periodic Cloudinary cleanup separately.
-    """
-    cloud_name = os.environ.get("CLOUDINARY_CLOUD_NAME")
-    api_key = os.environ.get("CLOUDINARY_API_KEY")
-    api_secret = os.environ.get("CLOUDINARY_API_SECRET")
-    if not (cloud_name and api_key and api_secret):
-        return {"result": "skipped",
-                "detail": "CLOUDINARY_* env vars not configured"}
-
-    import hashlib
-    import time as _time
-    timestamp = int(_time.time())
-    # Cloudinary signed-request signature: SHA1 of "public_id=X&timestamp=T" + api_secret
-    sig_str = f"public_id={public_id}&timestamp={timestamp}{api_secret}"
-    signature = hashlib.sha1(sig_str.encode()).hexdigest()
-
-    import httpx
-    url = f"https://api.cloudinary.com/v1_1/{cloud_name}/image/destroy"
-    async with httpx.AsyncClient(timeout=15.0) as cli:
-        try:
-            r = await cli.post(url, data={
-                "public_id": public_id,
-                "timestamp": str(timestamp),
-                "api_key": api_key,
-                "signature": signature,
-            })
-            return {"result": r.json().get("result", "unknown"),
-                    "status_code": r.status_code}
-        except Exception as e:
-            return {"result": "error", "detail": str(e)}
-
-
 @app.delete("/dashboard/delete/{assessment_id}",
             dependencies=[Depends(verify_api_key)])
 @limiter.limit("30/minute")
 async def dashboard_delete(request: Request, assessment_id: str):
     """
-    Hard-delete an assessment row and (best-effort) its Cloudinary image.
+    Permanently delete an upload from Supabase AND Cloudinary.
 
-    Two-step:
-      1. DELETE row from Supabase (cascades to photos via FK).
-      2. POST /destroy to Cloudinary if image_url is a Cloudinary URL
-         and CLOUDINARY_* env vars are configured.
+    Removes the Cloudinary image, then the RoadSide `photos` row (which
+    cascades to the assessment), then confirms the assessment is gone.
+    Refuses without deleting anything if the image cannot be confirmed
+    removed from Cloudinary, so a delete never orphans an image. See
+    app/deletion.py for the ordering and failure handling.
 
     Client MUST send a `confirm=true` query string to actually delete —
     catches accidental DELETE calls (UI shows a confirmation modal first).
@@ -1114,30 +1044,15 @@ async def dashboard_delete(request: Request, assessment_id: str):
                    "This is a permanent hard-delete — confirm explicitly.",
         )
 
-    supabase = request.app.state.supabase_client
     try:
-        result = await hard_delete_assessment(supabase, assessment_id)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        result = await delete_everywhere(request.app.state.supabase_client,
+                                         request.app.state.image_client,
+                                         assessment_id)
+    except DeleteError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
     except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Supabase delete failed: {e}")
-
-    if not result.get("deleted"):
-        raise HTTPException(status_code=404, detail="assessment not found")
-
-    # Best-effort Cloudinary delete
-    cloudinary_result: dict = {"result": "skipped"}
-    image_url = result.get("image_url")
-    public_id = _extract_cloudinary_public_id(image_url) if image_url else None
-    if public_id:
-        cloudinary_result = await _cloudinary_destroy(public_id)
-
-    return JSONResponse({
-        "deleted": True,
-        "assessment_id": assessment_id,
-        "image_url": image_url,
-        "cloudinary": cloudinary_result,
-    })
+        raise HTTPException(status_code=502, detail=f"Delete failed: {e}")
+    return JSONResponse(result)
 
 
 @app.post("/dashboard/reclassify/{assessment_id}",

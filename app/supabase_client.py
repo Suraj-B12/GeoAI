@@ -534,41 +534,6 @@ async def list_assessments_for_dashboard(
     return {"items": items, "total": total, "limit": limit, "offset": offset}
 
 
-async def hard_delete_assessment(
-    client: httpx.AsyncClient,
-    assessment_id: str,
-) -> dict:
-    """
-    Hard-delete an assessment row from Supabase.
-
-    Returns {'image_url': str|None, 'photo_id': int|None} so the caller can
-    chain a Cloudinary delete if image_url points there. Photo-table delete
-    cascades via ON DELETE CASCADE on the foreign key.
-    """
-    if not assessment_id or len(assessment_id) > 64:
-        raise ValueError(f"invalid assessment_id: {assessment_id!r}")
-
-    # Fetch metadata before delete (for Cloudinary cleanup downstream)
-    meta_resp = await client.get(
-        f"/rest/v1/assessments?id=eq.{assessment_id}"
-        "&select=id,image_url,photo_id&limit=1"
-    )
-    _check(meta_resp)
-    meta_rows = meta_resp.json() or []
-    if not meta_rows:
-        return {"deleted": False, "reason": "not_found"}
-    meta = meta_rows[0]
-
-    del_resp = await client.delete(f"/rest/v1/assessments?id=eq.{assessment_id}")
-    _check(del_resp)
-    return {
-        "deleted": True,
-        "id": assessment_id,
-        "image_url": meta.get("image_url"),
-        "photo_id": meta.get("photo_id"),
-    }
-
-
 async def reset_for_reclassify(
     client: httpx.AsyncClient,
     assessment_id: str,

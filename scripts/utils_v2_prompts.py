@@ -237,6 +237,39 @@ STAGE2_SYSTEM_PROMPT_V2 = (
     "DESCRIPTION: <one sentence: what you observe, citing IRC:82 section number>"
 )
 
+# ------------------------------------------------------------------
+# Primary-first ordering: TESTED 2026-09-23, NOT ADOPTED
+# ------------------------------------------------------------------
+# Hypothesis: asking for the most prominent distress FIRST would make the
+# first label the dominant one, so its confidence could gate review while the
+# other labels are shown beside it. Without the rule the model lists labels in
+# inspection-protocol order (STEP 1, linear cracks, first).
+#
+# Result on 407 labelled Attain images, paired against the unmodified prompt
+# (eval_results/primary_confidence.md):
+#   - the first label barely moved: it matched the largest annotated class on
+#     36.9% of images before and 36.4% after (McNemar p = 0.69);
+#   - answers with no false-positive label fell from 85.3% to 83.3% (9 worse,
+#     1 better, p = 0.021), mostly a correct second label replaced by
+#     "Potholes".
+# So production keeps STAGE2_SYSTEM_PROMPT_V2 unchanged. The variant stays
+# importable so the experiment can be reproduced (PROMPTS_VERSION=
+# v2_primary_first).
+_MULTI_RULE = ("  • You may name MULTIPLE types — most damaged Indian roads have more "
+               "than one (this is documented in IRC:82 §7.1)\n")
+_ORDER_RULE = ("  • ORDER MATTERS: write the PRIMARY distress FIRST — the most "
+               "prominent one, covering the largest part of the pavement in the "
+               "image. Then list every other type you found.\n")
+_FORMAT_OLD = "DISTRESS_TYPES: <comma-separated canonical IRC:82 names from the taxonomy>\n"
+_FORMAT_NEW = ("DISTRESS_TYPES: <comma-separated canonical IRC:82 names from the "
+               "taxonomy, PRIMARY (most prominent) distress first>\n")
+for _old in (_MULTI_RULE, _FORMAT_OLD):
+    if STAGE2_SYSTEM_PROMPT_V2.count(_old) != 1:
+        raise RuntimeError(f"v2 prompt anchor not found exactly once: {_old!r}")
+STAGE2_SYSTEM_PROMPT_V2_PRIMARY_FIRST = (STAGE2_SYSTEM_PROMPT_V2
+                                         .replace(_MULTI_RULE, _MULTI_RULE + _ORDER_RULE)
+                                         .replace(_FORMAT_OLD, _FORMAT_NEW))
+
 STAGE2_USER_PROMPT_V2 = (
     "<image>\n"
     "Dr. Kumar, perform the 6-step IRC:82-2015 classification protocol on "

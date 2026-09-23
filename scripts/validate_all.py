@@ -80,6 +80,7 @@ try:
         "_normal_token_ids", "_distress_token_ids",
         "predict_is_pavement",  # Stage 0 pre-filter
         "scripts import confidence",  # Stage 2 maths is delegated, not copied
+        "_stage2_confidences",  # every Stage 2 metric recorded on every call
     ]
     missing = [p for p in patterns if p not in code]
     check("model.py structure", len(missing) == 0, f"Missing: {missing}")
@@ -99,6 +100,8 @@ try:
         "def field_confidence",
         "def find_field_token_span",
         "def both_confidences",     # callers must be able to record both
+        "def type_confidences",     # per-label probabilities (primary mode)
+        "def primary_entry",        # aligns the gated label with the parser
     ]
     missing = [p for p in patterns if p not in code]
     model_code = open("app/model.py", encoding="utf-8").read()

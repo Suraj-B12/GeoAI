@@ -1,0 +1,33 @@
+{
+  "n": 68,
+  "threshold": 0.8,
+  "review_load": {
+    "field": 46,
+    "primary": 47
+  },
+  "single_label": {
+    "n": 19,
+    "field": 2,
+    "primary": 3
+  },
+  "multi_label": {
+    "n": 49,
+    "field": 44,
+    "primary": 44
+  },
+  "stage2_pass": {
+    "both": 17,
+    "only_field": 8,
+    "only_primary": 4
+  },
+  "first_label": {
+    "Potholes": 50,
+    "Longitudinal Cracking": 9,
+    "Bleeding": 8,
+    "Alligator Cracking": 1
+  },
+  "mean": {
+    "field": 0.778,
+    "primary": 0.654
+  }
+}

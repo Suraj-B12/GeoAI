@@ -312,6 +312,16 @@
             background: var(--tag-bg);
             border: 1px solid var(--border);
         }
+        .type-pill.primary {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: #fff;
+        }
+        .type-pill.also {
+            background: transparent;
+            font-weight: 400;
+            color: var(--text-secondary);
+        }
 
         .severity-badge {
             display: inline-block;
@@ -816,7 +826,10 @@ function handleSSEEvent(type, payload) {
                 resultEl.textContent = `${result.stage1_label} (${pct(result.stage1_confidence)} confidence) \u2014 ${(result.stage1_time_ms || 0).toFixed(0)}ms`;
                 resultEl.style.display = 'block';
             } else if (result && stage === 'stage2') {
-                const types = result.distress_types?.join(', ') || 'Unknown';
+                const dt = result.distress_types || [];
+                const types = dt.length
+                    ? dt[0] + (dt.length > 1 ? ` (also: ${dt.slice(1).join(', ')})` : '')
+                    : 'Unknown';
                 resultEl.textContent = `${types} \u2014 ${result.severity} severity (${pct(result.stage2_confidence)} confidence) \u2014 ${(result.stage2_time_ms || 0).toFixed(0)}ms`;
                 resultEl.style.display = 'block';
             }
@@ -850,8 +863,11 @@ function displayResults(r) {
     const typesEl = $('result-types');
     if (r.distress_types && r.distress_types.length > 0) {
         typesSection.style.display = 'block';
-        typesEl.innerHTML = r.distress_types.map(t =>
-            `<span class="type-pill">${escHtml(t)}</span>`
+        // [0] is the label the model listed first, shown as the main one;
+        // the rest are shown beside it.
+        typesEl.innerHTML = r.distress_types.map((t, k) => k === 0
+            ? `<span class="type-pill primary" title="Main distress (listed first by the model)">${escHtml(t)}</span>`
+            : `<span class="type-pill also" title="Also seen">${escHtml(t)}</span>`
         ).join('');
     } else {
         typesSection.style.display = 'none';

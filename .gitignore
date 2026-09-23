@@ -125,3 +125,6 @@ Thumbs.db
 node_modules/
 dist/
 build/
+
+# Database dumps contain citizen addresses and GPS; keep them local.
+eval_results/snapshots/assessments_*.json

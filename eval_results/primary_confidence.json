@@ -1,0 +1,173 @@
+{
+  "old": "calib_attain_407.json",
+  "new": "calib_attain_407_primary.json",
+  "n_paired": 407,
+  "threshold": 0.8,
+  "answer_ab": {
+    "no_false_positives": {
+      "old": 347,
+      "new": 339,
+      "b": 9,
+      "c": 1,
+      "p": 0.0215
+    },
+    "any_overlap": {
+      "old": 377,
+      "new": 379,
+      "b": 1,
+      "c": 3,
+      "p": 0.625
+    },
+    "jaccard_50": {
+      "old": 156,
+      "new": 160,
+      "b": 11,
+      "c": 15,
+      "p": 0.5572
+    },
+    "exact_match": {
+      "old": 15,
+      "new": 19,
+      "b": 5,
+      "c": 9,
+      "p": 0.424
+    }
+  },
+  "labels_per_image": {
+    "old": 2.007,
+    "new": 2.007,
+    "same_label_set": 358
+  },
+  "first_is_dominant": {
+    "n": 407,
+    "old": 150,
+    "new": 148,
+    "b": 4,
+    "c": 2,
+    "p": 0.6875,
+    "first_label_old": {
+      "Longitudinal Cracking": 380,
+      "Alligator Cracking": 17,
+      "Potholes": 10
+    },
+    "first_label_new": {
+      "Longitudinal Cracking": 390,
+      "Alligator Cracking": 9,
+      "Potholes": 8
+    }
+  },
+  "primary_auc": {
+    "primary (joint)": {
+      "auc": 0.4684,
+      "se": 0.0512,
+      "n_pos": 371,
+      "n_neg": 36
+    },
+    "primary (geomean)": {
+      "auc": 0.4759,
+      "se": 0.051,
+      "n_pos": 371,
+      "n_neg": 36
+    },
+    "field (all labels)": {
+      "auc": 0.6347,
+      "se": 0.0444,
+      "n_pos": 371,
+      "n_neg": 36
+    }
+  },
+  "thresholds": {
+    "0.50": {
+      "accepted": 352,
+      "review_load_pct": 13.5,
+      "error_pct": 8.8,
+      "ci": [
+        6.3,
+        12.2
+      ],
+      "caught": 5,
+      "n_wrong": 36
+    },
+    "0.60": {
+      "accepted": 252,
+      "review_load_pct": 38.1,
+      "error_pct": 9.9,
+      "ci": [
+        6.8,
+        14.2
+      ],
+      "caught": 11,
+      "n_wrong": 36
+    },
+    "0.70": {
+      "accepted": 135,
+      "review_load_pct": 66.8,
+      "error_pct": 8.1,
+      "ci": [
+        4.6,
+        14.0
+      ],
+      "caught": 25,
+      "n_wrong": 36
+    },
+    "0.75": {
+      "accepted": 86,
+      "review_load_pct": 78.9,
+      "error_pct": 9.3,
+      "ci": [
+        4.8,
+        17.3
+      ],
+      "caught": 28,
+      "n_wrong": 36
+    },
+    "0.80": {
+      "accepted": 35,
+      "review_load_pct": 91.4,
+      "error_pct": 17.1,
+      "ci": [
+        8.1,
+        32.7
+      ],
+      "caught": 30,
+      "n_wrong": 36
+    },
+    "0.85": {
+      "accepted": 8,
+      "review_load_pct": 98.0,
+      "error_pct": 50.0,
+      "ci": [
+        21.5,
+        78.5
+      ],
+      "caught": 32,
+      "n_wrong": 36
+    },
+    "0.90": {
+      "accepted": 0,
+      "review_load_pct": 100.0,
+      "error_pct": null,
+      "ci": [
+        0.0,
+        0.0
+      ],
+      "caught": 36,
+      "n_wrong": 36
+    },
+    "0.95": {
+      "accepted": 0,
+      "review_load_pct": 100.0,
+      "error_pct": null,
+      "ci": [
+        0.0,
+        0.0
+      ],
+      "caught": 36,
+      "n_wrong": 36
+    }
+  },
+  "review_load_at_live": {
+    "old_field_old_prompt": 1.5,
+    "new_primary_new_prompt": 91.4
+  }
+}

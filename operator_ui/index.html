@@ -1716,6 +1716,14 @@ function renderDistribution(items) {
   }).join('');
 }
 
+// distress_types[0] is the label the model listed first, shown as the main
+// one; any others follow as secondary labels.
+function primaryWithAlso(types) {
+  const t = types.filter(x => x && x !== 'Unknown');
+  if (!t.length) return 'unknown';
+  return t.length > 1 ? `${t[0]} (also: ${t.slice(1).join(', ')})` : t[0];
+}
+
 function renderActivity(items) {
   const container = document.getElementById('activity-list');
   document.getElementById('activity-count').textContent = items.length + ' items';
@@ -1729,7 +1737,7 @@ function renderActivity(items) {
   if (items.length > 0) {
     const it = items[0];
     const cls = (it.distress_types && it.distress_types.length)
-      ? it.distress_types.join(', ')
+      ? primaryWithAlso(it.distress_types)
       : (it.stage1_label || 'unknown');
     const conf = it.stage2_confidence || it.stage1_confidence || 0;
     _lastProcessedSummary = `${cls} (${fmtPct(conf)} confidence) — ${it.status}`;
@@ -1741,7 +1749,7 @@ function renderActivity(items) {
     const confClass = it.status === 'failed' ? 'fail' : (conf >= 0.8 ? 'high' : 'low');
     const confText = it.status === 'failed' ? 'FAIL' : fmtPct(conf);
     const cls = (it.distress_types && it.distress_types.length)
-      ? it.distress_types.join(', ')
+      ? primaryWithAlso(it.distress_types)
       : (it.stage1_label || (it.error_message ? 'error' : 'unknown'));
     return `
       <div class="activity-item">

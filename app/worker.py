@@ -49,6 +49,29 @@ from app.supabase_client import (
 from scripts.utils import CONFIDENCE_THRESHOLD, normalize_severity
 
 
+def _release_gpu_cache() -> None:
+    """Return cached GPU blocks to the driver between images.
+
+    When image shapes vary, the PyTorch allocator's reserve grows with each
+    new shape. On this 24 GB card under Windows (WDDM) the overflow is paged
+    to system RAM instead of raising an error. On labelled Attain frames
+    (2026-09-23) that made 640x640 images take 24 s and 1920x1080 take 84 s;
+    releasing the cache after each image brought both back to ~8 s with
+    identical outputs. Production uploads are all 1200x1600 today, so this
+    guards against a change in upload shape rather than fixing a slowdown
+    already seen.
+    """
+    try:
+        import gc
+
+        import torch
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+    except Exception:
+        pass
+
+
 log = logging.getLogger("pipeline_worker")
 
 
@@ -429,6 +452,7 @@ class PipelineWorker:
             # the "last finished" timings until the next image arrives.
             self.metrics.current_image_id = None
             self._enter_stage(None)
+            _release_gpu_cache()
 
     def _enter_stage(self, stage: Optional[str]) -> None:
         """
@@ -565,14 +589,20 @@ class PipelineWorker:
                 # broader-taxonomy types? See app/model.py predict_stage2.
                 "stage2_used_fallback": s2.get("stage2_used_fallback", False),
                 "stage2_primary_raw": s2.get("stage2_primary_raw"),
-                # Both Stage 2 confidence metrics on every row. The active one
-                # is written to the stage2_confidence column; the other is kept
-                # here so the review threshold can be re-calibrated later from
-                # real production data without re-running inference.
+                # Every Stage 2 confidence metric on every row. The active one
+                # is written to the stage2_confidence column; the others are
+                # kept here so the review threshold can be re-calibrated later
+                # from real production data without re-running inference.
+                "stage2_confidence_primary": s2.get("stage2_confidence_primary"),
+                "stage2_primary_span_found": s2.get("stage2_primary_span_found"),
                 "stage2_confidence_field": s2.get("stage2_confidence_field"),
                 "stage2_confidence_sequence": s2.get("stage2_confidence_sequence"),
                 "stage2_confidence_mode": s2.get("stage2_confidence_mode"),
                 "stage2_field_span_found": s2.get("stage2_field_span_found"),
+                # distress_types keeps the model's order: [0] is shown as
+                # the main label and the rest beside it.
+                "primary_distress_type": s2.get("primary_distress_type"),
+                "stage2_type_confidences": s2.get("stage2_type_confidences"),
             },
             "image_width": img_w,
             "image_height": img_h,

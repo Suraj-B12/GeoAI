@@ -372,6 +372,16 @@
             background: var(--text);
             color: var(--surface);
         }
+        .tag-primary {
+            background: var(--text);
+            color: var(--surface);
+        }
+        .tag-also {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
 
         /* ======== DIVIDER ======== */
         .card-divider {
@@ -886,7 +896,9 @@ function buildCardHTML(a, i, mode /* 'pending' | 'reviewed' */) {
                 </div>
                 <div class="field">
                     <div class="field-label">AI Classification</div>
-                    <div class="tags">${(a.distress_types||[]).map(t=>`<span class="tag">${escapeHtml(t)}</span>`).join('')}</div>
+                    <div class="tags">${(a.distress_types||[]).map((t, k)=>k === 0
+                        ? `<span class="tag tag-primary" title="Main distress (listed first by the model)">${escapeHtml(t)}</span>`
+                        : `<span class="tag tag-also" title="Also seen">${escapeHtml(t)}</span>`).join('')}</div>
                 </div>
                 <div class="field">
                     <div class="field-label">AI Severity</div>

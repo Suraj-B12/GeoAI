@@ -7,6 +7,11 @@
 > §6.6, §7.6–7.8, T2.2–T2.5). Every figure in these sections is regenerated from stored
 > result files by the scripts named beside it, without re-running inference.
 >
+> **Revision 2026-09-23 (b).** Added: a test of gating on the confidence of the *first* label
+> alone and of a prompt rule asking for the most prominent distress first (§3.4, §6.7, §7.9).
+> Neither was adopted; both are reported with the evidence. §7.7 adds a second allocator
+> effect (image shape).
+>
 > **Not yet revised:** §3.3–3.4 (prompts), §6.1–6.3 and §7.3–7.4 describe the pre-IRC:82
 > taxonomy and a production pipeline that used the QLoRA adapter. Production has since
 > moved to the base model with IRC:82-aligned prompts and no adapter; the adapter is kept
@@ -159,6 +164,8 @@ Stage 2 uses the **geometric mean of per-token probabilities, restricted to the 
 Unlike Stage 1's binary softmax, Stage 2 produces a multi-token structured response, so a sequence likelihood is the natural measure. What matters is which tokens enter it. Locating the span is not trivial: byte-level BPE splits multi-byte characters across token boundaries, so decoding token by token gives unreliable character offsets. We decode cumulative prefixes, which yields an exact character offset at every token boundary, and map the field's character range onto a token range. If the span cannot be located, or covers fewer than two tokens, the whole-sequence value is used and the fallback is recorded. Across 456 predictions (49 production, 407 calibration) the span was located every time.
 
 **Why the span is restricted.** An earlier version averaged over the entire response, including the free-text `DESCRIPTION` field. That prose is high-entropy: a fluent but wrong description reads as high-probability text, and a hedged but correct one reads as low. Measured against ground truth (§6.5), the whole-sequence score ranked wrong predictions *above* correct ones (AUC 0.373, below the 0.5 of chance). Both variants are computed and stored for every prediction, so the comparison can be repeated as labelled data accumulates. Implementation: `scripts/confidence.py`, shared by the production classifier and the evaluation scripts.
+
+**Per-label confidence.** The same character-to-token mapping locates each comma-separated label inside the `DISTRESS_TYPES` value. For each label we record its *joint* probability, `exp(Σ log p_i)` over its tokens: the probability the model gave to that exact label. The geometric mean over its tokens is recorded for comparison but is biased upward for long names, whose tokens after the first are close to certain. The first label's joint probability is unconditional. Every later label's probability is conditional on the labels already written, so it cannot be ranked against the first. The label the model lists first is shown to operators as the main distress, with the others beside it. Its confidence (the *primary* confidence) is stored on every prediction. It was evaluated as a replacement for the whole-field gate and not adopted (§6.7).
 
 **Response Parsing:**
 The parser extracts structured fields using prefix matching (`DISTRESS_TYPES:`, `SEVERITY:`, `DESCRIPTION:`). If structured parsing fails, a fallback keyword extraction scans for known distress type names in the raw text. If no distress types can be extracted, the result is labeled "Unknown" — which always falls below the 80% confidence threshold and triggers expert review.
@@ -676,6 +683,52 @@ Two findings follow. First, the whole-sequence score used before this revision i
 
 **Against the pre-registered criteria, every cap failed.** 1280² failed on Stage 2 Jaccard (0.779); 1024² and 768² on Stage 1 agreement (91.2%) and Jaccard; 640² on Jaccard; 512² on both. No cap failed the safety criterion (at most 1.8% Distress → Normal) or the Attain accuracy criterion. §7.6 explains why we nevertheless recommend 1024².
 
+### 6.7 Gating on the First Label Alone
+
+Most production predictions name two distress types, and the second is often a hedge ("Potholes, Bleeding"). The whole-field confidence falls when the model hedges, so these images go to review even when the first label is a confident pothole. We tested the alternative: show the first label as the main one, gate on its confidence alone, and treat the others as side labels. That only works if (a) the first label is the dominant distress and (b) its confidence predicts whether it is right. To help (a), we added two lines to the Stage 2 prompt asking for the most prominent distress first. Both changes were evaluated on the same 407 Attain images as §6.5, re-run at the production 1024² cap and paired image by image against the stored run.
+
+**Table 6.7a — The ordering rule and the multi-label answer (paired, n = 407)**
+
+| Correctness rule | Without rule | With rule | Worse | Better | McNemar p |
+|---|---:|---:|---:|---:|---:|
+| No false positives | 85.3% | 83.3% | 9 | 1 | 0.021 |
+| Any overlap | 92.6% | 93.1% | 1 | 3 | 0.63 |
+| Jaccard ≥ 0.5 | 38.3% | 39.3% | 11 | 15 | 0.56 |
+| Exact set | 3.7% | 4.7% | 5 | 9 | 0.42 |
+
+*Exact two-sided McNemar on discordant pairs. The stored run was at full resolution; restricted to the 379 frames the cap leaves unchanged, the no-false-positives comparison is 8 worse and 0 better (p = 0.008), so the difference is the prompt's. Source: `eval_results/primary_confidence.md`, `scripts/primary_confidence_report.py`.*
+
+The rule changed the label set on 12% of images, and mostly not in the intended way. In six of the nine images that got worse, a correct second label (Alligator or Transverse Cracking) was replaced by "Potholes", which the annotators had not marked.
+
+**Table 6.7b — Is the first label the dominant distress?**
+
+| | Without rule | With rule |
+|---|---:|---:|
+| First label = Longitudinal Cracking | 380 | 390 |
+| First label = Alligator Cracking | 17 | 9 |
+| First label = Potholes | 10 | 8 |
+| First label is the annotated class with the largest box area | 150 (36.9%, CI 32–42) | 148 (36.4%, CI 32–41) |
+
+*McNemar p = 0.69 (4 worse, 2 better). Box area is a proxy for prominence: it overstates thin diagonal cracks and double counts overlapping boxes.*
+
+The model leads with Longitudinal Cracking on 96% of Attain images with or without the rule. That is the first step of the inspection protocol in the prompt, and the rule did not override it.
+
+**Table 6.7c — Does the first label's confidence predict whether the first label is right? (n = 407: 371 right, 36 wrong)**
+
+| Score | AUC ± SE | Mean, right | Mean, wrong |
+|---|---:|---:|---:|
+| First label, joint probability | 0.468 ± 0.051 | 0.636 | 0.649 |
+| First label, geometric mean | 0.476 ± 0.051 | 0.909 | 0.907 |
+| Whole field (current gate) | **0.635 ± 0.044** | 0.878 | 0.863 |
+
+*Right = the dataset annotates the first label's class on the image. Hanley–McNeil SE.*
+
+The first label's own confidence carries no information about whether it is right; both variants are within one standard error of chance. The whole-field score, designed for a different question, predicts first-label correctness better than the first label's own score does. On the same fresh run it also reproduces its §6.5 result under the no-false-positives rule (0.726 ± 0.030, against 0.744 in the stored run).
+
+At the live 0.80 threshold, the joint score would send 91% of Attain images to review, and the 35 it would pass are wrong at 17% (95% CI 8–33%), against a base rate of 8.8% if nothing were reviewed. No threshold on it does better than the base rate by more than the width of its interval.
+
+**Production photographs.** Every production row now stores both scores, so the two gates can be compared on the same Bengaluru uploads without re-inference (68 photographs that reached Stage 2; no expert labels, so this compares review load, not accuracy). Potholes lead the label list in 50 of 68, so ordering is less of a problem here than on Attain. The first-label gate still does not lower the review load: 69% against 68% for the whole-field gate, and 90% for both on multi-label photographs. The first label's own confidence is itself low on hedged photographs (mean 0.654 against 0.778 for the whole field): when the model adds a second label, it is also less sure of the first. The gates disagree on 12 photographs, 8 passed only by the whole-field gate and 4 only by the first-label gate. Source: `scripts/production_gate_comparison.py`, `eval_results/production_gate_comparison.json`.
+
 ---
 
 ## 7. Discussion
@@ -744,13 +797,25 @@ At full resolution a single worker pass reserves a peak of 47.8 GB of GPU memory
 
 This also affects measurement. The PyTorch caching allocator keeps a pass's peak memory reserved after the pass ends, so any timing taken after a full-resolution image without clearing the cache inherits the overflowed state. In the first resolution run, the 1024² cap measured 109 s when timed immediately after a full-resolution pass and 10 s once the cache was cleared between passes. Throughput figures elsewhere in this project that were measured without this precaution should be re-measured.
 
+Image *shape* has the same effect. Attain mixes three frame shapes. Without releasing the cache between images, Stage 2 took 8 s on 1479×508 frames, 24 s on 640×640 and 84 s on 1920×1080, with identical outputs. Releasing the cache after every image brought all three to about 8 s. The smaller square frames were slower than the larger wide ones, which rules out compute as the cause: each new shape grew the allocator's reserve until it spilled into system memory. Production uploads all arrive at 1200×1600 and have not been affected. The worker now releases the cache after every image as a guard.
+
 ### 7.8 Limitations of the Calibration and Resolution Results
 
 - **No expert labels on production photographs.** On the Bengaluru uploads, the confidence and resolution results measure separation and change, not accuracy. Labelling a sample of those photographs is the most valuable next step.
 - **Domain gap.** Attain is vehicle-mounted New Zealand footage with wide frames; production is handheld close-ups from Bengaluru. Mean confidence differs by 0.13 between them, which is why thresholds were compared at matched review load.
 - **Calibration population.** The 407 Attain images were selected by a Stage 1 run made before the IRC:82 prompt revision; 274 of the 407 stored predictions (67%) reproduced under the current prompts. Rankings are unaffected, but absolute rates carry this caveat.
-- **Unstable second label.** An invisible perturbation changes 18% of Stage 2 answers. This caps how far any agreement metric can go and motivates prompts that ask for one primary distress type with optional secondaries.
+- **Unstable second label.** An invisible perturbation changes 18% of Stage 2 answers. This caps how far any agreement metric can go. Asking for the most prominent type first did not stabilise it (§6.7); it moved the second label and left the first where it was.
 - **Configuration.** All results are for the 7B model at 4-bit on a single 24 GB GPU under Windows.
+
+### 7.9 Why the First Label's Confidence Does Not Work as a Gate
+
+On Attain, the first label is almost always Longitudinal Cracking, because that is step 1 of the inspection protocol written into the prompt. The model's confidence in that token reflects how the prompt orders the inspection, not what the image shows. It comes out the same (0.64 on average) whether or not the frame contains a linear crack. The wrong first labels are frames where the annotators marked no linear crack at all, and the model is no less sure on those.
+
+The whole-field score works better for a reason that is easy to miss: hedging is evidence. When the model is unsure what an image shows, it names more types and names them less confidently, and those are the images where its first label is also more often wrong. A score that ignores the second label ignores that evidence. For the same reason, shielding the first label from the hedge ("a confident pothole with an unsure extra label should pass") has no support on labelled data. The cases it would wave through are the cases the current gate catches.
+
+Two limits apply. First, 96% of Attain first labels are one class, so the accuracy test is weak for Bengaluru, where potholes lead. The production comparison shows the first-label gate would not lower review load there either, but only labelled Bengaluru photographs can settle whether its score is informative. Every production row now records it, so that analysis will need no re-inference. Second, a prompt instruction is a weak lever on output order. Ordering by a separate step, such as asking which listed type dominates and reading the softmax over the listed types (as Stage 1 does for Normal/Distress), would make "main type" a decision the model is asked to make rather than a side effect of listing. We leave that to future work.
+
+Production therefore keeps the whole-field gate at 0.80 and the unmodified prompt. The interfaces show the first label as the main distress and the others beside it. The rule-carrying prompt remains available (`PROMPTS_VERSION=v2_primary_first`) so these results can be reproduced.
 
 ---
 
@@ -854,6 +919,7 @@ The table above is weights at rest. Peak memory during Stage 2 inference on a 17
 | `/health` | GET | Model status, device info, adapter status |
 | `/retrain/start` | POST | Trigger incremental retraining |
 | `/retrain/status` | GET | Training progress |
+| `/dashboard/delete/{id}?confirm=true` | DELETE | Remove an upload everywhere: Cloudinary image first (signed destroy with CDN invalidation), then the app's `photos` row, which cascades to the assessment. Deletes nothing if the image cannot be confirmed gone. |
 
 ### T3.2 SSE Streaming Protocol
 

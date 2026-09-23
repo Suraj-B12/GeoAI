@@ -4,6 +4,7 @@ Pydantic models for the Pavement Distress Classification API.
 
 import sys
 from pathlib import Path
+from typing import Optional
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -28,7 +29,18 @@ class ClassificationResponse(BaseModel):
     # Stage 2: Type classification (only populated if distressed)
     distress_types: list[str] = Field(
         default_factory=list,
-        description="List of distress types identified (empty if normal)"
+        description="Distress types identified, in the order the model listed "
+                    "them; the first is shown as the main one (empty if normal)"
+    )
+    primary_distress_type: Optional[str] = Field(
+        default=None,
+        description="The label the model listed first, distress_types[0]. "
+                    "stage2_confidence refers to this label only when "
+                    "stage2_confidence_mode is 'primary'"
+    )
+    secondary_distress_types: list[str] = Field(
+        default_factory=list,
+        description="The other distress types the model listed"
     )
     severity: str = Field(
         default="None",
@@ -40,7 +52,14 @@ class ClassificationResponse(BaseModel):
     )
     stage2_confidence: float = Field(
         default=0.0,
-        description="Stage 2 sequence confidence (0.0-1.0): average token probability"
+        description="Stage 2 confidence (0.0-1.0) read by the review gate. Its "
+                    "definition is set by STAGE2_CONFIDENCE_MODE: 'primary' = "
+                    "probability of the primary label, 'field' = geometric mean "
+                    "over all labels, 'sequence' = over the whole output"
+    )
+    stage2_confidence_primary: Optional[float] = Field(
+        default=None,
+        description="Probability of the primary label alone (recorded in every mode)"
     )
 
     # Expert review flag

@@ -21,6 +21,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from scripts import confidence as _conf
+from scripts.irc82_taxonomy import canonicalize_to_irc
 from scripts.model_loader import load_vlm
 from scripts.utils import (
     CONFIDENCE_THRESHOLD,
@@ -46,6 +47,17 @@ if _PROMPTS_VERSION in ("v2", "improved", "improved_baseline"):
         STAGE2_USER_PROMPT_V2 as STAGE2_USER_PROMPT,
     )
     _ACTIVE_PROMPTS = "v2_improved_baseline"
+elif _PROMPTS_VERSION == "v2_primary_first":
+    # v2 plus a "list the most prominent distress first" rule. Tested on
+    # 2026-09-23 and NOT adopted (see scripts/utils_v2_prompts.py). For
+    # reproducing that experiment only.
+    from scripts.utils_v2_prompts import (
+        STAGE1_SYSTEM_PROMPT_V2 as STAGE1_SYSTEM_PROMPT,
+        STAGE1_USER_PROMPT_V2 as STAGE1_USER_PROMPT,
+        STAGE2_SYSTEM_PROMPT_V2_PRIMARY_FIRST as STAGE2_SYSTEM_PROMPT,
+        STAGE2_USER_PROMPT_V2 as STAGE2_USER_PROMPT,
+    )
+    _ACTIVE_PROMPTS = "v2_improved_baseline_primary_first"
 else:
     from scripts.utils import (
         STAGE1_SYSTEM_PROMPT,
@@ -89,8 +101,15 @@ print(f"[PavementClassifier] Active prompt set: {_ACTIVE_PROMPTS}")
 # Override via env if a future model needs more headroom.
 STAGE1_MAX_NEW_TOKENS = int(os.environ.get("STAGE1_MAX_NEW_TOKENS", "12"))
 
+#
+# 'primary' (2026-09-23) = joint probability of the FIRST label only.
+#     Secondary labels would no longer lower the score. Recorded on every row
+#     but NOT the production gate: on 407 labelled Attain images it did not
+#     separate right first labels from wrong ones (AUC 0.468, joint; 0.476,
+#     geomean), while 'field' did (0.635). eval_results/primary_confidence.md.
+#     Falls back to 'field' (recorded per row) when no label can be matched.
 STAGE2_CONFIDENCE_MODE = os.environ.get("STAGE2_CONFIDENCE_MODE", "field").lower()
-if STAGE2_CONFIDENCE_MODE not in ("sequence", "field"):
+if STAGE2_CONFIDENCE_MODE not in ("sequence", "field", "primary"):
     print(f"[PavementClassifier] WARNING: unknown STAGE2_CONFIDENCE_MODE "
           f"{STAGE2_CONFIDENCE_MODE!r} — falling back to 'field'")
     STAGE2_CONFIDENCE_MODE = "field"
@@ -515,6 +534,36 @@ class PavementClassifier:
         return _conf.field_confidence(
             self._processor.tokenizer, scores, generated_ids, field)
 
+    def _stage2_confidences(self, scores: tuple, generated_ids: torch.Tensor,
+                            parsed: dict) -> dict:
+        """Every Stage 2 confidence for one generation, plus the gated value.
+
+        All of them are returned on every call, whatever the mode, so the gate
+        can be re-calibrated from stored rows without re-running inference.
+        """
+        seq = self._compute_sequence_confidence(scores, generated_ids)
+        fld, field_ok = self._compute_field_confidence(scores, generated_ids)
+        type_confs = _conf.type_confidences(
+            self._processor.tokenizer, scores, generated_ids)
+        types = parsed.get("distress_types") or []
+        entry = _conf.primary_entry(
+            type_confs, types[0] if types else None, canonicalize_to_irc)
+        # No matchable label (a "Normal" answer, a keyword-fallback parse):
+        # use the whole-field value and record that the fallback happened.
+        primary = entry["joint"] if entry else fld
+        gated = {"sequence": seq, "field": fld, "primary": primary}[STAGE2_CONFIDENCE_MODE]
+        return {
+            "stage2_confidence": gated,
+            "stage2_confidence_primary": primary,
+            "stage2_primary_span_found": entry is not None,
+            "stage2_confidence_field": fld,
+            "stage2_confidence_sequence": seq,
+            "stage2_field_span_found": field_ok,
+            # Per label, in output order. Labels after the first are
+            # conditional on the ones before them - see confidence.py.
+            "stage2_type_confidences": type_confs,
+        }
+
     def predict_is_pavement(self, image: Image.Image) -> dict:
         """
         Stage 0 — pavement pre-filter. Runs BEFORE Stage 1.
@@ -650,10 +699,8 @@ class PavementClassifier:
             stage2_raw, s2_scores, s2_gen_ids = self._run_inference_with_scores(
                 image, STAGE2_SYSTEM_PROMPT, STAGE2_USER_PROMPT
             )
-            s2_conf_seq = self._compute_sequence_confidence(s2_scores, s2_gen_ids)
-            s2_conf_field, field_ok = self._compute_field_confidence(s2_scores, s2_gen_ids)
-            s2_confidence = s2_conf_field if STAGE2_CONFIDENCE_MODE == "field" else s2_conf_seq
             parsed = parse_stage2_response(stage2_raw)
+            confs = self._stage2_confidences(s2_scores, s2_gen_ids, parsed)
 
             used_fallback = False
             primary_raw = stage2_raw
@@ -679,14 +726,8 @@ class PavementClassifier:
                         stage2_raw = fb_raw
                         s2_scores = fb_scores
                         s2_gen_ids = fb_gen_ids
-                        s2_conf_seq = self._compute_sequence_confidence(fb_scores, fb_gen_ids)
-                        s2_conf_field, field_ok = self._compute_field_confidence(
-                            fb_scores, fb_gen_ids
-                        )
-                        s2_confidence = (
-                            s2_conf_field if STAGE2_CONFIDENCE_MODE == "field" else s2_conf_seq
-                        )
                         parsed = fb_parsed
+                        confs = self._stage2_confidences(fb_scores, fb_gen_ids, parsed)
                         print(f"[PavementClassifier] Stage 2 cascade: fallback recovered '{fb_parsed.get('distress_types')}'")
                 except Exception as e:
                     # Fallback errors are non-fatal — keep the primary result.
@@ -694,18 +735,21 @@ class PavementClassifier:
 
             s2_time = (time.time() - s2_start) * 1000
 
+        types = parsed["distress_types"]
         return {
-            "distress_types": parsed["distress_types"],
+            "distress_types": types,
+            # The label the model listed first is shown as the main one and
+            # the rest beside it. The first label is the model's order, NOT a
+            # measured "most prominent": see utils_v2_prompts.py.
+            "primary_distress_type": types[0] if types else None,
+            "secondary_distress_types": types[1:],
             "severity": parsed["severity"],
             "description": parsed["description"],
-            "stage2_confidence": s2_confidence,
-            # Both metrics are always reported so the review threshold can be
+            # Every metric is always reported so the review threshold can be
             # calibrated from real data instead of guessed, and so switching
-            # STAGE2_CONFIDENCE_MODE never loses the other number.
-            "stage2_confidence_field": s2_conf_field,
-            "stage2_confidence_sequence": s2_conf_seq,
+            # STAGE2_CONFIDENCE_MODE never loses the other numbers.
+            **confs,
             "stage2_confidence_mode": STAGE2_CONFIDENCE_MODE,
-            "stage2_field_span_found": field_ok,
             "stage2_time_ms": round(s2_time, 1),
             "stage2_raw": stage2_raw,
             "stage2_used_fallback": used_fallback,
@@ -750,6 +794,9 @@ class PavementClassifier:
             result["stage2_raw"] = s2["stage2_raw"]
             result["stage2_used_fallback"] = s2.get("stage2_used_fallback", False)
             result["stage2_primary_raw"] = s2.get("stage2_primary_raw")
+            result["primary_distress_type"] = s2.get("primary_distress_type")
+            result["secondary_distress_types"] = s2.get("secondary_distress_types") or []
+            result["stage2_confidence_primary"] = s2.get("stage2_confidence_primary")
             result["stage2_confidence_field"] = s2.get("stage2_confidence_field")
             result["stage2_confidence_sequence"] = s2.get("stage2_confidence_sequence")
             result["stage2_confidence_mode"] = s2.get("stage2_confidence_mode")

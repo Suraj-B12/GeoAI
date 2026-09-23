@@ -273,10 +273,10 @@ Capstone/
 |---|---|---|
 | `MODEL_PATH` | `Qwen/Qwen2.5-VL-7B-Instruct` | Model to load. Family-agnostic since `scripts/model_loader.py` — `Qwen/Qwen3-VL-8B-Instruct` works with no code change. |
 | `DISABLE_ADAPTER` | `true` in production .env | Skip LoRA loading entirely. Production runs pure base model. |
-| `PROMPTS_VERSION` | `v2` (default in app/model.py) | `v2` = Improved Baseline (production). `v1` = Plain Baseline (paper experiments only). |
+| `PROMPTS_VERSION` | `v2` (default in app/model.py) | `v2` = Improved Baseline (production). `v2_primary_first` = v2 plus a "most prominent distress first" rule: tested 2026-09-23 and NOT adopted (first label unchanged, false positives up 85.3% → 83.3% correct, p = 0.021; `eval_results/primary_confidence.md`). `v1` = Plain Baseline (paper experiments only). |
 | `ADAPTER_PATH` | Unset in production | LoRA adapter directory. Used only when `DISABLE_ADAPTER=false` for A/B experiments. |
 | `QUANTIZATION_BITS` | `4` | Weight storage format at startup: `4` = NF4 + double quant (~4.3 GB), `8` = int8 (~8.6 GB), `0` = bf16, no quantization (~16.6 GB). Compute is bf16 in all three — only storage changes. Changeable at runtime from the operator dashboard (Model Precision panel) without a restart; this env var only sets the boot default. **Note:** the `.env` line is commented out, so production has been running 4-bit despite the "use fp16 on A5000" note below. |
-| `STAGE2_CONFIDENCE_MODE` | `field` (since 2026-09-17) | `field` = geomean over the DISTRESS_TYPES tokens only. `sequence` = geomean over all generated tokens, the pre-2026-09-17 default. On 407 labelled Attain images, under the no-false-positives rule: field AUC **0.744**, sequence **0.373** (inverted). Under Jaccard ≥ 0.5 field is 0.473 — it detects over-prediction, not correctness in general. Always quote the rule with the AUC. Both values are recorded on every row. |
+| `STAGE2_CONFIDENCE_MODE` | `field` (since 2026-09-17) | `field` = geomean over the DISTRESS_TYPES tokens only. `sequence` = geomean over all generated tokens, the pre-2026-09-17 default. On 407 labelled Attain images, under the no-false-positives rule: field AUC **0.744**, sequence **0.373** (inverted). Under Jaccard ≥ 0.5 field is 0.473 — it detects over-prediction, not correctness in general. Always quote the rule with the AUC. `primary` = joint probability of the FIRST label only (2026-09-23): **tested, not adopted** — AUC 0.468 for first-label correctness vs field 0.635 on the same 407 images, and 91% review load at 0.80 (`eval_results/primary_confidence.md`, paper §6.7). All three values are recorded on every row (`raw_response.stage2_confidence_primary`, `stage2_type_confidences`). |
 | `MAX_IMAGE_PIXELS` | `1048576` (1024²) in production `.env`; code default 4,840,000 | Input resolution cap. Full-res 1736² photos need a 47.8 GB peak on the 24 GB card and page to system RAM (~272 s/image); at 1024² the peak is 19.8 GB and the whole worker takes ~11 s. No measured accuracy loss on 200 labelled Attain images down to 512². Measured at 4-bit only. See paper §6.6. |
 | `STAGE1_MAX_NEW_TOKENS` | `12` | Stage 1 answers with one word. Was 200, which cost ~4x the time for identical output. |
 | `SKIP_MODEL_SELFTEST` | Unset (self-test ON) | Skips the 2s load-time synthetic-image check. Leave ON in production. |
@@ -315,7 +315,10 @@ model difference. Guardrails, all of which fire automatically:
 | flash-attn is NOT installed and has no prebuilt wheel for Windows + cp312 + torch 2.5.1. SDPA is the fallback and is correct, just slower. | `pip download flash-attn --only-binary=:all:` → "no matching distribution" |
 
 Throughput planning (re-measured 2026-09-23, whole worker, 4-bit, cache cleared between
-passes): **~11 s per phone photo at the production 1024² cap**. Uncapped 1736² photos took
+passes): **~11 s per phone photo at the production 1024² cap**. Mixing image SHAPES also fills
+the allocator: on Attain, Stage 2 took 8 / 24 / 84 s on 1479×508 / 640×640 / 1920×1080 frames
+without clearing the cache between images, and ~8 s for all three with it. The worker and
+`calibrate_confidence.py` now release the cache after every image. Uncapped 1736² photos took
 ~272 s because they overflow the 24 GB card. Earlier figures in this table (including the
 "8x IRC prompt cost") were measured without clearing the allocator between images and may be
 inflated by the same overflow; re-measure before relying on them.
@@ -368,7 +371,12 @@ python scripts/validate_all.py
 POST /classify
   Headers: X-API-Key: <key> (optional if API_KEYS not set)
   Body: multipart/form-data, field "file" = image (max 10MB, max 4096x4096)
-  Response: {is_distressed, stage1_label, stage1_confidence, distress_types, severity, description, stage2_confidence, needs_expert_review, processing_time_ms, stage1_time_ms, stage2_time_ms, stage1_raw, stage2_raw}
+  Response: {is_distressed, stage1_label, stage1_confidence, distress_types, primary_distress_type,
+            secondary_distress_types, severity, description, stage2_confidence,
+            stage2_confidence_primary, needs_expert_review, processing_time_ms, stage1_time_ms,
+            stage2_time_ms, stage1_raw, stage2_raw}
+  distress_types keeps the model's order: [0] is shown as the main label, the rest beside
+  it. [0] is the model's listing order, not a measured "most prominent" type.
 
 POST /classify/stream
   Headers: X-API-Key: <key> (optional)
@@ -415,6 +423,14 @@ POST /operator/runtime/quantization
 POST /retrain/start → {is_running, progress_pct, ...}
 GET /retrain/status → {is_running, progress_pct, ...}
 
+DELETE /dashboard/delete/{id}?confirm=true   (operator dashboard)
+  Removes the upload everywhere: Cloudinary image (signed destroy, invalidate=true) FIRST,
+  then the RoadSide photos row (cascades to the assessment), then verifies the assessment is
+  gone. Deletes nothing if the image cannot be confirmed gone from Cloudinary. app/deletion.py.
+  The FK cascades photos -> assessments only; deleting just the assessment (the pre-2026-09-23
+  behaviour) leaves the photo visible in the app. scripts/cleanup_orphan_photos.py (dry run by
+  default) removes rows the old version left behind.
+
 # Phase 3 endpoints (not yet built):
 POST /corrections → accepts ExpertCorrectionRequest, adds to few-shot list + persists to JSON
 GET /adapters → list all versioned adapters with metadata
@@ -446,7 +462,7 @@ Both `expert_ui/index.html` and `test_website/index.html` use the same design la
 - Runs type classification with STAGE2_SYSTEM_PROMPT/STAGE2_USER_PROMPT
 - Extracts confidence via geometric mean of per-token log-probabilities over the DISTRESS_TYPES value tokens (`STAGE2_CONFIDENCE_MODE=field`); falls back to the whole sequence when the field span cannot be located
 - Parses structured output (DISTRESS_TYPES/SEVERITY/DESCRIPTION fields)
-- Returns: `{distress_types, severity, description, stage2_confidence, stage2_time_ms, stage2_raw}`
+- Returns: `{distress_types, primary_distress_type, secondary_distress_types, severity, description, stage2_confidence, stage2_confidence_primary, stage2_confidence_field, stage2_confidence_sequence, stage2_type_confidences, stage2_time_ms, stage2_raw, ...}`
 
 ### predict(image) → dict
 - Calls `predict_stage1()`, then `predict_stage2()` only if distressed
@@ -465,6 +481,13 @@ Both `expert_ui/index.html` and `test_website/index.html` use the same design la
 - Both numbers are written to `assessments.raw_response` on every row
   (`stage2_confidence_field` / `stage2_confidence_sequence` / `stage2_confidence_mode`), so the
   0.80 threshold can be re-calibrated from real expert corrections with zero re-inference.
+- **Per-label confidence** (since 2026-09-23): `stage2_type_confidences` holds each listed label's
+  joint probability; `stage2_confidence_primary` is the first label's. The UIs show the first
+  label as the main distress with the others beside it. Gating on the first label alone was
+  tested and rejected: on Attain the first label is Longitudinal Cracking 96% of the time (the
+  prompt's inspection order), its confidence does not predict whether it is right (AUC 0.468),
+  and a "list the most prominent first" prompt rule moved the second label instead of the first
+  while adding false positives (p = 0.021). Paper §6.7 / §7.9.
 - No string matching, no inflation, no manipulation — pure model probability
 
 ## User Preferences

@@ -155,6 +155,8 @@ body {
 .card-types { font-size: 13px; font-weight: 500; margin-bottom: 6px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card-types.empty { color: var(--text-tertiary); font-weight: 400; font-style: italic; }
+.card-also { font-size: 11px; color: var(--text-secondary); margin: -3px 0 6px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .card-meta { font-size: 11px; color: var(--text-secondary); line-height: 1.45; }
 .card-meta-row { display: flex; justify-content: space-between; gap: 6px; }
 .card-addr { color: var(--text-secondary); font-size: 11px;
@@ -286,8 +288,10 @@ body {
 <div class="modal-backdrop" id="delete-modal">
   <div class="modal">
     <h3>Permanently delete this image?</h3>
-    <p>This will hard-delete the row from Supabase AND remove the image from
-       Cloudinary (if configured). <strong>This cannot be undone.</strong></p>
+    <p>This removes the image from Cloudinary and deletes the upload from
+       Supabase: the pipeline's assessment AND the RoadSide app's photo, so it
+       also disappears from the app and the map. If the image cannot be removed
+       from Cloudinary, nothing is deleted. <strong>This cannot be undone.</strong></p>
     <img id="delete-preview" class="modal-preview" alt="" />
     <p id="delete-detail" style="font-size:12px;font-family:ui-monospace,Menlo,monospace"></p>
     <div class="modal-actions">
@@ -542,11 +546,20 @@ function statusLabel(s) {
   }[s] || s;
 }
 
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
 function renderCard(row) {
   const status = row.status || 'pending';
+  // distress_types keeps the model's order: [0] is shown as the main label,
+  // the rest beside it. The s2 confidence covers the whole label list.
   const types = (row.distress_types || []).filter(t => t && t !== 'Unknown' && t !== 'Normal');
-  const typesText = types.length ? types.join(', ')
+  const typesText = types.length ? types[0]
                     : (row.stage1_label === 'Normal' ? 'Normal pavement' : '—');
+  const also = types.slice(1);
   const sev = row.severity && row.severity !== 'None' ? ` (${row.severity})` : '';
   const conf1 = row.stage1_confidence != null
                 ? `s1: ${(row.stage1_confidence*100).toFixed(0)}%` : '';
@@ -571,14 +584,16 @@ function renderCard(row) {
       </div>
       <div class="card-body">
         <div class="card-status s-${status}">${statusLabel(status)}</div>
-        <div class="card-types ${types.length ? '' : 'empty'}">${typesText}${sev}</div>
+        <div class="card-types ${types.length ? '' : 'empty'}"
+             title="${types.length ? 'Main distress (listed first by the model)' : ''}">${esc(typesText)}${esc(sev)}</div>
+        ${also.length ? `<div class="card-also" title="Also seen">also: ${esc(also.join(', '))}</div>` : ''}
         <div class="card-meta">
           <div class="card-meta-row">
             <span>${time}</span>
-            <span>${conf1}${conf1 && conf2 ? ' · ' : ''}${conf2}</span>
+            <span title="${types.length ? 's2 = confidence over all listed distress types' : ''}">${conf1}${conf1 && conf2 ? ' · ' : ''}${conf2}</span>
           </div>
         </div>
-        ${addr ? `<div class="card-addr">${addr}</div>` : ''}
+        ${addr ? `<div class="card-addr">${esc(addr)}</div>` : ''}
       </div>
       <div class="card-actions">
         ${showReclass
@@ -773,8 +788,10 @@ async function performDelete() {
   document.getElementById('delete-modal').classList.remove('show');
   try {
     const r = await api(`/dashboard/delete/${id}?confirm=true`, { method: 'DELETE' });
-    const cn = r.cloudinary?.result || 'skipped';
-    toast(`Deleted ${id.slice(0,8)} (Cloudinary: ${cn})`, 'success');
+    const where = (r.cloudinary || []).some(c => c.result === 'not_cloudinary')
+      ? 'Supabase (image was not hosted on Cloudinary)'
+      : 'Supabase and Cloudinary';
+    toast(`Deleted ${id.slice(0,8)} from ${where}`, 'success');
     state.pendingDeleteId = null;
     // Optimistic local removal — don't refetch everything
     state.allRows = state.allRows.filter(r => r.id !== id);

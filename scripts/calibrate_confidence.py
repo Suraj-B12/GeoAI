@@ -63,6 +63,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import gc
 import importlib.util
 import json
 import os
@@ -74,6 +75,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+import torch  # noqa: E402
 from PIL import Image  # noqa: E402
 
 _spec = importlib.util.spec_from_file_location(
@@ -224,6 +226,46 @@ def load_attain_from_run(run_file: str, n: int, seed: int) -> list[dict]:
     rng = random.Random(seed)
     rng.shuffle(rows)
     return rows[:n] if n else rows
+
+
+def attain_dominant_class(image_path: str) -> dict:
+    """Which annotated Attain class covers the most area in the image.
+
+    "Dominant" is measured as the summed bounding-box area per class, in
+    Attain vocabulary, excluding the non-distress classes. Box area is a
+    proxy: it overstates thin diagonal cracks, whose boxes are mostly
+    pavement, and double counts overlapping boxes. It is the only
+    per-instance extent the annotations carry. Returns {} when there are no
+    usable boxes.
+    """
+    import xml.etree.ElementTree as ET
+    info = _ae.get_subset_info("WS_V2.0")
+    label = info["labels_dir"] / (Path(image_path).stem + ".xml")
+    if not label.exists():
+        return {}
+    areas: dict = {}
+    try:
+        for obj in ET.parse(label).findall(".//object"):
+            name = obj.findtext("name")
+            box = obj.find("bndbox")
+            if not name or box is None:
+                continue
+            cls, _sev = _ae.parse_attain_class(name)
+            if _ae.ATTAIN_CLASS_MAP.get(cls, {}).get("label") == "EXCLUDE":
+                continue
+            w = float(box.findtext("xmax")) - float(box.findtext("xmin"))
+            h = float(box.findtext("ymax")) - float(box.findtext("ymin"))
+            if w > 0 and h > 0:
+                areas[cls] = areas.get(cls, 0.0) + w * h
+    except (ET.ParseError, TypeError, ValueError):
+        return {}
+    if not areas:
+        return {}
+    total = sum(areas.values())
+    top = max(areas, key=areas.get)
+    return {"gt_dominant": top,
+            "gt_dominant_share": round(areas[top] / total, 4),
+            "gt_area_share": {k: round(v / total, 4) for k, v in areas.items()}}
 
 
 def load_rdd_india(n: int, seed: int) -> list[dict]:
@@ -548,6 +590,26 @@ def main() -> int:
             # is a real miss and stays in.
             adjudicable = bool(pred_native) or not pred_irc
 
+            # Primary label: the first one, which the prompt asks to be the
+            # dominant distress. Scored on its own, in the dataset vocabulary.
+            primary = s2.get("primary_distress_type")
+            primary_native = (map_pred_to_dataset_space([primary], ds)
+                              if primary else set())
+            dom = attain_dominant_class(e["image_path"]) if ds == "attain" else {}
+            rec.update({
+                "primary": s2.get("stage2_confidence_primary"),
+                "primary_span_found": s2.get("stage2_primary_span_found"),
+                "primary_label": primary,
+                "primary_native": sorted(primary_native),
+                # None = the dataset does not annotate that type, so it can be
+                # neither right nor wrong (same rule as the multi-label score).
+                "primary_correct": (bool(primary_native & gt_native)
+                                    if primary_native else None),
+                "type_confidences": s2.get("stage2_type_confidences"),
+                **dom,
+                "primary_is_dominant": (dom["gt_dominant"] in primary_native
+                                        if dom and primary_native else None),
+            })
             rec.update({
                 "ran_stage2": True,
                 "pred_raw": pred_raw,
@@ -582,6 +644,14 @@ def main() -> int:
             done[key] = {**e, "error": f"{type(ex).__name__}: {ex}"}
             print(f"[{i}/{len(rows_in)}] ERROR {ex}")
         save()
+        # Release cached GPU blocks between images. Attain mixes three frame
+        # shapes; without this the allocator's reserve grew to the full 24 GB
+        # and Windows paged the excess to system RAM: 640x640 frames took
+        # ~22 s and 1920x1080 ~84 s against ~8 s for 1479x508, with identical
+        # outputs. Timing only - predictions are unaffected.
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
     elapsed = time.time() - t0
     stage2_rows = [r for r in done.values() if r.get("ran_stage2")]
@@ -640,6 +710,17 @@ def main() -> int:
                    for m in ("field", "sequence")}
             for defn in DEFINITIONS
         }
+        # The primary-label confidence judged against the primary label only.
+        # Rows whose primary type the dataset does not annotate are excluded.
+        prim_rows = [dict(r, correct={**r["correct"],
+                                      "primary_correct": r["primary_correct"]})
+                     for r in subset_rows
+                     if r.get("primary_correct") is not None
+                     and r.get("primary") is not None]
+        if prim_rows:
+            report["metrics"][scope]["primary_correct"] = {
+                m: summarize(prim_rows, m, "primary_correct", thresholds)
+                for m in ("primary", "field")}
 
     out = EVAL_DIR / args.out
     out.write_text(json.dumps(report, indent=2), encoding="utf-8")

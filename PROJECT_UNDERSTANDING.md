@@ -79,6 +79,11 @@ methods separately so the dashboard can render live per-stage progress.
   field-restricted, n=37). It is still computed and stored on every row, but no longer gates.
   When the field span cannot be located the whole-sequence value is returned and
   `stage2_field_span_found=false` records that it happened.
+- **Per-label confidence** (2026-09-23) — each listed label's joint probability is stored
+  (`stage2_type_confidences`, `stage2_confidence_primary` for the first). The UIs show the first
+  label as the main distress, the rest beside it. Gating on the first label alone was tested on
+  407 labelled Attain images and rejected (AUC 0.468 vs 0.635 for the whole field; paper §6.7),
+  as was a prompt rule asking for the most prominent distress first (`v2_primary_first`).
 - `CONFIDENCE_THRESHOLD = 0.80` is defined exactly once, in `scripts/utils.py`.
 
 ### Runtime precision switching (2026-09-18)
@@ -292,8 +297,15 @@ be restarted for the fix to take effect.**
 
 **Image dashboard**
 - `GET /dashboard` (UI), `/dashboard/summary`, `/dashboard/list` (status + date filters, paged)
-- `DELETE /dashboard/delete/{id}?confirm=true` — Supabase row + best-effort signed Cloudinary
-  `destroy` (`sha1("public_id=X&timestamp=T" + secret)`); skips silently without creds
+- `DELETE /dashboard/delete/{id}?confirm=true` — removes the upload everywhere
+  (`app/deletion.py`, since 2026-09-23): signed Cloudinary `destroy` with `invalidate=true`
+  first, then the RoadSide `photos` row (cascades to the assessment), then confirms the
+  assessment is gone. All-or-nothing on the Cloudinary side: missing creds, a foreign
+  Cloudinary account, an API error, or a "not found" while the image is still served abort
+  before any row is touched. The previous version deleted only the assessment. The FK
+  cascades photos → assessments, not the reverse, so 16 `photos` rows were left behind, still
+  visible in the app with dead images. `scripts/cleanup_orphan_photos.py` (dry run by
+  default) lists and removes them.
 - `POST /dashboard/reclassify/{id}` — reset one row to pending (false-reject recovery)
 
 **Retraining**: `POST /retrain/start`, `GET /retrain/status`.
