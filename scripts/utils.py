@@ -602,7 +602,7 @@ def parse_stage2_response(text: str) -> dict:
             "mesh crack": "Alligator Cracking",
             "map crack": "Alligator Cracking",
             "pothole": "Potholes",
-            "block crack": "Alligator Cracking",  # closest IRC visible analog
+            "block crack": "Transverse Cracking",  # IRC:82 §7.3.5.1 (large blocks)
             "rutting": "Rutting",
             "raveling": "Ravelling",
             "ravelling": "Ravelling",

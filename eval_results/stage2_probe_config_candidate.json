@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "variant": {
+    "system_style": "min",
+    "question_style": "name"
+  },
+  "groups": {
+    "Linear crack": {
+      "kind": "distress",
+      "keys": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "threshold": 0.060109,
+      "platt": [
+        0.8273023652366508,
+        1.9477376608621468
+      ]
+    },
+    "Alligator crack": {
+      "kind": "distress",
+      "keys": [
+        "Alligator Cracking"
+      ],
+      "threshold": 0.026918,
+      "platt": [
+        1.1367572870228175,
+        3.1242804802456954
+      ]
+    },
+    "Pothole": {
+      "kind": "distress",
+      "keys": [
+        "Potholes"
+      ],
+      "threshold": 0.149084,
+      "platt": [
+        0.19530815185817324,
+        -0.6115555709864064
+      ]
+    },
+    "Raveling": {
+      "kind": "distress",
+      "keys": [
+        "Ravelling"
+      ],
+      "threshold": 0.2126,
+      "platt": [
+        0.9699202171378496,
+        0.19107700300481775
+      ]
+    },
+    "Weathering": {
+      "kind": "distress",
+      "keys": [
+        "Hungry Surface"
+      ],
+      "threshold": 0.160788,
+      "platt": [
+        0.02799292399261905,
+        -2.4260657702167636
+      ]
+    },
+    "Patch and utility cut": {
+      "kind": "indicator",
+      "keys": [
+        "Patching"
+      ],
+      "label": "Patching",
+      "threshold": 0.316118,
+      "platt": [
+        0.1757273532026408,
+        -0.7711932598142125
+      ]
+    }
+  },
+  "verify_threshold": 0.5,
+  "provenance": {
+    "tuned_on": "Attain SMP WS_V2.0 DEV split (300 images, blocks of 20, seed 20260923, 35% of blocks)",
+    "threshold_objective": "MCC per group",
+    "calibration": "Platt scaling per group on DEV",
+    "group_names_are": "Attain classes the thresholds were tuned against",
+    "note": "thresholds are tuned on vehicle-mounted Attain frames; they have not been validated on handheld Bengaluru photos",
+    "chosen_variant": "min:name",
+    "dev_macro_auroc": 0.7159023722220883,
+    "report": "eval_results/stage2_probe_report.json"
+  }
+}

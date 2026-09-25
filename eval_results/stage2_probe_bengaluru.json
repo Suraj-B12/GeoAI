@@ -1,0 +1,28 @@
+{
+  "n_rows": 0,
+  "positives_per_type": {
+    "Bleeding": 0,
+    "Streaking": 0,
+    "Hungry Surface": 0,
+    "Hairline Cracks": 0,
+    "Alligator Cracking": 0,
+    "Longitudinal Cracking": 0,
+    "Transverse Cracking": 0,
+    "Edge Cracking": 0,
+    "Slippage": 0,
+    "Rutting": 0,
+    "Corrugation": 0,
+    "Shoving": 0,
+    "Shallow Depression": 0,
+    "Settlement": 0,
+    "Stripping": 0,
+    "Ravelling": 0,
+    "Potholes": 0,
+    "Edge Breaking": 0
+  },
+  "min_pos": 15,
+  "min_neg": 15,
+  "calibratable_types": [],
+  "status": "not enough expert labels yet",
+  "more_positives_needed": {}
+}

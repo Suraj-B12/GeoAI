@@ -532,12 +532,19 @@ class PipelineWorker:
 
         # 3. Stage 2 — only if Stage 1 says distressed
         s2: dict = {}
+        safety = None
         if is_distressed:
             self._enter_stage("stage2")
             s2 = await loop.run_in_executor(None, self.classifier.predict_stage2, img)
             self.metrics.current_stage2_time_ms = s2.get("stage2_time_ms", 0.0)
         else:
             self.metrics.current_skipped_stage2 = True
+            # Stage 1 safety net (STAGE1_SAFETY_NET): Stage 1 misses about half
+            # of annotated distress on Attain. If the per-type probe sees
+            # distress, a human looks at it instead of it being auto-classified
+            # Normal. Never changes a label; returns None when switched off.
+            safety = await loop.run_in_executor(
+                None, self.classifier.stage1_safety_check, img)
 
         # Inference complete — clear stage indicator before the DB round trip
         # so the dashboard shows "writing results" implicitly via idle state.
@@ -547,8 +554,11 @@ class PipelineWorker:
 
         # 4. Determine final status
         if not is_distressed:
-            # Normal pavement — classified directly, no Stage 2
+            # Normal pavement — classified directly, no Stage 2, unless the
+            # safety net saw distress Stage 1 did not.
             final_status = "classified" if s1_conf >= CONFIDENCE_THRESHOLD else "expert_review"
+            if safety and safety.get("flagged"):
+                final_status = "expert_review"
         else:
             # Both stages must clear threshold
             if s1_conf >= CONFIDENCE_THRESHOLD and s2_conf >= CONFIDENCE_THRESHOLD:
@@ -573,7 +583,7 @@ class PipelineWorker:
             "description": s2.get("description") or "",
             "stage2_confidence": s2_conf,
             "needs_expert_review": final_status == "expert_review",
-            "processing_time_ms": s0_time + s1_time + s2_time,
+            "processing_time_ms": s0_time + s1_time + s2_time + ((safety or {}).get("time_ms") or 0.0),
             "pavement_filter_decision": pavement["decision"],
             "pavement_filter_raw": pavement["raw"],
             "pavement_filter_at": datetime.now(timezone.utc).isoformat(),
@@ -603,6 +613,20 @@ class PipelineWorker:
                 # the main label and the rest beside it.
                 "primary_distress_type": s2.get("primary_distress_type"),
                 "stage2_type_confidences": s2.get("stage2_type_confidences"),
+                # Per-type probe (STAGE2_MODE=probe): which path produced
+                # distress_types for THIS row, the free-form list it started
+                # from, every type's P(yes), what the probe added or removed,
+                # and why it fell back if it did. Enough to re-score any row
+                # under a different threshold without re-running the model.
+                "stage2_mode": s2.get("stage2_mode"),
+                "stage2_probe_mode": s2.get("stage2_probe_mode"),
+                "stage1_safety_net": safety,
+                "stage2_generated_types": s2.get("stage2_generated_types"),
+                "stage2_probe": s2.get("stage2_probe"),
+                "stage2_probe_error": s2.get("stage2_probe_error"),
+                "stage2_confidence_probe": s2.get("stage2_confidence_probe"),
+                "stage2_confidence_source": s2.get("stage2_confidence_source"),
+                "condition_indicators": s2.get("condition_indicators") or [],
             },
             "image_width": img_w,
             "image_height": img_h,

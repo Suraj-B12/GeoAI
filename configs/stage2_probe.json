@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "variant": {
+    "system_style": "min",
+    "question_style": "name"
+  },
+  "groups": {
+    "Linear crack": {
+      "kind": "distress",
+      "keys": [
+        "Longitudinal Cracking",
+        "Transverse Cracking"
+      ],
+      "threshold": 0.057107,
+      "platt": [
+        0.5953644056917193,
+        1.6585915518446377
+      ]
+    },
+    "Alligator crack": {
+      "kind": "distress",
+      "keys": [
+        "Alligator Cracking"
+      ],
+      "threshold": 0.032319,
+      "platt": [
+        0.8559995303195185,
+        2.4190709300314404
+      ]
+    },
+    "Raveling": {
+      "kind": "distress",
+      "keys": [
+        "Ravelling"
+      ],
+      "threshold": 0.08878,
+      "platt": [
+        0.330571396541842,
+        -1.2028552694454022
+      ]
+    }
+  },
+  "verify_threshold": 0.5,
+  "provenance": {
+    "tuned_on": "Attain SMP WS_V2.0, all 847 images (refit after grouped 5-fold CV)",
+    "variant_chosen_on": "pre-registered DEV split (macro AUROC)",
+    "threshold_objective": "MCC per group",
+    "calibration": "Platt scaling per group",
+    "eligibility": "probe decides a class only if its pooled out-of-fold AUROC 95% lower bound > 0.5",
+    "eligible": [
+      "Alligator crack",
+      "Linear crack",
+      "Raveling"
+    ],
+    "verify_only": [
+      "Patch and utility cut",
+      "Pothole",
+      "Weathering"
+    ],
+    "oof_macro_mcc": 0.240954989694197,
+    "oof_macro_mcc_v0": 0.12496638297321368,
+    "report": "eval_results/stage2_probe_cv.json",
+    "note": "thresholds are tuned on vehicle-mounted Attain frames; not yet validated against labelled Bengaluru photos"
+  },
+  "stage1_safety_net": {
+    "keys": [
+      "Alligator Cracking",
+      "Hungry Surface",
+      "Longitudinal Cracking",
+      "Potholes",
+      "Ravelling",
+      "Transverse Cracking"
+    ],
+    "threshold": 0.148936,
+    "meaning": "Stage 1 said Normal but some headline type has P(yes) >= threshold: route to expert review instead of auto-classifying Normal",
+    "oof": {
+      "stage1_says_normal": 449,
+      "of_which_have_distress": 371,
+      "of_which_no_distress": 78,
+      "distress_flagged_by_probe": 313,
+      "no_distress_flagged_by_probe": 22,
+      "stage1_recall_distress": 0.517555266579974,
+      "note": "flagged = would be sent to expert review instead of auto-classified Normal"
+    }
+  }
+}

@@ -255,6 +255,11 @@ async def health(request: Request):
             oom_fallback_used=info.get("oom_fallback_used", False),
             max_image_pixels=info.get("max_pixels", 0),
             stage2_confidence_mode=clf.confidence_mode,
+            stage2_mode=clf.probe_status.get("requested_mode", "generate"),
+            stage2_mode_effective=(clf.probe_status.get("requested_mode", "generate")
+                                   if clf.probe_status.get("enabled") else "generate"),
+            stage1_safety_net=clf.safety_net_active,
+            stage2_probe=clf.probe_status,
             vram_used_gb=info.get("vram_used_gb", 0.0),
         )
     except Exception:
@@ -463,6 +468,9 @@ async def classify_stream(
                 result["description"] = s2["description"]
                 result["stage2_confidence"] = s2["stage2_confidence"]
                 result["stage2_confidence_primary"] = s2.get("stage2_confidence_primary")
+                result["stage2_confidence_probe"] = s2.get("stage2_confidence_probe")
+                result["stage2_mode"] = s2.get("stage2_mode")
+                result["condition_indicators"] = s2.get("condition_indicators") or []
                 result["stage2_time_ms"] = s2["stage2_time_ms"]
                 result["stage2_raw"] = s2["stage2_raw"]
 
@@ -470,6 +478,13 @@ async def classify_stream(
                     s1["stage1_confidence"] < CONFIDENCE_THRESHOLD
                     or s2["stage2_confidence"] < CONFIDENCE_THRESHOLD
                 )
+            else:
+                # Stage 1 said Normal: the safety net may still route it to a
+                # human (same rule as the worker and predict()).
+                sn = await asyncio.to_thread(clf.stage1_safety_check, image)
+                result["stage1_safety_net"] = sn
+                if sn and sn.get("flagged"):
+                    result["needs_expert_review"] = True
 
             total_time = (_time.time() - total_start) * 1000
             result["processing_time_ms"] = round(total_time, 1)

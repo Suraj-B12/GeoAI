@@ -1,0 +1,1524 @@
+{
+  "source": "stage2_probe_raw_attain.json",
+  "partial_run": false,
+  "config": {
+    "model": "Qwen/Qwen2.5-VL-7B-Instruct",
+    "quantization_bits": 4,
+    "max_pixels": 1048576,
+    "prompts": "v2_improved_baseline",
+    "stage2_confidence_mode": "field",
+    "stage2_prompt_sha": "9da1601cfec54f76",
+    "run_v0": true,
+    "variants": [
+      "min:def",
+      "min:name",
+      "tax:def"
+    ],
+    "probe_questions_sha": "29d693d77371cbd3"
+  },
+  "protocol": {
+    "block_size": 20,
+    "dev_fraction_of_blocks": 0.35,
+    "split_seed": 20260923,
+    "bootstrap": "cluster (block) bootstrap, B=2000",
+    "threshold_objective": "MCC, tuned on dev per class",
+    "variant_selection": "highest dev macro AUROC over headline classes",
+    "headline_classes": [
+      "Linear crack",
+      "Alligator crack",
+      "Pothole",
+      "Raveling",
+      "Weathering"
+    ]
+  },
+  "n": {
+    "usable": 847,
+    "errors": 0,
+    "dev": 300,
+    "test": 547,
+    "dev_no_distress": 55,
+    "test_no_distress": 23
+  },
+  "prevalence": {
+    "dev": {
+      "Linear crack": 0.76,
+      "Alligator crack": 0.61,
+      "Pothole": 0.2067,
+      "Raveling": 0.1233,
+      "Weathering": 0.0767,
+      "Patch and utility cut": 0.2033,
+      "Block crack": 0.0467
+    },
+    "test": {
+      "Linear crack": 0.8391,
+      "Alligator crack": 0.691,
+      "Pothole": 0.1846,
+      "Raveling": 0.128,
+      "Weathering": 0.2633,
+      "Patch and utility cut": 0.1938,
+      "Block crack": 0.0329
+    }
+  },
+  "dev": {
+    "variants": {
+      "min:def": {
+        "macro_auroc_headline": 0.6827,
+        "macro_mcc_headline_in_sample": 0.3828,
+        "per_class_auroc": {
+          "Linear crack": 0.8743,
+          "Alligator crack": 0.8393,
+          "Pothole": 0.5754,
+          "Raveling": 0.7263,
+          "Weathering": 0.3981,
+          "Patch and utility cut": 0.4679,
+          "Block crack": 0.8856
+        }
+      },
+      "min:name": {
+        "macro_auroc_headline": 0.7159,
+        "macro_mcc_headline_in_sample": 0.4063,
+        "per_class_auroc": {
+          "Linear crack": 0.874,
+          "Alligator crack": 0.8399,
+          "Pothole": 0.5841,
+          "Raveling": 0.7759,
+          "Weathering": 0.5056,
+          "Patch and utility cut": 0.5079,
+          "Block crack": 0.8649
+        }
+      },
+      "tax:def": {
+        "macro_auroc_headline": 0.653,
+        "macro_mcc_headline_in_sample": 0.3752,
+        "per_class_auroc": {
+          "Linear crack": 0.8802,
+          "Alligator crack": 0.8661,
+          "Pothole": 0.5769,
+          "Raveling": 0.6204,
+          "Weathering": 0.3213,
+          "Patch and utility cut": 0.4003,
+          "Block crack": 0.9161
+        }
+      }
+    },
+    "chosen_variant": "min:name",
+    "thresholds": {
+      "min:def": {
+        "Linear crack": 0.1729,
+        "Alligator crack": 0.06,
+        "Pothole": 0.3132,
+        "Raveling": 0.0476,
+        "Weathering": 0.0179,
+        "Patch and utility cut": 0.1553,
+        "Block crack": 0.6306
+      },
+      "min:name": {
+        "Linear crack": 0.0601,
+        "Alligator crack": 0.0269,
+        "Pothole": 0.1491,
+        "Raveling": 0.2126,
+        "Weathering": 0.1608,
+        "Patch and utility cut": 0.3161,
+        "Block crack": 0.3374
+      },
+      "tax:def": {
+        "Linear crack": 0.2402,
+        "Alligator crack": 0.1191,
+        "Pothole": 0.2675,
+        "Raveling": 0.375,
+        "Weathering": 0.0136,
+        "Patch and utility cut": 0.0009,
+        "Block crack": 0.1181
+      }
+    },
+    "platt": {
+      "min:def": {
+        "Linear crack": [
+          0.7642159586598634,
+          1.2869181485181016
+        ],
+        "Alligator crack": [
+          1.064800279536832,
+          2.6167816941669826
+        ],
+        "Pothole": [
+          0.12540736295271843,
+          -0.7710919577115627
+        ],
+        "Raveling": [
+          0.6328662724190524,
+          -0.392287716397832
+        ],
+        "Weathering": [
+          -0.2243982703693578,
+          -3.0131175738001446
+        ],
+        "Patch and utility cut": [
+          0.06128563734622968,
+          -1.0940644273130393
+        ],
+        "Block crack": [
+          1.9453294696280228,
+          -2.1667055296030617
+        ]
+      },
+      "min:name": {
+        "Linear crack": [
+          0.8273023652366508,
+          1.9477376608621468
+        ],
+        "Alligator crack": [
+          1.1367572870228175,
+          3.1242804802456954
+        ],
+        "Pothole": [
+          0.19530815185817324,
+          -0.6115555709864064
+        ],
+        "Raveling": [
+          0.9699202171378496,
+          0.19107700300481775
+        ],
+        "Weathering": [
+          0.02799292399261905,
+          -2.4260657702167636
+        ],
+        "Patch and utility cut": [
+          0.1757273532026408,
+          -0.7711932598142125
+        ],
+        "Block crack": [
+          2.179869622756588,
+          -1.2103437767308796
+        ]
+      },
+      "tax:def": {
+        "Linear crack": [
+          0.9253890466853607,
+          1.360907768646035
+        ],
+        "Alligator crack": [
+          1.3408086157560584,
+          3.6506178175150588
+        ],
+        "Pothole": [
+          0.18188094233774965,
+          -0.7569936174016081
+        ],
+        "Raveling": [
+          0.6178986143682353,
+          -0.3603187692027104
+        ],
+        "Weathering": [
+          -0.6591711332167014,
+          -4.6801804520616495
+        ],
+        "Patch and utility cut": [
+          -0.21718074962124842,
+          -2.4309770958235855
+        ],
+        "Block crack": [
+          3.304388089268889,
+          5.884517290077057
+        ]
+      }
+    }
+  },
+  "constant_baseline_classes": [
+    "Alligator crack",
+    "Linear crack"
+  ],
+  "test": {
+    "v0_production": {
+      "per_class": {
+        "Linear crack": {
+          "tp": 375,
+          "fp": 46,
+          "fn": 84,
+          "tn": 42,
+          "n": 547,
+          "prevalence": 0.8391,
+          "predicted_rate": 0.7697,
+          "precision": 0.8907,
+          "recall": 0.817,
+          "specificity": 0.4773,
+          "f1": 0.8523,
+          "mcc": 0.2568,
+          "balanced_accuracy": 0.6471
+        },
+        "Alligator crack": {
+          "tp": 32,
+          "fp": 4,
+          "fn": 346,
+          "tn": 165,
+          "n": 547,
+          "prevalence": 0.691,
+          "predicted_rate": 0.0658,
+          "precision": 0.8889,
+          "recall": 0.0847,
+          "specificity": 0.9763,
+          "f1": 0.1546,
+          "mcc": 0.1136,
+          "balanced_accuracy": 0.5305
+        },
+        "Pothole": {
+          "tp": 25,
+          "fp": 33,
+          "fn": 76,
+          "tn": 413,
+          "n": 547,
+          "prevalence": 0.1846,
+          "predicted_rate": 0.106,
+          "precision": 0.431,
+          "recall": 0.2475,
+          "specificity": 0.926,
+          "f1": 0.3145,
+          "mcc": 0.2187,
+          "balanced_accuracy": 0.5868
+        },
+        "Raveling": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 70,
+          "tn": 477,
+          "n": 547,
+          "prevalence": 0.128,
+          "predicted_rate": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "specificity": 1.0,
+          "f1": 0.0,
+          "mcc": 0.0,
+          "balanced_accuracy": 0.5
+        },
+        "Weathering": {
+          "tp": 0,
+          "fp": 2,
+          "fn": 144,
+          "tn": 401,
+          "n": 547,
+          "prevalence": 0.2633,
+          "predicted_rate": 0.0037,
+          "precision": 0.0,
+          "recall": 0.0,
+          "specificity": 0.995,
+          "f1": 0.0,
+          "mcc": -0.0362,
+          "balanced_accuracy": 0.4975
+        },
+        "Patch and utility cut": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 106,
+          "tn": 441,
+          "n": 547,
+          "prevalence": 0.1938,
+          "predicted_rate": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "specificity": 1.0,
+          "f1": 0.0,
+          "mcc": 0.0,
+          "balanced_accuracy": 0.5
+        },
+        "Block crack": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 18,
+          "tn": 529,
+          "n": 547,
+          "prevalence": 0.0329,
+          "predicted_rate": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "specificity": 1.0,
+          "f1": 0.0,
+          "mcc": 0.0,
+          "balanced_accuracy": 0.5
+        }
+      },
+      "macro_headline": {
+        "f1": 0.2643,
+        "mcc": 0.1106,
+        "balanced_accuracy": 0.5524,
+        "precision": 0.4421,
+        "recall": 0.2298
+      },
+      "micro_headline": {
+        "tp": 432,
+        "fp": 85,
+        "fn": 720,
+        "tn": 1498,
+        "n": 2735,
+        "prevalence": 0.4212,
+        "predicted_rate": 0.189,
+        "precision": 0.8356,
+        "recall": 0.375,
+        "specificity": 0.9463,
+        "f1": 0.5177,
+        "mcc": 0.4052,
+        "balanced_accuracy": 0.6607
+      },
+      "sample_headline": {
+        "n": 547,
+        "mean_jaccard": 0.3764,
+        "exact_match": 0.0969,
+        "no_false_positive": 0.8556,
+        "hamming_loss": 0.2943
+      },
+      "ci": {
+        "macro_mcc": {
+          "point": 0.1106,
+          "lo": 0.0565,
+          "hi": 0.1641,
+          "B": 2000
+        },
+        "macro_f1": {
+          "point": 0.2643,
+          "lo": 0.2224,
+          "hi": 0.2931,
+          "B": 2000
+        },
+        "macro_ba": {
+          "point": 0.5524,
+          "lo": 0.5263,
+          "hi": 0.5793,
+          "B": 2000
+        },
+        "mean_jaccard": {
+          "point": 0.3764,
+          "lo": 0.339,
+          "hi": 0.4131,
+          "B": 2000
+        },
+        "per_class_mcc": {
+          "Linear crack": {
+            "point": 0.2568,
+            "lo": 0.0973,
+            "hi": 0.4014,
+            "B": 2000
+          },
+          "Alligator crack": {
+            "point": 0.1136,
+            "lo": 0.0029,
+            "hi": 0.2041,
+            "B": 2000
+          },
+          "Pothole": {
+            "point": 0.2187,
+            "lo": 0.011,
+            "hi": 0.38,
+            "B": 2000
+          },
+          "Raveling": {
+            "point": 0.0,
+            "lo": 0.0,
+            "hi": 0.0,
+            "B": 2000
+          },
+          "Weathering": {
+            "point": -0.0362,
+            "lo": -0.0675,
+            "hi": 0.0,
+            "B": 2000
+          },
+          "Patch and utility cut": {
+            "point": 0.0,
+            "lo": 0.0,
+            "hi": 0.0,
+            "B": 2000
+          },
+          "Block crack": {
+            "point": 0.0,
+            "lo": 0.0,
+            "hi": 0.0,
+            "B": 2000
+          }
+        }
+      }
+    },
+    "probe_min:name": {
+      "per_class": {
+        "Linear crack": {
+          "tp": 446,
+          "fp": 64,
+          "fn": 13,
+          "tn": 24,
+          "n": 547,
+          "prevalence": 0.8391,
+          "predicted_rate": 0.9324,
+          "precision": 0.8745,
+          "recall": 0.9717,
+          "specificity": 0.2727,
+          "f1": 0.9205,
+          "mcc": 0.3576,
+          "balanced_accuracy": 0.6222,
+          "auroc": 0.6717,
+          "ap": 0.8919
+        },
+        "Alligator crack": {
+          "tp": 366,
+          "fp": 127,
+          "fn": 12,
+          "tn": 42,
+          "n": 547,
+          "prevalence": 0.691,
+          "predicted_rate": 0.9013,
+          "precision": 0.7424,
+          "recall": 0.9683,
+          "specificity": 0.2485,
+          "f1": 0.8404,
+          "mcc": 0.3358,
+          "balanced_accuracy": 0.6084,
+          "auroc": 0.7028,
+          "ap": 0.8098
+        },
+        "Pothole": {
+          "tp": 40,
+          "fp": 69,
+          "fn": 61,
+          "tn": 377,
+          "n": 547,
+          "prevalence": 0.1846,
+          "predicted_rate": 0.1993,
+          "precision": 0.367,
+          "recall": 0.396,
+          "specificity": 0.8453,
+          "f1": 0.381,
+          "mcc": 0.2344,
+          "balanced_accuracy": 0.6207,
+          "auroc": 0.6496,
+          "ap": 0.3808
+        },
+        "Raveling": {
+          "tp": 10,
+          "fp": 105,
+          "fn": 60,
+          "tn": 372,
+          "n": 547,
+          "prevalence": 0.128,
+          "predicted_rate": 0.2102,
+          "precision": 0.087,
+          "recall": 0.1429,
+          "specificity": 0.7799,
+          "f1": 0.1081,
+          "mcc": -0.0633,
+          "balanced_accuracy": 0.4614,
+          "auroc": 0.5395,
+          "ap": 0.1296
+        },
+        "Weathering": {
+          "tp": 83,
+          "fp": 122,
+          "fn": 61,
+          "tn": 281,
+          "n": 547,
+          "prevalence": 0.2633,
+          "predicted_rate": 0.3748,
+          "precision": 0.4049,
+          "recall": 0.5764,
+          "specificity": 0.6973,
+          "f1": 0.4756,
+          "mcc": 0.249,
+          "balanced_accuracy": 0.6368,
+          "auroc": 0.6589,
+          "ap": 0.4994
+        },
+        "Patch and utility cut": {
+          "tp": 34,
+          "fp": 51,
+          "fn": 72,
+          "tn": 390,
+          "n": 547,
+          "prevalence": 0.1938,
+          "predicted_rate": 0.1554,
+          "precision": 0.4,
+          "recall": 0.3208,
+          "specificity": 0.8844,
+          "f1": 0.356,
+          "mcc": 0.2238,
+          "balanced_accuracy": 0.6026,
+          "auroc": 0.6162,
+          "ap": 0.3405
+        },
+        "Block crack": {
+          "tp": 13,
+          "fp": 185,
+          "fn": 5,
+          "tn": 344,
+          "n": 547,
+          "prevalence": 0.0329,
+          "predicted_rate": 0.362,
+          "precision": 0.0657,
+          "recall": 0.7222,
+          "specificity": 0.6503,
+          "f1": 0.1204,
+          "mcc": 0.1383,
+          "balanced_accuracy": 0.6863,
+          "auroc": 0.7741,
+          "ap": 0.1946
+        }
+      },
+      "macro_headline": {
+        "f1": 0.5451,
+        "mcc": 0.2227,
+        "balanced_accuracy": 0.5899,
+        "precision": 0.4951,
+        "recall": 0.611,
+        "auroc": 0.6445
+      },
+      "micro_headline": {
+        "tp": 945,
+        "fp": 487,
+        "fn": 207,
+        "tn": 1096,
+        "n": 2735,
+        "prevalence": 0.4212,
+        "predicted_rate": 0.5236,
+        "precision": 0.6599,
+        "recall": 0.8203,
+        "specificity": 0.6924,
+        "f1": 0.7314,
+        "mcc": 0.5068,
+        "balanced_accuracy": 0.7563
+      },
+      "sample_headline": {
+        "n": 547,
+        "mean_jaccard": 0.6225,
+        "exact_match": 0.2523,
+        "no_false_positive": 0.4369,
+        "hamming_loss": 0.2537
+      },
+      "ci": {
+        "macro_mcc": {
+          "point": 0.2227,
+          "lo": 0.1254,
+          "hi": 0.3134,
+          "B": 2000
+        },
+        "macro_f1": {
+          "point": 0.5451,
+          "lo": 0.4784,
+          "hi": 0.5974,
+          "B": 2000
+        },
+        "macro_ba": {
+          "point": 0.5899,
+          "lo": 0.5433,
+          "hi": 0.6359,
+          "B": 2000
+        },
+        "mean_jaccard": {
+          "point": 0.6225,
+          "lo": 0.5756,
+          "hi": 0.6725,
+          "B": 2000
+        },
+        "per_class_mcc": {
+          "Linear crack": {
+            "point": 0.3576,
+            "lo": 0.1467,
+            "hi": 0.5286,
+            "B": 2000
+          },
+          "Alligator crack": {
+            "point": 0.3358,
+            "lo": 0.1961,
+            "hi": 0.4555,
+            "B": 2000
+          },
+          "Pothole": {
+            "point": 0.2344,
+            "lo": 0.032,
+            "hi": 0.4125,
+            "B": 2000
+          },
+          "Raveling": {
+            "point": -0.0633,
+            "lo": -0.1643,
+            "hi": 0.043,
+            "B": 2000
+          },
+          "Weathering": {
+            "point": 0.249,
+            "lo": -0.0396,
+            "hi": 0.4722,
+            "B": 2000
+          },
+          "Patch and utility cut": {
+            "point": 0.2238,
+            "lo": 0.0348,
+            "hi": 0.4421,
+            "B": 2000
+          },
+          "Block crack": {
+            "point": 0.1383,
+            "lo": -0.0518,
+            "hi": 0.2852,
+            "B": 2000
+          }
+        },
+        "macro_auroc": {
+          "point": 0.6445,
+          "lo": 0.573,
+          "hi": 0.7066,
+          "B": 2000
+        }
+      }
+    },
+    "constant_prior": {
+      "per_class": {
+        "Linear crack": {
+          "tp": 459,
+          "fp": 88,
+          "fn": 0,
+          "tn": 0,
+          "n": 547,
+          "prevalence": 0.8391,
+          "predicted_rate": 1.0,
+          "precision": 0.8391,
+          "recall": 1.0,
+          "specificity": 0.0,
+          "f1": 0.9125,
+          "mcc": 0.0,
+          "balanced_accuracy": 0.5
+        },
+        "Alligator crack": {
+          "tp": 378,
+          "fp": 169,
+          "fn": 0,
+          "tn": 0,
+          "n": 547,
+          "prevalence": 0.691,
+          "predicted_rate": 1.0,
+          "precision": 0.691,
+          "recall": 1.0,
+          "specificity": 0.0,
+          "f1": 0.8173,
+          "mcc": 0.0,
+          "balanced_accuracy": 0.5
+        },
+        "Pothole": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 101,
+          "tn": 446,
+          "n": 547,
+          "prevalence": 0.1846,
+          "predicted_rate": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "specificity": 1.0,
+          "f1": 0.0,
+          "mcc": 0.0,
+          "balanced_accuracy": 0.5
+        },
+        "Raveling": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 70,
+          "tn": 477,
+          "n": 547,
+          "prevalence": 0.128,
+          "predicted_rate": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "specificity": 1.0,
+          "f1": 0.0,
+          "mcc": 0.0,
+          "balanced_accuracy": 0.5
+        },
+        "Weathering": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 144,
+          "tn": 403,
+          "n": 547,
+          "prevalence": 0.2633,
+          "predicted_rate": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "specificity": 1.0,
+          "f1": 0.0,
+          "mcc": 0.0,
+          "balanced_accuracy": 0.5
+        },
+        "Patch and utility cut": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 106,
+          "tn": 441,
+          "n": 547,
+          "prevalence": 0.1938,
+          "predicted_rate": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "specificity": 1.0,
+          "f1": 0.0,
+          "mcc": 0.0,
+          "balanced_accuracy": 0.5
+        },
+        "Block crack": {
+          "tp": 0,
+          "fp": 0,
+          "fn": 18,
+          "tn": 529,
+          "n": 547,
+          "prevalence": 0.0329,
+          "predicted_rate": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "specificity": 1.0,
+          "f1": 0.0,
+          "mcc": 0.0,
+          "balanced_accuracy": 0.5
+        }
+      },
+      "macro_headline": {
+        "f1": 0.346,
+        "mcc": 0.0,
+        "balanced_accuracy": 0.5,
+        "precision": 0.306,
+        "recall": 0.4
+      },
+      "micro_headline": {
+        "tp": 837,
+        "fp": 257,
+        "fn": 315,
+        "tn": 1326,
+        "n": 2735,
+        "prevalence": 0.4212,
+        "predicted_rate": 0.4,
+        "precision": 0.7651,
+        "recall": 0.7266,
+        "specificity": 0.8377,
+        "f1": 0.7453,
+        "mcc": 0.5687,
+        "balanced_accuracy": 0.7821
+      },
+      "sample_headline": {
+        "n": 547,
+        "mean_jaccard": 0.6213,
+        "exact_match": 0.2724,
+        "no_false_positive": 0.6033,
+        "hamming_loss": 0.2091
+      },
+      "ci": {
+        "macro_mcc": {
+          "point": 0.0,
+          "lo": 0.0,
+          "hi": 0.0,
+          "B": 2000
+        },
+        "macro_f1": {
+          "point": 0.346,
+          "lo": 0.3274,
+          "hi": 0.3622,
+          "B": 2000
+        },
+        "macro_ba": {
+          "point": 0.5,
+          "lo": 0.5,
+          "hi": 0.5,
+          "B": 2000
+        },
+        "mean_jaccard": {
+          "point": 0.6213,
+          "lo": 0.5617,
+          "hi": 0.6793,
+          "B": 2000
+        },
+        "per_class_mcc": {
+          "Linear crack": {
+            "point": 0.0,
+            "lo": 0.0,
+            "hi": 0.0,
+            "B": 2000
+          },
+          "Alligator crack": {
+            "point": 0.0,
+            "lo": 0.0,
+            "hi": 0.0,
+            "B": 2000
+          },
+          "Pothole": {
+            "point": 0.0,
+            "lo": 0.0,
+            "hi": 0.0,
+            "B": 2000
+          },
+          "Raveling": {
+            "point": 0.0,
+            "lo": 0.0,
+            "hi": 0.0,
+            "B": 2000
+          },
+          "Weathering": {
+            "point": 0.0,
+            "lo": 0.0,
+            "hi": 0.0,
+            "B": 2000
+          },
+          "Patch and utility cut": {
+            "point": 0.0,
+            "lo": 0.0,
+            "hi": 0.0,
+            "B": 2000
+          },
+          "Block crack": {
+            "point": 0.0,
+            "lo": 0.0,
+            "hi": 0.0,
+            "B": 2000
+          }
+        }
+      }
+    }
+  },
+  "test_paired_probe_minus_v0": {
+    "macro_mcc": {
+      "delta": 0.1121,
+      "lo": 0.0332,
+      "hi": 0.1826,
+      "p": 0.002,
+      "B": 2000
+    },
+    "macro_f1": {
+      "delta": 0.2809,
+      "lo": 0.2186,
+      "hi": 0.3317,
+      "p": 0.0,
+      "B": 2000
+    },
+    "macro_balanced_accuracy": {
+      "delta": 0.0375,
+      "lo": -0.0001,
+      "hi": 0.0745,
+      "p": 0.051,
+      "B": 2000
+    },
+    "mean_jaccard": {
+      "delta": 0.246,
+      "lo": 0.1949,
+      "hi": 0.2974,
+      "p": 0.0,
+      "B": 2000
+    },
+    "hamming_loss": {
+      "delta": -0.0406,
+      "lo": -0.0808,
+      "hi": 0.0029,
+      "p": 0.062,
+      "B": 2000
+    },
+    "per_class_mcc": {
+      "Linear crack": {
+        "delta": 0.1008,
+        "lo": -0.0444,
+        "hi": 0.2293,
+        "p": 0.157,
+        "B": 2000
+      },
+      "Alligator crack": {
+        "delta": 0.2221,
+        "lo": 0.0692,
+        "hi": 0.3711,
+        "p": 0.003,
+        "B": 2000
+      },
+      "Pothole": {
+        "delta": 0.0157,
+        "lo": -0.0672,
+        "hi": 0.1122,
+        "p": 0.69,
+        "B": 2000
+      },
+      "Raveling": {
+        "delta": -0.0633,
+        "lo": -0.1621,
+        "hi": 0.0532,
+        "p": 0.27,
+        "B": 2000
+      },
+      "Weathering": {
+        "delta": 0.2852,
+        "lo": -0.0206,
+        "hi": 0.5076,
+        "p": 0.063,
+        "B": 2000
+      }
+    },
+    "exact_match_mcnemar": {
+      "v0_right_probe_wrong": 33,
+      "probe_right_v0_wrong": 118,
+      "p": 0.0
+    }
+  },
+  "test_ablation_variants": {
+    "min:def": {
+      "macro_auroc": 0.6431,
+      "macro_mcc": 0.2269,
+      "macro_f1": 0.5626,
+      "per_class_auroc": {
+        "Linear crack": 0.6728,
+        "Alligator crack": 0.7064,
+        "Pothole": 0.6306,
+        "Raveling": 0.5541,
+        "Weathering": 0.6515,
+        "Patch and utility cut": 0.6087,
+        "Block crack": 0.786
+      }
+    },
+    "min:name": {
+      "macro_auroc": 0.6445,
+      "macro_mcc": 0.2227,
+      "macro_f1": 0.5451,
+      "per_class_auroc": {
+        "Linear crack": 0.6717,
+        "Alligator crack": 0.7028,
+        "Pothole": 0.6496,
+        "Raveling": 0.5395,
+        "Weathering": 0.6589,
+        "Patch and utility cut": 0.6162,
+        "Block crack": 0.7741
+      }
+    },
+    "tax:def": {
+      "macro_auroc": 0.6725,
+      "macro_mcc": 0.1684,
+      "macro_f1": 0.4996,
+      "per_class_auroc": {
+        "Linear crack": 0.6898,
+        "Alligator crack": 0.7688,
+        "Pothole": 0.6918,
+        "Raveling": 0.5759,
+        "Weathering": 0.636,
+        "Patch and utility cut": 0.5651,
+        "Block crack": 0.8369
+      }
+    }
+  },
+  "test_tiers": {
+    "v0_production": {
+      "tier1_in_distribution": {
+        "instances": 938,
+        "recalled": 432,
+        "recall": 0.4606
+      },
+      "tier2_zero_shot_expressible_by_both": {
+        "instances": 214,
+        "recalled": 0,
+        "recall": 0.0
+      },
+      "tier2_zero_shot_all": {
+        "instances": 338,
+        "recalled": 0,
+        "recall": 0.0
+      }
+    },
+    "probe_min:name": {
+      "tier1_in_distribution": {
+        "instances": 938,
+        "recalled": 852,
+        "recall": 0.9083
+      },
+      "tier2_zero_shot_expressible_by_both": {
+        "instances": 214,
+        "recalled": 93,
+        "recall": 0.4346
+      },
+      "tier2_zero_shot_all": {
+        "instances": 338,
+        "recalled": 140,
+        "recall": 0.4142
+      }
+    }
+  },
+  "test_output_shape": {
+    "v0_most_common_label_sets": [
+      [
+        "Linear crack",
+        340
+      ],
+      [
+        "(none)",
+        118
+      ],
+      [
+        "Linear crack + Pothole",
+        47
+      ],
+      [
+        "Alligator crack + Linear crack",
+        29
+      ],
+      [
+        "Alligator crack + Linear crack + Pothole",
+        5
+      ],
+      [
+        "Pothole",
+        4
+      ],
+      [
+        "Alligator crack + Pothole",
+        2
+      ],
+      [
+        "Weathering",
+        2
+      ]
+    ],
+    "probe_most_common_label_sets": [
+      [
+        "Alligator crack + Linear crack",
+        243
+      ],
+      [
+        "Alligator crack + Linear crack + Weathering",
+        91
+      ],
+      [
+        "Alligator crack + Linear crack + Pothole + Raveling + Weathering",
+        52
+      ],
+      [
+        "Alligator crack + Linear crack + Raveling + Weathering",
+        47
+      ],
+      [
+        "(none)",
+        33
+      ],
+      [
+        "Alligator crack + Linear crack + Pothole",
+        31
+      ],
+      [
+        "Linear crack",
+        19
+      ],
+      [
+        "Alligator crack + Linear crack + Pothole + Weathering",
+        13
+      ]
+    ],
+    "v0_raw_irc_lists_top": [
+      [
+        "Longitudinal Cracking, Transverse Cracking",
+        332
+      ],
+      [
+        "N/A",
+        71
+      ],
+      [
+        "Normal",
+        29
+      ],
+      [
+        "Longitudinal Cracking, Potholes",
+        26
+      ],
+      [
+        "Potholes, Longitudinal Cracking",
+        19
+      ]
+    ],
+    "v0_distinct_label_sets": 8,
+    "probe_distinct_label_sets": 35
+  },
+  "stage1_test": {
+    "n_distress": 524,
+    "n_no_distress": 23,
+    "production_stage1": {
+      "tp": 271,
+      "fp": 0,
+      "fn": 253,
+      "tn": 23,
+      "n": 547,
+      "prevalence": 0.958,
+      "predicted_rate": 0.4954,
+      "precision": 1.0,
+      "recall": 0.5172,
+      "specificity": 1.0,
+      "f1": 0.6818,
+      "mcc": 0.2076,
+      "balanced_accuracy": 0.7586,
+      "auroc": 0.9569
+    },
+    "probe_max_score": {
+      "tp": 489,
+      "fp": 3,
+      "fn": 35,
+      "tn": 20,
+      "n": 547,
+      "prevalence": 0.958,
+      "predicted_rate": 0.8995,
+      "precision": 0.9939,
+      "recall": 0.9332,
+      "specificity": 0.8696,
+      "f1": 0.9626,
+      "mcc": 0.5357,
+      "balanced_accuracy": 0.9014,
+      "auroc": 0.966,
+      "threshold_from_dev": 0.1489
+    },
+    "note": "only the no-distress images are negatives; there are few of them, so specificity and AUROC here have wide uncertainty"
+  },
+  "end_to_end_test_with_production_stage1": {
+    "v0_production": {
+      "macro_mcc": 0.0936,
+      "macro_f1": 0.2171,
+      "per_class_recall": {
+        "Linear crack": 0.5185,
+        "Alligator crack": 0.0767,
+        "Pothole": 0.2079,
+        "Raveling": 0.0,
+        "Weathering": 0.0
+      },
+      "ci_macro_mcc": {
+        "point": 0.0936,
+        "lo": 0.0436,
+        "hi": 0.1378,
+        "B": 2000
+      }
+    },
+    "probe_min:name": {
+      "macro_mcc": 0.1585,
+      "macro_f1": 0.4456,
+      "per_class_recall": {
+        "Linear crack": 0.5207,
+        "Alligator crack": 0.5873,
+        "Pothole": 0.3465,
+        "Raveling": 0.1143,
+        "Weathering": 0.4236
+      },
+      "ci_macro_mcc": {
+        "point": 0.1585,
+        "lo": 0.0741,
+        "hi": 0.238,
+        "B": 2000
+      }
+    },
+    "stage1_passes_test": 271
+  },
+  "confidence_at_live_threshold_test": {
+    "v0_production(field)": {
+      "threshold": 0.8,
+      "review_load": 0.2596,
+      "auto_accepted": 405,
+      "exact_set_correct_among_accepted": 0.0765,
+      "no_false_positive_among_accepted": 0.8568,
+      "reliability_bins_exact_set": [
+        {
+          "range": [
+            0.0,
+            0.5
+          ],
+          "n": 9,
+          "mean_confidence": 0.4606,
+          "exact_set_correct": 0.0
+        },
+        {
+          "range": [
+            0.5,
+            0.8
+          ],
+          "n": 133,
+          "mean_confidence": 0.6746,
+          "exact_set_correct": 0.1654
+        },
+        {
+          "range": [
+            0.8,
+            0.9
+          ],
+          "n": 353,
+          "mean_confidence": 0.8613,
+          "exact_set_correct": 0.085
+        },
+        {
+          "range": [
+            0.9,
+            1.0
+          ],
+          "n": 52,
+          "mean_confidence": 0.9116,
+          "exact_set_correct": 0.0192
+        }
+      ]
+    },
+    "probe_min:name": {
+      "threshold": 0.8,
+      "review_load": 1.0,
+      "auto_accepted": 0,
+      "exact_set_correct_among_accepted": null,
+      "no_false_positive_among_accepted": null,
+      "reliability_bins_exact_set": [
+        {
+          "range": [
+            0.0,
+            0.5
+          ],
+          "n": 421,
+          "mean_confidence": 0.1705,
+          "exact_set_correct": 0.1853
+        },
+        {
+          "range": [
+            0.5,
+            0.8
+          ],
+          "n": 126,
+          "mean_confidence": 0.5794,
+          "exact_set_correct": 0.4762
+        },
+        {
+          "range": [
+            0.8,
+            0.9
+          ],
+          "n": 0,
+          "mean_confidence": null,
+          "exact_set_correct": null
+        },
+        {
+          "range": [
+            0.9,
+            1.0
+          ],
+          "n": 0,
+          "mean_confidence": null,
+          "exact_set_correct": null
+        }
+      ]
+    }
+  },
+  "confidence_gate_test": {
+    "gate": {
+      "v0_production(field)": {
+        "exact_headline_set": {
+          "n_correct": 53,
+          "n_wrong": 494,
+          "auroc": 0.3461,
+          "ci": {
+            "point": 0.3461,
+            "lo": 0.2475,
+            "hi": 0.4708,
+            "B": 1000
+          },
+          "operating_points": {
+            "review_0pct": {
+              "auto_accepted": 547,
+              "error_rate_auto_accepted": 0.9031
+            },
+            "review_30pct": {
+              "auto_accepted": 383,
+              "error_rate_auto_accepted": 0.9191
+            },
+            "review_50pct": {
+              "auto_accepted": 274,
+              "error_rate_auto_accepted": 0.9489
+            },
+            "review_70pct": {
+              "auto_accepted": 164,
+              "error_rate_auto_accepted": 0.9817
+            }
+          }
+        },
+        "no_false_positive": {
+          "n_correct": 468,
+          "n_wrong": 79,
+          "auroc": 0.581,
+          "ci": {
+            "point": 0.581,
+            "lo": 0.4785,
+            "hi": 0.6871,
+            "B": 1000
+          },
+          "operating_points": {
+            "review_0pct": {
+              "auto_accepted": 547,
+              "error_rate_auto_accepted": 0.1444
+            },
+            "review_30pct": {
+              "auto_accepted": 383,
+              "error_rate_auto_accepted": 0.141
+            },
+            "review_50pct": {
+              "auto_accepted": 274,
+              "error_rate_auto_accepted": 0.1095
+            },
+            "review_70pct": {
+              "auto_accepted": 164,
+              "error_rate_auto_accepted": 0.061
+            }
+          }
+        },
+        "jaccard_ge_0.5": {
+          "n_correct": 237,
+          "n_wrong": 310,
+          "auroc": 0.5682,
+          "ci": {
+            "point": 0.5682,
+            "lo": 0.4826,
+            "hi": 0.659,
+            "B": 1000
+          },
+          "operating_points": {
+            "review_0pct": {
+              "auto_accepted": 547,
+              "error_rate_auto_accepted": 0.5667
+            },
+            "review_30pct": {
+              "auto_accepted": 383,
+              "error_rate_auto_accepted": 0.5117
+            },
+            "review_50pct": {
+              "auto_accepted": 274,
+              "error_rate_auto_accepted": 0.5584
+            },
+            "review_70pct": {
+              "auto_accepted": 164,
+              "error_rate_auto_accepted": 0.5366
+            }
+          }
+        }
+      },
+      "probe_min:name": {
+        "exact_headline_set": {
+          "n_correct": 138,
+          "n_wrong": 409,
+          "auroc": 0.7693,
+          "ci": {
+            "point": 0.7693,
+            "lo": 0.6761,
+            "hi": 0.8453,
+            "B": 1000
+          },
+          "operating_points": {
+            "review_0pct": {
+              "auto_accepted": 547,
+              "error_rate_auto_accepted": 0.7477
+            },
+            "review_30pct": {
+              "auto_accepted": 383,
+              "error_rate_auto_accepted": 0.6527
+            },
+            "review_50pct": {
+              "auto_accepted": 274,
+              "error_rate_auto_accepted": 0.573
+            },
+            "review_70pct": {
+              "auto_accepted": 164,
+              "error_rate_auto_accepted": 0.5244
+            }
+          }
+        },
+        "no_false_positive": {
+          "n_correct": 239,
+          "n_wrong": 308,
+          "auroc": 0.9054,
+          "ci": {
+            "point": 0.9054,
+            "lo": 0.8477,
+            "hi": 0.9493,
+            "B": 1000
+          },
+          "operating_points": {
+            "review_0pct": {
+              "auto_accepted": 547,
+              "error_rate_auto_accepted": 0.5631
+            },
+            "review_30pct": {
+              "auto_accepted": 383,
+              "error_rate_auto_accepted": 0.3916
+            },
+            "review_50pct": {
+              "auto_accepted": 274,
+              "error_rate_auto_accepted": 0.2445
+            },
+            "review_70pct": {
+              "auto_accepted": 164,
+              "error_rate_auto_accepted": 0.122
+            }
+          }
+        },
+        "jaccard_ge_0.5": {
+          "n_correct": 422,
+          "n_wrong": 125,
+          "auroc": 0.6612,
+          "ci": {
+            "point": 0.6612,
+            "lo": 0.5608,
+            "hi": 0.7557,
+            "B": 1000
+          },
+          "operating_points": {
+            "review_0pct": {
+              "auto_accepted": 547,
+              "error_rate_auto_accepted": 0.2285
+            },
+            "review_30pct": {
+              "auto_accepted": 383,
+              "error_rate_auto_accepted": 0.188
+            },
+            "review_50pct": {
+              "auto_accepted": 274,
+              "error_rate_auto_accepted": 0.1642
+            },
+            "review_70pct": {
+              "auto_accepted": 164,
+              "error_rate_auto_accepted": 0.0793
+            }
+          }
+        }
+      }
+    },
+    "per_class_calibration": {
+      "Linear crack": {
+        "ece_raw": 0.2334,
+        "ece_platt_dev": 0.0662
+      },
+      "Alligator crack": {
+        "ece_raw": 0.4849,
+        "ece_platt_dev": 0.0653
+      },
+      "Pothole": {
+        "ece_raw": 0.1049,
+        "ece_platt_dev": 0.0627
+      },
+      "Raveling": {
+        "ece_raw": 0.108,
+        "ece_platt_dev": 0.1102
+      },
+      "Weathering": {
+        "ece_raw": 0.1176,
+        "ece_platt_dev": 0.186
+      }
+    },
+    "probe_confidence_definition": "product over headline classes of the Platt-calibrated probability of the decision taken"
+  },
+  "cost": {
+    "v0_stage2_ms_median": 8176.7,
+    "probe_ms_median": {
+      "min:def": 1640.9,
+      "min:name": 1083.5,
+      "tax:def": 2704.4
+    },
+    "stage1_ms_median": 1290.8,
+    "peak_reserved_gb_max": 18.31,
+    "min_yes_no_mass": {
+      "min:def": 0.9993,
+      "min:name": 0.9996,
+      "tax:def": 0.9993
+    }
+  },
+  "uncalibrated_types_on_test": {
+    "v0_named": 105,
+    "kept_after_probe_verification": 8,
+    "removed_by_probe_verification": 14,
+    "note": "types Attain does not annotate (bleeding, rutting, edge breaking, ...) cannot be scored here; the rule only ever removes them"
+  }
+}

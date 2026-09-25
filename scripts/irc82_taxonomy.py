@@ -419,37 +419,81 @@ IRC82_DISTRESS_TAXONOMY: dict[str, dict] = {
 
 
 # ============================================================
+# Condition indicators (NOT distress types)
+# ============================================================
+# IRC:82-2015 rates a pavement's condition (Section 5, Tables 5.1-5.3) from
+# cracking, ravelling, potholes, shoving, settlement, rut depth - and PATCHING
+# (% of area). A patch is a record of past repair, not a distress, so it is
+# kept out of IRC82_DISTRESS_TAXONOMY and out of the distress prompts. It is
+# still worth recognising: it is one of the rated quantities, and a patch the
+# model cannot name is one it may call a pothole or a depression instead.
+IRC82_CONDITION_INDICATORS: dict[str, dict] = {
+    "Patching": {
+        "category": "Condition Indicators",
+        "irc_section": "5.1 (Tables 5.1-5.3)",
+        "description": (
+            "A previously repaired area - a patch or a utility-cut "
+            "reinstatement - where the original surfacing was removed and "
+            "replaced. IRC:82 rates the extent of patching (% of area) as a "
+            "pavement condition indicator; it is a record of past repair, not "
+            "a distress type."
+        ),
+        "visual_cues": (
+            "A bounded area whose colour or texture differs from the "
+            "surrounding surface (often darker, newer bitumen or a different "
+            "aggregate), with straight saw-cut or irregular edges; often "
+            "rectangular over a utility trench or around a filled pothole."
+        ),
+        "severity": None,
+        "severity_note": "Rated by extent (% of area) in Tables 5.1-5.3, not by severity tier.",
+        "treatment_ref": "11.2",
+        "legacy_codes": ["Patch", "Patching", "Skin Patch", "Inlaid Patch", "Utility Cut"],
+    },
+}
+
+
+# ============================================================
 # Helpers
 # ============================================================
 
 # Pre-build lookup from any historical / legacy label -> canonical IRC name
 _LEGACY_TO_IRC: dict[str, str] = {}
-for _canonical, _entry in IRC82_DISTRESS_TAXONOMY.items():
+for _canonical, _entry in list(IRC82_DISTRESS_TAXONOMY.items()) + list(IRC82_CONDITION_INDICATORS.items()):
     _LEGACY_TO_IRC[_canonical.lower()] = _canonical
     for _legacy in _entry.get("legacy_codes", []):
         _LEGACY_TO_IRC[_legacy.lower()] = _canonical
 
 # Also map a few aliases that might appear in model outputs but aren't in legacy_codes
 _ALIASES = {
-    "block crack (d43)": "Alligator Cracking",  # Block crack closest IRC analog
-    "block crack": "Alligator Cracking",
-    "d43": "Alligator Cracking",
+    # Block cracking is a form of TRANSVERSE cracking in IRC:82-2015. §7.3.5.1:
+    # transverse cracks "appear in the transverse directions or as
+    # interconnected cracks forming series of large blocks perpendicular to the
+    # direction of the road". Alligator cracking (§7.3.3) is defined by SMALL
+    # irregular blocks. Until 2026-09-23 this table sent block crack to
+    # Alligator Cracking as the "closest visible analog", which the code text
+    # itself contradicts.
+    "block crack (d43)": "Transverse Cracking",
+    "block crack": "Transverse Cracking",
+    "block cracking": "Transverse Cracking",
+    "d43": "Transverse Cracking",
     "polishing": "Bleeding",  # Polishing isn't in vision-only IRC; map to closest visible
     "polishing of aggregates": "Bleeding",
     "weathering": "Hungry Surface",
     "oxidation": "Hungry Surface",
     "weathering/oxidation": "Hungry Surface",
-    "patch": "Skin Patch",  # Note: patches were not in 7.2-7.5 but section 8.6
-    "inlaid patch (d44)": "Skin Patch",
-    "inlaid patch": "Skin Patch",
-    "d44": "Skin Patch",
+    # Patches are a rated condition indicator in IRC:82 Tables 5.1-5.3, not a
+    # Section 7 distress; see IRC82_CONDITION_INDICATORS.
+    "patch": "Patching",
+    "inlaid patch (d44)": "Patching",
+    "inlaid patch": "Patching",
+    "d44": "Patching",
     "open joint (d50)": "Edge Breaking",  # closest visible analog
     "d50": "Edge Breaking",
 }
-# We do NOT add Skin Patch to IRC82_DISTRESS_TAXONOMY because patches are repair
-# work products, not distresses, in IRC:82. They are catalogued as treatments.
-# But the canonicalizer should still accept the legacy label without rejecting it.
-PATCH_LABEL_TREATED_AS_VALID = "Skin Patch"
+# Patching is NOT in IRC82_DISTRESS_TAXONOMY - a patch is a repair, not a
+# distress - but the canonicalizer accepts it (and every legacy spelling of a
+# patch) so a model that names one is not treated as having hallucinated.
+PATCH_LABEL_TREATED_AS_VALID = "Patching"
 
 
 def canonicalize_to_irc(label: str) -> Optional[str]:
@@ -476,20 +520,14 @@ def canonicalize_to_irc(label: str) -> Optional[str]:
     if low in _LEGACY_TO_IRC:
         return _LEGACY_TO_IRC[low]
     if low in _ALIASES:
-        mapped = _ALIASES[low]
-        if mapped == "Skin Patch":
-            return PATCH_LABEL_TREATED_AS_VALID
-        return mapped
+        return _ALIASES[low]
     # Try stripping parenthetical RDD-style codes "Foo (D00)" -> "Foo"
     if "(" in s:
         bare = s.split("(", 1)[0].strip()
         if bare.lower() in _LEGACY_TO_IRC:
             return _LEGACY_TO_IRC[bare.lower()]
         if bare.lower() in _ALIASES:
-            mapped = _ALIASES[bare.lower()]
-            if mapped == "Skin Patch":
-                return PATCH_LABEL_TREATED_AS_VALID
-            return mapped
+            return _ALIASES[bare.lower()]
     return s  # unrecognised — pass through, caller can decide
 
 

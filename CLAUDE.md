@@ -25,6 +25,8 @@ Phone Photo → FastAPI /classify → Stage 1 (Normal/Distress?) → Stage 2 (Wh
 - **Taxonomy:** IRC:82-2015 compliant (Indian Roads Congress Code of Practice). 18 photo-visible distress types across 4 IRC categories (Surface Defects, Cracks, Deformation, Disintegration). Severity follows IRC quantitative criteria (mm thresholds). See `scripts/irc82_taxonomy.py` (single source of truth) and `eval_results/irc82_verification_report.md` (5-round verification, 100% IRC compliance on 100 real images).
 - **Stage 1:** Binary detection (Normal/Distress) — pure prompt-based, deep persona + 5-step inspection protocol
 - **Stage 2:** IRC:82 distress type + severity — pure prompt-based, deep persona + 6-step IRC protocol + full IRC taxonomy + quantitative severity criteria
+- **Stage 2 per-type probe (shadow, since 2026-09-24):** one Yes/No question per IRC type, P(yes) from logits, ~1.4 s for all 20; stored on every row, labels unchanged until Bengaluru thresholds exist. Also powers the **Stage 1 safety net** (confident "Normal" + probe sees distress ⇒ expert review). See "Stage 2 per-type probe" below.
+- **Condition indicator:** `Patching` (IRC:82 Tables 5.1–5.3) lives in `IRC82_CONDITION_INDICATORS`, never in `distress_types`.
 - **API:** FastAPI with rate limiting, API key auth, CORS, async inference, SSE streaming
 - **DB:** Supabase (PostgreSQL) — tables: assessments, custom_distress_types, retrain_jobs
 - **Expert UI:** Single-page HTML/JS dashboard with Supabase Auth, tab-based pending/reviewed views, adapter version management
@@ -57,12 +59,13 @@ Phone Photo → FastAPI /classify → Stage 1 (Normal/Distress?) → Stage 2 (Wh
 - The model also recognizes types beyond RDD labels via taxonomy injection in the system prompt
 
 ### Attain (Stage 2 — Cross-Dataset Evaluation Only, NOT Training)
-- Location: `Attain/` (user will download and place here)
+- Location: `Attain/Attain/Attain/Attain_SMP_{OS_V1.0,WS_V1.0,WS_V2.0}/` — every evaluation uses **WS_V2.0** (847 images, Pascal-VOC XML, frames of 1479×508, 1920×1080 and 640×640 interleaved)
 - Source: Mendeley Data (doi:10.17632/nykrzdm74f/1), CC BY 4.0
-- Images: 2,293 images, 19,761 annotated distress instances
-- Classes: 10 types — alligator crack, block crack, longitudinal crack, transverse crack, faded marking, lane/shoulder drop-off, patch/utility cut, pothole, manhole, weathering/raveling
-- Severity: Low / Medium / High per instance (RDD doesn't have this)
-- Collection: Smartphone-mounted on vehicles, 20-70 km/h, New Zealand roads
+- Images: 2,293 images across the three subsets, 19,761 annotated distress instances
+- Classes (WS_V2.0): Alligator crack, Block crack, Linear crack (longitudinal and transverse are NOT split), Pothole, Patch and utility cut, Raveling, Weathering, plus Faded marking and Lane shoulder drop-off (excluded). Severity High / Low only.
+- **Class-name trap:** Attain spells one class `Patch and utility cut- Low` (no space before the dash). Before 2026-09-23 the parser split only on `" - "`, so every patch instance became an unmapped pseudo-class and silently left the zero-shot tally: the paper's Tier-2 figures were overstated (Improved Baseline 5.88% → 3.81%, plain 3.27% → 2.11%; ranking unchanged). Fixed in `parse_attain_class()`.
+- Collection: smartphones mounted on a vehicle's windshields. **Created by Amirkabir University of Technology, Tehran** (Mendeley record; the data YAML links attain.aut.ac.ir). The record does not name the collection site; the roads look Iranian. Earlier docs said "New Zealand" — that was never supported, do not repeat it.
+- 78 of 847 WS_V2.0 images carry no distress annotation (only faded marking / drop-off, or nothing). Earlier evaluations dropped them; the probe study (`stage2_probe_experiment.py`) keeps them as the only all-class negatives.
 - **Purpose:** Zero-shot generalization testing. Model is trained on RDD (4 classes) and evaluated on Attain (10 classes). Classes not in RDD (block crack, raveling, weathering, faded marking, drop-off, manhole) are zero-shot evaluation targets — the model has never trained on them but can recognize them via taxonomy injection in the system prompt.
 - **Phase 3 role:** Misclassifications on Attain's unseen classes become expert correction candidates → few-shot injection → LoRA retrain → measure improvement trajectory
 - Script: `scripts/07_cross_dataset_eval.py` (needs building — loads Attain, runs inference, computes per-class metrics)
@@ -75,10 +78,10 @@ Phone Photo → FastAPI /classify → Stage 1 (Normal/Distress?) → Stage 2 (Wh
   Longitudinal crack        → Longitudinal Crack (D00)         → YES (trained)
   Transverse crack          → Transverse Crack (D10)           → YES (trained)
   Pothole                   → Pothole (D40)                    → YES (trained)
-  Block crack               → Block Crack (D43)                → NO (zero-shot)
-  Patch/utility cut         → Inlaid Patch (D44)/Utility Cut   → NO (zero-shot)
-  Weathering                → Weathering/Oxidation             → NO (zero-shot)
-  Raveling                  → Raveling                         → NO (zero-shot)
+  Block crack               → Transverse Cracking (IRC §7.3.5.1, "large blocks") → NO (zero-shot)
+  Patch/utility cut         → Patching (IRC condition indicator, Tables 5.1-5.3) → NO (zero-shot)
+  Weathering                → Hungry Surface (IRC §7.2.4)      → NO (zero-shot)
+  Raveling                  → Ravelling (IRC §7.5.2)           → NO (zero-shot)
   Faded marking             → (not pavement distress)          → EXCLUDE from eval
   Lane/shoulder drop-off    → (not pavement distress)          → EXCLUDE from eval
   Manhole                   → (not pavement distress)          → EXCLUDE from eval
@@ -247,6 +250,14 @@ Capstone/
 │   ├── model_loader.py               # Family-agnostic VLM loader + VRAM/OOM/offload guardrails + load-time self-test
 │   ├── smoke_test_model.py           # Pre-flight gate for a model swap — must pass before trusting a new checkpoint
 │   ├── compare_model_ab.py           # Model A/B comparison (refuses to compare runs that differ in more than the model)
+│   ├── stage2_probe.py               # Per-type Yes/No probe: P(yes) per IRC type from logits, shared cached image prefix, parity self-test
+│   ├── stage2_probe_rules.py         # combine() / safety_net(): the ONE implementation production and evaluation both call
+│   ├── stage2_probe_experiment.py    # GPU sandbox: production Stage 1+2 vs probe variants on all 847 Attain frames (checkpointed)
+│   ├── stage2_probe_report.py        # Pre-registered dev/test scoring (MCC, block bootstrap) -> eval_results/stage2_probe_report.*
+│   ├── stage2_probe_cv.py            # Grouped 5-fold CV + eligibility + production config -> eval_results/stage2_probe_config_final.json
+│   ├── probe_production_compare.py   # Read-only: probe vs stored production output on real Bengaluru uploads
+│   ├── calibrate_probe_from_expert_labels.py  # Fits Bengaluru thresholds from expert-reviewed rows (candidate only; exits 2 if too few labels)
+│   ├── multilabel_metrics.py         # MCC/AUROC/AP/cluster bootstrap/McNemar/Platt — checked against scikit-learn
 │   └── validate_all.py               # 14-test validation suite
 ├── app/
 │   ├── main.py                        # FastAPI: /classify, /classify/stream, /classify/base64, /health, /retrain/*, /corrections, /adapters/*
@@ -277,6 +288,10 @@ Capstone/
 | `ADAPTER_PATH` | Unset in production | LoRA adapter directory. Used only when `DISABLE_ADAPTER=false` for A/B experiments. |
 | `QUANTIZATION_BITS` | `4` | Weight storage format at startup: `4` = NF4 + double quant (~4.3 GB), `8` = int8 (~8.6 GB), `0` = bf16, no quantization (~16.6 GB). Compute is bf16 in all three — only storage changes. Changeable at runtime from the operator dashboard (Model Precision panel) without a restart; this env var only sets the boot default. **Note:** the `.env` line is commented out, so production has been running 4-bit despite the "use fp16 on A5000" note below. |
 | `STAGE2_CONFIDENCE_MODE` | `field` (since 2026-09-17) | `field` = geomean over the DISTRESS_TYPES tokens only. `sequence` = geomean over all generated tokens, the pre-2026-09-17 default. On 407 labelled Attain images, under the no-false-positives rule: field AUC **0.744**, sequence **0.373** (inverted). Under Jaccard ≥ 0.5 field is 0.473 — it detects over-prediction, not correctness in general. Always quote the rule with the AUC. `primary` = joint probability of the FIRST label only (2026-09-23): **tested, not adopted** — AUC 0.468 for first-label correctness vs field 0.635 on the same 407 images, and 91% review load at 0.80 (`eval_results/primary_confidence.md`, paper §6.7). All three values are recorded on every row (`raw_response.stage2_confidence_primary`, `stage2_type_confidences`). |
+| `STAGE2_MODE` | `shadow` in production `.env` (code default `generate`) | `generate` = free-form DISTRESS_TYPES list only. `shadow` = the per-type probe runs on every image and every type's P(yes) is stored in `raw_response.stage2_probe` (`applied: false`); labels and gate unchanged. `probe` = the probe decides calibrated types. **Do not switch to `probe` on the Attain config**: it doubled macro MCC on Attain (0.125→0.241, grouped CV) but adds Ravelling to 98% of Bengaluru uploads — thresholds don't transfer. Switch only after `calibrate_probe_from_expert_labels.py` produces a Bengaluru config that wins on held-out expert labels. |
+| `STAGE1_SAFETY_NET` | `true` in production `.env` | When Stage 1 says Normal, the probe checks headline types; if one reaches the configured threshold the image goes to expert review. Never changes a label. Stage 1 recall on Attain distress is only 51.8%; the net catches 313/371 misses (22/78 clean frames flagged). Recorded in `raw_response.stage1_safety_net`. |
+| `STAGE2_PROBE_CONFIG` | `configs/stage2_probe.json` | Probe thresholds/Platt/eligibility (schema 1, validated at load). Copied from `eval_results/stage2_probe_config_final.json`. Missing/invalid config or failed parity self-test ⇒ probe disabled, reason on `/health`, pipeline unchanged. |
+| `PROBE_BATCH_BUDGET_GB` | `1.5` | GPU memory the probe's suffix batch may use for copies of the prefix KV cache. Unbounded batches paged to RAM on the shared 24 GB card (1.1 s → 23–111 s/image). |
 | `MAX_IMAGE_PIXELS` | `1048576` (1024²) in production `.env`; code default 4,840,000 | Input resolution cap. Full-res 1736² photos need a 47.8 GB peak on the 24 GB card and page to system RAM (~272 s/image); at 1024² the peak is 19.8 GB and the whole worker takes ~11 s. No measured accuracy loss on 200 labelled Attain images down to 512². Measured at 4-bit only. See paper §6.6. |
 | `STAGE1_MAX_NEW_TOKENS` | `12` | Stage 1 answers with one word. Was 200, which cost ~4x the time for identical output. |
 | `SKIP_MODEL_SELFTEST` | Unset (self-test ON) | Skips the 2s load-time synthetic-image check. Leave ON in production. |
@@ -322,6 +337,14 @@ without clearing the cache between images, and ~8 s for all three with it. The w
 ~272 s because they overflow the 24 GB card. Earlier figures in this table (including the
 "8x IRC prompt cost") were measured without clearing the allocator between images and may be
 inflated by the same overflow; re-measure before relying on them.
+
+### Stage 2 per-type probe (2026-09-24) — read before touching Stage 2
+
+- **Finding that motivated it:** on 847 Attain frames the free-form list was exactly `Longitudinal Cracking, Transverse Cracking` on 61% of test frames; alligator recall 8%; ravelling/weathering/patch never. Its 0.95 linear-crack F1 equals a constant predictor's. Report **MCC** (0 for constant predictors), always beside a constant baseline, with block (20-frame) bootstrap CIs — see `eval_results/stage2_probe_report.md`, `stage2_probe_cv.md`, paper §5.3/§6.8/§7.10.
+- **Protocol records:** `eval_results/stage2_probe_preregistration.json` (code hashes + adoption rules, addendum for CV). Don't re-tune on the test split.
+- **Production state:** shadow + safety net + field gate (unchanged review load). Probe adds ~1.4–2 s per Stage-2 image.
+- **Next step (Phase 3 link):** experts review uploads in `expert_ui/` → run `scripts/calibrate_probe_from_expert_labels.py` → only if its held-out per-type MCC beats the free-form list, copy its candidate to `configs/stage2_probe.json` and set `STAGE2_MODE=probe`.
+- **Restarting production:** it runs under `start.ps1 -Watchdog` (launched from an earlier background session; log = `eval_results/production_final.log`). Killing uvicorn makes the watchdog relaunch it with the current `.env` — do NOT start a second server (the watchdog's `Stop-StalePython` kills it). After any restart, `POST /operator/start`: auto-start fires only once per `start.ps1` run.
 
 ## How to Run (Quick Reference)
 

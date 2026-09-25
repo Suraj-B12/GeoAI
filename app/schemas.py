@@ -61,6 +61,27 @@ class ClassificationResponse(BaseModel):
         default=None,
         description="Probability of the primary label alone (recorded in every mode)"
     )
+    stage2_confidence_probe: Optional[float] = Field(
+        default=None,
+        description="Per-type probe confidence: probability that every calibrated type "
+                    "decision is right (STAGE2_MODE=probe only; recorded in every mode)"
+    )
+    stage2_mode: Optional[str] = Field(
+        default=None,
+        description="Which path produced distress_types for this image: 'probe' "
+                    "(per-type Yes/No probe) or 'generate' (free-form list)"
+    )
+    stage1_safety_net: Optional[dict] = Field(
+        default=None,
+        description="When Stage 1 said Normal and the safety net is on: whether the probe "
+                    "flagged distress (then needs_expert_review is true), the strongest type "
+                    "and its P(yes)."
+    )
+    condition_indicators: list[str] = Field(
+        default_factory=list,
+        description="IRC:82 condition indicators seen (e.g. 'Patching', Tables 5.1-5.3). "
+                    "Not distress types, so never part of distress_types."
+    )
 
     # Expert review flag
     needs_expert_review: bool = Field(
@@ -137,7 +158,28 @@ class HealthResponse(BaseModel):
     )
     stage2_confidence_mode: str = Field(
         default="sequence",
-        description="Stage 2 confidence metric: 'sequence' (all tokens) or 'field' (DISTRESS_TYPES only).",
+        description="Stage 2 confidence metric: 'sequence' (all tokens), 'field' "
+                    "(DISTRESS_TYPES only), 'primary' or 'probe'.",
+    )
+    stage2_mode: str = Field(
+        default="generate",
+        description="Requested Stage 2 type decision: 'generate' or 'probe'.",
+    )
+    stage2_mode_effective: str = Field(
+        default="generate",
+        description="What actually runs: 'probe' (labels from the probe) or 'shadow' "
+                    "(probe recorded, labels unchanged) only if its config loaded and the "
+                    "fast/slow parity self-test passed at startup; otherwise 'generate'.",
+    )
+    stage1_safety_net: bool = Field(
+        default=False,
+        description="Stage 1 'Normal' answers are checked by the probe and routed to "
+                    "expert review when it sees distress (STAGE1_SAFETY_NET).",
+    )
+    stage2_probe: Optional[dict] = Field(
+        default=None,
+        description="Probe status: enabled, reason if not, parity self-test, "
+                    "variant and threshold provenance.",
     )
     vram_used_gb: float = Field(
         default=0.0,

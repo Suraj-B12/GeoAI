@@ -12,6 +12,8 @@
 > Neither was adopted; both are reported with the evidence. §7.7 adds a second allocator
 > effect (image shape).
 >
+> **Revision 2026-09-24.** Added per-type probing for Stage 2 (§3.4.1), a prevalence-honest evaluation protocol with block-level splits, a recorded protocol and cluster-bootstrap intervals (§5.3), results on all 847 Attain WS_V2.0 frames and on 229 Bengaluru uploads (§6.8), and a discussion of why the probe runs in shadow mode (§7.10). Corrected: Attain's origin (Amirkabir University of Technology, Tehran, not New Zealand; §4.3), the IRC:82 mapping of block cracking (Transverse, §7.3.5.1) and patches (condition indicator, Tables 5.1–5.3), and a class-name parsing bug that had removed 167 patch instances from the zero-shot tally (Tier-2 accuracies 5.88% → 3.81% and 3.27% → 2.11%; ranking unchanged; §4.3).
+>
 > **Not yet revised:** §3.3–3.4 (prompts), §6.1–6.3 and §7.3–7.4 describe the pre-IRC:82
 > taxonomy and a production pipeline that used the QLoRA adapter. Production has since
 > moved to the base model with IRC:82-aligned prompts and no adapter; the adapter is kept
@@ -37,8 +39,10 @@ The key contributions are:
 - A two-stage pipeline architecture using Qwen2.5-VL-7B-Instruct fine-tuned with QLoRA
 - Logit-based confidence extraction (not heuristic) for reliable uncertainty quantification
 - A comprehensive taxonomy injection approach enabling zero-shot recognition of distress types beyond the training distribution
-- Cross-dataset generalization evaluation using geographically distinct datasets (RDD2022 from multiple countries, Attain from New Zealand)
+- Cross-dataset generalization evaluation using geographically distinct datasets (RDD2022 from multiple countries; Attain, created by Amirkabir University of Technology, Tehran)
 - An expert-in-the-loop feedback mechanism combining immediate few-shot improvement with permanent LoRA incremental retraining
+- Per-type probing: one Yes/No question per IRC:82 type scored from the model's own next-token probabilities, sharing one cached image prefix (about 1 s for 20 questions). On 847 labelled frames it doubles macro MCC over a free-form type list (0.125 → 0.241, grouped cross-validation), with an image-level confidence that predicts its own errors (AUROC 0.78–0.87)
+- A prevalence-honest evaluation protocol for multi-label distress classification (MCC against a constant baseline, block-level splits and bootstrap, a recorded protocol), which also exposed three scoring and labelling errors in earlier results
 
 ---
 
@@ -169,6 +173,35 @@ Unlike Stage 1's binary softmax, Stage 2 produces a multi-token structured respo
 
 **Response Parsing:**
 The parser extracts structured fields using prefix matching (`DISTRESS_TYPES:`, `SEVERITY:`, `DESCRIPTION:`). If structured parsing fails, a fallback keyword extraction scans for known distress type names in the raw text. If no distress types can be extracted, the result is labeled "Unknown" — which always falls below the 80% confidence threshold and triggers expert review.
+
+#### 3.4.1 Per-Type Probing
+
+The free-form list has a structural weakness: the model writes it in the order of the prompt's inspection protocol, and every label after the first is conditioned on the ones already written. On 407 labelled Attain images the list was exactly "Longitudinal Cracking, Transverse Cracking" for 318 images (78%), the first two items of the protocol (§6.8). A list produced this way reflects decoding order as much as the image.
+
+**Probing.** Instead of asking the model to *write* the types, we *ask about* each type separately. For every IRC:82 type, and for the condition indicator Patching (§4.3), the model receives the same system prompt and image followed by one question — "Does this road photo show *Alligator Cracking* (IRC:82 §7.3.3)? Definition: … What it looks like: … Answer Yes or No." — and we read the next-token distribution. The type's score is
+
+`P(yes) = (p(Yes) + p(yes)) / (p(Yes) + p(yes) + p(No) + p(no))`
+
+at that single position (summed over the tokenizer's single-token spellings of each answer): the same logit read-out Stage 1 uses for Normal against Distress. The Yes/No logits are recomputed in float32 from the final hidden state, because bf16 rounding quantises P(yes) into visible steps and creates ties that an ROC curve cannot rank. Across the 847 evaluation images and every prompt variant, at least 99.93% of the next-token probability fell on the Yes/No answer tokens, so the model answers the questions as asked.
+
+This gives every type its own probability, whether or not the model would have chosen to write it. Each type can then have its own ROC curve and threshold. No type's answer depends on another type's.
+
+**Cost.** The system prompt and the image make up more than 90% of every question's tokens. They are encoded once. The resulting key/value cache is shared by all 20 questions, which then run as one batch of short suffixes. Qwen2.5-VL uses three-dimensional multimodal rotary positions, so suffix positions are taken from the model's own `get_rope_index` over the full sequence. The code asserts that they continue the prefix as plain text positions. The suffix batch is chunked to a 1.5 GB budget for its copies of the prefix cache: on a card shared with the production server, an unbounded batch pushed the process past physical memory, where Windows pages to system RAM instead of failing (1.1 s → 23–111 s per image). A self-test at load compares this path with one full forward pass per question. The largest difference in P(yes) was 0.014. With name-only questions all 20 take a median 1.08 s per Attain frame (1.43 s per 1024² Bengaluru upload), against a median 8.18 s for the free-form generation; with the full IRC definition in each question, 1.64 s.
+
+**Decision rule (probe-verified list).** Thresholds need labelled data, which exists only for the types Attain annotates. The rule therefore treats types differently:
+- *Calibrated types* (longitudinal and transverse cracking, alligator cracking, potholes, ravelling, hungry surface, and the Patching indicator): the probe decides. A type is reported when its P(yes) reaches the threshold tuned on the development split, whatever the free-form list said.
+- *The other twelve IRC types* (bleeding, rutting, edge breaking, …): no threshold can be justified without labels. The probe may only remove them. A type the free-form list named is kept if the probe gives it P(yes) ≥ 0.5, and never added on the probe's word alone.
+- *Condition indicators* never enter the distress list and are reported separately.
+
+Types are ordered by calibrated probability, so the first label is the type the model is most confident is present. It is not a measured "most prominent" distress (§6.7). The free-form generation still runs, because severity and the one-sentence description come from it.
+
+**Confidence.** Each calibrated type's P(yes) is Platt-scaled on the development split into q. The image-level confidence is the probability that every calibrated decision is right, treating decisions as independent: ∏ (q if reported, else 1 − q). If Stage 1 said "distressed" but no type survives, the confidence is set to 0 so the image goes to review.
+
+**Deployment: shadow mode and a Stage 1 safety net.** The thresholds are tuned on Attain, whose vehicle-mounted road strips are a different kind of photograph from Bengaluru's handheld close-ups. The probe's probabilities move with the domain in sensible directions: the median P(yes) for potholes is 0.60 on Bengaluru uploads and 0.02 on Attain frames, and for longitudinal cracking 0.10 and 0.69. But the decision thresholds do not carry over. Applied to 204 production uploads, the Attain thresholds would add Ravelling to 197 of them (§6.8). Without labelled Bengaluru photographs there is no way to set thresholds there, so production runs the probe in **shadow mode**. Every upload's P(yes) for every type is stored with the row, while the reported types and the review gate stay those of the free-form list. When experts have reviewed enough uploads, `scripts/calibrate_probe_from_expert_labels.py` fits Bengaluru thresholds from the stored probabilities without re-running the model. Its candidate replaces the configuration only if it beats the free-form list on held-out expert labels.
+
+One use of the probe does not depend on thresholds being right, because it can only add human review. Stage 1 missed 48% of the Attain images that carry annotated distress. With the **Stage 1 safety net**, an image Stage 1 calls Normal is checked by the probe. If any of the headline types reaches its threshold, the image goes to expert review instead of being auto-classified Normal. It never changes a label.
+
+**Fail-safes.** A missing or invalid configuration, or a failed parity self-test, disables probing at load and the pipeline runs the free-form list. The reason is exposed on `/health`. An exception on one image keeps the free-form answer for that image and records the error in the row. Every row stores each type's P(yes), what the probe added and removed, and the free-form list it started from, so any row can be re-scored under a new threshold without re-inference. The rule is implemented once (`scripts/stage2_probe_rules.py`) and called by both production and the evaluation, so reported test numbers are what production computes.
 
 ### 3.5 Expert Review Threshold
 
@@ -311,11 +344,14 @@ Since RDD2022 does not include severity annotations, severity is derived heurist
 | Source | Mendeley Data (doi:10.17632/nykrzdm74f/1) |
 | License | CC BY 4.0 |
 | Purpose | Cross-dataset zero-shot generalization evaluation (NOT used for training) |
-| Images | 2,293 images with 19,761 annotated distress instances |
-| Classes | 10 types (see mapping below) |
-| Severity | Low / Medium / High per instance (unlike RDD which has no severity labels) |
-| Collection | Smartphone-mounted on vehicles, 20-70 km/h, New Zealand roads |
-| Geographic Context | Southern hemisphere, different climate and road construction standards than RDD |
+| Images | 2,293 images with 19,761 annotated distress instances across three subsets; every evaluation here uses **WS_V2.0** (847 images) |
+| Frames (WS_V2.0) | 403 at 1479×508, 275 at 1920×1080, 169 at 640×640, interleaved; consecutive frames from a moving vehicle, so neighbours are near-duplicates |
+| Classes | 10 types (see mapping below); longitudinal and transverse cracks are one merged "Linear crack" class |
+| Severity | High / Low per instance in WS_V2.0 (unlike RDD, which has no severity labels) |
+| Collection | Smartphone cameras mounted on a vehicle's front and rear windshields |
+| Creator | Amirkabir University of Technology, Tehran (Mendeley record; the dataset's data file links attain.aut.ac.ir). The record does not state the collection site. |
+
+**Correction.** Earlier drafts of this paper described Attain as New Zealand footage. Nothing in the dataset record supports that. The creating institution is in Tehran, and the road furniture in the frames is consistent with Iran. The cross-geography framing still holds (Iran and India, both different from RDD's training mix); the country named was wrong.
 
 **Attain-to-Pipeline Class Mapping:**
 
@@ -325,15 +361,21 @@ Since RDD2022 does not include severity annotations, severity is derived heurist
 | Longitudinal Crack | Longitudinal Crack (D00) | YES | In-distribution transfer |
 | Transverse Crack | Transverse Crack (D10) | YES | In-distribution transfer |
 | Pothole | Pothole (D40) | YES | In-distribution transfer |
-| Block Crack | Block Crack (D43) | NO | **Zero-shot evaluation** |
-| Patch/Utility Cut | Inlaid Patch (D44) / Utility Cut | NO | **Zero-shot evaluation** |
-| Weathering | Weathering/Oxidation | NO | **Zero-shot evaluation** |
-| Raveling | Raveling | NO | **Zero-shot evaluation** |
+| Block Crack | Transverse Cracking (IRC §7.3.5.1) | NO | **Zero-shot evaluation** (not separately reportable, see below) |
+| Patch/Utility Cut | Patching (IRC condition indicator, Tables 5.1–5.3) | NO | **Zero-shot evaluation** |
+| Weathering | Hungry Surface (IRC §7.2.4) | NO | **Zero-shot evaluation** |
+| Raveling | Ravelling (IRC §7.5.2) | NO | **Zero-shot evaluation** |
 | Faded Marking | (not pavement distress) | - | EXCLUDED |
 | Lane/Shoulder Drop-off | (not pavement distress) | - | EXCLUDED |
 | Manhole | (not pavement distress) | - | EXCLUDED |
 
-**Exclusion rationale:** Faded markings, lane/shoulder drop-offs, and manholes are road features, not pavement structural damage. Including them would inflate false positive rates and dilute the evaluation's focus on actual distress classification.
+**Exclusion rationale:** Faded markings, lane/shoulder drop-offs, and manholes are road features, not pavement structural damage. Including them would inflate false positive rates and dilute the evaluation's focus on actual distress classification. The 78 WS_V2.0 images whose only annotations are such features (or none) were dropped by the earlier evaluations. The probing study (§6.8) keeps them: they are the only images that are negative for every distress class at once.
+
+**Two mapping corrections (2026-09-23), both against the IRC:82 text.**
+1. *Block cracking is transverse cracking in IRC:82.* §7.3.5.1 defines transverse cracks as cracks "in the transverse directions or as interconnected cracks forming series of large blocks perpendicular to the direction of the road". Alligator cracking (§7.3.3) is defined by *small* irregular blocks. The canonicaliser had sent "block crack" to Alligator Cracking as the "closest visible analog", which the standard contradicts; it now maps to Transverse Cracking. A consequence is that an IRC label cannot say "block" at all, so Attain's Block crack class is not reportable under the IRC taxonomy by either method. The per-type probe asks about the block pattern as a diagnostic (§6.8).
+2. *Patches are rated, not ignored.* IRC:82 Tables 5.1–5.3 rate pavement condition from cracking, ravelling, potholes, shoving, settlement, rut depth — and patching (% of area). A patch is a repair, not a Section 7 distress, so it is added as a separate *condition indicator* rather than a 19th distress type: it is reported beside the distress list, never in it.
+
+**A scoring bug, found and corrected.** Attain spells one class `Patch and utility cut- Low` (no space before the dash). The class parser split only on `" - "`, so every patch instance became an unmapped pseudo-class and silently left the zero-shot tally. Re-scoring the stored per-image predictions with the fixed parser adds 167 patch instances to the zero-shot denominator (306 → 473). The three-way comparison's zero-shot accuracies fall from 5.88% to 3.81% (Improved Baseline), 3.27% to 2.11% (plain prompts) and stay 0% (fine-tuned). The ranking is unchanged. No method predicted a patch in any of those runs, so no per-class F1 changes.
 
 **Three-tier evaluation significance:**
 1. **Known classes (4):** Trained on RDD, tested on Attain — measures cross-geography generalization
@@ -408,6 +450,8 @@ Since RDD2022 does not include severity annotations, severity is derived heurist
 | Image preprocessing | Convert to RGB, no resize (dynamic resolution) |
 
 Greedy decoding ensures deterministic, reproducible results across runs.
+
+**Stage 2 probing study (§6.8).** Every Attain WS_V2.0 frame (847, including the 78 with no distress annotation) is run once through production Stage 1, production Stage 2 and three probe variants, in one process on the same decoded image. The comparison is multi-label and the classes are very unequally common: 81% of frames carry Linear crack and 66% Alligator crack. A predictor that says "yes" to both on every frame scores F1 0.90 and 0.80 without looking at the image. The headline metric is therefore the **Matthews correlation coefficient** (MCC), which is 0 for any constant predictor whatever the prevalence, macro-averaged over the five classes both methods can express (Linear crack, Alligator crack, Pothole, Raveling, Weathering). F1, balanced accuracy, per-image Jaccard and exact-set agreement are reported beside it, always next to the constant predictor's score. Attain frames are consecutive shots from a moving vehicle, so neighbouring frames are near-duplicates. All splits and confidence intervals therefore work on **blocks of 20 consecutive frames**: the development/test split assigns whole blocks, and 95% intervals come from a cluster bootstrap that resamples blocks (B = 2,000; paired for differences). The protocol and a SHA-256 hash of the analysis code were recorded before any test number existed (`eval_results/stage2_probe_preregistration.json`). It fixed the variant choice (best development macro AUROC), the threshold rule (MCC-optimal per class on the development split) and the adoption rule: the probe is adopted if the paired macro-MCC difference on the test split is positive with a 95% interval excluding 0, and no class is significantly worse. A second, grouped 5-fold cross-validation over all 847 frames was added after the test results, with its rules recorded in an addendum before it ran.
 
 ---
 
@@ -729,6 +773,92 @@ At the live 0.80 threshold, the joint score would send 91% of Attain images to r
 
 **Production photographs.** Every production row now stores both scores, so the two gates can be compared on the same Bengaluru uploads without re-inference (68 photographs that reached Stage 2; no expert labels, so this compares review load, not accuracy). Potholes lead the label list in 50 of 68, so ordering is less of a problem here than on Attain. The first-label gate still does not lower the review load: 69% against 68% for the whole-field gate, and 90% for both on multi-label photographs. The first label's own confidence is itself low on hedged photographs (mean 0.654 against 0.778 for the whole field): when the model adds a second label, it is also less sure of the first. The gates disagree on 12 photographs, 8 passed only by the whole-field gate and 4 only by the first-label gate. Source: `scripts/production_gate_comparison.py`, `eval_results/production_gate_comparison.json`.
 
+### 6.8 Per-Type Probing Against the Free-Form List
+
+**What the free-form list does.** On the 547 test frames the free-form answer took 8 distinct label sets. "Longitudinal Cracking, Transverse Cracking" alone accounted for 332 (61%), and "N/A" or "Normal" for 100 more. It named Alligator Cracking on 8% of the frames that have it, and Ravelling, Hungry Surface (weathering) or a patch on none. The probe produced 35 distinct label sets on the same frames.
+
+**Table 6.8a — Stage 2 on the Attain test split (n = 547, 23 without distress; five headline classes)**
+
+| Metric | Free-form list (production) | Per-type probe | Constant "Linear + Alligator" | Probe − production [95% CI] |
+|---|---:|---:|---:|---:|
+| **Macro MCC** | 0.111 | **0.223** | 0.000 | **+0.112 [+0.033, +0.183]**, p = 0.002 |
+| Macro F1 | 0.264 | 0.545 | 0.346 | +0.281 [+0.219, +0.332] |
+| Macro balanced accuracy | 0.552 | 0.590 | 0.500 | +0.037 [−0.000, +0.075] |
+| Mean per-image Jaccard | 0.376 | 0.623 | 0.621 | +0.246 [+0.195, +0.297] |
+| Hamming loss (lower is better) | 0.294 | 0.254 | 0.209 | −0.041 [−0.081, +0.003] |
+| Exact label set | 9.7% | 25.2% | 27.2% | McNemar 118 vs 33, p < 0.001 |
+| No false positive | 85.6% | 43.7% | 60.3% | — |
+
+*Variant `min:name` (name-only questions), chosen on the 300-frame development split. Thresholds MCC-optimal per class on the development split. Cluster bootstrap over 20-frame blocks. Source: `eval_results/stage2_probe_report.json`, `scripts/stage2_probe_report.py`.*
+
+The pre-registered criterion is met: macro MCC doubles, with an interval that excludes zero. Two rows temper this. On per-image Jaccard, exact-set agreement and Hamming loss, the probe is only level with, or behind, a constant predictor that answers "Linear crack and Alligator crack" for every frame. Those metrics are dominated by the two classes that are present most of the time, which is why MCC is the headline. And the probe says "yes" much more often, so its share of answers without a false positive falls from 85.6% to 43.7%. The earlier headline correctness rule (no false positives, §6.5) rewards the free-form list for naming almost nothing.
+
+**Table 6.8b — Per class, test split**
+
+| Class | Prevalence | Production P / R | Production MCC | Probe P / R | Probe MCC [95% CI] | Probe AUROC | ΔMCC [95% CI] |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Linear crack | 83.9% | 0.89 / 0.82 | 0.257 | 0.87 / 0.97 | 0.358 [0.147, 0.529] | 0.672 | +0.101 [−0.044, +0.229] |
+| Alligator crack | 69.1% | 0.89 / 0.08 | 0.114 | 0.74 / 0.97 | 0.336 [0.196, 0.456] | 0.703 | **+0.222 [+0.069, +0.371]** |
+| Pothole | 18.5% | 0.43 / 0.25 | 0.219 | 0.37 / 0.40 | 0.234 [0.032, 0.412] | 0.650 | +0.016 [−0.067, +0.112] |
+| Raveling | 12.8% | 0.00 / 0.00 | 0.000 | 0.09 / 0.14 | −0.063 [−0.164, 0.043] | 0.539 | −0.063 [−0.162, +0.053] |
+| Weathering | 26.3% | 0.00 / 0.00 | −0.036 | 0.40 / 0.58 | 0.249 [−0.040, 0.472] | 0.659 | +0.285 [−0.021, +0.508] |
+| Patch and utility cut | 19.4% | — (no such label) | 0.000 | 0.40 / 0.32 | 0.224 [0.035, 0.442] | 0.616 | not in headline |
+| Block crack (diagnostic) | 3.3% | — | 0.000 | 0.07 / 0.72 | 0.138 [−0.052, 0.285] | 0.774 | not in headline |
+
+In the continuity terms of §6.3, recall of the classes RDD trained on rises from 46.1% to 90.8% (938 annotated class-instances). Recall of the zero-shot classes both methods can name (ravelling, weathering) rises from 0 of 214 to 93 of 214. Recall figures of this kind must be read with the precision column.
+
+**Table 6.8c — Question wording (test split, each variant with its own development-tuned thresholds)**
+
+| Variant | Dev macro AUROC | Test macro AUROC | Test macro MCC | Median time |
+|---|---:|---:|---:|---:|
+| Name only (**chosen on dev**) | **0.716** | 0.644 | 0.223 | 1.08 s |
+| Name + IRC definition and visual cues | 0.683 | 0.643 | 0.227 | 1.64 s |
+| Definition + full taxonomy in the system prompt | 0.653 | 0.672 | 0.168 | 2.70 s |
+
+Adding the IRC definition to each question did not help. Putting the whole taxonomy in the system prompt raised test AUROC but lowered test MCC. The development choice and the test ordering disagree, which is a first sign that 300 frames from 15 road blocks are too few to tune per-class choices on.
+
+**Table 6.8d — Grouped 5-fold cross-validation over all 847 frames (43 blocks; secondary analysis)**
+
+| Method | Macro MCC [95% CI] | Macro F1 | Mean Jaccard | Exact set | Δ macro MCC vs production [95% CI] |
+|---|---:|---:|---:|---:|---:|
+| Free-form list (production) | 0.125 [0.074, 0.170] | 0.249 | 0.410 | 14.1% | — |
+| Probe, all five classes decided | 0.248 [0.148, 0.335] | 0.508 | 0.585 | 23.6% | +0.123 [+0.046, +0.194], p = 0.002 |
+| Probe, eligible classes only | 0.241 [0.159, 0.302] | 0.443 | 0.594 | 24.8% | +0.116 [+0.064, +0.157], p = 0.001 |
+| Constant "Linear + Alligator" | 0.000 | 0.339 | 0.606 | 29.4% | — |
+
+*Thresholds and Platt calibration fitted on four folds, applied to the fifth. "Eligible" (rule fixed before running): the probe decides a class only if its pooled out-of-fold AUROC has a 95% lower bound above 0.5. That holds for Linear crack (0.766 [0.652, 0.854]), Alligator crack (0.758 [0.672, 0.837]) and Raveling (0.624 [0.506, 0.741]), and not for Pothole (0.620 [0.486, 0.739]), Weathering (0.655 [0.432, 0.802]) or Patch (0.579 [0.467, 0.737]), which become verify-only. Source: `eval_results/stage2_probe_cv.json`, `scripts/stage2_probe_cv.py`.*
+
+Cross-validation over every frame confirms the single-split result: macro MCC roughly doubles, with the lower end of the interval well above zero. The per-class picture is less stable than the single split suggested (Raveling moves from no skill on the test split to modest skill pooled), which is why the production configuration uses the pooled eligibility rule rather than per-class choices from one split.
+
+**The probe's own confidence.** Once its per-class Platt calibration was fitted correctly, the probe's image-level confidence ranks its own errors far better than the field confidence ranks the free-form list's. Out of fold, its AUROC for "the label set is exactly right" is 0.778 [0.686, 0.854] against 0.483 for the field score on the same outputs, and 0.874 [0.804, 0.926] against 0.473 for "no false positive". It is also roughly calibrated: frames it scores 0.4–0.6 are exactly right 54% of the time, frames it scores below 0.2 8% of the time (ECE 0.076). For comparison, frames the field score puts at 0.80–0.90 are exactly right 8.5% of the time. It does not beat the field score on the Jaccard ≥ 0.5 event (0.629 against 0.662). A calibrated confidence also cannot exceed the model's real accuracy, so at the live 0.80 threshold it would send almost every Attain frame to review. Under the rule fixed before the analysis, the production gate stays on the field score; the probe confidence is stored on every row.
+
+*A calibration bug was found and fixed during this analysis. Plain Newton iterations for the Platt fit overshot and stuck at the parameter bound for four classes when P(yes) spanned 10⁻⁴ to 1. With a damped, line-searched step the fit matches scikit-learn to three decimals. Thresholds and MCC were unaffected; only the confidence results changed. The fix is recorded in the pre-registration addendum.*
+
+**Table 6.8e — Stage 1 on Attain, and the safety net (test split: 524 frames with distress, 23 without)**
+
+| Detector | Recall of distress | Specificity | MCC | AUROC |
+|---|---:|---:|---:|---:|
+| Production Stage 1 (Normal/Distress word) | 51.7% | 100.0% | 0.208 | 0.957 |
+| Probe, largest headline P(yes) | 93.3% | 87.0% | 0.536 | 0.966 |
+
+Production Stage 1 ranks frames well (AUROC 0.957) but decides conservatively: it calls half of the frames with annotated distress Normal, and Stage 2 never sees them. With Stage 1 in front, end-to-end macro MCC is 0.094 for the free-form list and 0.159 for the probe. Out of fold over all 847 frames, Stage 1 called 449 frames Normal, 371 of them with annotated distress. The safety net would send 313 of those 371 to review, at the cost of 22 of the 78 frames without distress. Only 78 frames have no distress, so the specificity figures are uncertain.
+
+**Table 6.8f — The same configuration on 229 Bengaluru uploads since the production switch (no labels)**
+
+| | |
+|---|---|
+| Uploads that reached Stage 2 | 204 |
+| Label sets the probe rule would leave unchanged | **3 of 204** |
+| Types the probe would add | Ravelling 197, Transverse 122, Alligator 110, Longitudinal 84 |
+| Types the probe would remove | Bleeding 45 of 52, Potholes 37 of 167, Edge Breaking 25, Hungry Surface 13 |
+| Review load at 0.80: field gate / probe gate | 59.8% / 99.0% |
+| Stage-1-Normal uploads / already sent to review / newly flagged by the safety net | 25 / 19 / 1 of the 6 auto-accepted |
+| Probe time, median | 1.43 s |
+
+*Source: `eval_results/probe_production_compare.json`, `scripts/probe_production_compare.py` (read-only).*
+
+Nothing measures accuracy here. What the table shows is that thresholds tuned on Attain road strips do not transfer to Bengaluru close-ups. The Ravelling threshold (P(yes) ≥ 0.089) lies below the 10th percentile of Bengaluru uploads, so a label that would be added to 98% of photographs carries no information. The probe's removals are harder to dismiss: a manual look at four random "Bleeding" uploads found no visible bitumen film in any of them (tree shadow, loose aggregate, repair patches, a wet night-time surface). That is an inspection, not ground truth. The configuration therefore went to production in **shadow mode** with the safety net on (§3.4.1).
+
 ---
 
 ## 7. Discussion
@@ -802,7 +932,7 @@ Image *shape* has the same effect. Attain mixes three frame shapes. Without rele
 ### 7.8 Limitations of the Calibration and Resolution Results
 
 - **No expert labels on production photographs.** On the Bengaluru uploads, the confidence and resolution results measure separation and change, not accuracy. Labelling a sample of those photographs is the most valuable next step.
-- **Domain gap.** Attain is vehicle-mounted New Zealand footage with wide frames; production is handheld close-ups from Bengaluru. Mean confidence differs by 0.13 between them, which is why thresholds were compared at matched review load.
+- **Domain gap.** Attain is vehicle-mounted footage with wide frames (created in Tehran; §4.3); production is handheld close-ups from Bengaluru. Mean confidence differs by 0.13 between them, which is why thresholds were compared at matched review load.
 - **Calibration population.** The 407 Attain images were selected by a Stage 1 run made before the IRC:82 prompt revision; 274 of the 407 stored predictions (67%) reproduced under the current prompts. Rankings are unaffected, but absolute rates carry this caveat.
 - **Unstable second label.** An invisible perturbation changes 18% of Stage 2 answers. This caps how far any agreement metric can go. Asking for the most prominent type first did not stabilise it (§6.7); it moved the second label and left the first where it was.
 - **Configuration.** All results are for the 7B model at 4-bit on a single 24 GB GPU under Windows.
@@ -816,6 +946,18 @@ The whole-field score works better for a reason that is easy to miss: hedging is
 Two limits apply. First, 96% of Attain first labels are one class, so the accuracy test is weak for Bengaluru, where potholes lead. The production comparison shows the first-label gate would not lower review load there either, but only labelled Bengaluru photographs can settle whether its score is informative. Every production row now records it, so that analysis will need no re-inference. Second, a prompt instruction is a weak lever on output order. Ordering by a separate step, such as asking which listed type dominates and reading the softmax over the listed types (as Stage 1 does for Normal/Distress), would make "main type" a decision the model is asked to make rather than a side effect of listing. We leave that to future work.
 
 Production therefore keeps the whole-field gate at 0.80 and the unmodified prompt. The interfaces show the first label as the main distress and the others beside it. The rule-carrying prompt remains available (`PROMPTS_VERSION=v2_primary_first`) so these results can be reproduced.
+
+### 7.10 Asking Instead of Listing, and Why It Is Not Yet Live
+
+**Why the free-form list collapses.** A generated list is a sequence. The model writes the first label, then the second conditioned on the first, and it stops when stopping is likely. The v2 prompt walks through an inspection protocol whose first step is longitudinal and transverse cracking, and the list follows that protocol: 61% of test frames received exactly its first two items. Alligator cracking, present on 69% of frames, was named on 8% of them. The model does see it: asked directly, it rates alligator cracking higher on frames that have it (AUROC 0.70 test, 0.76 cross-validated). The information is in the model; the list is a poor way to get it out. Per-type probing reads the same model's belief about each type separately, and each belief can then be thresholded on its own.
+
+**Why the evaluation had to change first.** Three earlier practices would have hidden or inflated this result. The headline correctness rule (no false positives) scores a model that names one label as right more often than one that names four, which rewards the collapsed list. Per-class F1 on classes present in 70–84% of frames is dominated by prevalence: production's 0.95 F1 for linear cracks (§6.5 data) is the score of a constant predictor. And a scoring bug silently removed 167 patch instances from the zero-shot tally. MCC against a constant baseline, block-level splits and bootstraps, and a recorded protocol are what make the +0.112 believable. The same changes also show its limits. The probe does not beat the constant predictor on per-image agreement, and on Attain it is still far from reliable (macro MCC 0.24).
+
+**Why production runs it in shadow.** A threshold is a statement about a particular photographic domain. The probe's thresholds were learned on vehicle-mounted road strips, and on handheld close-ups they fire on almost everything. Deploying them would replace one uninformative default ("Longitudinal, Transverse") with another ("Ravelling"). What does transfer is the machinery: fast per-type probabilities, a calibrated way to set thresholds, a rule that separates types with labelled evidence from types without, and a confidence that measurably predicts error. Shadow mode puts that machinery on every production row now. The step that remains is local labels. Expert review in the existing UI is exactly the data the calibration script needs, which makes Phase 3 (expert-in-the-loop) concrete: each reviewed upload moves the probe towards being allowed to decide on Bengaluru roads.
+
+**Where the probe helps now.** The Stage 1 safety net needs only that the probe's scores rank distress above clean pavement, which holds on Attain (AUROC 0.966) and plausibly on close-ups. It never changes a label; it only sends a confident "Normal" to a person when the probe disagrees. That matches the project's standing rule that the system must not silently classify a damaged road as normal.
+
+**Limitations.** (1) All labelled evidence is from one dataset (Attain WS_V2.0), whose frames and annotation practice differ from production. (2) The 78 no-distress frames are the only all-negative examples, so specificity estimates are wide. (3) The development split (15 blocks) was too small to tune per-class choices; the cross-validated configuration is the one deployed. (4) Twelve of the eighteen IRC types have no labelled data at all, so the probe may only remove them; its removals (e.g. Bleeding on 45 of 52 uploads) are unvalidated. (5) Severity is unchanged and not evaluated here. Attain labels only High or Low and the image-level maximum is High on most frames, while the model mostly answers Medium, so exact-match severity accuracy on Attain (§6.3) measures the vocabulary mismatch more than the model. (6) The description sentence still comes from the free-form generation and can mention types the probe would remove.
 
 ---
 

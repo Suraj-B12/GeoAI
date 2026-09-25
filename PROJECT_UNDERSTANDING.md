@@ -150,7 +150,7 @@ real Bengaluru photos:
 | Tier-2 zero-shot accuracy | 3.27 % | **5.88 %** | 0.00 % |
 | Severity accuracy | 8.94 % | 7.23 % | **25.76 %** |
 | Multi-class emission rate | 6.63 % | **52.54 %** | 16.91 % |
-| Pothole F1 | 0.196 | **0.265** | **0.000** (0/163 GT — refuses NZ wide-angle) |
+| Pothole F1 | 0.196 | **0.265** | **0.000** (0/163 GT — refuses Attain wide-angle) |
 | Block crack F1 (zero-shot) | 0.215 | **0.304** | 0.000 |
 | Weathering F1 (zero-shot) | 0.024 | **0.063** | 0.000 |
 | Linear crack F1 | 0.479 | 0.637 | **0.677** |
@@ -424,7 +424,7 @@ fallback fired on 51 % of rows (95 % of Stage 2 inferences).
 Pothole-bias finding worth its own paper paragraph: the adapter emits Pothole on **0 of 769**
 Attain images (163 GT instances) yet *over*-predicts pothole on close-up Bengaluru smartphone
 shots. The bias is **dataset-conditional, not unconditional** — it learned RDD's close-up pothole
-appearance and refuses NZ wide-angle vehicle-mounted framing.
+appearance and refuses Attain's wide-angle vehicle-mounted framing (Attain was created in Tehran, not New Zealand — corrected 2026-09-24).
 
 ### Artefacts
 22 plots at 300 DPI in `eval_results/plots/{rdd,bengaluru,attain}/` (indexed in
@@ -619,3 +619,20 @@ config hit a CUDA "unspecified launch failure" (collateral from force-killing an
 the other was abandoned to free the GPU. Historical batch runs without the cleanup managed
 37.9 s/image versus ~48 s/image observed with it, so a batch-path penalty cannot be ruled out.
 Toggle via the parameter and measure before drawing a conclusion.
+
+## 18. Stage 2 per-type probe, evaluation overhaul, Stage 1 safety net (2026-09-23/24)
+
+**Problem found.** On 847 Attain WS_V2.0 frames the free-form Stage 2 list was `Longitudinal Cracking, Transverse Cracking` on 61% of test frames (the first two steps of the prompt's protocol); alligator recall 8%; ravelling, weathering, patches never named. Production's 0.95 linear-crack F1 equals a constant predictor's (91% prevalence).
+
+**Evaluation overhaul** (`scripts/multilabel_metrics.py`): MCC as headline (0 for any constant predictor), constant baseline in every table, 20-frame block splits and cluster bootstrap (Attain frames are near-duplicate neighbours), protocol + code hashes recorded before test numbers (`eval_results/stage2_probe_preregistration.json`).
+
+**Corrections found on the way:** Attain is from Amirkabir University of Technology, Tehran (not NZ); `Patch and utility cut- Low` parse bug dropped 167 patch instances from Tier-2 (5.88% → 3.81%); IRC §7.3.5.1 puts block cracking under Transverse (alias fixed); Patching added as an IRC Tables 5.1–5.3 condition indicator (never a distress type); severity exact-match on Attain measures a vocabulary mismatch (Attain High/Low vs model Medium).
+
+**Method** (`scripts/stage2_probe.py`, `stage2_probe_rules.py`): one Yes/No question per IRC type, P(yes) from next-token logits (fp32 head rows), system+image prefix encoded once and its KV cache shared by all 20 questions in memory-budgeted chunks, parity self-test against one-pass-per-question. ~1.1 s/Attain frame, ~1.4 s/Bengaluru upload vs ~8 s free-form generation. Calibrated types decided by the probe; the other 12 IRC types verify-only; one `combine()` used by production AND evaluation.
+
+**Results** (paper §6.8): pre-registered test split macro MCC 0.111 → 0.223 (+0.112 [+0.033, +0.183], p = 0.002); grouped 5-fold CV over all 847: 0.125 → 0.241 (+0.116 [+0.064, +0.157]). Alligator MCC +0.22/+0.30. Probe confidence predicts its own errors (OOF AUROC 0.78 exact set, 0.87 no-FP) but not better than field on Jaccard, so the gate stays `field`. Stage 1 recall on Attain distress only 51.8%; the probe's max score 93.3% at 87% specificity.
+
+**Why production runs `STAGE2_MODE=shadow`:** Attain thresholds add Ravelling to 197/204 Bengaluru uploads (only 3/204 label sets unchanged) — thresholds don't transfer from road strips to close-ups. Shadow stores every P(yes) per row; `scripts/calibrate_probe_from_expert_labels.py` fits Bengaluru thresholds once experts review uploads. `STAGE1_SAFETY_NET=true` is live: confident Normal + probe sees distress ⇒ expert review (only ever adds review; 1 extra of 229 uploads).
+
+**Tests:** `scripts/tests/test_stage2_probe_integration.py` (GPU, 20 checks incl. injected failures), `validate_all.py` tests 13–15.
+

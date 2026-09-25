@@ -90,15 +90,23 @@ ATTAIN_CLASS_MAP = {
 }
 
 
+_ATTAIN_SEV_RE = re.compile(r"^(.*?)\s*-\s*(high|medium|low)\s*$", re.IGNORECASE)
+
+
 def parse_attain_class(raw: str) -> tuple[str, str]:
-    """Split 'Alligator crack - High' into ('Alligator crack', 'High')."""
-    if " - " not in raw:
+    """Split 'Alligator crack - High' into ('Alligator crack', 'High').
+
+    The separator is matched with optional whitespace on both sides. Attain's
+    own class list spells one class 'Patch and utility cut- Low' (no space
+    before the dash); the previous `" - "` split missed it, so every patch
+    instance became an unmapped pseudo-class 'Patch and utility cut- Low',
+    was never matched to ATTAIN_CLASS_MAP, and dropped out of the zero-shot
+    tally without any warning (fixed 2026-09-23).
+    """
+    m = _ATTAIN_SEV_RE.match(raw.strip())
+    if not m:
         return raw.strip(), "Unknown"
-    name, sev = raw.rsplit(" - ", 1)
-    sev = sev.strip().lower()
-    if sev in ("high", "medium", "low"):
-        return name.strip(), sev.capitalize()
-    return raw.strip(), "Unknown"
+    return m.group(1).strip(), m.group(2).capitalize()
 
 
 # ============================================================
@@ -263,12 +271,17 @@ PIPELINE_TO_ATTAIN = {
     "Ravelling":                 ["Raveling"],
     "Hungry Surface":            ["Weathering"],
     "Skin Patch":                ["Patch and utility cut", "Patch"],
-    # NOTE: Attain's "Block crack" is deliberately NOT reachable. The IRC:82
-    # taxonomy has no Block Cracking entry and canonicalize_to_irc() folds
-    # block crack into Alligator Cracking. Mapping Alligator Cracking back to
-    # Block crack would inflate both classes, so Block crack scores 0 by
-    # construction under the IRC taxonomy. That is a taxonomy-scope limitation
-    # to disclose, not a model failure to measure.
+    # Patching is the IRC:82 condition indicator (Tables 5.1-5.3) added
+    # 2026-09-23; see IRC82_CONDITION_INDICATORS.
+    "Patching":                  ["Patch and utility cut", "Patch"],
+    # NOTE: Attain's "Block crack" is deliberately NOT reachable. IRC:82
+    # §7.3.5.1 files block cracking under Transverse Cracking (and
+    # canonicalize_to_irc() maps block crack there since 2026-09-23), so an
+    # IRC label cannot say "block" separately. Mapping Transverse Cracking back
+    # to Block crack would count every transverse crack as a block crack, so
+    # Block crack scores 0 by construction under the IRC taxonomy - a
+    # taxonomy-scope limitation, not a model failure. The per-type probe
+    # (scripts/stage2_probe.py) asks about the block form separately.
 }
 
 

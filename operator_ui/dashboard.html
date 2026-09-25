@@ -560,6 +560,9 @@ function renderCard(row) {
   const typesText = types.length ? types[0]
                     : (row.stage1_label === 'Normal' ? 'Normal pavement' : '—');
   const also = types.slice(1);
+  // IRC:82 condition indicators (e.g. Patching, Tables 5.1-5.3): a repair,
+  // not a distress, so shown on their own line - never mixed into the types.
+  const indicators = Array.isArray(row.condition_indicators) ? row.condition_indicators : [];
   const sev = row.severity && row.severity !== 'None' ? ` (${row.severity})` : '';
   const conf1 = row.stage1_confidence != null
                 ? `s1: ${(row.stage1_confidence*100).toFixed(0)}%` : '';
@@ -585,8 +588,9 @@ function renderCard(row) {
       <div class="card-body">
         <div class="card-status s-${status}">${statusLabel(status)}</div>
         <div class="card-types ${types.length ? '' : 'empty'}"
-             title="${types.length ? 'Main distress (listed first by the model)' : ''}">${esc(typesText)}${esc(sev)}</div>
+             title="${types.length ? 'Main distress (the type listed first)' : ''}">${esc(typesText)}${esc(sev)}</div>
         ${also.length ? `<div class="card-also" title="Also seen">also: ${esc(also.join(', '))}</div>` : ''}
+        ${indicators.length ? `<div class="card-also" title="IRC:82 condition indicator (a past repair, not a distress)">repair: ${esc(indicators.join(', '))}</div>` : ''}
         <div class="card-meta">
           <div class="card-meta-row">
             <span>${time}</span>

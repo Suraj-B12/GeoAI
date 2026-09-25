@@ -175,7 +175,7 @@ PARSER_CASES: list[tuple[str, list[str], str]] = [
     ("DISTRESS_TYPES: Weathering/Oxidation\nSEVERITY: Medium\nDESCRIPTION: Test.",
      ["Hungry Surface"], "Weathering → Hungry Surface (closest visible IRC)"),
     ("DISTRESS_TYPES: Block Crack (D43)\nSEVERITY: High\nDESCRIPTION: Test.",
-     ["Alligator Cracking"], "Block Crack → Alligator Cracking (closest visible)"),
+     ["Transverse Cracking"], "Block Crack → Transverse Cracking (IRC §7.3.5.1: 'interconnected cracks forming series of large blocks')"),
     ("DISTRESS_TYPES: Edge Crack\nSEVERITY: Low\nDESCRIPTION: Test.",
      ["Edge Cracking"], "Edge Crack → Edge Cracking"),
     ("DISTRESS_TYPES: Depression\nSEVERITY: N/A\nDESCRIPTION: Test.",

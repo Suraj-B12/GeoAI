@@ -1,0 +1,35 @@
+{
+  "written_at_utc": "2026-09-23T16:04:03.590873+00:00",
+  "status": "written while the 847-image run was in progress (about 70 images done), before any TEST-split metric was computed on a meaningful sample",
+  "experiment": "production Stage 2 free-form list (v0) vs per-type Yes/No probing, Attain SMP WS_V2.0, all 847 images",
+  "protocol": [
+    "Split: blocks of 20 consecutive frames, shuffled with seed 20260923; 35% of blocks DEV, rest TEST.",
+    "Headline classes (both methods can express): Linear crack, Alligator crack, Pothole, Raveling, Weathering. Patch and Block crack reported separately.",
+    "On DEV only: choose the probe variant with the highest macro AUROC over headline classes; tune one threshold per class maximising MCC (ties to the higher threshold); fit Platt calibration per class.",
+    "On TEST once: compare v0 vs the chosen probe with frozen choices. Headline metric: macro MCC over headline classes. Also macro F1, macro balanced accuracy, mean Jaccard, Hamming loss, exact-set McNemar.",
+    "Uncertainty: cluster (block) bootstrap, B=2000; paired bootstrap for deltas.",
+    "Decision rule for production (stated in advance): adopt STAGE2_MODE=probe if the paired macro-MCC delta on TEST is positive with a 95% interval excluding 0, and no headline class has a significantly negative per-class MCC delta. Adopt the probe confidence gate only if, on TEST, its error rate among auto-accepted outputs at matched review load is not worse than the field gate's.",
+    "Only bug fixes may change the code after this record; any such change is listed in the final report."
+  ],
+  "sha256": {
+    "scripts/stage2_probe.py": "a420ded360a418fdaa9bf55f749e5e8b6c05f99e686958ce0932f2710114590f",
+    "scripts/stage2_probe_rules.py": "396949811fd4d0824aa44756e8250f9ff1180875dd19a24e6eb959163483b1d9",
+    "scripts/stage2_probe_experiment.py": "6b7f3bcb8f28525d83e4c639c092316eb6b5229e8d498d6d143a5e5d8872a1dd",
+    "scripts/stage2_probe_report.py": "e64d2a2379d8f36d10bb0dc2d221bedd216c27b79792fb8e6409124cbb369928",
+    "scripts/multilabel_metrics.py": "5fdd13c8d290e27d4158fb5226367b12e3fd2d41b601189d18825d46d469e9e2",
+    "scripts/irc82_taxonomy.py": "0cc78352756bf8f951240c19fd0b1cffabcf54f7de5a18e4cb3ef6d975144dd8"
+  },
+  "addendum_1": {
+    "written_at_utc": "2026-09-23T19:40:57.013557+00:00",
+    "after_seeing": "the pre-registered TEST results (primary criterion met: macro-MCC delta +0.112 [+0.033,+0.183])",
+    "bug_fixed": "multilabel_metrics.fit_platt: undamped Newton diverged to the +/-50 parameter clamp for 4 of 7 classes; replaced by damped Newton with backtracking, verified equal to scikit-learn to 3-4 decimals. Affects only the confidence-gate results, not thresholds or MCC.",
+    "diagnostic_added": "stage2_probe_report: behaviour at the live 0.80 threshold and reliability bins (not a decision criterion).",
+    "observation_motivating_secondary_analysis": "per-class AUROC differs strongly between the 300-image DEV split (15 blocks) and TEST (e.g. Ravelling 0.78 vs 0.54, Weathering 0.51 vs 0.66), so single-split per-class choices are unreliable.",
+    "secondary_analysis_rules_fixed_before_computing": [
+      "Grouped 5-fold cross-validation over all 847 images, folds formed from the same 20-frame blocks (seed 20260924), variant fixed to the pre-registered DEV choice (min:name). In each fold: MCC thresholds and Platt calibration fitted on the other folds, applied to the held-out fold. Metrics on the pooled out-of-fold predictions, cluster-bootstrap CIs.",
+      "Production class eligibility: a class is decided by the probe in the production config only if its pooled out-of-fold AUROC has a 95% cluster-bootstrap lower bound above 0.5; otherwise it is verify-only (the probe may remove it, never add it).",
+      "Production thresholds and Platt parameters are then refitted on all 847 images (refit-after-CV).",
+      "Gate: production keeps STAGE2_CONFIDENCE_MODE=field unless the probe confidence is both better at ranking the probe outputs' errors (out-of-fold AUROC, exact-set and Jaccard>=0.5 events) AND its review load on real Bengaluru uploads at 0.80 is at or below 90%. Either way the probe confidence is recorded on every row."
+    ]
+  }
+}

@@ -108,12 +108,79 @@ STAGE1_MAX_NEW_TOKENS = int(os.environ.get("STAGE1_MAX_NEW_TOKENS", "12"))
 #     separate right first labels from wrong ones (AUC 0.468, joint; 0.476,
 #     geomean), while 'field' did (0.635). eval_results/primary_confidence.md.
 #     Falls back to 'field' (recorded per row) when no label can be matched.
+#
+# 'probe' (2026-09-23) = the probability, from the per-type probe, that every
+#     calibrated type decision is right (scripts/stage2_probe_rules.py). Only
+#     meaningful with STAGE2_MODE=probe; when the probe is unavailable for an
+#     image the gate falls back to 'field' and the row records that it did.
 STAGE2_CONFIDENCE_MODE = os.environ.get("STAGE2_CONFIDENCE_MODE", "field").lower()
-if STAGE2_CONFIDENCE_MODE not in ("sequence", "field", "primary"):
+if STAGE2_CONFIDENCE_MODE not in ("sequence", "field", "primary", "probe"):
     print(f"[PavementClassifier] WARNING: unknown STAGE2_CONFIDENCE_MODE "
           f"{STAGE2_CONFIDENCE_MODE!r} — falling back to 'field'")
     STAGE2_CONFIDENCE_MODE = "field"
 print(f"[PavementClassifier] Stage 2 confidence mode: {STAGE2_CONFIDENCE_MODE}")
+
+# Stage 2 type decision
+# =====================
+# 'generate' = the free-form DISTRESS_TYPES list the v2 prompt produces. On
+#     Attain it was "Longitudinal Cracking, Transverse Cracking" for 78% of
+#     images and almost never named alligator cracking, potholes on wide
+#     frames, ravelling or weathering.
+# 'probe'    = the same generation (still used for severity and the
+#     description), plus one Yes/No question per IRC:82 type scored from the
+#     model's own probabilities; the probe decides the calibrated types and
+#     may only remove the others (scripts/stage2_probe_rules.py). Thresholds
+#     come from STAGE2_PROBE_CONFIG, written by scripts/stage2_probe_report.py
+#     from the DEV split. Any failure - missing or invalid config, a fast/slow
+#     parity mismatch at load, an exception on an image - falls back to
+#     'generate' for that image and records why.
+# 'shadow'   = the probe runs and everything it would decide is recorded on
+#     the row (raw_response.stage2_probe, applied=false), but distress_types
+#     and the gate stay those of 'generate'. The production setting since
+#     2026-09-24: on Attain the probe doubled macro MCC (cross-validated), but
+#     its Attain-tuned thresholds fire on almost every Bengaluru close-up
+#     (Ravelling on 98% of 204 uploads), and no labelled Bengaluru photos
+#     exist to set thresholds on. Shadow mode collects the probabilities so
+#     scripts/calibrate_probe_from_expert_labels.py can fit Bengaluru
+#     thresholds from expert reviews without re-running the model.
+STAGE2_MODE = os.environ.get("STAGE2_MODE", "generate").lower()
+if STAGE2_MODE not in ("generate", "probe", "shadow"):
+    print(f"[PavementClassifier] WARNING: unknown STAGE2_MODE {STAGE2_MODE!r} "
+          f"— falling back to 'generate'")
+    STAGE2_MODE = "generate"
+STAGE2_PROBE_CONFIG = os.environ.get(
+    "STAGE2_PROBE_CONFIG",
+    str(Path(__file__).resolve().parent.parent / "configs" / "stage2_probe.json"))
+if not Path(STAGE2_PROBE_CONFIG).is_absolute():
+    # relative to the project root, not to wherever uvicorn was launched from
+    STAGE2_PROBE_CONFIG = str(Path(__file__).resolve().parent.parent / STAGE2_PROBE_CONFIG)
+print(f"[PavementClassifier] Stage 2 mode: {STAGE2_MODE}")
+
+# Stage 1 safety net
+# ==================
+# Production Stage 1 called 48% of Attain images WITH annotated distress
+# "Normal" (recall 51.8%, 847 images). When it says Normal, the probe asks
+# about each headline type; if any P(yes) reaches the configured threshold the
+# image goes to expert review instead of being auto-classified Normal. It can
+# only ADD human review - it never changes a label. On Attain (out-of-fold) it
+# flagged 313 of the 371 missed distress images and 22 of 78 clean ones; on
+# 229 Bengaluru uploads it would have re-routed 1 of the 6 auto-accepted
+# Normals. Needs the probe (any STAGE2_MODE) and a config with a
+# stage1_safety_net section; otherwise it is off and /health says why.
+STAGE1_SAFETY_NET = os.environ.get("STAGE1_SAFETY_NET", "false").lower() in ("1", "true", "yes")
+print(f"[PavementClassifier] Stage 1 safety net: {'on' if STAGE1_SAFETY_NET else 'off'}")
+
+
+def _release_cuda_cache() -> None:
+    """Hand cached allocator blocks back between inference steps. On Windows
+    WDDM an over-grown reserve pages to system RAM instead of failing."""
+    try:
+        import gc
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+    except Exception:
+        pass
 
 # Sentinel for PavementClassifier.reload(): distinguishes "adapter argument was
 # not supplied" from "adapter explicitly set to None (run the base model)".
@@ -180,6 +247,13 @@ class PavementClassifier:
         # Cached token IDs for Stage 1 confidence extraction
         self._normal_token_ids = []
         self._distress_token_ids = []
+
+        # Per-type probe (STAGE2_MODE=probe). Rebuilt on every model load,
+        # because it holds references to the model object.
+        self._prober = None
+        self._probe_cfg = None
+        self._probe_labels: dict = {}
+        self._probe_status: dict = {"requested_mode": STAGE2_MODE, "enabled": False}
 
         self._load_model(quantization_bits)
 
@@ -256,7 +330,12 @@ class PavementClassifier:
                   f"{quantization_bits}, adapter {prev_adapter!r} -> {new_adapter_path!r}")
 
             # Free the old model BEFORE loading the new one - otherwise we need
-            # 2x VRAM for the swap moment. Drop refs + empty cache.
+            # 2x VRAM for the swap moment. Drop refs + empty cache. The prober
+            # holds its own reference to the model (and a float32 copy of the
+            # Yes/No head rows): if it survived, the old weights could not be
+            # freed and the reload would need two models' worth of VRAM.
+            self._prober = None
+            self._probe_cfg = None
             self._model = None
             self._processor = None
             self._loaded = False
@@ -330,6 +409,12 @@ class PavementClassifier:
             "model_class": info.get("model_class", "unknown"),
             "max_image_pixels": info.get("max_pixels", 0),
             "stage2_confidence_mode": STAGE2_CONFIDENCE_MODE,
+            "stage2_mode": STAGE2_MODE,
+            "stage2_mode_effective": ("probe" if self._prober is not None and STAGE2_MODE == "probe"
+                                      else "shadow" if self._prober is not None and STAGE2_MODE == "shadow"
+                                      else "generate"),
+            "stage1_safety_net": self.safety_net_active,
+            "stage2_probe": self.probe_status,
             "prompts_version": _ACTIVE_PROMPTS,
             "device": self._device,
             "is_loaded": self._loaded,
@@ -378,6 +463,66 @@ class PavementClassifier:
             print("[PavementClassifier] WARNING: Failed to encode Normal/Distress tokens — Stage 1 confidence will be 0.0")
         print(f"[PavementClassifier] Token IDs — Normal: {self._normal_token_ids}, Distress: {self._distress_token_ids}")
         print(f"[PavementClassifier] Model loaded on: {self._device}")
+        self._init_probe()
+
+    def _init_probe(self) -> None:
+        """Build the per-type prober when STAGE2_MODE is 'probe' or 'shadow'
+        or the Stage 1 safety net is on, or record why not.
+
+        Never raises: a probe that cannot be trusted is switched off and the
+        pipeline keeps running on the free-form list. The fast shared-prefix
+        path is checked against the slow one-pass-per-question path before it
+        is enabled.
+        """
+        self._prober = None
+        self._probe_cfg = None
+        self._probe_labels = {}
+        st = {"requested_mode": STAGE2_MODE, "enabled": False,
+              "applies_labels": STAGE2_MODE == "probe",
+              "stage1_safety_net_requested": STAGE1_SAFETY_NET,
+              "stage1_safety_net_active": False,
+              "config_path": STAGE2_PROBE_CONFIG}
+        if STAGE2_MODE == "generate" and not STAGE1_SAFETY_NET:
+            st["reason"] = "STAGE2_MODE=generate and STAGE1_SAFETY_NET off"
+            self._probe_status = st
+            return
+        try:
+            from scripts import stage2_probe_rules as rules
+            from scripts.stage2_probe import TypeProber, all_probe_types
+            cfg = rules.load_config(STAGE2_PROBE_CONFIG)
+            types = all_probe_types()
+            rules.validate_config(cfg, known_keys={t.key for t in types})
+            prober = TypeProber(self._model, self._processor, types,
+                                cfg["variant"]["system_style"],
+                                cfg["variant"]["question_style"])
+            parity = prober.parity_check()
+            st["parity"] = parity
+            if not parity["ok"]:
+                raise RuntimeError(f"fast and slow probe paths disagree: {parity}")
+            self._prober = prober
+            self._probe_cfg = cfg
+            self._probe_labels = {t.key: t.output_label for t in types}
+            sn_active = STAGE1_SAFETY_NET and bool(cfg.get("stage1_safety_net"))
+            st.update(enabled=True, reason=None, variant=cfg["variant"],
+                      provenance=cfg.get("provenance"),
+                      stage1_safety_net_active=sn_active)
+            if STAGE1_SAFETY_NET and not sn_active:
+                st["stage1_safety_net_reason"] = "config has no stage1_safety_net section"
+            print(f"[PavementClassifier] Stage 2 probe ENABLED in {STAGE2_MODE!r} mode "
+                  f"({cfg['variant']}, parity max diff {parity['max_abs_diff']}, "
+                  f"{parity['fast_s']}s per image; safety net "
+                  f"{'on' if sn_active else 'off'})")
+        except Exception as e:
+            st["reason"] = f"{type(e).__name__}: {e}"
+            print(f"[PavementClassifier] WARNING: Stage 2 probe DISABLED, using the "
+                  f"free-form list instead - {st['reason']}")
+        finally:
+            _release_cuda_cache()
+        self._probe_status = st
+
+    @property
+    def probe_status(self) -> dict:
+        return dict(self._probe_status)
 
     def _build_inputs(self, image: Image.Image, system_prompt: str, user_prompt: str):
         """Build model inputs from image and prompts. Returns (inputs, input_length)."""
@@ -551,7 +696,10 @@ class PavementClassifier:
         # No matchable label (a "Normal" answer, a keyword-fallback parse):
         # use the whole-field value and record that the fallback happened.
         primary = entry["joint"] if entry else fld
-        gated = {"sequence": seq, "field": fld, "primary": primary}[STAGE2_CONFIDENCE_MODE]
+        # 'probe' is resolved later in predict_stage2 (it needs the probe's
+        # output); until then it gates like 'field', its fallback.
+        gated = {"sequence": seq, "field": fld, "primary": primary}.get(
+            STAGE2_CONFIDENCE_MODE, fld)
         return {
             "stage2_confidence": gated,
             "stage2_confidence_primary": primary,
@@ -733,16 +881,69 @@ class PavementClassifier:
                     # Fallback errors are non-fatal — keep the primary result.
                     print(f"[PavementClassifier] Stage 2 cascade fallback FAILED: {e}")
 
+            # Per-type probe (STAGE2_MODE 'probe' or 'shadow'). Any failure
+            # keeps the free-form answer for this image and says so in the row.
+            probe_out, probe_err = None, None
+            if self._prober is not None and STAGE2_MODE in ("probe", "shadow"):
+                _release_cuda_cache()  # the generation's reserve, before the probe
+                try:
+                    from scripts import stage2_probe_rules as rules
+                    t_p = time.time()
+                    res = self._prober.probe(image)
+                    p = {r["key"]: r["p_yes"] for r in res}
+                    probe_out = rules.combine(parsed["distress_types"], p,
+                                              self._probe_cfg, self._probe_labels)
+                    probe_out["p"] = {k: round(v, 5) for k, v in p.items()}
+                    probe_out["min_yes_no_mass"] = round(min(r["yes_no_mass"] for r in res), 5)
+                    probe_out["time_ms"] = round((time.time() - t_p) * 1000, 1)
+                    probe_out["variant"] = self._probe_cfg["variant"]
+                except Exception as e:
+                    probe_out = None
+                    probe_err = f"{type(e).__name__}: {e}"
+                    print(f"[PavementClassifier] Stage 2 probe FAILED on this image, "
+                          f"keeping the free-form list - {probe_err}")
+                finally:
+                    _release_cuda_cache()
+
             s2_time = (time.time() - s2_start) * 1000
 
-        types = parsed["distress_types"]
+        generated_types = parsed["distress_types"]
+        # Shadow mode records the probe's answer but does not use it.
+        applied = probe_out is not None and STAGE2_MODE == "probe"
+        probe_conf = None
+        if probe_out is not None:
+            probe_out["applied"] = applied
+            probe_conf = probe_out["confidence"]
+            if not probe_out["types"]:
+                # Stage 1 said distressed but no type survived. Never
+                # auto-accept "distressed, type unknown": force review.
+                probe_conf = 0.0
+                probe_out["forced_review"] = "no distress type reported"
+        if applied:
+            types = probe_out["types"]
+            indicators = probe_out["indicators"]
+        else:
+            types, indicators = generated_types, []
+        confs = dict(confs)
+        confs["stage2_confidence_probe"] = probe_conf
+        if STAGE2_CONFIDENCE_MODE == "probe":
+            if applied and probe_conf is not None:
+                confs["stage2_confidence"] = probe_conf
+                conf_source = "probe"
+            else:
+                confs["stage2_confidence"] = confs["stage2_confidence_field"]
+                conf_source = "field (probe unavailable)"
+        else:
+            conf_source = STAGE2_CONFIDENCE_MODE
         return {
             "distress_types": types,
-            # The label the model listed first is shown as the main one and
-            # the rest beside it. The first label is the model's order, NOT a
-            # measured "most prominent": see utils_v2_prompts.py.
+            # The first label is shown as the main one and the rest beside it.
+            # Free-form mode: the model's listing order. Probe mode: the type
+            # it is most confident is present. Neither is a measured "most
+            # prominent" (nothing here measures extent): utils_v2_prompts.py.
             "primary_distress_type": types[0] if types else None,
             "secondary_distress_types": types[1:],
+            "condition_indicators": indicators,
             "severity": parsed["severity"],
             "description": parsed["description"],
             # Every metric is always reported so the review threshold can be
@@ -750,11 +951,54 @@ class PavementClassifier:
             # STAGE2_CONFIDENCE_MODE never loses the other numbers.
             **confs,
             "stage2_confidence_mode": STAGE2_CONFIDENCE_MODE,
+            "stage2_confidence_source": conf_source,
+            # Which path produced distress_types for THIS image. In shadow
+            # mode this is 'generate' and stage2_probe.applied is false.
+            "stage2_mode": "probe" if applied else "generate",
+            "stage2_probe_mode": STAGE2_MODE if probe_out is not None else None,
+            "stage2_generated_types": generated_types,
+            "stage2_probe": probe_out,
+            "stage2_probe_error": probe_err,
             "stage2_time_ms": round(s2_time, 1),
             "stage2_raw": stage2_raw,
             "stage2_used_fallback": used_fallback,
             "stage2_primary_raw": primary_raw if used_fallback else None,
         }
+
+    @property
+    def safety_net_active(self) -> bool:
+        return (STAGE1_SAFETY_NET and self._prober is not None
+                and bool((self._probe_cfg or {}).get("stage1_safety_net")))
+
+    def stage1_safety_check(self, image: Image.Image) -> dict | None:
+        """Stage 1 said Normal - does the probe see distress anyway?
+
+        Returns None when the safety net is off. Otherwise a dict with
+        `flagged` (route to expert review), the strongest type, its P(yes),
+        the threshold and every type's P(yes). A failure returns
+        {"flagged": False, "error": ...}: the Normal decision then stands
+        exactly as it would without the safety net, and the row says why.
+        Thread-safe.
+        """
+        if not self.safety_net_active:
+            return None
+        from scripts import stage2_probe_rules as rules
+        image = image.convert("RGB")
+        with self._lock:
+            t0 = time.time()
+            try:
+                res = self._prober.probe(image)
+                p = {r["key"]: r["p_yes"] for r in res}
+                out = rules.safety_net(p, self._probe_cfg) or {"flagged": False}
+                out["p"] = {k: round(v, 5) for k, v in p.items()}
+            except Exception as e:
+                out = {"flagged": False, "error": f"{type(e).__name__}: {e}"}
+                print(f"[PavementClassifier] Stage 1 safety net FAILED on this image "
+                      f"(Normal decision stands) - {out['error']}")
+            finally:
+                _release_cuda_cache()
+            out["time_ms"] = round((time.time() - t0) * 1000, 1)
+        return out
 
     def predict(self, image: Image.Image) -> dict:
         """
@@ -800,12 +1044,24 @@ class PavementClassifier:
             result["stage2_confidence_field"] = s2.get("stage2_confidence_field")
             result["stage2_confidence_sequence"] = s2.get("stage2_confidence_sequence")
             result["stage2_confidence_mode"] = s2.get("stage2_confidence_mode")
+            result["stage2_confidence_probe"] = s2.get("stage2_confidence_probe")
+            result["stage2_mode"] = s2.get("stage2_mode")
+            result["condition_indicators"] = s2.get("condition_indicators") or []
+            result["stage2_generated_types"] = s2.get("stage2_generated_types")
+            result["stage2_probe"] = s2.get("stage2_probe")
+            result["stage2_probe_error"] = s2.get("stage2_probe_error")
 
             # Flag for expert review if EITHER stage has low confidence
             result["needs_expert_review"] = (
                 s1["stage1_confidence"] < CONFIDENCE_THRESHOLD
                 or s2["stage2_confidence"] < CONFIDENCE_THRESHOLD
             )
+        else:
+            # Stage 1 said Normal: the safety net may route it to a human.
+            sn = self.stage1_safety_check(image)
+            result["stage1_safety_net"] = sn
+            if sn and sn.get("flagged"):
+                result["needs_expert_review"] = True
 
         total_time = (time.time() - total_start) * 1000
         result["processing_time_ms"] = round(total_time, 1)

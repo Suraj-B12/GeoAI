@@ -249,6 +249,89 @@ try:
 except Exception as e:
     check("no hardcoded paths", False, str(e))
 
+# ---- TEST 13: IRC:82 taxonomy corrections (2026-09-23) ----
+try:
+    import subprocess
+    from scripts.irc82_taxonomy import (
+        IRC82_CONDITION_INDICATORS, IRC82_DISTRESS_TAXONOMY, canonicalize_to_irc,
+    )
+    # 07_cross_dataset_eval imports torch, seaborn and pandas at module level.
+    # After this suite has already loaded the app modules, that import dies
+    # with a Windows access violation inside os.stat (DLL load order, not
+    # our code), so the Attain parser is checked in a fresh interpreter.
+    _probe_src = (
+        "import importlib.util as u, sys\n"
+        "sp = u.spec_from_file_location('_ae', r'%s')\n"
+        "m = u.module_from_spec(sp); sp.loader.exec_module(m)\n"
+        "ok = (m.parse_attain_class('Patch and utility cut- Low') == ('Patch and utility cut', 'Low')\n"
+        "      and m.parse_attain_class('Alligator crack - High') == ('Alligator crack', 'High'))\n"
+        "sys.exit(0 if ok else 3)\n"
+    ) % str(Path(__file__).resolve().parent / "07_cross_dataset_eval.py")
+    _rc = subprocess.run([sys.executable, "-c", _probe_src], capture_output=True,
+                         timeout=300).returncode
+    check("IRC taxonomy corrections",
+          len(IRC82_DISTRESS_TAXONOMY) == 18
+          and "Patching" in IRC82_CONDITION_INDICATORS
+          and "Patching" not in IRC82_DISTRESS_TAXONOMY
+          # IRC:82 §7.3.5.1: block cracking is a form of transverse cracking
+          and canonicalize_to_irc("Block Crack (D43)") == "Transverse Cracking"
+          and canonicalize_to_irc("patch") == "Patching"
+          # Attain spells one class without a space before the dash
+          and _rc == 0,
+          f"block->Transverse, patch->Patching indicator, Attain severity split (parser rc={_rc})")
+except Exception as e:
+    check("IRC taxonomy corrections", False, str(e))
+
+# ---- TEST 14: Stage 2 probe rule is one implementation, and it fails safe ----
+try:
+    import json as _json
+    from scripts import stage2_probe_rules as _rules
+    from scripts.stage2_probe import all_probe_types
+    _keys = {t.key for t in all_probe_types()}
+    model_code = open("app/model.py", encoding="utf-8").read()
+    report_code = open("scripts/stage2_probe_report.py", encoding="utf-8").read()
+    _cfg = {"schema_version": 1, "variant": {"system_style": "min", "question_style": "def"},
+            "verify_threshold": 0.5,
+            "groups": {"Pothole": {"kind": "distress", "keys": ["Potholes"],
+                                   "threshold": 0.5, "platt": None}}}
+    _rules.validate_config(_cfg, _keys)
+    _p = {k: 0.0 for k in _keys}
+    _p.update({"Potholes": 0.9, "Bleeding": 0.2})
+    _out = _rules.combine(["Bleeding"], _p, _cfg)
+    _bad_rejected = False
+    try:
+        _rules.validate_config(dict(_cfg, schema_version=99), _keys)
+    except ValueError:
+        _bad_rejected = True
+    _live = Path("configs/stage2_probe.json")
+    _live_ok = True
+    if _live.exists():
+        _rules.validate_config(_json.loads(_live.read_text(encoding="utf-8")), _keys)
+    check("stage2 probe rule",
+          "stage2_probe_rules as rules" in model_code and "rules.combine(" in model_code
+          and "combine(" in report_code
+          and "_init_probe" in model_code and "parity_check()" in model_code
+          and "self._prober = None" in model_code          # dropped before a reload
+          and _out["types"] == ["Potholes"] and _out["removed_by_probe"] == ["Bleeding"]
+          and _bad_rejected and _live_ok,
+          "combine() must be shared by production and the report; configs must validate")
+except Exception as e:
+    check("stage2 probe rule", False, str(e))
+
+# ---- TEST 15: multi-label metrics are prevalence-honest ----
+try:
+    from scripts import multilabel_metrics as _M
+    _y = [True] * 8 + [False] * 2
+    check("multilabel metrics",
+          _M.binary_metrics(_y, [True] * 10)["mcc"] == 0.0            # constant predictor
+          and abs(_M.binary_metrics(_y, [True] * 10)["f1"] - 16 / 18) < 1e-9   # ...still scores F1 0.89
+          and _M.roc_auc([0.9, 0.8, 0.1], [True, True, False]) == 1.0
+          and _M.roc_auc([0.5, 0.5], [True, False]) == 0.5
+          and abs(_M.mcnemar_exact(9, 1) - 0.021484375) < 1e-12,
+          "MCC must be 0 for a constant predictor")
+except Exception as e:
+    check("multilabel metrics", False, str(e))
+
 # ---- SUMMARY ----
 total = passed + len(errors)
 print(f"\n{'='*50}")

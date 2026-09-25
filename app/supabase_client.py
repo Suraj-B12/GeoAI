@@ -488,10 +488,14 @@ async def list_assessments_for_dashboard(
     # column exists (i.e. migration 004 has been applied). The probe avoids
     # failing on un-migrated databases — the dashboard still works, just
     # without per-row pre-filter info.
+    # condition_indicators lives inside raw_response (Stage 2 probe, e.g.
+    # "Patching"); the JSON-path alias fetches only that key, not the whole
+    # raw_response blob. Rows from before the probe simply return null.
     base_cols = (
         "id,image_url,address,latitude,longitude,status,"
         "stage1_label,stage1_confidence,distress_types,severity,"
-        "stage2_confidence,needs_expert_review,created_at,processed_at"
+        "stage2_confidence,needs_expert_review,created_at,processed_at,"
+        "condition_indicators:raw_response->condition_indicators"
     )
     select = base_cols + ("," + _PAVEMENT_FILTER_COL if _migration_004_applied() else "")
     filters = []
