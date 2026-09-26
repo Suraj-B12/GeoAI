@@ -31,5 +31,91 @@
       "Production thresholds and Platt parameters are then refitted on all 847 images (refit-after-CV).",
       "Gate: production keeps STAGE2_CONFIDENCE_MODE=field unless the probe confidence is both better at ranking the probe outputs' errors (out-of-fold AUROC, exact-set and Jaccard>=0.5 events) AND its review load on real Bengaluru uploads at 0.80 is at or below 90%. Either way the probe confidence is recorded on every row."
     ]
+  },
+  "addendum_2_views": {
+    "written_at_utc": "2026-09-25T17:44:50.301059+00:00",
+    "question": "Does the per-type probe do better when it looks at tiles, or at crops around damage the model locates itself, than at the whole photo?",
+    "already_seen": "grounding-prompt pilot on 18 DEV frames only (box recall ~0.5 for tight boxes, ~0.3 on 1920x1080 frames); no test frame has been run with any view.",
+    "hypotheses": [
+      "H1 tiling: probing ~4 tiles (native or upscaled up to 2x) and taking each type's maximum over {full photo} U tiles raises macro AUROC over the full photo alone on the five headline classes.",
+      "H2 find-then-zoom: probing up to 4 crops around Qwen2.5-VL's own damage boxes, max over {full} U crops, raises macro AUROC over the full photo.",
+      "H3 (diagnostic ceiling, never deployable): the same crops around the ANNOTATED boxes (oracle) bound what any locator could add."
+    ],
+    "protocol": [
+      "DEV (300 frames, the existing 20-frame-block split): run every family; per family choose the aggregation (max over full+views, or max over views only) with the best dev macro AUROC.",
+      "TEST (547 frames): run full, the tiling finalist, the zoom finalist and the oracle once. Primary: paired macro-AUROC delta vs full, cluster bootstrap over blocks (B=2000). Secondary: grouped 5-fold CV over all 847 frames (dev+test outputs of the SAME frozen variants), MCC thresholds per variant, out-of-fold macro-MCC delta vs full.",
+      "Bengaluru uploads since 2026-09-23T08:27Z: descriptive only (no labels) - agreement with full, score shift, time per upload.",
+      "Adoption into the (shadow) production probe: a family is eligible if its TEST macro-AUROC delta 95% CI excludes 0 AND its out-of-fold macro-MCC delta is positive AND its median added time on Bengaluru uploads is <= 6 s. If both families are eligible, adopt the one with the higher TEST macro AUROC. If neither, production keeps the full-photo probe and the result is reported as negative."
+    ],
+    "sha256": {
+      "scripts/stage2_views.py": "64a0ce96d506d63a5076fe0e2ed8e25ca1a36029370bd22616ec0bfe8b8a8186",
+      "scripts/stage2_views_experiment.py": "33c5e5bfa7f20524c44526bf47d32208fecb71e7e0be2f925dd8cc7ccc6c8990"
+    }
+  },
+  "addendum_3_views_aggregation": {
+    "written_at_utc": "2026-09-25T19:34:40.114585+00:00",
+    "after_seeing": "DEV results only (macro AUROC full 0.716, tile_up+full 0.721, zoom 0.717, oracle 0.739; views help Weathering, hurt Alligator/Ravelling/Pothole under max-aggregation). No TEST frame has been run with any view.",
+    "hypothesis": "max over many views inflates false positives on clean frames; a less trigger-happy aggregation recovers the classes views hurt while keeping the gains.",
+    "dev_only_extension": "add aggregations: mean over {full} U views; average of full and max(views); mean of logits; choose per family on DEV macro AUROC as before. Per-class choice of views is NOT allowed (300 frames / 15 blocks proved too unstable for per-class choices).",
+    "unchanged": "test protocol, adoption rule and cost cap from addendum_2_views."
+  },
+  "addendum_4_views_outcome": {
+    "written_at_utc": "2026-09-25T22:53:50.893450+00:00",
+    "dev_finalists": [
+      "full",
+      "tile_up+full",
+      "zoomavgmax",
+      "oracleavgmax"
+    ],
+    "test_macro_auroc_delta_vs_full": {
+      "full": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "tile_up+full": [
+        0.0197,
+        -0.0159,
+        0.0509
+      ],
+      "zoomavgmax": [
+        -0.0086,
+        -0.0284,
+        0.0132
+      ],
+      "oracleavgmax": [
+        0.0079,
+        -0.0192,
+        0.0394
+      ]
+    },
+    "cv_macro_mcc_delta_vs_full": {
+      "full": [
+        0.0,
+        0.0,
+        0.0,
+        1.0
+      ],
+      "tile_up+full": [
+        0.0605,
+        0.0006,
+        0.1254,
+        0.047
+      ],
+      "zoomavgmax": [
+        0.0293,
+        -0.0173,
+        0.0812,
+        0.234
+      ],
+      "oracleavgmax": [
+        0.0778,
+        0.039,
+        0.1168,
+        0.0
+      ]
+    },
+    "decision": "Neither family meets the adoption rule: tiling's TEST macro-AUROC interval includes 0 (+0.020 [-0.016,+0.051]) although its out-of-fold macro MCC rose (+0.060 [+0.001,+0.125], p=0.047), and its Bengaluru cost is ~6.5 s (cap 6 s); zoom fell below the full photo on TEST. The production probe keeps deciding on the full photo. Because tiling is the stronger of the two and Attain cannot settle Bengaluru, production RECORDS per-tile scores (views.record) so the expert-label calibration can compare full vs tiled on Bengaluru photos without re-inference.",
+    "code_changes_after_addendum_2": "stage2_views.aggregate() and probe_scores() record mode added (production helpers; the experiment's stored per-view scores are unaffected)."
   }
 }

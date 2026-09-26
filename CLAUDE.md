@@ -258,6 +258,9 @@ Capstone/
 │   ├── probe_production_compare.py   # Read-only: probe vs stored production output on real Bengaluru uploads
 │   ├── calibrate_probe_from_expert_labels.py  # Fits Bengaluru thresholds from expert-reviewed rows (candidate only; exits 2 if too few labels)
 │   ├── multilabel_metrics.py         # MCC/AUROC/AP/cluster bootstrap/McNemar/Platt — checked against scikit-learn
+│   ├── stage2_views.py               # Tiles / find-then-zoom crops for the probe, aggregate(), record-only views, DamageLocator
+│   ├── stage2_views_experiment.py    # Sandbox: full vs tiles vs zoom vs oracle per-view scores (Attain dev/test, Bengaluru)
+│   ├── stage2_views_report.py        # dev choice / test+CV comparison / --stage emit config for a views variant
 │   └── validate_all.py               # 14-test validation suite
 ├── app/
 │   ├── main.py                        # FastAPI: /classify, /classify/stream, /classify/base64, /health, /retrain/*, /corrections, /adapters/*
@@ -344,6 +347,7 @@ inflated by the same overflow; re-measure before relying on them.
 - **Protocol records:** `eval_results/stage2_probe_preregistration.json` (code hashes + adoption rules, addendum for CV). Don't re-tune on the test split.
 - **Production state:** shadow + safety net + field gate (unchanged review load). Probe adds ~1.4–2 s per Stage-2 image.
 - **Next step (Phase 3 link):** experts review uploads in `expert_ui/` → run `scripts/calibrate_probe_from_expert_labels.py` → only if its held-out per-type MCC beats the free-form list, copy its candidate to `configs/stage2_probe.json` and set `STAGE2_MODE=probe`.
+- **Views (2026-09-26, paper §6.9):** `scripts/stage2_views.py` lets the probe score tiles or model-located zoom crops. Test/CV vs full photo: tiles (upscaled, max) AUROC +0.020 [−0.016,+0.051], CV macro MCC 0.248→0.308 (p=0.047), ~6.5 s/upload; find-then-zoom −0.009 AUROC (its boxes miss ~56% of damage, none usable on 32% of uploads); oracle crops only +0.008. Not adopted under the pre-registered rule. `configs/stage2_probe.json` has `views: {mode: full, record: tile}` — decisions on the full photo, per-tile scores stored in `raw_response.stage2_probe.views.recorded` (+~6.5 s per image; delete `record` to save it). `calibrate_probe_from_expert_labels.py` compares full vs tiled on expert labels and picks the winner (verified end-to-end by `scripts/tests/test_calibrate_from_expert_labels.py`). Aggregation must not be naive max over many views for common texture classes — it inflates false positives (see `stage2_views.aggregate`).
 - **Restarting production:** it runs under `start.ps1 -Watchdog` (launched from an earlier background session; log = `eval_results/production_final.log`). Killing uvicorn makes the watchdog relaunch it with the current `.env` — do NOT start a second server (the watchdog's `Stop-StalePython` kills it). After any restart, `POST /operator/start`: auto-start fires only once per `start.ps1` run.
 
 ## How to Run (Quick Reference)

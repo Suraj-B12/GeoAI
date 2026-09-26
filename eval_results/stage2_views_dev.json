@@ -1,0 +1,277 @@
+{
+  "n": 300,
+  "variants": {
+    "full": {
+      "macro_auroc": 0.7159,
+      "per_class": {
+        "Linear crack": 0.874,
+        "Alligator crack": 0.8399,
+        "Pothole": 0.5841,
+        "Raveling": 0.7759,
+        "Weathering": 0.5056,
+        "Patch and utility cut": 0.5079,
+        "Block crack": 0.8649
+      }
+    },
+    "tile_native+full": {
+      "macro_auroc": 0.6986,
+      "per_class": {
+        "Linear crack": 0.8945,
+        "Alligator crack": 0.7975,
+        "Pothole": 0.5089,
+        "Raveling": 0.6546,
+        "Weathering": 0.6373,
+        "Patch and utility cut": 0.5358,
+        "Block crack": 0.7737
+      }
+    },
+    "tile_nativeonly": {
+      "macro_auroc": 0.6864,
+      "per_class": {
+        "Linear crack": 0.8978,
+        "Alligator crack": 0.8111,
+        "Pothole": 0.4544,
+        "Raveling": 0.6564,
+        "Weathering": 0.6123,
+        "Patch and utility cut": 0.5212,
+        "Block crack": 0.7737
+      }
+    },
+    "tile_nativeavgmax": {
+      "macro_auroc": 0.7026,
+      "per_class": {
+        "Linear crack": 0.8983,
+        "Alligator crack": 0.8386,
+        "Pothole": 0.5165,
+        "Raveling": 0.7171,
+        "Weathering": 0.5423,
+        "Patch and utility cut": 0.5275,
+        "Block crack": 0.8666
+      }
+    },
+    "tile_nativemean": {
+      "macro_auroc": 0.6699,
+      "per_class": {
+        "Linear crack": 0.8844,
+        "Alligator crack": 0.8567,
+        "Pothole": 0.5392,
+        "Raveling": 0.748,
+        "Weathering": 0.321,
+        "Patch and utility cut": 0.5581,
+        "Block crack": 0.9131
+      }
+    },
+    "tile_nativelogitmean": {
+      "macro_auroc": 0.6533,
+      "per_class": {
+        "Linear crack": 0.8342,
+        "Alligator crack": 0.8254,
+        "Pothole": 0.5619,
+        "Raveling": 0.7614,
+        "Weathering": 0.2836,
+        "Patch and utility cut": 0.5858,
+        "Block crack": 0.9188
+      }
+    },
+    "tile_up+full": {
+      "macro_auroc": 0.721,
+      "per_class": {
+        "Linear crack": 0.8958,
+        "Alligator crack": 0.7911,
+        "Pothole": 0.5245,
+        "Raveling": 0.6839,
+        "Weathering": 0.7098,
+        "Patch and utility cut": 0.526,
+        "Block crack": 0.7692
+      }
+    },
+    "tile_uponly": {
+      "macro_auroc": 0.7056,
+      "per_class": {
+        "Linear crack": 0.8928,
+        "Alligator crack": 0.7927,
+        "Pothole": 0.4384,
+        "Raveling": 0.6831,
+        "Weathering": 0.7208,
+        "Patch and utility cut": 0.4893,
+        "Block crack": 0.7273
+      }
+    },
+    "tile_upavgmax": {
+      "macro_auroc": 0.7184,
+      "per_class": {
+        "Linear crack": 0.8927,
+        "Alligator crack": 0.8299,
+        "Pothole": 0.5289,
+        "Raveling": 0.7366,
+        "Weathering": 0.6037,
+        "Patch and utility cut": 0.5134,
+        "Block crack": 0.8357
+      }
+    },
+    "tile_upmean": {
+      "macro_auroc": 0.6686,
+      "per_class": {
+        "Linear crack": 0.8768,
+        "Alligator crack": 0.8375,
+        "Pothole": 0.5342,
+        "Raveling": 0.7561,
+        "Weathering": 0.3386,
+        "Patch and utility cut": 0.5479,
+        "Block crack": 0.9103
+      }
+    },
+    "tile_uplogitmean": {
+      "macro_auroc": 0.6421,
+      "per_class": {
+        "Linear crack": 0.8116,
+        "Alligator crack": 0.802,
+        "Pothole": 0.5231,
+        "Raveling": 0.7654,
+        "Weathering": 0.3086,
+        "Patch and utility cut": 0.596,
+        "Block crack": 0.9251
+      }
+    },
+    "zoom+full": {
+      "macro_auroc": 0.7169,
+      "per_class": {
+        "Linear crack": 0.8617,
+        "Alligator crack": 0.7627,
+        "Pothole": 0.6026,
+        "Raveling": 0.6903,
+        "Weathering": 0.6676,
+        "Patch and utility cut": 0.5326,
+        "Block crack": 0.8082
+      }
+    },
+    "zoomonly": {
+      "macro_auroc": 0.7174,
+      "per_class": {
+        "Linear crack": 0.8615,
+        "Alligator crack": 0.7675,
+        "Pothole": 0.5977,
+        "Raveling": 0.6894,
+        "Weathering": 0.671,
+        "Patch and utility cut": 0.5395,
+        "Block crack": 0.7425
+      }
+    },
+    "zoomavgmax": {
+      "macro_auroc": 0.7336,
+      "per_class": {
+        "Linear crack": 0.8771,
+        "Alligator crack": 0.8207,
+        "Pothole": 0.6029,
+        "Raveling": 0.7405,
+        "Weathering": 0.6267,
+        "Patch and utility cut": 0.533,
+        "Block crack": 0.8382
+      }
+    },
+    "zoommean": {
+      "macro_auroc": 0.7316,
+      "per_class": {
+        "Linear crack": 0.8711,
+        "Alligator crack": 0.8271,
+        "Pothole": 0.5869,
+        "Raveling": 0.7435,
+        "Weathering": 0.6296,
+        "Patch and utility cut": 0.5187,
+        "Block crack": 0.8339
+      }
+    },
+    "zoomlogitmean": {
+      "macro_auroc": 0.731,
+      "per_class": {
+        "Linear crack": 0.8658,
+        "Alligator crack": 0.8542,
+        "Pothole": 0.5644,
+        "Raveling": 0.7625,
+        "Weathering": 0.6082,
+        "Patch and utility cut": 0.5125,
+        "Block crack": 0.8257
+      }
+    },
+    "oracle+full": {
+      "macro_auroc": 0.739,
+      "per_class": {
+        "Linear crack": 0.934,
+        "Alligator crack": 0.7615,
+        "Pothole": 0.6664,
+        "Raveling": 0.6023,
+        "Weathering": 0.7308,
+        "Patch and utility cut": 0.669,
+        "Block crack": 0.8477
+      }
+    },
+    "oracleonly": {
+      "macro_auroc": 0.7255,
+      "per_class": {
+        "Linear crack": 0.9338,
+        "Alligator crack": 0.7513,
+        "Pothole": 0.6252,
+        "Raveling": 0.586,
+        "Weathering": 0.731,
+        "Patch and utility cut": 0.6519,
+        "Block crack": 0.8771
+      }
+    },
+    "oracleavgmax": {
+      "macro_auroc": 0.7458,
+      "per_class": {
+        "Linear crack": 0.9153,
+        "Alligator crack": 0.8228,
+        "Pothole": 0.6498,
+        "Raveling": 0.6992,
+        "Weathering": 0.6417,
+        "Patch and utility cut": 0.6561,
+        "Block crack": 0.9193
+      }
+    },
+    "oraclemean": {
+      "macro_auroc": 0.7371,
+      "per_class": {
+        "Linear crack": 0.9008,
+        "Alligator crack": 0.78,
+        "Pothole": 0.6056,
+        "Raveling": 0.674,
+        "Weathering": 0.725,
+        "Patch and utility cut": 0.6197,
+        "Block crack": 0.9273
+      }
+    },
+    "oraclelogitmean": {
+      "macro_auroc": 0.7279,
+      "per_class": {
+        "Linear crack": 0.893,
+        "Alligator crack": 0.7951,
+        "Pothole": 0.5399,
+        "Raveling": 0.7058,
+        "Weathering": 0.706,
+        "Patch and utility cut": 0.5542,
+        "Block crack": 0.9278
+      }
+    }
+  },
+  "chosen": {
+    "tile_native": "tile_nativeavgmax",
+    "tile_up": "tile_up+full",
+    "zoom": "zoomavgmax",
+    "oracle": "oracleavgmax"
+  },
+  "grounding": {
+    "frames": 300,
+    "no_usable_box": 100,
+    "mean_crops": 1.23,
+    "annotated_damage_centres_inside_crops": 0.4024,
+    "frame_area_covered": 0.178
+  },
+  "median_time_s": {
+    "full": 1.25,
+    "tile_native": 2.71,
+    "tile_up": 4.96,
+    "zoom": 6.73,
+    "oracle": 2.83
+  }
+}

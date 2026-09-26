@@ -110,6 +110,18 @@ def validate_config(cfg: dict, known_keys: Optional[set] = None) -> None:
     vt = cfg.get("verify_threshold")
     if not isinstance(vt, (int, float)) or not (0.0 < vt < 1.0):
         raise ValueError("verify_threshold must be in (0, 1)")
+    vw = cfg.get("views")
+    if vw is not None:
+        if vw.get("mode") not in ("full", "tile", "zoom"):
+            raise ValueError("views.mode must be full, tile or zoom")
+        if vw.get("aggregate", "+full") not in ("+full", "only", "avgmax", "mean", "logitmean"):
+            raise ValueError("views.aggregate must be one of +full, only, avgmax, mean, logitmean")
+        ul = vw.get("upscale_limit", 2.0)
+        if not isinstance(ul, (int, float)) or not (1.0 <= ul <= 4.0):
+            raise ValueError("views.upscale_limit must be in [1, 4]")
+        rec = vw.get("record")
+        if rec is not None and rec.get("mode") not in ("tile", "zoom"):
+            raise ValueError("views.record.mode must be tile or zoom")
     sn = cfg.get("stage1_safety_net")
     if sn is not None:
         if not isinstance(sn.get("keys"), list) or not sn["keys"]:

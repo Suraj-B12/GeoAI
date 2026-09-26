@@ -12,6 +12,8 @@
 > Neither was adopted; both are reported with the evidence. §7.7 adds a second allocator
 > effect (image shape).
 >
+> **Revision 2026-09-26.** Added §6.9: the probe on tiles and on self-located zoom crops, against the full photograph, with an oracle-localisation ceiling (development/test split, grouped cross-validation, 231 Bengaluru uploads). Tiling beats find-then-zoom but does not meet the pre-registered adoption rule; production records tile scores for later calibration. §3.4.1 and §7.10 updated.
+>
 > **Revision 2026-09-24.** Added per-type probing for Stage 2 (§3.4.1), a prevalence-honest evaluation protocol with block-level splits, a recorded protocol and cluster-bootstrap intervals (§5.3), results on all 847 Attain WS_V2.0 frames and on 229 Bengaluru uploads (§6.8), and a discussion of why the probe runs in shadow mode (§7.10). Corrected: Attain's origin (Amirkabir University of Technology, Tehran, not New Zealand; §4.3), the IRC:82 mapping of block cracking (Transverse, §7.3.5.1) and patches (condition indicator, Tables 5.1–5.3), and a class-name parsing bug that had removed 167 patch instances from the zero-shot tally (Tier-2 accuracies 5.88% → 3.81% and 3.27% → 2.11%; ranking unchanged; §4.3).
 >
 > **Not yet revised:** §3.3–3.4 (prompts), §6.1–6.3 and §7.3–7.4 describe the pre-IRC:82
@@ -200,6 +202,8 @@ Types are ordered by calibrated probability, so the first label is the type the 
 **Deployment: shadow mode and a Stage 1 safety net.** The thresholds are tuned on Attain, whose vehicle-mounted road strips are a different kind of photograph from Bengaluru's handheld close-ups. The probe's probabilities move with the domain in sensible directions: the median P(yes) for potholes is 0.60 on Bengaluru uploads and 0.02 on Attain frames, and for longitudinal cracking 0.10 and 0.69. But the decision thresholds do not carry over. Applied to 204 production uploads, the Attain thresholds would add Ravelling to 197 of them (§6.8). Without labelled Bengaluru photographs there is no way to set thresholds there, so production runs the probe in **shadow mode**. Every upload's P(yes) for every type is stored with the row, while the reported types and the review gate stay those of the free-form list. When experts have reviewed enough uploads, `scripts/calibrate_probe_from_expert_labels.py` fits Bengaluru thresholds from the stored probabilities without re-running the model. Its candidate replaces the configuration only if it beats the free-form list on held-out expert labels.
 
 One use of the probe does not depend on thresholds being right, because it can only add human review. Stage 1 missed 48% of the Attain images that carry annotated distress. With the **Stage 1 safety net**, an image Stage 1 calls Normal is checked by the probe. If any of the headline types reaches its threshold, the image goes to expert review instead of being auto-classified Normal. It never changes a label.
+
+**Where the probe looks.** The probe can also score tiles of the photograph, or crops around damage the model boxes itself, combining them with the full photograph (`scripts/stage2_views.py`, compared in §6.9). The full photograph is always scored first and is the fallback if any extra view fails. Production decides on the full photograph and records per-tile scores on every upload, so the two can be compared on expert-labelled Bengaluru photographs later.
 
 **Fail-safes.** A missing or invalid configuration, or a failed parity self-test, disables probing at load and the pipeline runs the free-form list. The reason is exposed on `/health`. An exception on one image keeps the free-form answer for that image and records the error in the row. Every row stores each type's P(yes), what the probe added and removed, and the free-form list it started from, so any row can be re-scored under a new threshold without re-inference. The rule is implemented once (`scripts/stage2_probe_rules.py`) and called by both production and the evaluation, so reported test numbers are what production computes.
 
@@ -859,6 +863,50 @@ Production Stage 1 ranks frames well (AUROC 0.957) but decides conservatively: i
 
 Nothing measures accuracy here. What the table shows is that thresholds tuned on Attain road strips do not transfer to Bengaluru close-ups. The Ravelling threshold (P(yes) ≥ 0.089) lies below the 10th percentile of Bengaluru uploads, so a label that would be added to 98% of photographs carries no information. The probe's removals are harder to dismiss: a manual look at four random "Bleeding" uploads found no visible bitumen film in any of them (tree shadow, loose aggregate, repair patches, a wet night-time surface). That is an inspection, not ground truth. The configuration therefore went to production in **shadow mode** with the safety net on (§3.4.1).
 
+### 6.9 Where the Probe Looks: Tiles and Find-Then-Zoom
+
+The probe sees each photograph resized to at most 1024². A crack a few pixels wide can disappear in that resize, and a small pothole is a small part of a wide road frame. Telling the model to "focus on the damage" does not bring pixels back; cropping does. We compared two ways of choosing crops against the full photograph (`scripts/stage2_views.py`):
+
+- **Tiles:** about four overlapping, roughly square tiles covering the photograph (3 tiles on a 1479×508 strip, 3×2 on a 1920×1080 frame, 2×2 on a 640×640 or 1728×1728 photo), either at native resolution or upscaled up to 2× within the same pixel budget.
+- **Find-then-zoom:** Qwen2.5-VL is first asked to box every damaged spot (it answers with JSON boxes in the coordinates of the resized image it saw). Up to four boxes, widened by 20% and to at least a quarter of the short side for context, are cropped, upscaled up to 2× and probed.
+- **Oracle zoom (ceiling, not deployable):** the same crop procedure on the *annotated* boxes, to show the most that perfect localisation could add.
+
+A type's score combines the full-photo P(yes) with the views' P(yes). The hypotheses, split and adoption rule were recorded before any test frame was run (`eval_results/stage2_probe_preregistration.json`, addenda 2–4). The rule: adopt a view strategy only if its test macro-AUROC gain over the full photo has a 95% interval excluding zero, its out-of-fold macro MCC rises, and it adds at most 6 s per Bengaluru upload.
+
+**Development split (300 frames).** Taking the *maximum* over the full photo and its views, tiles and zoom barely moved macro AUROC (0.721 and 0.717 against 0.716). Per class the maximum helped weathering (0.51 → 0.71 with upscaled tiles) and hurt alligator cracking and ravelling, the common texture-like classes. The likely reason is that every extra view is another chance for a clean frame to produce one spurious high "yes". A less trigger-happy aggregation, the mean of the full-photo score and the best view's score, lifted zoom to 0.734 on development. Upscaled tiles stayed best under the maximum (0.721), and native-resolution tiles were weaker under every aggregation (best 0.703). This aggregation extension was recorded before the test run (addendum 3).
+
+**Table 6.9a — Test split (547 frames) and grouped cross-validation (847 frames)**
+
+| View strategy (development choice) | Test macro AUROC | Δ vs full [95% CI] | CV macro MCC | Δ vs full [95% CI] | Median time, Attain |
+|---|---:|---:|---:|---:|---:|
+| Full photograph (current) | 0.644 | — | 0.248 | — | 1.3 s |
+| **Tiles, upscaled, max** | **0.664** | +0.020 [−0.016, +0.051] | **0.308** | **+0.060 [+0.001, +0.125]**, p = 0.047 | +5.0 s |
+| Find-then-zoom, mean(full, best crop) | 0.636 | −0.009 [−0.028, +0.013] | 0.277 | +0.029 [−0.017, +0.081], p = 0.23 | +8.3 s |
+| Oracle zoom (annotated boxes) | 0.652 | +0.008 [−0.019, +0.039] | 0.326 | +0.078 [+0.039, +0.117] | — |
+
+*Paired cluster bootstrap over 20-frame blocks. The full-photograph baseline reproduces the §6.8 values exactly (0.644 and 0.248). CV thresholds are refitted per variant through the production `combine()` rule, with every headline class decided by the probe. Sources: `eval_results/stage2_views_report.json`, `scripts/stage2_views_report.py`.*
+
+**Table 6.9b — Per class (test AUROC / out-of-fold MCC)**
+
+| Class | Full photograph | Tiles, upscaled | Find-then-zoom | Oracle zoom |
+|---|---:|---:|---:|---:|
+| Linear crack | 0.672 / 0.478 | **0.718 / 0.582** | 0.664 / 0.496 | 0.721 / 0.626 |
+| Alligator crack | **0.703 / 0.414** | 0.654 / 0.337 | 0.653 / 0.389 | 0.708 / 0.474 |
+| Pothole | 0.650 / 0.090 | 0.639 / 0.173 | **0.685 / 0.212** | 0.676 / 0.254 |
+| Raveling | 0.539 / 0.143 | **0.629 / 0.132** | 0.506 / 0.043 | 0.500 / 0.086 |
+| Weathering | 0.659 / 0.114 | **0.680 / 0.318** | 0.670 / 0.246 | 0.657 / 0.188 |
+| Patch and utility cut | 0.616 / 0.058 | 0.627 / −0.065 | 0.595 / 0.209 | 0.679 / −0.011 |
+
+**Findings.**
+1. **Tiling is the better of the two methods.** On the test split it gains +0.020 macro AUROC and, cross-validated, +0.060 macro MCC (p = 0.047). It helps linear cracks, ravelling and weathering and costs alligator cracking. The AUROC interval includes zero, so under the pre-registered rule it is not adopted.
+2. **Find-then-zoom did not survive the test split.** It was the best variant on development (0.734) and fell below the full photograph on test (−0.009). The model's own boxes are the weak link. On test frames it found no usable box on 100 of 547, returned 1.7 crops per frame, and its crops contained the centres of only 44% of the annotated damage while covering 20% of the frame. Asked loosely, it boxed the whole road; asked for tight boxes, it missed half the damage.
+3. **Localisation is not the main bottleneck on Attain.** Even crops placed exactly on the annotated damage raise test macro AUROC by only +0.008 (MCC +0.078 cross-validated). Most of what the probe gets wrong on these frames it gets wrong with the damage in plain view.
+4. **Development choices flip again.** Zoom was the development winner and the test loser, as the question wording was in §6.8. With 15 development blocks, only cross-validated or held-out differences are worth acting on.
+
+**Bengaluru uploads (231, no labels).** On handheld close-ups the extra views cost more: a median 6.45 s per upload for the tiles and 5.79 s for find-then-zoom, against 1.61 s for the full photograph. Tiling would therefore also breach the pre-registered 6 s cap. Find-then-zoom found no usable box on 74 of 231 uploads (32%). Tiles raised every type's score (median P(yes) +0.20 for linear cracking, +0.11 for alligator cracking, +0.09 for ravelling). At the Attain thresholds, linear and alligator cracking would be reported on 90% of uploads instead of about 60%, widening the threshold-transfer gap of §6.8. Without labels this says nothing about accuracy. It does show that whichever view is used, its thresholds have to be fitted on Bengaluru photographs. Source: `eval_results/stage2_views_bengaluru.json`.
+
+**What production does.** The full photograph remains the decision view. Tiling is the stronger method, and Attain cannot settle whether it helps on Bengaluru close-ups, so production **records** per-tile scores on every upload (`views.record`) without using them. When experts label uploads, `scripts/calibrate_probe_from_expert_labels.py` fits thresholds for both score sources and picks the better on held-out labels. Run on Attain frames standing in for labelled uploads, it reproduces the cross-validated numbers through this separate code path (free-form list 0.125, full-photo probe 0.253, tiled probe 0.308) and selects tiling (`scripts/tests/test_calibrate_from_expert_labels.py`).
+
 ---
 
 ## 7. Discussion
@@ -956,6 +1004,8 @@ Production therefore keeps the whole-field gate at 0.80 and the unmodified promp
 **Why production runs it in shadow.** A threshold is a statement about a particular photographic domain. The probe's thresholds were learned on vehicle-mounted road strips, and on handheld close-ups they fire on almost everything. Deploying them would replace one uninformative default ("Longitudinal, Transverse") with another ("Ravelling"). What does transfer is the machinery: fast per-type probabilities, a calibrated way to set thresholds, a rule that separates types with labelled evidence from types without, and a confidence that measurably predicts error. Shadow mode puts that machinery on every production row now. The step that remains is local labels. Expert review in the existing UI is exactly the data the calibration script needs, which makes Phase 3 (expert-in-the-loop) concrete: each reviewed upload moves the probe towards being allowed to decide on Bengaluru roads.
 
 **Where the probe helps now.** The Stage 1 safety net needs only that the probe's scores rank distress above clean pavement, which holds on Attain (AUROC 0.966) and plausibly on close-ups. It never changes a label; it only sends a confident "Normal" to a person when the probe disagrees. That matches the project's standing rule that the system must not silently classify a damaged road as normal.
+
+**Looking closer did not fix it.** Tiles and zoom crops give the probe more pixels per crack. Tiling helped linear cracks, ravelling and weathering and cross-validated macro MCC rose from 0.248 to 0.308, but test macro AUROC did not rise significantly, and alligator cracking got worse. The model's own damage boxes were too unreliable for find-then-zoom to help, and even crops placed on the annotated damage added only +0.008 test AUROC (§6.9). On these frames the probe's remaining errors are mostly about recognising the distress, not about finding it. That points at the per-type classifiers on the model's internal features, trained once local labels exist, rather than at more elaborate cropping.
 
 **Limitations.** (1) All labelled evidence is from one dataset (Attain WS_V2.0), whose frames and annotation practice differ from production. (2) The 78 no-distress frames are the only all-negative examples, so specificity estimates are wide. (3) The development split (15 blocks) was too small to tune per-class choices; the cross-validated configuration is the one deployed. (4) Twelve of the eighteen IRC types have no labelled data at all, so the probe may only remove them; its removals (e.g. Bleeding on 45 of 52 uploads) are unvalidated. (5) Severity is unchanged and not evaluated here. Attain labels only High or Low and the image-level maximum is High on most frames, while the model mostly answers Medium, so exact-match severity accuracy on Attain (§6.3) measures the vocabulary mismatch more than the model. (6) The description sentence still comes from the free-form generation and can mention types the probe would remove.
 

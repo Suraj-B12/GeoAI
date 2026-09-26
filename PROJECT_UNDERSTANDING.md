@@ -636,3 +636,10 @@ Toggle via the parameter and measure before drawing a conclusion.
 
 **Tests:** `scripts/tests/test_stage2_probe_integration.py` (GPU, 20 checks incl. injected failures), `validate_all.py` tests 13–15.
 
+**Views follow-up (2026-09-26, paper §6.9):** tiles vs model-located zoom crops vs full photo, pre-registered (addenda 2–4).
+Test macro AUROC: full 0.644, tiles 0.664 (+0.020, CI incl. 0), zoom 0.636, oracle 0.652; CV macro MCC 0.248 / 0.308 (p=0.047) /
+0.277 / 0.326. Zoom's boxes contain 44% of annotated damage; no usable box on 32% of Bengaluru uploads. Tiling costs ~6.5 s per
+Bengaluru upload. Not adopted; production decides on the full photo and records tile scores (`views.record`) for the
+expert-label calibration to settle on Bengaluru photos. Lesson: max-over-views inflates false positives; localisation is not
+the bottleneck on Attain (oracle +0.008 AUROC).
+

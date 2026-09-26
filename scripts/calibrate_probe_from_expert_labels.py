@@ -53,6 +53,7 @@ from scripts import multilabel_metrics as M  # noqa: E402
 from scripts import stage2_probe_rules as rules  # noqa: E402
 from scripts.irc82_taxonomy import IRC82_DISTRESS_TAXONOMY, canonicalize_to_irc  # noqa: E402
 from scripts.stage2_probe import all_probe_types  # noqa: E402
+from scripts.stage2_views import aggregate  # noqa: E402
 
 EVAL_DIR = PROJECT_ROOT / "eval_results"
 LIVE_CONFIG = PROJECT_ROOT / "configs" / "stage2_probe.json"
@@ -110,7 +111,15 @@ def main() -> int:
         gt = {canonicalize_to_irc(t) for t in (r.get("expert_corrected_types") or [])}
         gt = {t for t in gt if t in IRC82_DISTRESS_TAXONOMY}
         day = (r.get("processed_at") or r.get("reviewed_at") or "unknown")[:10]
-        rows.append({"id": r["id"], "day": day, "gt": gt, "p": pr,
+        rec = (((rr.get("stage2_probe") or {}).get("views") or {}).get("recorded")
+               or ((rr.get("stage1_safety_net") or {}).get("views") or {}).get("recorded"))
+        scores = {"full": pr}
+        if rec and rec.get("views"):
+            # production decides on the full photo and RECORDS tile views;
+            # rebuild the tiled score exactly as stage2_views.aggregate would
+            scores[rec["mode"]] = aggregate(pr, rec["views"], rec.get("aggregate", "+full"))
+            scores["_record_spec"] = {k: rec[k] for k in ("mode", "aggregate") if k in rec}
+        rows.append({"id": r["id"], "day": day, "gt": gt, "p": pr, "scores": scores,
                      "generated": (rr.get("stage2_generated_types")
                                    or r.get("distress_types") or [])})
     print(f"[data] {len(rows)} expert-reviewed rows with stored probe probabilities")
@@ -134,57 +143,66 @@ def main() -> int:
     rng.shuffle(days)
     fold = {d: i % 5 for i, d in enumerate(days)}
 
-    def fit(train):
+    def fit(train, src):
         cfg = {"schema_version": rules.SCHEMA_VERSION,
                "variant": (base or {}).get("variant", {"system_style": "min", "question_style": "name"}),
                "verify_threshold": (base or {}).get("verify_threshold", 0.5), "groups": {}}
         for k in eligible:
-            s = [r["p"][k] for r in train]
+            s_ = [r["scores"][src][k] for r in train]
             y = [k in r["gt"] for r in train]
             if not any(y) or all(y):
                 continue
             cfg["groups"][k] = {"kind": "distress", "keys": [k],
-                                "threshold": min(max(M.best_threshold(s, y, "mcc")[0], 1e-6), 1 - 1e-6),
-                                "platt": list(M.fit_platt(s, y) or []) or None}
+                                "threshold": min(max(M.best_threshold(s_, y, "mcc")[0], 1e-6), 1 - 1e-6),
+                                "platt": list(M.fit_platt(s_, y) or []) or None}
         return cfg
 
-    oof = {}
-    for f in range(5):
-        train = [r for r in rows if fold[r["day"]] != f]
-        cfg = fit(train)
-        if not cfg["groups"]:
-            continue
-        for r in rows:
-            if fold[r["day"]] == f:
-                oof[r["id"]] = set(rules.combine(r["generated"], r["p"], cfg, labels)["types"])
+    def evaluate(src, pool):
+        oof = {}
+        for f in range(5):
+            train = [r for r in pool if fold[r["day"]] != f]
+            cfg = fit(train, src)
+            if not cfg["groups"]:
+                continue
+            for r in pool:
+                if fold[r["day"]] == f:
+                    oof[r["id"]] = set(rules.combine(r["generated"], r["scores"][src], cfg, labels)["types"])
+        scored = [r for r in pool if r["id"] in oof]
+        clusters = defaultdict(list)
+        for r in scored:
+            clusters[r["day"]].append(r)
+        per = {}
+        for i, k in enumerate(eligible):
+            gen = lambda rs, kk=k: M.binary_metrics([kk in r["gt"] for r in rs], [kk in set(r["generated"]) for r in rs])["mcc"]
+            prb = lambda rs, kk=k: M.binary_metrics([kk in r["gt"] for r in rs], [kk in oof[r["id"]] for r in rs])["mcc"]
+            per[k] = {"generated_mcc": gen(scored), "probe_mcc": prb(scored),
+                      "mcc_delta": M.paired_cluster_bootstrap(gen, prb, dict(clusters), 2000, 50 + i),
+                      "auroc": M.roc_auc([r["scores"][src][k] for r in scored], [k in r["gt"] for r in scored])}
+        return {"n": len(scored), "per_type": per,
+                "macro_mcc_generated": sum(v["generated_mcc"] for v in per.values()) / len(per),
+                "macro_mcc_probe": sum(v["probe_mcc"] for v in per.values()) / len(per)}
 
-    scored = [r for r in rows if r["id"] in oof]
-    clusters = defaultdict(list)
-    for r in scored:
-        clusters[r["day"]].append(r)
+    report["sources"] = {"full": evaluate("full", rows)}
+    recorded = sorted({k for r in rows for k in r["scores"] if k not in ("full", "_record_spec")})
+    for src in recorded:
+        pool = [r for r in rows if src in r["scores"]]
+        report["sources"][src] = evaluate(src, pool)
+        report["sources"][f"full_on_same_{len(pool)}_rows"] = evaluate("full", pool)
+    best = max(("full", *recorded), key=lambda s_: report["sources"][s_]["macro_mcc_probe"])
+    report["best_source"] = best
 
-    def pred_probe(r):
-        return oof[r["id"]]
-
-    def pred_gen(r):
-        return set(r["generated"])
-
-    per = {}
-    for i, k in enumerate(eligible):
-        a = M.binary_metrics([k in r["gt"] for r in scored], [k in pred_gen(r) for r in scored])
-        b = M.binary_metrics([k in r["gt"] for r in scored], [k in pred_probe(r) for r in scored])
-        d = M.paired_cluster_bootstrap(
-            lambda rs, kk=k: M.binary_metrics([kk in r["gt"] for r in rs], [kk in pred_gen(r) for r in rs])["mcc"],
-            lambda rs, kk=k: M.binary_metrics([kk in r["gt"] for r in rs], [kk in pred_probe(r) for r in rs])["mcc"],
-            dict(clusters), 2000, 50 + i)
-        per[k] = {"generated": a, "probe": b, "mcc_delta": d,
-                  "auroc": M.roc_auc([r["p"][k] for r in scored], [k in r["gt"] for r in scored])}
-    report["out_of_fold_per_type"] = per
-    report["macro_mcc"] = {
-        "generated": sum(per[k]["generated"]["mcc"] for k in per) / len(per),
-        "probe": sum(per[k]["probe"]["mcc"] for k in per) / len(per)}
-    final = fit(rows)
-    final["provenance"] = {"tuned_on": f"{len(rows)} expert-reviewed Bengaluru uploads",
+    pool = rows if best == "full" else [r for r in rows if best in r["scores"]]
+    final = fit(pool, best)
+    if best == "full":
+        final["views"] = {"mode": "full"}
+    else:
+        spec = next(r["scores"]["_record_spec"] for r in pool if "_record_spec" in r["scores"])
+        live_views = (base or {}).get("views") or {}
+        rec_spec = dict(live_views.get("record") or {})
+        rec_spec.update(spec)
+        final["views"] = rec_spec
+    final["provenance"] = {"tuned_on": f"{len(pool)} expert-reviewed Bengaluru uploads",
+                           "score_source": best,
                            "report": f"eval_results/{args.out}.json",
                            "calibrated_types": sorted(final["groups"])}
     if base and base.get("stage1_safety_net"):
@@ -192,14 +210,12 @@ def main() -> int:
     rules.validate_config(final, known)
     (EVAL_DIR / f"{args.out}_config_candidate.json").write_text(json.dumps(final, indent=2), encoding="utf-8")
     report["status"] = ("candidate written; promote by copying to configs/stage2_probe.json and "
-                        "setting STAGE2_MODE=probe ONLY if every per-type MCC delta interval is "
-                        "above zero or includes it with a positive macro delta")
+                        "setting STAGE2_MODE=probe ONLY if the best source's per-type MCC deltas "
+                        "vs the free-form list are positive on held-out labels")
     (EVAL_DIR / f"{args.out}.json").write_text(json.dumps(report, indent=2, default=str), encoding="utf-8")
-    print(json.dumps({k: v for k, v in report.items() if k != "out_of_fold_per_type"}, indent=2))
-    for k, v in per.items():
-        print(f"  {k:24s} MCC generated {v['generated']['mcc']:.3f} -> probe {v['probe']['mcc']:.3f} "
-              f"(delta {v['mcc_delta']['delta']:+.3f} [{v['mcc_delta']['lo']:+.3f}, {v['mcc_delta']['hi']:+.3f}]) "
-              f"AUROC {v['auroc']:.3f}")
+    for src, res in report["sources"].items():
+        print(f"[{src}] n={res['n']} macro MCC free-form {res['macro_mcc_generated']:.3f} -> probe {res['macro_mcc_probe']:.3f}")
+    print(f"best source: {best}")
     return 0
 
 

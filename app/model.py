@@ -251,6 +251,7 @@ class PavementClassifier:
         # Per-type probe (STAGE2_MODE=probe). Rebuilt on every model load,
         # because it holds references to the model object.
         self._prober = None
+        self._locator = None
         self._probe_cfg = None
         self._probe_labels: dict = {}
         self._probe_status: dict = {"requested_mode": STAGE2_MODE, "enabled": False}
@@ -335,6 +336,7 @@ class PavementClassifier:
             # Yes/No head rows): if it survived, the old weights could not be
             # freed and the reload would need two models' worth of VRAM.
             self._prober = None
+            self._locator = None
             self._probe_cfg = None
             self._model = None
             self._processor = None
@@ -475,6 +477,7 @@ class PavementClassifier:
         is enabled.
         """
         self._prober = None
+        self._locator = None
         self._probe_cfg = None
         self._probe_labels = {}
         st = {"requested_mode": STAGE2_MODE, "enabled": False,
@@ -502,6 +505,12 @@ class PavementClassifier:
             self._prober = prober
             self._probe_cfg = cfg
             self._probe_labels = {t.key: t.output_label for t in types}
+            views = cfg.get("views") or {"mode": "full"}
+            self._locator = None
+            if "zoom" in (views.get("mode"), (views.get("record") or {}).get("mode")):
+                from scripts.stage2_views import DamageLocator
+                self._locator = DamageLocator(self._model, self._processor)
+            st["views"] = views
             sn_active = STAGE1_SAFETY_NET and bool(cfg.get("stage1_safety_net"))
             st.update(enabled=True, reason=None, variant=cfg["variant"],
                       provenance=cfg.get("provenance"),
@@ -523,6 +532,16 @@ class PavementClassifier:
     @property
     def probe_status(self) -> dict:
         return dict(self._probe_status)
+
+    def _probe_scores(self, image: Image.Image) -> tuple[dict, dict]:
+        """Per-type P(yes) under the configured views (full photo, tiles or
+        zoom crops; scripts/stage2_views.py). The caller holds self._lock.
+        Extra views that fail fall back to the full-photo scores."""
+        from scripts.stage2_views import probe_scores
+        max_px = int(self._load_info.get("max_pixels") or 1024 * 1024)
+        return probe_scores(self._prober, image, (self._probe_cfg or {}).get("views"),
+                            locator=self._locator, release=_release_cuda_cache,
+                            max_pixels=max_px)
 
     def _build_inputs(self, image: Image.Image, system_prompt: str, user_prompt: str):
         """Build model inputs from image and prompts. Returns (inputs, input_length)."""
@@ -889,12 +908,12 @@ class PavementClassifier:
                 try:
                     from scripts import stage2_probe_rules as rules
                     t_p = time.time()
-                    res = self._prober.probe(image)
-                    p = {r["key"]: r["p_yes"] for r in res}
+                    p, vinfo = self._probe_scores(image)
                     probe_out = rules.combine(parsed["distress_types"], p,
                                               self._probe_cfg, self._probe_labels)
                     probe_out["p"] = {k: round(v, 5) for k, v in p.items()}
-                    probe_out["min_yes_no_mass"] = round(min(r["yes_no_mass"] for r in res), 5)
+                    probe_out["min_yes_no_mass"] = round(vinfo["min_yes_no_mass"], 5)
+                    probe_out["views"] = {k: v for k, v in vinfo.items() if k != "min_yes_no_mass"}
                     probe_out["time_ms"] = round((time.time() - t_p) * 1000, 1)
                     probe_out["variant"] = self._probe_cfg["variant"]
                 except Exception as e:
@@ -987,10 +1006,10 @@ class PavementClassifier:
         with self._lock:
             t0 = time.time()
             try:
-                res = self._prober.probe(image)
-                p = {r["key"]: r["p_yes"] for r in res}
+                p, vinfo = self._probe_scores(image)
                 out = rules.safety_net(p, self._probe_cfg) or {"flagged": False}
                 out["p"] = {k: round(v, 5) for k, v in p.items()}
+                out["views"] = {k: v for k, v in vinfo.items() if k != "min_yes_no_mass"}
             except Exception as e:
                 out = {"flagged": False, "error": f"{type(e).__name__}: {e}"}
                 print(f"[PavementClassifier] Stage 1 safety net FAILED on this image "

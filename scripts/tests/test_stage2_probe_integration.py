@@ -75,6 +75,10 @@ def main() -> int:
           pr.get("applied") is False and len(pr.get("p", {})) >= 19 and s2["stage2_probe_mode"] == "shadow")
     check("2. shadow: gate is field", s2["stage2_confidence"] == s2["stage2_confidence_field"])
     check("2. shadow: no indicators emitted", s2["condition_indicators"] == [])
+    rec = (pr.get("views") or {}).get("recorded") or {}
+    check("2. shadow: per-tile scores recorded (decision still full photo)",
+          rec.get("mode") == "tile" and len(rec.get("views", [])) >= 2
+          and (pr.get("views") or {}).get("mode") == "full", str(pr.get("views"))[:300])
     print(f"    shadow: kept {s2['distress_types']}; probe would say {pr.get('types')}")
 
     # 3. probe mode
@@ -145,6 +149,35 @@ def main() -> int:
     appmodel.STAGE2_PROBE_CONFIG = saved
     clf._init_probe()
     check("6. re-enabled after restoring the config", clf.probe_status.get("enabled") is True)
+
+    # 8. views: tiles and zoom crops, and a failure inside a view
+    from scripts.stage2_views import DamageLocator
+    saved_views = clf._probe_cfg.get("views")
+    clf._probe_cfg["views"] = {"mode": "tile", "aggregate": "+full", "upscale_limit": 2.0,
+                               "tile": {"target": 4, "overlap": 0.1}}
+    s2 = clf.predict_stage2(img)
+    vi = (s2.get("stage2_probe") or {}).get("views") or {}
+    check("8. tile views probed", vi.get("mode") == "tile" and vi.get("n_views", 0) >= 2, str(vi))
+    clf._probe_cfg["views"] = {"mode": "zoom", "aggregate": "+full", "upscale_limit": 2.0,
+                               "zoom": {"max_boxes": 4, "max_area_frac": 0.5, "margin": 0.2,
+                                        "min_side_frac": 0.25, "nms_iou": 0.3}}
+    clf._locator = DamageLocator(clf._model, clf._processor)
+    s2 = clf.predict_stage2(img)
+    vi = (s2.get("stage2_probe") or {}).get("views") or {}
+    check("8. zoom views ran (boxes may be zero)", vi.get("mode") == "zoom" and "located_boxes" in vi, str(vi))
+    real_locate = clf._locator.locate
+    clf._locator.locate = lambda _i: (_ for _ in ()).throw(RuntimeError("injected locator failure"))
+    s2 = clf.predict_stage2(img)
+    vi = (s2.get("stage2_probe") or {}).get("views") or {}
+    check("8. a failing view falls back to the full photo, probe still recorded",
+          vi.get("fell_back_to") == "full" and "injected" in vi.get("views_error", "")
+          and s2["stage2_probe"] is not None)
+    clf._locator.locate = real_locate
+    clf._locator = None
+    if saved_views is None:
+        clf._probe_cfg.pop("views", None)
+    else:
+        clf._probe_cfg["views"] = saved_views
 
     # 7. allocator
     for _ in range(8):

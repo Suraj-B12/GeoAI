@@ -82,5 +82,18 @@
       "stage1_recall_distress": 0.517555266579974,
       "note": "flagged = would be sent to expert review instead of auto-classified Normal"
     }
+  },
+  "views": {
+    "mode": "full",
+    "record": {
+      "mode": "tile",
+      "aggregate": "+full",
+      "upscale_limit": 2.0,
+      "tile": {
+        "target": 4,
+        "overlap": 0.1
+      }
+    },
+    "note": "Decisions use the full photograph. Per-tile scores are RECORDED on every upload so scripts/calibrate_probe_from_expert_labels.py can compare full vs tiled on expert-labelled Bengaluru photos. On Attain, tiles raised cross-validated macro MCC 0.248 -> 0.308 (p = 0.047) but not test AUROC significantly, and cost ~6.5 s per upload (eval_results/stage2_views_report.json, paper 6.9). Remove 'record' to save that time."
   }
 }
