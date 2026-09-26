@@ -829,7 +829,11 @@ async function loadPending() {
             'pending',
             `${SUPABASE_URL}/rest/v1/assessments` +
                 `?needs_expert_review=eq.true&expert_reviewed=eq.false` +
-                `&order=created_at.desc`,
+                `&order=created_at.desc` +
+                // Only the columns this page shows. Without a select list every
+                // row's raw_response (model outputs + per-type probe and tile
+                // scores, several KB each) was downloaded on each load.
+                `&select=id,image_url,status,created_at,processed_at,stage1_confidence,distress_types,severity,description,stage2_confidence,needs_expert_review,expert_reviewed,expert_corrected_types,expert_corrected_severity,expert_notes,reviewed_at,reviewer_name`,
             { headers: sbHeaders() }
         );
         try {
@@ -857,7 +861,8 @@ async function loadReviewed() {
         reviewedAssessments = await cachedFetch(
             'reviewed',
             `${SUPABASE_URL}/rest/v1/assessments` +
-                `?expert_reviewed=eq.true&order=reviewed_at.desc&limit=50`,
+                `?expert_reviewed=eq.true&order=reviewed_at.desc&limit=50` +
+                `&select=id,image_url,status,created_at,processed_at,stage1_confidence,distress_types,severity,description,stage2_confidence,needs_expert_review,expert_reviewed,expert_corrected_types,expert_corrected_severity,expert_notes,reviewed_at,reviewer_name`,
             { headers: sbHeaders() }
         );
     } catch (e) {

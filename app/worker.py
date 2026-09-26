@@ -75,6 +75,14 @@ def _release_gpu_cache() -> None:
 log = logging.getLogger("pipeline_worker")
 
 
+def _err(e: BaseException) -> str:
+    """Exception text that is never empty: httpx timeouts stringify to "",
+    which logged the 2026-09-26 Supabase outage as "Failed to claim batch: "
+    with no cause at all."""
+    msg = str(e).strip()
+    return f"{type(e).__name__}: {msg}" if msg else type(e).__name__
+
+
 # ============================================================
 # Tunables (overridable via env vars)
 # ============================================================
@@ -362,7 +370,7 @@ class PipelineWorker:
                         if n:
                             log.warning("Recovered %d stale claims mid-loop", n)
                     except Exception as e:
-                        log.error("Stale recovery failed: %s", e)
+                        log.error("Stale recovery failed: %s", _err(e))
                     last_stale_recovery = now
 
                 # Try to claim a batch
@@ -371,8 +379,8 @@ class PipelineWorker:
                         self.supabase, BATCH_SIZE, self.worker_id
                     )
                 except Exception as e:
-                    log.error("Failed to claim batch: %s", e)
-                    self.metrics.last_error = f"claim_failed: {e}"
+                    log.error("Failed to claim batch: %s", _err(e))
+                    self.metrics.last_error = f"claim_failed: {_err(e)}"
                     batch = []
 
                 if not batch:
@@ -432,7 +440,7 @@ class PipelineWorker:
                         delay = RETRY_BASE_DELAY * (2 ** (attempt - 1))
                         log.warning(
                             "Transient error processing %s (attempt %d/%d): %s — retrying in %.1fs",
-                            image_id, attempt, MAX_RETRIES, e, delay,
+                            image_id, attempt, MAX_RETRIES, _err(e), delay,
                         )
                         await self._sleep_or_stop(delay)
                         if self._stop_event.is_set():
@@ -658,7 +666,7 @@ class PipelineWorker:
                 "processed_at": datetime.now(timezone.utc).isoformat(),
             })
         except Exception as e:
-            log.error("Failed to mark %s as failed (DB update failed): %s", image_id, e)
+            log.error("Failed to mark %s as failed (DB update failed): %s", image_id, _err(e))
 
         self.metrics.images_failed += 1
         self.metrics.last_error = error
@@ -706,7 +714,7 @@ class PipelineWorker:
             await upsert_worker_state(self.supabase, self.worker_id, fields)
             self.metrics.last_heartbeat_at = now
         except Exception as e:
-            log.error("Heartbeat upsert failed: %s", e)
+            log.error("Heartbeat upsert failed: %s", _err(e))
 
 
 # ============================================================

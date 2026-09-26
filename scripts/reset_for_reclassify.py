@@ -51,7 +51,27 @@ def load_key() -> tuple[str, str]:
     return url, key
 
 
-def request_json(url: str, key: str, method: str = "GET", body: dict | None = None) -> list | dict:
+def request_json(url: str, key: str, method: str = "GET", body: dict | None = None,
+                 tries: int = 5) -> list | dict:
+    """PostgREST call with retries on network errors and 5xx (the lab network
+    drops connections; Supabase answers 503 while its database restarts).
+    A PATCH is retried only when it never reached the server's database, and
+    it is idempotent anyway (same payload, same ids)."""
+    last = None
+    for k in range(tries):
+        try:
+            return _request_json_once(url, key, method, body)
+        except urllib.error.HTTPError as e:
+            if e.code < 500:
+                raise
+            last = e
+        except Exception as e:
+            last = e
+        time.sleep(3 * (k + 1))
+    raise RuntimeError(f"{method} failed after {tries} tries: {last}")
+
+
+def _request_json_once(url: str, key: str, method: str = "GET", body: dict | None = None) -> list | dict:
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(
         url, data=data, method=method,
@@ -105,6 +125,15 @@ def main():
                              "2026-09-23T10:00:00Z): re-run what an older "
                              "pipeline version produced and leave rows the "
                              "current version already classified untouched.")
+    parser.add_argument("--statuses", default=None,
+                        help="comma-separated statuses to reset (default: classified, "
+                             "expert_review, done, failed, rejected_non_pavement)")
+    parser.add_argument("--missing-probe-scores", action="store_true",
+                        help="only rows with NO stored per-type probe scores "
+                             "(raw_response.stage2_probe / stage1_safety_net absent): "
+                             "rows classified before the shadow probe went live. Their "
+                             "expert labels cannot feed calibrate_probe_from_expert_labels.py "
+                             "until they are re-classified.")
     parser.add_argument("--include-expert-reviewed", action="store_true",
                         help="Also re-queue rows an expert has already reviewed. "
                              "OFF by default: an expert correction is ground "
@@ -116,7 +145,8 @@ def main():
 
     # 1. Inspect current state
     print("Fetching current row counts...")
-    rows = request_json(f"{base}/rest/v1/assessments?select=id,status,expert_reviewed,image_url,processed_at", key)
+    rows = request_json(f"{base}/rest/v1/assessments?select=id,status,expert_reviewed,image_url,processed_at,"
+                        "sp:raw_response->stage2_probe->>applied,sn:raw_response->stage1_safety_net->>flagged", key)
     counts = Counter(r.get("status", "unknown") for r in rows)
     print(f"Total rows: {len(rows)}")
     for s, n in counts.most_common():
@@ -124,9 +154,16 @@ def main():
 
     # 2. Decide target rows
     target_statuses = {"classified", "expert_review", "done", "failed", "rejected_non_pavement"}
+    if args.statuses:
+        target_statuses = {x.strip() for x in args.statuses.split(",") if x.strip()}
     if args.include_pending:
         target_statuses.add("pending")
     targets = [r for r in rows if r.get("status") in target_statuses]
+    if args.missing_probe_scores:
+        before = len(targets)
+        targets = [r for r in targets if r.get("sp") is None and r.get("sn") is None]
+        print(f"  --missing-probe-scores: {len(targets)} of {before} candidate rows have "
+              f"no stored probe scores")
     if args.processed_before:
         from datetime import datetime
         cutoff = datetime.fromisoformat(args.processed_before.replace("Z", "+00:00"))
@@ -173,7 +210,24 @@ def main():
         print("DRY-RUN — no changes made. Re-run with --apply to perform reset.")
         return
 
-    # 3. Build payload — clear all prediction fields, set status=pending.
+    # 3. Back up every targeted row IN FULL before anything is cleared. If
+    # the backup cannot be written, nothing is changed.
+    snap_dir = PROJECT_ROOT / "eval_results" / "snapshots"
+    snap_dir.mkdir(parents=True, exist_ok=True)
+    stamp = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+    snap = snap_dir / f"pre_reclassify_{stamp}.json"
+    full_rows = []
+    ids_all = [r["id"] for r in targets]
+    for i in range(0, len(ids_all), 100):
+        id_list = ",".join(f'"{x}"' for x in ids_all[i:i + 100])
+        full_rows += request_json(f"{base}/rest/v1/assessments?select=*&id=in.({id_list})", key)
+    if len(full_rows) != len(ids_all):
+        sys.exit(f"ERROR: backup fetched {len(full_rows)} of {len(ids_all)} rows - nothing changed")
+    snap.write_text(json.dumps({"taken_at": stamp, "reason": "before reset_for_reclassify",
+                                "args": vars(args), "rows": full_rows}, indent=1), encoding="utf-8")
+    print(f"Backed up {len(full_rows)} rows to {snap}")
+
+    # 4. Build payload — clear all prediction fields, set status=pending.
     # Column names match the live schema (see migration 001 + 004):
     #   retry_count  (NOT attempt_count)
     #   claimed_by   (NOT worker_id)

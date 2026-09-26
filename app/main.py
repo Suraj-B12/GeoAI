@@ -78,6 +78,7 @@ from app.supabase_client import (
     list_assessments_for_dashboard,
     reset_for_reclassify,
     get_recent_processed,
+    invalidate_dashboard_cache,
 )
 from app.worker import (
     PipelineWorker,
@@ -1067,6 +1068,7 @@ async def dashboard_delete(request: Request, assessment_id: str):
         raise HTTPException(status_code=e.status_code, detail=e.detail)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Delete failed: {e}")
+    invalidate_dashboard_cache()
     return JSONResponse(result)
 
 
@@ -1092,4 +1094,5 @@ async def dashboard_reclassify(request: Request, assessment_id: str):
         raise HTTPException(status_code=502, detail=f"Supabase update failed: {e}")
     if not result.get("reset"):
         raise HTTPException(status_code=404, detail="assessment not found")
+    invalidate_dashboard_cache()
     return JSONResponse(result)

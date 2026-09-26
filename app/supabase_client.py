@@ -233,7 +233,7 @@ async def _exact_count(client: httpx.AsyncClient, query: str) -> Optional[int]:
         return None
 
 
-async def get_pipeline_metrics(client: httpx.AsyncClient) -> dict:
+async def _fetch_get_pipeline_metrics(client: httpx.AsyncClient) -> dict:
     """
     Read the pipeline_metrics view, then fill the gaps it cannot cover.
 
@@ -284,22 +284,25 @@ async def _average_stage_times(client: httpx.AsyncClient) -> dict:
     """
     empty = {"stage0": None, "stage1": None, "stage2": None, "n": 0}
     try:
+        # Only the three numbers, extracted by Postgres. This used to select
+        # the whole raw_response of every processed row on every dashboard
+        # poll (every 3 s): ~0.7 MB per call once the Stage 2 probe started
+        # storing per-type and per-tile scores, tens of GB over a few days,
+        # which is the most likely reason the Supabase database stopped
+        # answering on 2026-09-26 (503 "could not query the database for the
+        # schema cache").
         resp = await client.get(
             "/rest/v1/assessments"
-            "?select=raw_response&processed_at=not.is.null&limit=5000"
+            "?select=s0:raw_response->stage0_time_ms,s1:raw_response->stage1_time_ms,"
+            "s2:raw_response->stage2_time_ms&processed_at=not.is.null&limit=5000"
         )
         if resp.status_code >= 400:
             return empty
         buckets: dict[str, list] = {"stage0": [], "stage1": [], "stage2": []}
         rows = resp.json() or []
         for row in rows:
-            rr = row.get("raw_response")
-            if not isinstance(rr, dict):
-                continue
-            for stage, key in (("stage0", "stage0_time_ms"),
-                               ("stage1", "stage1_time_ms"),
-                               ("stage2", "stage2_time_ms")):
-                v = rr.get(key)
+            for stage, key in (("stage0", "s0"), ("stage1", "s1"), ("stage2", "s2")):
+                v = row.get(key)
                 if isinstance(v, (int, float)) and v > 0:
                     buckets[stage].append(v)
         out = {k: (sum(v) / len(v) if v else None) for k, v in buckets.items()}
@@ -339,7 +342,7 @@ async def _average_confidences(client: httpx.AsyncClient) -> Optional[dict]:
         return None
 
 
-async def get_class_distribution(client: httpx.AsyncClient) -> list[dict]:
+async def _fetch_get_class_distribution(client: httpx.AsyncClient) -> list[dict]:
     """Per-class counts for the distribution panel.
 
     `pipeline_class_distribution` windows to the last 24 hours. Whenever the
@@ -410,7 +413,7 @@ async def get_assessment_by_id(
     return rows[0] if rows else None
 
 
-async def get_recent_processed(
+async def _fetch_get_recent_processed(
     client: httpx.AsyncClient,
     limit: int = 20,
 ) -> list[dict]:
@@ -579,7 +582,7 @@ async def reset_for_reclassify(
     return {"reset": bool(rows), "id": assessment_id}
 
 
-async def dashboard_summary(client: httpx.AsyncClient) -> dict:
+async def _fetch_dashboard_summary(client: httpx.AsyncClient) -> dict:
     """
     Aggregate counts by status, for the dashboard's tab badges.
     """
@@ -618,3 +621,124 @@ async def download_image_bytes(
     resp = await image_client.get(url)
     resp.raise_for_status()
     return resp.content
+
+
+
+# ============================================================
+# Dashboard read cache + backoff
+# ============================================================
+# The operator dashboard polls /operator/metrics every 3 s and the activity
+# feed every 5 s, from every open browser tab. Each poll used to run several
+# PostgREST queries directly - one of them downloading every row's
+# raw_response. Over 2.7 days that was ~38,000 metrics calls. These wrappers
+# make the database cost independent of how many dashboards are open:
+#
+#   * a result is reused for `ttl` seconds (all callers share it);
+#   * concurrent misses for the same key share ONE fetch;
+#   * if Supabase errors, the last good value is served (marked stale by the
+#     caller's own error handling path not being hit) and the query is not
+#     retried until an exponential backoff (up to 2 min) has passed - a
+#     recovering database is not hammered every 3 s.
+#
+# Only dashboard READS are cached. The worker's claim / update / heartbeat
+# calls never go through here.
+
+import asyncio as _asyncio
+import time as _time
+
+
+class _ReadCache:
+    def __init__(self, max_backoff: float = 120.0):
+        self._entries: dict = {}
+        self._locks: dict = {}
+        self.max_backoff = max_backoff
+
+    async def get(self, key, ttl: float, fetch):
+        ent = self._entries.get(key)
+        now = _time.monotonic()
+        if ent and "value" in ent and now < ent["fresh_until"]:
+            return ent["value"]
+        if ent and now < ent.get("retry_after", 0.0):
+            if "value" in ent:
+                ent["stale"] = True
+                return ent["value"]
+            raise ent["error"]
+        lock = self._locks.setdefault(key, _asyncio.Lock())
+        async with lock:
+            ent = self._entries.get(key)          # another caller may have refreshed it
+            now = _time.monotonic()
+            if ent and "value" in ent and now < ent["fresh_until"]:
+                return ent["value"]
+            try:
+                value = await fetch()
+            except Exception as e:
+                prev = ent or {}
+                backoff = min(self.max_backoff, max(ttl, prev.get("backoff", ttl / 2) * 2))
+                self._entries[key] = {**prev, "error": e, "backoff": backoff,
+                                      "retry_after": now + backoff, "fresh_until": 0.0,
+                                      "stale": "value" in prev}
+                if "value" in prev:
+                    return prev["value"]
+                raise
+            self._entries[key] = {"value": value, "fresh_until": now + ttl, "backoff": ttl / 2}
+            return value
+
+    def staleness(self, key) -> Optional[str]:
+        """The error behind a value served stale, or None if it is fresh."""
+        ent = self._entries.get(key) or {}
+        return f"{type(ent['error']).__name__}: {ent['error']}"[:200] if ent.get("stale") else None
+
+    def clear(self):
+        self._entries.clear()
+
+
+_read_cache = _ReadCache()
+
+METRICS_TTL_S = float(os.environ.get("DASHBOARD_METRICS_TTL_S", "15"))
+DISTRIBUTION_TTL_S = float(os.environ.get("DASHBOARD_DISTRIBUTION_TTL_S", "30"))
+RECENT_TTL_S = float(os.environ.get("DASHBOARD_RECENT_TTL_S", "10"))
+SUMMARY_TTL_S = float(os.environ.get("DASHBOARD_SUMMARY_TTL_S", "15"))
+
+
+def _copy(v, key=None):
+    """Shallow copy for the caller. A dict served while Supabase is failing
+    carries `stale: true` and the error, so the dashboard can say so instead
+    of presenting old numbers as live."""
+    if isinstance(v, dict):
+        out = dict(v)
+        err = _read_cache.staleness(key) if key is not None else None
+        if err:
+            out["stale"] = True
+            out["stale_reason"] = err
+        return out
+    return list(v) if isinstance(v, list) else v
+
+
+async def get_pipeline_metrics(client: httpx.AsyncClient) -> dict:
+    """Cached (METRICS_TTL_S) - see _fetch_get_pipeline_metrics."""
+    return _copy(await _read_cache.get("metrics", METRICS_TTL_S,
+                                       lambda: _fetch_get_pipeline_metrics(client)), "metrics")
+
+
+async def get_class_distribution(client: httpx.AsyncClient) -> list[dict]:
+    """Cached (DISTRIBUTION_TTL_S) - see _fetch_get_class_distribution."""
+    return _copy(await _read_cache.get("distribution", DISTRIBUTION_TTL_S,
+                                       lambda: _fetch_get_class_distribution(client)))
+
+
+async def get_recent_processed(client: httpx.AsyncClient, limit: int = 20) -> list[dict]:
+    """Cached (RECENT_TTL_S) per limit - see _fetch_get_recent_processed."""
+    return _copy(await _read_cache.get(("recent", limit), RECENT_TTL_S,
+                                       lambda: _fetch_get_recent_processed(client, limit)))
+
+
+async def dashboard_summary(client: httpx.AsyncClient) -> dict:
+    """Cached (SUMMARY_TTL_S) - see _fetch_dashboard_summary."""
+    return _copy(await _read_cache.get("summary", SUMMARY_TTL_S,
+                                       lambda: _fetch_dashboard_summary(client)), "summary")
+
+
+def invalidate_dashboard_cache() -> None:
+    """Drop cached dashboard reads after an operator write (delete,
+    re-classify) so badges and feeds reflect it on the next poll."""
+    _read_cache.clear()
