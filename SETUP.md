@@ -1049,7 +1049,7 @@ On Linux, install CPU PyTorch first as described in `requirements-test.txt`.
 
 ```bash
 python -m pip install -r requirements-test.txt
-python -m pytest -q scripts/tests/test_reliability_regressions.py
+python -m pytest -q scripts/tests/test_reliability_regressions.py scripts/tests/test_backend_audit.py
 python scripts/tests/test_dashboard_cache.py
 python scripts/tests/test_delete_everywhere.py
 python scripts/tests/test_operator_runtime.py

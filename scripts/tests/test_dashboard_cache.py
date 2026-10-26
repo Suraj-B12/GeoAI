@@ -61,8 +61,11 @@ class FakeSupabase:
         if "select=id" in url and "status=eq.rejected_non_pavement" in url:
             return httpx.Response(200, json=[], headers={"content-range": "0-0/4"})
         if "raw_response->stage0_time_ms" in url:
+            if int(request.url.params.get("offset", 0)):
+                return httpx.Response(200, json=[])
             return httpx.Response(200, json=[{"s0": 1000, "s1": 1500, "s2": 9000},
-                                             {"s0": 1200, "s1": 1700, "s2": None}])
+                                             {"s0": 1200, "s1": 1700, "s2": None}],
+                                  headers={"content-range": "0-1/2"})
         return httpx.Response(200, json=[])
 
 

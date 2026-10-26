@@ -41,7 +41,7 @@ import json
 import os
 import sys
 import traceback
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager
 from pathlib import Path
 from typing import Optional
 
@@ -113,6 +113,24 @@ limiter = Limiter(key_func=get_remote_address)
 # ============================================================
 # App Lifecycle
 # ============================================================
+async def _close_pipeline_clients(app: FastAPI):
+    """Close every allocated client, including after partial startup failure."""
+    async def close(client, name):
+        try:
+            await client.aclose()
+        except Exception as e:
+            print(f"[API] Error closing {name}: {e}")
+
+    # ExitStack also continues cleanup if a close is cancelled, then
+    # propagates that cancellation after the remaining client is closed.
+    async with AsyncExitStack() as cleanup:
+        for name in ("image_client", "supabase_client"):
+            client = getattr(app.state, name, None)
+            setattr(app.state, name, None)
+            if client is not None:
+                cleanup.push_async_callback(close, client, name)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -127,52 +145,48 @@ async def lifespan(app: FastAPI):
     print("[API] Loading model on startup...")
     classifier = get_classifier()
     print("[API] Model ready.")
+    app.state.supabase_client = None
+    app.state.image_client = None
 
     if _has_supabase_env():
         print("[API] Supabase env vars detected — initializing operator pipeline...")
         try:
-            supabase_client = build_supabase_client()
-            image_client = build_image_client()
+            app.state.supabase_client = build_supabase_client()
+            app.state.image_client = build_image_client()
             worker = PipelineWorker(
-                supabase_client=supabase_client,
-                image_client=image_client,
+                supabase_client=app.state.supabase_client,
+                image_client=app.state.image_client,
                 classifier=classifier,
             )
             set_worker(worker)
-            # Stash clients on app.state so we can close them on shutdown
-            app.state.supabase_client = supabase_client
-            app.state.image_client = image_client
             print(f"[API] Operator pipeline ready. Worker ID: {worker.worker_id}")
             print("[API] POST /operator/start to begin processing the queue.")
         except Exception as e:
             print(f"[API] WARNING: Failed to initialize operator pipeline: {e}")
             traceback.print_exc()
-            app.state.supabase_client = None
-            app.state.image_client = None
+            clear_worker()
+            await _close_pipeline_clients(app)
     else:
         print("[API] Supabase env vars not set — operator pipeline disabled.")
         print("[API] Set SUPABASE_URL and SUPABASE_SERVICE_KEY to enable.")
-        app.state.supabase_client = None
-        app.state.image_client = None
 
     print("[API] Server accepting requests.")
-    yield
-
-    print("[API] Shutting down...")
-    worker = get_worker()
-    if worker and worker.is_running:
-        print("[API] Stopping pipeline worker (graceful drain)...")
+    try:
+        yield
+    finally:
+        print("[API] Shutting down...")
+        worker = get_worker()
         try:
-            await worker.stop(drain_timeout_seconds=60.0)
-        except Exception as e:
-            print(f"[API] Error stopping worker: {e}")
-    clear_worker()
-
-    if getattr(app.state, "supabase_client", None):
-        await app.state.supabase_client.aclose()
-    if getattr(app.state, "image_client", None):
-        await app.state.image_client.aclose()
-    print("[API] Shutdown complete.")
+            if worker and worker.is_running:
+                print("[API] Stopping pipeline worker (graceful drain)...")
+                try:
+                    await worker.stop(drain_timeout_seconds=60.0)
+                except Exception as e:
+                    print(f"[API] Error stopping worker: {e}")
+        finally:
+            clear_worker()
+            await _close_pipeline_clients(app)
+        print("[API] Shutdown complete.")
 
 
 # ============================================================

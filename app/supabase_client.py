@@ -143,7 +143,8 @@ async def update_assessment(
     PATCH a single assessment row by id. Returns the updated row.
     """
     resp = await client.patch(
-        f"/rest/v1/assessments?id=eq.{assessment_id}",
+        "/rest/v1/assessments",
+        params={"id": f"eq.{assessment_id}"},
         json=fields,
         headers={"Prefer": "return=representation"},
     )
@@ -291,22 +292,22 @@ async def _average_stage_times(client: httpx.AsyncClient) -> dict:
         # which is the most likely reason the Supabase database stopped
         # answering on 2026-09-26 (503 "could not query the database for the
         # schema cache").
-        resp = await client.get(
-            "/rest/v1/assessments"
-            "?select=s0:raw_response->stage0_time_ms,s1:raw_response->stage1_time_ms,"
-            "s2:raw_response->stage2_time_ms&processed_at=not.is.null&limit=5000"
-        )
-        if resp.status_code >= 400:
-            return empty
-        buckets: dict[str, list] = {"stage0": [], "stage1": [], "stage2": []}
-        rows = resp.json() or []
-        for row in rows:
-            for stage, key in (("stage0", "s0"), ("stage1", "s1"), ("stage2", "s2")):
-                v = row.get(key)
-                if isinstance(v, (int, float)) and v > 0:
-                    buckets[stage].append(v)
-        out = {k: (sum(v) / len(v) if v else None) for k, v in buckets.items()}
-        out["n"] = len(rows)
+        totals = {"stage0": 0.0, "stage1": 0.0, "stage2": 0.0}
+        counts = dict.fromkeys(totals, 0)
+        row_count = 0
+        async for rows in _assessment_pages(
+            client, "s0:raw_response->stage0_time_ms,s1:raw_response->stage1_time_ms,"
+            "s2:raw_response->stage2_time_ms", {"processed_at": "not.is.null"}
+        ):
+            row_count += len(rows)
+            for row in rows:
+                for stage, key in (("stage0", "s0"), ("stage1", "s1"), ("stage2", "s2")):
+                    v = row.get(key)
+                    if isinstance(v, (int, float)) and v > 0:
+                        totals[stage] += v
+                        counts[stage] += 1
+        out = {k: (v / counts[k] if counts[k] else None) for k, v in totals.items()}
+        out["n"] = row_count
         return out
     except Exception:
         return empty
@@ -315,28 +316,26 @@ async def _average_stage_times(client: httpx.AsyncClient) -> dict:
 async def _average_confidences(client: httpx.AsyncClient) -> Optional[dict]:
     """All-time mean Stage 1 / Stage 2 confidence over processed rows.
 
-    PostgREST has no AVG aggregate without an RPC, so this pulls the two
-    columns and averages client-side. The table is small (hundreds of rows);
-    revisit with a view if it ever reaches five figures.
+    Read only the two scalar columns in bounded pages. Aggregate as pages
+    arrive, so the server's row cap cannot silently truncate the average.
     """
     try:
-        resp = await client.get(
-            "/rest/v1/assessments"
-            "?select=stage1_confidence,stage2_confidence"
-            "&processed_at=not.is.null&limit=5000"
-        )
-        if resp.status_code >= 400:
-            return None
-        rows = resp.json() or []
-        s1 = [r["stage1_confidence"] for r in rows if r.get("stage1_confidence") is not None]
-        # Stage 2 only runs on distressed images; zeros are "did not run", not
-        # "scored zero", and averaging them in would understate the metric.
-        s2 = [r["stage2_confidence"] for r in rows if (r.get("stage2_confidence") or 0) > 0]
-        if not s1:
+        sums, counts = [0.0, 0.0], [0, 0]
+        async for rows in _assessment_pages(
+            client, "stage1_confidence,stage2_confidence", {"processed_at": "not.is.null"}
+        ):
+            for row in rows:
+                for index, key in enumerate(("stage1_confidence", "stage2_confidence")):
+                    value = row.get(key)
+                    # Preserve the existing exclusion of skipped Stage 2 zeros.
+                    if value is not None and (index == 0 or value > 0):
+                        sums[index] += value
+                        counts[index] += 1
+        if not counts[0]:
             return None
         return {
-            "stage1": sum(s1) / len(s1),
-            "stage2": (sum(s2) / len(s2)) if s2 else None,
+            "stage1": sums[0] / counts[0],
+            "stage2": sums[1] / counts[1] if counts[1] else None,
         }
     except Exception:
         return None
@@ -363,19 +362,14 @@ async def _fetch_get_class_distribution(client: httpx.AsyncClient) -> list[dict]
     # All-time fallback, aggregated here because PostgREST cannot GROUP BY
     # over a jsonb array without a dedicated view.
     try:
-        resp = await client.get(
-            "/rest/v1/assessments"
-            "?select=distress_types"
-            "&status=in.(classified,expert_review,done)"
-            "&limit=5000"
-        )
-        if resp.status_code >= 400:
-            return []
         counts: dict[str, int] = {}
-        for row in resp.json() or []:
-            for t in (row.get("distress_types") or []):
-                if t:
-                    counts[t] = counts.get(t, 0) + 1
+        async for rows in _assessment_pages(
+            client, "distress_types", {"status": "in.(classified,expert_review,done)"}
+        ):
+            for row in rows:
+                for t in (row.get("distress_types") or []):
+                    if t:
+                        counts[t] = counts.get(t, 0) + 1
         return [
             {"distress_type": k, "count": v, "window": "all_time"}
             for k, v in sorted(counts.items(), key=lambda kv: -kv[1])
@@ -395,18 +389,16 @@ async def get_assessment_by_id(
     Returns None if the row doesn't exist (e.g., already moved to done
     by the time the dashboard polled).
     """
-    # Validate UUID format minimally to avoid odd characters in the URL.
-    # PostgREST will reject malformed UUIDs anyway, but cheap to gate here.
+    # PostgREST validates UUIDs; parameter encoding keeps the ID in one filter.
     if not assessment_id or len(assessment_id) > 64:
         return None
 
     resp = await client.get(
-        "/rest/v1/assessments"
-        f"?id=eq.{assessment_id}"
-        "&select=id,image_url,latitude,longitude,address,status,"
-        "stage1_label,stage1_confidence,distress_types,severity,"
-        "stage2_confidence,error_message,claimed_at,processed_at"
-        "&limit=1"
+        "/rest/v1/assessments",
+        params={"id": f"eq.{assessment_id}", "limit": 1,
+                "select": "id,image_url,latitude,longitude,address,status,"
+                          "stage1_label,stage1_confidence,distress_types,severity,"
+                          "stage2_confidence,error_message,claimed_at,processed_at"},
     )
     _check(resp)
     rows = resp.json() or []
@@ -448,8 +440,8 @@ def _migration_004_applied() -> bool:
 async def probe_migration_004(client: httpx.AsyncClient) -> bool:
     """One-time check: does the pavement_filter_decision column exist?
 
-    Caches the result module-globally. Re-probes on next call ONLY when the
-    cached value is None (e.g. first request after a fresh process start).
+    Cache confirmed presence/absence only. A temporary network or server
+    failure must not disable migrated columns for the process's lifetime.
     """
     global _migration_004_status
     if _migration_004_status is not None:
@@ -458,10 +450,14 @@ async def probe_migration_004(client: httpx.AsyncClient) -> bool:
         resp = await client.get(
             f"/rest/v1/assessments?select={_PAVEMENT_FILTER_COL}&limit=1"
         )
-        _migration_004_status = resp.status_code < 400
+        if resp.is_success:
+            _migration_004_status = True
+        elif resp.status_code == 400 and resp.json().get("code") == "42703":
+            # PostgreSQL undefined_column: an older schema is supported.
+            _migration_004_status = False
     except Exception:
-        _migration_004_status = False
-    return _migration_004_status
+        pass
+    return bool(_migration_004_status)
 
 
 async def list_assessments_for_dashboard(
@@ -472,8 +468,6 @@ async def list_assessments_for_dashboard(
     limit: int = 50,
     offset: int = 0,
 ) -> dict:
-    # Lazy probe: first dashboard request determines if migration 004 ran
-    await probe_migration_004(client)
     """
     Paginated list for the operator dashboard.
 
@@ -487,6 +481,8 @@ async def list_assessments_for_dashboard(
     them (the dashboard uses loading='lazy' + tab-based reveal to control
     bandwidth).
     """
+    # Lazy probe: first successful request determines if migration 004 ran.
+    await probe_migration_004(client)
     # NOTE: pavement_filter_decision is added at SELECT time only if the
     # column exists (i.e. migration 004 has been applied). The probe avoids
     # failing on un-migrated databases — the dashboard still works, just
@@ -506,22 +502,23 @@ async def list_assessments_for_dashboard(
         # Comma-separated whitelist support: "classified,expert_review"
         statuses = [s.strip() for s in status.split(",") if s.strip()]
         if len(statuses) == 1:
-            filters.append(f"status=eq.{statuses[0]}")
+            filters.append(("status", f"eq.{statuses[0]}"))
         else:
-            filters.append(f"status=in.({','.join(statuses)})")
+            filters.append(("status", f"in.({','.join(statuses)})"))
     if date_from:
-        filters.append(f"created_at=gte.{date_from}")
+        filters.append(("created_at", f"gte.{date_from}"))
     if date_to:
-        filters.append(f"created_at=lte.{date_to}")
+        filters.append(("created_at", f"lte.{date_to}"))
 
     limit = max(1, min(200, int(limit)))
     offset = max(0, int(offset))
 
     # Count via HEAD with Prefer: count=exact
-    count_url = "/rest/v1/assessments?select=id"
-    if filters:
-        count_url += "&" + "&".join(filters)
-    count_resp = await client.head(count_url, headers={"Prefer": "count=exact"})
+    count_resp = await client.head(
+        "/rest/v1/assessments", params=[("select", "id"), *filters],
+        headers={"Prefer": "count=exact"},
+    )
+    _check(count_resp)
     total = 0
     if "content-range" in count_resp.headers:
         # Format: "0-49/250"
@@ -530,11 +527,11 @@ async def list_assessments_for_dashboard(
         except (ValueError, IndexError):
             total = 0
 
-    list_url = f"/rest/v1/assessments?select={select}&order=created_at.desc"
-    list_url += f"&limit={limit}&offset={offset}"
-    if filters:
-        list_url += "&" + "&".join(filters)
-    resp = await client.get(list_url)
+    resp = await client.get(
+        "/rest/v1/assessments",
+        params=[("select", select), ("order", "created_at.desc,id.desc"),
+                ("limit", str(limit)), ("offset", str(offset)), *filters],
+    )
     _check(resp)
     items = resp.json() or []
 
@@ -573,7 +570,8 @@ async def reset_for_reclassify(
         "claimed_at": None,
     }
     resp = await client.patch(
-        f"/rest/v1/assessments?id=eq.{assessment_id}",
+        "/rest/v1/assessments",
+        params={"id": f"eq.{assessment_id}"},
         json=payload,
         headers={"Prefer": "return=representation"},
     )
@@ -582,23 +580,51 @@ async def reset_for_reclassify(
     return {"reset": bool(rows), "id": assessment_id}
 
 
+async def _assessment_pages(client: httpx.AsyncClient, select: str, filters: Optional[dict] = None):
+    """Iterate narrow dashboard reads without assuming PostgREST's row cap.
+
+    An exact count on the first page avoids an unnecessary final empty read.
+    Without a count, continue until the server returns an empty page. Order
+    by the primary key so pages with tied timestamps cannot overlap.
+    """
+    offset, total = 0, None
+    while total is None or offset < total:
+        resp = await client.get(
+            "/rest/v1/assessments",
+            params={"select": select, "order": "id.asc", "limit": 1000,
+                    "offset": offset, **(filters or {})},
+            headers={"Prefer": "count=exact"} if offset == 0 else {},
+        )
+        _check(resp)
+        rows = resp.json() or []
+        if not rows:
+            return
+        if offset == 0:
+            count = resp.headers.get("content-range", "").rsplit("/", 1)[-1]
+            if count.isdecimal():
+                total = int(count)
+        yield rows
+        offset += len(rows)
+
+
 async def _fetch_dashboard_summary(client: httpx.AsyncClient) -> dict:
     """
     Aggregate counts by status, for the dashboard's tab badges.
     """
-    resp = await client.get("/rest/v1/assessments?select=status,created_at")
-    _check(resp)
-    rows = resp.json() or []
     from collections import Counter
-    statuses = Counter(r.get("status", "unknown") for r in rows)
+    statuses: Counter = Counter()
     # Date histogram for filter dropdown
     dates: Counter = Counter()
-    for r in rows:
-        ca = (r.get("created_at") or "")[:10]
-        if ca:
-            dates[ca] += 1
+    total = 0
+    async for rows in _assessment_pages(client, "status,created_at"):
+        total += len(rows)
+        for r in rows:
+            statuses[r.get("status", "unknown")] += 1
+            ca = (r.get("created_at") or "")[:10]
+            if ca:
+                dates[ca] += 1
     return {
-        "total": len(rows),
+        "total": total,
         "by_status": dict(statuses.most_common()),
         "by_date": sorted(dates.items(), reverse=True)[:60],  # last 60 days
     }
@@ -651,6 +677,7 @@ class _ReadCache:
     def __init__(self, max_backoff: float = 120.0):
         self._entries: dict = {}
         self._locks: dict = {}
+        self._generation = 0
         self.max_backoff = max_backoff
 
     async def get(self, key, ttl: float, fetch):
@@ -676,19 +703,22 @@ class _ReadCache:
                     ent["stale"] = True
                     return ent["value"]
                 raise ent["error"]
+            generation = self._generation
             try:
                 value = await fetch()
             except Exception as e:
                 prev = ent or {}
                 backoff = min(self.max_backoff, max(ttl, prev.get("backoff", ttl / 2) * 2))
-                self._entries[key] = {**prev, "error": e, "backoff": backoff,
-                                      "retry_after": _time.monotonic() + backoff, "fresh_until": 0.0,
-                                      "stale": "value" in prev}
+                if generation == self._generation:
+                    self._entries[key] = {**prev, "error": e, "backoff": backoff,
+                                          "retry_after": _time.monotonic() + backoff, "fresh_until": 0.0,
+                                          "stale": "value" in prev}
                 if "value" in prev:
                     return prev["value"]
                 raise
-            self._entries[key] = {"value": value, "fresh_until": _time.monotonic() + ttl,
-                                  "backoff": ttl / 2}
+            if generation == self._generation:
+                self._entries[key] = {"value": value, "fresh_until": _time.monotonic() + ttl,
+                                      "backoff": ttl / 2}
             return value
 
     def staleness(self, key) -> Optional[str]:
@@ -697,6 +727,8 @@ class _ReadCache:
         return f"{type(ent['error']).__name__}: {ent['error']}"[:200] if ent.get("stale") else None
 
     def clear(self):
+        # A fetch that started before a mutation must not repopulate the cache.
+        self._generation += 1
         self._entries.clear()
 
 
