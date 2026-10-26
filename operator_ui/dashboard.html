@@ -576,7 +576,7 @@ function renderCard(row) {
     <div class="card" data-id="${row.id}">
       <div class="card-thumb" data-load-id="${row.id}" title="Click to load image">
         ${row.image_url
-          ? `<img ${alreadyLoaded ? 'src' : 'data-src'}="${row.image_url}"
+          ? `<img ${alreadyLoaded ? 'src' : 'data-src'}="${esc(row.image_url)}"
                  alt="" class="${alreadyLoaded ? 'loaded' : ''}" />
              <div class="placeholder" style="${alreadyLoaded ? 'display:none' : ''}">
                <div class="ph-icon">↓</div>

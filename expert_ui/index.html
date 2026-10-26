@@ -892,7 +892,7 @@ function buildCardHTML(a, i, mode /* 'pending' | 'reviewed' */) {
     return `
         <div class="card" id="card-${a.id}">
             <img class="card-img" src="${escapeAttr(thumbUrl)}" alt="" loading="lazy"
-                 onclick="openLightbox('${escapeAttr(a.image_url)}', '${escapeAttr(a.id)}')"
+                 data-image-url="${escapeAttr(a.image_url)}" onclick="openLightbox(this.dataset.imageUrl)"
                  onerror="this.src='https://placehold.co/420x280/e7e5e4/a8a29e?text=No+Image'">
             <div class="card-body">
                 <div class="card-top">
@@ -914,7 +914,7 @@ function buildCardHTML(a, i, mode /* 'pending' | 'reviewed' */) {
                 <div class="form-group">
                     <label>Expert Classification</label>
                     <div class="pill-select" id="types-${i}-${mode}">
-                        ${reviewedTypes.map(t=>`<span class="pill">${escapeHtml(t)}<span class="pill-x" onclick="event.stopPropagation();removeType(${i},'${escapeAttr(t)}','${mode}')">&times;</span></span>`).join('')}
+                        ${reviewedTypes.map(t=>`<span class="pill">${escapeHtml(t)}<span class="pill-x" data-type="${escapeAttr(t)}" onclick="event.stopPropagation();removeType(${i},this.dataset.type,'${mode}')">&times;</span></span>`).join('')}
                     </div>
                 </div>
                 <div class="form-group">
@@ -941,16 +941,17 @@ function buildCardHTML(a, i, mode /* 'pending' | 'reviewed' */) {
                     : (mode === 'reviewed' ? `<div class="reviewed-stamp">${fmtDate(a.reviewed_at)}</div>` : '')}
                 <div class="card-actions">
                     ${mode === 'pending'
-                        ? `<button class="btn btn-sm" onclick="skipCard('${escapeAttr(a.id)}')">Skip</button>
-                           <button class="btn btn-primary btn-sm" onclick="submitCorrection(${i},'${escapeAttr(a.id)}','${mode}')">Confirm</button>`
-                        : `<button class="btn btn-primary btn-sm" onclick="submitCorrection(${i},'${escapeAttr(a.id)}','${mode}')">Update Review</button>`}
+                        ? `<button class="btn btn-sm" data-assessment-id="${escapeAttr(a.id)}" onclick="skipCard(this.dataset.assessmentId)">Skip</button>
+                           <button class="btn btn-primary btn-sm" data-assessment-id="${escapeAttr(a.id)}" onclick="submitCorrection(${i},this.dataset.assessmentId,'${mode}')">Confirm</button>`
+                        : `<button class="btn btn-primary btn-sm" data-assessment-id="${escapeAttr(a.id)}" onclick="submitCorrection(${i},this.dataset.assessmentId,'${mode}')">Update Review</button>`}
                 </div>
             </div>
         </div>
     `;
 }
 
-// HTML attribute escape (single/double quotes — used inside onclick="...")
+// Escape attribute data. Untrusted values stay in data-* attributes, never
+// JavaScript source: HTML entities are decoded before an onclick executes.
 function escapeAttr(s) {
     return String(s).replace(/[&<>"']/g, c => ({
         '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
@@ -1026,7 +1027,7 @@ function renderPills(i, mode) {
     if (!el) return;
     const t = getTypes(i, mode);
     el.innerHTML = t.length
-        ? t.map(v => `<span class="pill">${escapeHtml(v)}<span class="pill-x" onclick="event.stopPropagation();removeType(${i},'${escapeAttr(v)}','${mode}')">&times;</span></span>`).join('')
+        ? t.map(v => `<span class="pill">${escapeHtml(v)}<span class="pill-x" data-type="${escapeAttr(v)}" onclick="event.stopPropagation();removeType(${i},this.dataset.type,'${mode}')">&times;</span></span>`).join('')
         : '<span class="pill-empty">No types selected</span>';
 }
 

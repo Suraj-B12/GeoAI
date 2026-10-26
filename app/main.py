@@ -37,19 +37,17 @@ Usage:
 """
 
 import asyncio
-import io
 import json
 import os
 import sys
 import traceback
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager
 from pathlib import Path
 from typing import Optional
 
 from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
-from PIL import Image
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
@@ -64,7 +62,7 @@ from app.schemas import (
 )
 from app.security import (
     LimitUploadSizeMiddleware,
-    validate_image,
+    decode_image,
     verify_api_key,
 )
 from app.deletion import DeleteError, delete_everywhere
@@ -115,6 +113,24 @@ limiter = Limiter(key_func=get_remote_address)
 # ============================================================
 # App Lifecycle
 # ============================================================
+async def _close_pipeline_clients(app: FastAPI):
+    """Close every allocated client, including after partial startup failure."""
+    async def close(client, name):
+        try:
+            await client.aclose()
+        except Exception as e:
+            print(f"[API] Error closing {name}: {e}")
+
+    # ExitStack also continues cleanup if a close is cancelled, then
+    # propagates that cancellation after the remaining client is closed.
+    async with AsyncExitStack() as cleanup:
+        for name in ("image_client", "supabase_client"):
+            client = getattr(app.state, name, None)
+            setattr(app.state, name, None)
+            if client is not None:
+                cleanup.push_async_callback(close, client, name)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -129,52 +145,48 @@ async def lifespan(app: FastAPI):
     print("[API] Loading model on startup...")
     classifier = get_classifier()
     print("[API] Model ready.")
+    app.state.supabase_client = None
+    app.state.image_client = None
 
     if _has_supabase_env():
         print("[API] Supabase env vars detected — initializing operator pipeline...")
         try:
-            supabase_client = build_supabase_client()
-            image_client = build_image_client()
+            app.state.supabase_client = build_supabase_client()
+            app.state.image_client = build_image_client()
             worker = PipelineWorker(
-                supabase_client=supabase_client,
-                image_client=image_client,
+                supabase_client=app.state.supabase_client,
+                image_client=app.state.image_client,
                 classifier=classifier,
             )
             set_worker(worker)
-            # Stash clients on app.state so we can close them on shutdown
-            app.state.supabase_client = supabase_client
-            app.state.image_client = image_client
             print(f"[API] Operator pipeline ready. Worker ID: {worker.worker_id}")
             print("[API] POST /operator/start to begin processing the queue.")
         except Exception as e:
             print(f"[API] WARNING: Failed to initialize operator pipeline: {e}")
             traceback.print_exc()
-            app.state.supabase_client = None
-            app.state.image_client = None
+            clear_worker()
+            await _close_pipeline_clients(app)
     else:
         print("[API] Supabase env vars not set — operator pipeline disabled.")
         print("[API] Set SUPABASE_URL and SUPABASE_SERVICE_KEY to enable.")
-        app.state.supabase_client = None
-        app.state.image_client = None
 
     print("[API] Server accepting requests.")
-    yield
-
-    print("[API] Shutting down...")
-    worker = get_worker()
-    if worker and worker.is_running:
-        print("[API] Stopping pipeline worker (graceful drain)...")
+    try:
+        yield
+    finally:
+        print("[API] Shutting down...")
+        worker = get_worker()
         try:
-            await worker.stop(drain_timeout_seconds=60.0)
-        except Exception as e:
-            print(f"[API] Error stopping worker: {e}")
-    clear_worker()
-
-    if getattr(app.state, "supabase_client", None):
-        await app.state.supabase_client.aclose()
-    if getattr(app.state, "image_client", None):
-        await app.state.image_client.aclose()
-    print("[API] Shutdown complete.")
+            if worker and worker.is_running:
+                print("[API] Stopping pipeline worker (graceful drain)...")
+                try:
+                    await worker.stop(drain_timeout_seconds=60.0)
+                except Exception as e:
+                    print(f"[API] Error stopping worker: {e}")
+        finally:
+            clear_worker()
+            await _close_pipeline_clients(app)
+        print("[API] Shutdown complete.")
 
 
 # ============================================================
@@ -206,7 +218,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "DELETE"],
     allow_headers=["*"],
 )
 
@@ -302,10 +314,7 @@ async def classify(
 
     try:
         contents = await file.read()
-        image = Image.open(io.BytesIO(contents))
-
-        # Validate image dimensions and format
-        validate_image(image)
+        image = decode_image(contents)
 
         # Run classification in a thread to keep the async event loop responsive.
         # GPU inference releases the GIL during CUDA kernel execution,
@@ -333,15 +342,20 @@ async def classify_base64(request: Request, payload: dict):
     Payload: {"image": "<base64-string>"}
     """
     import base64
+    import binascii
 
     if "image" not in payload:
         raise HTTPException(status_code=400, detail="Missing 'image' field in payload")
+    if not isinstance(payload["image"], str) or not payload["image"]:
+        raise HTTPException(status_code=400, detail="'image' must be a non-empty base64 string")
 
     try:
-        image_data = base64.b64decode(payload["image"])
-        image = Image.open(io.BytesIO(image_data))
+        image_data = base64.b64decode(payload["image"], validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise HTTPException(status_code=400, detail="Invalid base64 image.") from exc
 
-        validate_image(image)
+    try:
+        image = decode_image(image_data)
 
         clf = get_classifier()
         result = await asyncio.to_thread(clf.predict, image)
@@ -383,9 +397,7 @@ async def classify_stream(
 
     try:
         contents = await file.read()
-        image = Image.open(io.BytesIO(contents))
-        validate_image(image)
-        image.load()  # Force full decode so BytesIO buffer can be released
+        image = decode_image(contents)
     except HTTPException:
         raise
     except Exception as e:
@@ -607,7 +619,10 @@ async def dashboard_ui():
 async def operator_start(request: Request):
     """Begin the worker loop. Idempotent — returns current state if already running."""
     worker = _require_worker()
-    result = await worker.start()
+    if _runtime_reload_lock.locked():
+        raise HTTPException(status_code=409, detail="a model reload is in progress")
+    async with _runtime_reload_lock:
+        result = await worker.start()
     return JSONResponse(result)
 
 
@@ -619,7 +634,10 @@ async def operator_stop(request: Request):
     Drain timeout is 60s; after that, the task is force-cancelled.
     """
     worker = _require_worker()
-    result = await worker.stop(drain_timeout_seconds=60.0)
+    if _runtime_reload_lock.locked():
+        raise HTTPException(status_code=409, detail="a model reload is in progress")
+    async with _runtime_reload_lock:
+        result = await worker.stop(drain_timeout_seconds=60.0)
     return JSONResponse(result)
 
 
@@ -721,6 +739,41 @@ _runtime_reload_lock = asyncio.Lock()
 VALID_QUANTIZATION_BITS = (0, 4, 8)
 
 
+async def _reload_classifier(reload_fn, *args):
+    """Drain and restart the worker around every precision/adapter change."""
+    if _runtime_reload_lock.locked():
+        raise HTTPException(status_code=409, detail="a model reload is already in progress")
+    async with _runtime_reload_lock:
+        worker = get_worker()
+        was_running = bool(worker and worker.is_running)
+        restarted = False
+        worker_note = "worker was not running"
+        try:
+            if was_running:
+                await worker.stop(drain_timeout_seconds=90.0)
+            reload_task = asyncio.create_task(asyncio.to_thread(reload_fn, *args))
+            try:
+                result = await asyncio.shield(reload_task)
+            except asyncio.CancelledError:
+                # Cancelling the HTTP task cannot stop its GPU thread. Keep
+                # the lock and worker pause until that thread has finished.
+                try:
+                    await reload_task
+                finally:
+                    raise
+        finally:
+            if was_running:
+                try:
+                    await worker.start()
+                    restarted = worker.is_running
+                    worker_note = "worker stopped for the swap and restarted"
+                except Exception as exc:
+                    worker_note = f"worker did NOT restart cleanly: {exc}"
+        result["worker_restarted"] = restarted
+        result["worker_note"] = worker_note
+        return result
+
+
 @app.get("/operator/runtime", dependencies=[Depends(verify_api_key)])
 @limiter.limit("60/minute")
 async def operator_runtime(request: Request):
@@ -751,58 +804,35 @@ async def operator_set_quantization(request: Request):
         body = await request.json()
     except Exception:
         raise HTTPException(status_code=400, detail="body must be JSON")
+    if not isinstance(body, dict):
+        raise HTTPException(status_code=400, detail="body must be a JSON object")
 
     bits = body.get("quantization_bits")
-    if isinstance(bits, str) and bits.strip().lstrip("-").isdigit():
-        bits = int(bits)
-    if bits not in VALID_QUANTIZATION_BITS:
+    if isinstance(bits, str):
+        try:
+            bits = int(bits)
+        except ValueError:
+            pass
+    if type(bits) is not int or bits not in VALID_QUANTIZATION_BITS:
         raise HTTPException(
             status_code=400,
             detail=f"quantization_bits must be one of {list(VALID_QUANTIZATION_BITS)} "
                    f"(0 = bf16, no quantization) - got {bits!r}",
         )
 
-    if _runtime_reload_lock.locked():
-        raise HTTPException(
-            status_code=409,
-            detail="a model reload is already in progress - wait for it to finish",
-        )
-
     classifier = get_classifier()
-    worker = get_worker()
-
-    async with _runtime_reload_lock:
-        was_running = bool(worker and worker.is_running)
-        worker_note = "worker was not running"
-        if was_running:
-            # Drain rather than cancel: the in-flight image finishes on the OLD
-            # precision and is written normally, instead of failing and being
-            # retried later under a different configuration.
-            await worker.stop(drain_timeout_seconds=90.0)
-            worker_note = "worker drained and stopped for the swap"
-
-        try:
-            result = await asyncio.to_thread(classifier.reload, bits)
-        except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e))
-        except Exception as e:
-            raise HTTPException(
-                status_code=500,
-                detail=f"reload to {bits}-bit failed: {e}. The previous "
-                       f"configuration has been restored.",
-            )
-        finally:
-            # Restart on every path, including the failure paths above, so a
-            # bad request never silently leaves the pipeline stopped.
-            if was_running and worker:
-                try:
-                    await worker.start()
-                    worker_note = "worker stopped for the swap and restarted"
-                except Exception as e:
-                    worker_note = f"worker did NOT restart cleanly: {e}"
-
-    result["worker_restarted"] = was_running
-    result["worker_note"] = worker_note
+    try:
+        result = await _reload_classifier(classifier.reload, bits)
+    except HTTPException:
+        raise
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"reload to {bits}-bit failed: {e}. The previous "
+                   f"configuration has been restored.",
+        )
     return JSONResponse(result)
 
 
@@ -888,8 +918,15 @@ async def operator_switch_adapter(request: Request):
     Worker is paused for the duration of the swap (the singleton's lock
     blocks predict_stage1/2 until reload completes).
     """
-    body = await request.json()
+    try:
+        body = await request.json()
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="body must be JSON") from exc
+    if not isinstance(body, dict) or "adapter_path" not in body:
+        raise HTTPException(status_code=400, detail="body must contain adapter_path")
     new_path: str | None = body.get("adapter_path")
+    if new_path is not None and not isinstance(new_path, str):
+        raise HTTPException(status_code=400, detail="adapter_path must be a string or null")
     if new_path == "":
         new_path = None
 
@@ -899,12 +936,15 @@ async def operator_switch_adapter(request: Request):
         p = (PROJECT_ROOT / new_path).resolve()
         if PROJECT_ROOT.resolve() not in p.parents and p != PROJECT_ROOT.resolve():
             raise HTTPException(status_code=400, detail="adapter_path must be inside project root")
+        new_path = str(p)
 
     classifier = get_classifier()
     try:
         # Run in thread pool so the event loop stays responsive while the
         # old model is freed and the new one is loaded.
-        result = await asyncio.to_thread(classifier.reload_adapter, new_path)
+        result = await _reload_classifier(classifier.reload_adapter, new_path)
+    except HTTPException:
+        raise
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
