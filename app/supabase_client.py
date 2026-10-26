@@ -669,18 +669,26 @@ class _ReadCache:
             now = _time.monotonic()
             if ent and "value" in ent and now < ent["fresh_until"]:
                 return ent["value"]
+            # Another waiter may have failed while we were acquiring the
+            # lock. Share its backoff as well as its successful results.
+            if ent and now < ent.get("retry_after", 0.0):
+                if "value" in ent:
+                    ent["stale"] = True
+                    return ent["value"]
+                raise ent["error"]
             try:
                 value = await fetch()
             except Exception as e:
                 prev = ent or {}
                 backoff = min(self.max_backoff, max(ttl, prev.get("backoff", ttl / 2) * 2))
                 self._entries[key] = {**prev, "error": e, "backoff": backoff,
-                                      "retry_after": now + backoff, "fresh_until": 0.0,
+                                      "retry_after": _time.monotonic() + backoff, "fresh_until": 0.0,
                                       "stale": "value" in prev}
                 if "value" in prev:
                     return prev["value"]
                 raise
-            self._entries[key] = {"value": value, "fresh_until": now + ttl, "backoff": ttl / 2}
+            self._entries[key] = {"value": value, "fresh_until": _time.monotonic() + ttl,
+                                  "backoff": ttl / 2}
             return value
 
     def staleness(self, key) -> Optional[str]:

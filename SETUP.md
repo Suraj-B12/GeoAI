@@ -1039,3 +1039,28 @@ Expert UI --> assessments.expert_corrected_*  -->  data/expert_corrections.json
 ### validate_all.py fails
 - Run from the project root: `cd Capstone && python scripts/validate_all.py`
 - If `expert_ui` test fails, the HTML may have been modified externally.
+
+### Offline reliability checks
+
+Run these from the project root in a separate virtual environment. No model
+weights, GPU, API credentials, or running database are needed. Node.js enables
+the two HTML rendering checks; pytest reports those as skipped when it is absent.
+On Linux, install CPU PyTorch first as described in `requirements-test.txt`.
+
+```bash
+python -m pip install -r requirements-test.txt
+python -m pytest -q scripts/tests/test_reliability_regressions.py
+python scripts/tests/test_dashboard_cache.py
+python scripts/tests/test_delete_everywhere.py
+python scripts/tests/test_operator_runtime.py
+```
+
+Select these files explicitly: `test_pipeline_robustness.py` uses live services
+and `test_stage2_probe_integration.py` loads the model on a GPU.
+
+### Queue RPC permission update
+
+After migrations 001–004, apply `migrations/005_restrict_worker_rpc_access.sql`
+using the database administrator connection. It removes default public access
+to the two worker queue functions while preserving service-role access. It
+does not change the expert-review policies or modify assessment data.

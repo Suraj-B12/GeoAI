@@ -8,12 +8,13 @@ Provides:
   - Image validation
 """
 
+import io
 import os
 
 from fastapi import HTTPException, Security, status
 from fastapi.security import APIKeyHeader
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.requests import Request
+from PIL import Image, UnidentifiedImageError
+from starlette.datastructures import Headers
 from starlette.responses import JSONResponse
 
 # ============================================================
@@ -51,19 +52,65 @@ async def verify_api_key(api_key: str = Security(API_KEY_HEADER)):
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
 
 
-class LimitUploadSizeMiddleware(BaseHTTPMiddleware):
-    """Reject requests with Content-Length exceeding MAX_UPLOAD_BYTES."""
+class LimitUploadSizeMiddleware:
+    """Bound the actual body, including chunked uploads without a length.
 
-    async def dispatch(self, request: Request, call_next):
-        content_length = request.headers.get("content-length")
-        if content_length and int(content_length) > MAX_UPLOAD_BYTES:
-            return JSONResponse(
-                status_code=413,
-                content={
-                    "detail": f"Payload too large. Maximum: {MAX_UPLOAD_BYTES // (1024 * 1024)}MB."
-                },
-            )
-        return await call_next(request)
+    Validate before FastAPI parses multipart/JSON or runs an endpoint. At
+    most MAX_UPLOAD_BYTES are retained; bodyless requests stay unbuffered.
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            return await self.app(scope, receive, send)
+        length = Headers(scope=scope).get("content-length")
+        if length is not None and (not length.isascii() or not length.isdecimal()):
+            return await JSONResponse(status_code=400, content={
+                "detail": "Invalid Content-Length header."
+            })(scope, receive, send)
+
+        too_large = JSONResponse(status_code=413, content={
+            "detail": f"Payload too large. Maximum: {MAX_UPLOAD_BYTES // (1024 * 1024)}MB."
+        })
+        # Comparing digit counts first also handles absurdly large headers
+        # without hitting Python's integer-string conversion limit.
+        digits = length.lstrip("0") if length is not None else ""
+        if (len(digits) > len(str(MAX_UPLOAD_BYTES))
+                or (digits and int(digits) > MAX_UPLOAD_BYTES)):
+            return await too_large(scope, receive, send)
+        if scope["method"] not in ("POST", "PUT", "PATCH", "DELETE"):
+            return await self.app(scope, receive, send)
+
+        chunks = []
+        size = 0
+        while True:
+            message = await receive()
+            if message["type"] == "http.disconnect":
+                return
+            chunk = message.get("body", b"")
+            size += len(chunk)
+            if size > MAX_UPLOAD_BYTES:
+                return await too_large(scope, receive, send)
+            chunks.append(chunk)
+            if not message.get("more_body", False):
+                break
+
+        body = b"".join(chunks)
+        chunks.clear()
+        delivered = False
+
+        async def replay():
+            nonlocal delivered, body
+            if not delivered:
+                delivered = True
+                message = {"type": "http.request", "body": body, "more_body": False}
+                body = b""
+                return message
+            return await receive()
+
+        await self.app(scope, replay, send)
 
 
 # ============================================================
@@ -71,6 +118,17 @@ class LimitUploadSizeMiddleware(BaseHTTPMiddleware):
 # ============================================================
 ALLOWED_FORMATS = {"jpeg", "jpg", "png", "webp", "bmp", "tiff"}
 MAX_DIMENSION = 4096
+
+
+def decode_image(contents: bytes):
+    """Fully validate/decode an upload before invoking the model."""
+    try:
+        with Image.open(io.BytesIO(contents)) as image:
+            validate_image(image)
+            image.load()
+            return image.copy()
+    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError) as exc:
+        raise HTTPException(status_code=400, detail="Invalid or corrupt image.") from exc
 
 
 def validate_image(image) -> None:

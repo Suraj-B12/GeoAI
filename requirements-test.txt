@@ -1,0 +1,11 @@
+# Offline API/worker regressions; no model weights or CUDA libraries required.
+# On Linux install the CPU torch wheel first to avoid CUDA package downloads:
+#   python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+pytest>=8
+httpx>=0.27.0
+fastapi>=0.110.0
+sse-starlette>=1.6.0
+slowapi>=0.1.9
+python-multipart
+Pillow
+torch

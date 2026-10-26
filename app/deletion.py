@@ -80,7 +80,10 @@ def parse_cloudinary_url(url: Optional[str]) -> Optional[CloudinaryAsset]:
     if not url:
         return None
     u = urlparse(url)
-    if u.scheme not in ("http", "https") or not u.netloc.endswith("cloudinary.com"):
+    host = (u.hostname or "").lower()
+    if u.scheme not in ("http", "https") or not (
+        host == "cloudinary.com" or host.endswith(".cloudinary.com")
+    ):
         return None
     parts = [unquote(p) for p in u.path.split("/") if p]
     if len(parts) < 4:
@@ -170,12 +173,22 @@ def origin_url(url: str) -> str:
 
 
 async def still_served(http: httpx.AsyncClient, url: str) -> bool:
-    """True if the origin still has the image (CDN copies are bypassed)."""
+    """Check the origin; only an explicit 404/410 confirms removal.
+
+    A timeout, forbidden response or upstream error is not evidence that the
+    image is gone. Abort deletion so its database reference can be retried.
+    """
     try:
         r = await http.head(origin_url(url), timeout=15.0, follow_redirects=True)
-    except httpx.HTTPError:
+    except httpx.HTTPError as exc:
+        raise DeleteError(502, "Could not verify Cloudinary image removal; "
+                               "database rows were preserved. Retry later.") from exc
+    if r.status_code in (404, 410):
         return False
-    return r.status_code == 200
+    if r.is_success:
+        return True
+    raise DeleteError(502, f"Could not verify Cloudinary image removal "
+                           f"(HTTP {r.status_code}); database rows were preserved.")
 
 
 # ============================================================

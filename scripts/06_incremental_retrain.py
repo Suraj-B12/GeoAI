@@ -47,25 +47,29 @@ random.seed(SEED)
 
 def build_correction_entry(correction: dict) -> dict:
     """Convert an expert correction into a ShareGPT training entry."""
-    # Map type names back to class IDs for building training response
-    class_ids = []
-    for dtype in correction["distress_types"]:
-        # Try direct lookup
-        cid = RDD_LABEL_TO_ID.get(dtype)
-        if cid is not None:
-            class_ids.append(cid)
-        else:
-            # For custom types not in RDD, build a custom response
-            pass
+    # Keep the same RDD class-4 noise exclusion as the shared training helper.
+    types = list(dict.fromkeys(t for t in correction["distress_types"]
+                               if RDD_LABEL_TO_ID.get(t) != 4))
+    severity = correction.get("severity", "Medium") if types else "None"
+    if severity not in ("None", "Low", "Medium", "High"):
+        raise ValueError(f"Invalid expert severity: {severity!r}")
+    class_ids = [RDD_LABEL_TO_ID[t] for t in types if t in RDD_LABEL_TO_ID]
 
-    # Build the expected response
-    if class_ids:
+    if not types:
+        response = build_stage2_training_response([])
+    elif len(class_ids) == len(types):
         response = build_stage2_training_response(class_ids)
+        # RDD has no severity annotation, so its generated response supplies
+        # a default. Expert corrections must retain the actual reviewed value.
+        response = "\n".join(
+            f"DISTRESS_TYPES: {', '.join(types)}" if line.startswith("DISTRESS_TYPES:")
+            else f"SEVERITY: {severity}" if line.startswith("SEVERITY:") else line
+            for line in response.splitlines()
+        )
     else:
-        # Custom types — build response manually
-        types_str = ", ".join(correction["distress_types"])
-        severity = correction.get("severity", "Medium")
-        desc_parts = [t.split(" (")[0].lower() for t in correction["distress_types"]]
+        # Include ALL labels when RDD and custom types appear together.
+        types_str = ", ".join(types)
+        desc_parts = [t.split(" (")[0].lower() for t in types]
         description = f"The pavement shows signs of {' and '.join(desc_parts)} damage."
         response = (
             f"DISTRESS_TYPES: {types_str}\n"
@@ -103,6 +107,8 @@ def main():
     parser.add_argument("--lr", type=float, default=5e-5,
                         help="Learning rate (lower than initial training)")
     args = parser.parse_args()
+    if not 0 <= args.mix_ratio < 1:
+        parser.error("--mix-ratio must be at least 0 and less than 1")
 
     # Load expert corrections
     corrections_path = Path(args.corrections_file)

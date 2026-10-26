@@ -145,7 +145,7 @@ except Exception as e:
 try:
     code = open("app/main.py", encoding="utf-8").read()
     patterns = [
-        "slowapi", "verify_api_key", "validate_image", "LimitUploadSizeMiddleware",
+        "slowapi", "verify_api_key", "decode_image", "LimitUploadSizeMiddleware",
         "CORS_ORIGINS", "10/minute", "retrain/start", "retrain/status", "RetrainStatusResponse",
         "asyncio.to_thread",  # Non-blocking inference
     ]

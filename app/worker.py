@@ -249,6 +249,7 @@ class PipelineWorker:
         self._task: Optional[asyncio.Task] = None
         self._stop_event = asyncio.Event()
         self._is_running = False
+        self._lifecycle_lock = asyncio.Lock()
 
     @staticmethod
     def _generate_worker_id() -> str:
@@ -267,6 +268,10 @@ class PipelineWorker:
 
     async def start(self) -> dict:
         """Begin the worker loop. Returns initial state dict."""
+        async with self._lifecycle_lock:
+            return await self._start()
+
+    async def _start(self) -> dict:
         if self._is_running:
             return {"status": "already_running", "worker_id": self.worker_id}
 
@@ -286,7 +291,12 @@ class PipelineWorker:
         self.metrics.started_at = datetime.now(timezone.utc)
         self.metrics.stopped_at = None
 
-        await self._write_heartbeat(initial=True)
+        try:
+            await self._write_heartbeat(initial=True)
+        except BaseException:
+            self._is_running = False
+            self.metrics.stopped_at = datetime.now(timezone.utc)
+            raise
 
         self._task = asyncio.create_task(self._run_loop(), name="pipeline_worker")
         log.info("Pipeline worker '%s' started", self.worker_id)
@@ -297,6 +307,10 @@ class PipelineWorker:
         Signal the loop to stop. Waits up to `drain_timeout_seconds` for the
         current image to finish before forcefully cancelling.
         """
+        async with self._lifecycle_lock:
+            return await self._stop(drain_timeout_seconds)
+
+    async def _stop(self, drain_timeout_seconds: float) -> dict:
         if not self._is_running:
             return {"status": "already_stopped", "worker_id": self.worker_id}
 
@@ -305,7 +319,7 @@ class PipelineWorker:
 
         if self._task:
             try:
-                await asyncio.wait_for(self._task, timeout=drain_timeout_seconds)
+                await asyncio.wait_for(asyncio.shield(self._task), timeout=drain_timeout_seconds)
             except asyncio.TimeoutError:
                 log.warning("Drain timeout exceeded — cancelling worker task")
                 self._task.cancel()
@@ -353,6 +367,7 @@ class PipelineWorker:
         """
         last_heartbeat = time.monotonic()
         last_stale_recovery = time.monotonic()
+        outstanding_claims = set()
 
         try:
             while not self._stop_event.is_set():
@@ -389,14 +404,15 @@ class PipelineWorker:
                     continue
 
                 # Process each claimed row
+                outstanding_claims.update(row["id"] for row in batch)
                 for row in batch:
                     if self._stop_event.is_set():
                         # Stop signal during batch — release remaining claims back to pending
                         await self._release_claim(row["id"])
+                        outstanding_claims.discard(row["id"])
                         continue
                     await self._process_one(row)
-                    if self._stop_event.is_set():
-                        break
+                    outstanding_claims.discard(row["id"])
 
         except asyncio.CancelledError:
             log.info("Worker loop cancelled")
@@ -404,7 +420,18 @@ class PipelineWorker:
         except Exception as e:
             log.exception("Worker loop crashed: %s", e)
             self.metrics.last_error = f"loop_crashed: {e}"
-            raise
+        finally:
+            # Cancellation and unexpected loop failures must release the
+            # current/remaining claims and make a later Start possible.
+            for image_id in outstanding_claims:
+                await self._release_claim(image_id)
+            self.metrics.stopped_at = datetime.now(timezone.utc)
+            self.metrics.current_image_id = None
+            self._enter_stage(None)
+            try:
+                await self._write_heartbeat(stopped=True)
+            finally:
+                self._is_running = False
 
     async def _sleep_or_stop(self, seconds: float):
         """Sleep N seconds or wake immediately if stop_event is set."""
