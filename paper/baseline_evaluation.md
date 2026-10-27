@@ -853,11 +853,11 @@ The pre-registered criterion is met: macro MCC doubles, with an interval that ex
 
 In the continuity terms of §6.3, recall of the classes RDD trained on rises from 46.1% to 90.8% (938 annotated class-instances). Recall of the zero-shot classes both methods can name (ravelling, weathering) rises from 0 of 214 to 93 of 214. Recall figures of this kind must be read with the precision column.
 
-![Figure 6.8a — Per-class MCC, production list vs probe](../eval_results/plots/probe/per_class_mcc.png)
+![Figure 6.8a — Per-class MCC, production list vs probe](../eval_results/plots/paper/fig_6_8a_probe_mcc.png)
 
-![Figure 6.8b — Per-class ROC curves of the probe](../eval_results/plots/probe/roc_per_class.png)
+![Figure 6.8b — Recall and false-positive rate per class, list vs probe](../eval_results/plots/paper/fig_6_8b_probe_operating_points.png)
 
-*Figures 6.8a–b — Per-class MCC of the production list and the probe on the test split (Table 6.8b), and the probe's per-class ROC curves.*
+*Figures 6.8a–b — (a) Per-class MCC of the production list and the probe on the test split, with 95% block-bootstrap intervals (Table 6.8b). (b) The same operating points as recall and false-positive rate, with the probe's AUROC per class. The list almost never names alligator cracking, ravelling, weathering or patching; the probe names them at the cost of more false positives, which MCC weighs. Per-class ROC curves are in `eval_results/plots/probe/roc_per_class.png`.*
 
 **Table 6.8c — Question wording (test split, each variant with its own development-tuned thresholds)**
 
@@ -1307,7 +1307,7 @@ All 341 processed rows were re-classified on 2026-09-26 under the configuration 
 
 ### T7.5 Reproducing the figures
 
-Figures 6.5–6.9 are drawn by `scripts/generate_paper_figures.py` from the stored result files; Figures 6.8a–b by the probe report. No figure requires inference.
+Figures 6.5–6.9 (including 6.8a–b) are drawn by `scripts/generate_paper_figures.py` from the stored result files, in one style. No figure requires inference.
 
 ---
 

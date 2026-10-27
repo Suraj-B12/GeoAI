@@ -77,7 +77,7 @@ for everything below.
    config to `configs/stage2_probe.json` and set `STAGE2_MODE=probe` only if it beats the free-form list
    on held-out expert labels.
 3. Re-run `scripts/calibrate_confidence.py` on labelled Bengaluru photos before moving the 0.80 threshold.
-4. Paper: §3.3–3.4, §6.1–6.3, §7.3–7.4 still describe the pre-IRC, adapter-era pipeline — revise before submission.
+4. Paper: revised to P4 on 2026-10-27 (all sections, P1–P4 reading guide at the top). Before submission: proof-read, and add Bengaluru expert-label results to §6.4 once they exist.
 5. Open requests: external VLM hand-off (`vlm_handoff/`, 11 `[CONFIRM]` items for the user; folder-batch
    runner + Stage-1 bypass promised but unbuilt); drive-video ingestion (researched, not built).
 

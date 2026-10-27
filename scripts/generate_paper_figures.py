@@ -156,6 +156,62 @@ def fig_first_label():
     save(fig, "fig_6_7_first_label.png")
 
 
+PROBE_CLASSES = ["Linear crack", "Alligator crack", "Pothole", "Raveling", "Weathering",
+                 "Patch and utility cut"]
+
+
+def _short(c: str) -> str:
+    return c.replace(" and utility cut", "")
+
+
+def fig_probe_mcc():
+    """6.8a: per-class MCC, free-form list vs per-type probe, test split, with CI."""
+    T = load("stage2_probe_report.json")["test"]
+    probe = next(k for k in T if k.startswith("probe_"))
+    fig, ax = plt.subplots(figsize=(7.0, 3.4))
+    for off, key, col, lab in ((-0.2, "v0_production", ORANGE, "Free-form list (production)"),
+                               (0.2, probe, BLUE, "Per-type probe")):
+        pts = [T[key]["ci"]["per_class_mcc"][c] for c in PROBE_CLASSES]
+        xs = [i + off for i in range(len(PROBE_CLASSES))]
+        ax.bar(xs, [p["point"] for p in pts], width=0.38, color=col, label=lab)
+        ax.errorbar(xs, [p["point"] for p in pts],
+                    yerr=[[p["point"] - p["lo"] for p in pts], [p["hi"] - p["point"] for p in pts]],
+                    fmt="none", ecolor=INK, capsize=2.5, lw=0.9)
+    ax.axhline(0, color=MUTED, lw=1)
+    ax.set_xticks(range(len(PROBE_CLASSES)), [_short(c) for c in PROBE_CLASSES])
+    ax.set_ylabel("MCC (0 = constant predictor)")
+    ax.set_title("Per-class MCC, Attain test split (95% block-bootstrap CI)", loc="left",
+                 fontsize=9.5, color=INK)
+    ax.legend(fontsize=8, loc="upper center", bbox_to_anchor=(0.5, -0.12), ncol=2)
+    save(fig, "fig_6_8a_probe_mcc.png")
+
+
+def fig_probe_operating_points():
+    """6.8b: recall and false-positive rate per class at the operating point, list vs probe."""
+    T = load("stage2_probe_report.json")["test"]
+    probe = next(k for k in T if k.startswith("probe_"))
+    fig, axes = plt.subplots(1, 2, figsize=(6.8, 2.9), sharey=True)
+    for ax, (metric, title) in zip(axes, (("recall", "Recall (frames with the type)"),
+                                          ("fpr", "False-positive rate (frames without)"))):
+        for i, c in enumerate(PROBE_CLASSES):
+            vals = []
+            for key in ("v0_production", probe):
+                pc = T[key]["per_class"][c]
+                vals.append(pc["recall"] if metric == "recall" else 1 - pc["specificity"])
+            ax.plot(vals, [i, i], color=GRID, lw=2, zorder=1)
+            ax.scatter(vals[0], i, color=ORANGE, s=28, zorder=2, label="Free-form list" if i == 0 else None)
+            ax.scatter(vals[1], i, color=BLUE, s=28, zorder=2, label="Per-type probe" if i == 0 else None)
+        ax.set_xlim(-0.03, 1.03)
+        ax.set_title(title, loc="left", fontsize=9, color=INK)
+        ax.set_xlabel("Share of frames")
+    auc = [T[probe]["per_class"][c]["auroc"] for c in PROBE_CLASSES]
+    axes[0].set_yticks(range(len(PROBE_CLASSES)),
+                       [f"{_short(c)} (AUROC {a:.2f})" for c, a in zip(PROBE_CLASSES, auc)])
+    axes[0].invert_yaxis()
+    axes[0].legend(fontsize=7.5, loc="lower right")
+    save(fig, "fig_6_8b_probe_operating_points.png")
+
+
 def fig_views():
     """6.9: probe macro AUROC change vs the full photo, test split, with CI."""
     v = load("stage2_views_report.json")["test"]
@@ -171,16 +227,17 @@ def fig_views():
     ax.axvline(0, color=MUTED, lw=1, ls="--")
     ax.set_yticks(range(len(rows)), [r[1] for r in rows])
     ax.invert_yaxis()
-    ax.set_xlim(-0.06, 0.12)
+    ax.set_xlim(-0.06, 0.16)
     ax.set_xticks([-0.05, 0, 0.05, 0.10])
-    ax.set_xlabel("Macro AUROC minus full photo (test split, block-bootstrap 95% CI)")
+    ax.set_xlabel("Macro AUROC minus full photo\n(Attain test split, block-bootstrap 95% CI)")
     ax.set_title("Where the probe looks", loc="left", fontsize=9.5, color=INK)
     save(fig, "fig_6_9_views.png")
 
 
 def main() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
-    for f in (fig_confidence_auc, fig_resolution, fig_first_label, fig_views):
+    for f in (fig_confidence_auc, fig_resolution, fig_first_label, fig_probe_mcc,
+              fig_probe_operating_points, fig_views):
         f()
     return 0
 
