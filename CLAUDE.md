@@ -25,6 +25,14 @@ RoadSide app → Cloudinary image + Supabase `photos` row → trigger → `asses
 | `STAGE2_MODE` / `STAGE2_PROBE_CONFIG` | `shadow` / `configs/stage2_probe.json` (views: decide on full photo, record tiles) |
 | `STAGE1_SAFETY_NET` | `true` |
 
+**The production version that must be up is P4** (the paper's label; P1–P3 are historical, see
+"Project History" below). A correctly started server reports, on `GET /health`:
+`model_name=Qwen/Qwen2.5-VL-7B-Instruct`, `adapter_loaded=false`, `quantization_bits=4`,
+`max_image_pixels=1048576`, `prompts_version=v2`, `taxonomy=IRC:82-2015`, `stage2_confidence_mode=field`,
+`stage2_mode=shadow`, `stage2_mode_effective=shadow`, `stage1_safety_net=true`,
+`stage2_probe.parity.ok=true`. If `stage2_mode_effective` is `generate`, the probe failed to load —
+`stage2_probe.reason` says why; the pipeline still works but stops collecting calibration data.
+
 **Is it running?** No. The server last ran on 2026-10-22 (log `eval_results/production_final.log`);
 the machine was restarted since. No upload has arrived since 2026-09-25. To start:
 `.\start.ps1 -AutoStart -Watchdog` (logs to console; redirect with `*> eval_results\production_final.log`),
@@ -35,6 +43,22 @@ below before restarting a running server.
 131 classified, 213 expert_review, 17 rejected_non_pavement. All re-classified on 2026-09-26 under the
 version above. 310 rows carry probe scores. Only **1** row is expert-reviewed — this is the blocker
 for everything below.
+
+**Key metrics at a glance** (every number traceable to `eval_results/` and the paper section shown):
+
+| What | Result | Data | Paper |
+|---|---|---|---|
+| Stage 1 baseline (P1, v1 prompts) | 76.53% accuracy | GAPs test, 10k | §6.1 |
+| QLoRA adapter on RDD (P2) | S1 76.53% → 88.39%; D20 recall 2.57% → 35.22% (in-distribution only) | RDD test, 5,758 | §6.2 |
+| Adapter vs prompts on Attain | trained classes 26.9% (B) vs 31.1% (C); zero-shot 3.8% vs 0% (corrected) | Attain, 769 | §6.3 |
+| Stage 2 free-form list (P4) vs per-type probe | macro MCC 0.111 → 0.223 (test); 0.125 → 0.241 (CV, Δ +0.116 [+0.064, +0.157]) | Attain, 847 | §6.8 |
+| Alligator cracking named by the list | on 8% of frames that have it; probe AUROC 0.70 test / 0.76 CV | Attain | §6.8 |
+| Production Stage 1 recall on distress frames | 51.8% (probe max-score: 93.3%) | Attain | §6.8 |
+| Field-confidence gate AUC | 0.744 (no-FP rule); sequence 0.373 (inverted) | Attain, 407 | §6.5 |
+| Probe confidence AUC on its own errors | 0.78 exact set, 0.87 no-FP (OOF) | Attain | §6.8 |
+| Tiles vs full photo (probe) | test AUROC +0.020 (CI incl. 0); CV MCC 0.248 → 0.308 | Attain | §6.9 |
+| Worker time per upload | ~11 s at 1024² (272 s uncapped), + ~1.5 s shadow probe, + ~6.5 s recorded tiles | A5000 | §6.6, T7 |
+| Production review load | 213 of 361 uploads in expert_review | Bengaluru | T7.2 |
 
 **What is decided (with evidence — don't re-litigate without new data):**
 | Decision | Evidence | Paper |
@@ -75,19 +99,17 @@ A two-stage AI pipeline that classifies pavement distress from phone photos, bui
 
 ## Architecture
 
+Production (P4) — built and deployed:
 ```
-Phone Photo → FastAPI /classify → Stage 1 (Normal/Distress?) → Stage 2 (What type?) → JSON Response
-                                         ↓                              ↓
-                                   confidence < 80%?            Parse: types, severity
-                                         ↓                              ↓
-                                   needs_expert_review=true      Store in Supabase
-                                                                        ↓
-                                                              Expert UI reviews + corrects
-                                                                        ↓
-                                                         Few-shot prompt injection (immediate)
-                                                         + LoRA incremental retrain (permanent)
-                                                                        ↓
-                                                              Versioned adapter saved to adapters/vN/
+RoadSide app → Cloudinary + Supabase `photos` → trigger → `assessments` (pending)
+   → PipelineWorker → Stage 0 pre-filter → Stage 1 (+ safety net) → Stage 2 (+ shadow probe)
+   → field gate 0.80 → classified | expert_review → Supabase → operator dashboard / WebGIS
+Same model also serves POST /classify, /classify/stream (SSE), /classify/base64.
+```
+Phase 3 (designed, NOT built — blocked on expert labels):
+```
+expert_review rows → Expert UI corrections → calibrate_probe_from_expert_labels.py (built)
+   → STAGE2_MODE=probe if it wins → later: few-shot injection + incremental LoRA (not built)
 ```
 
 - **Production model:** Qwen2.5-VL-7B-Instruct **BASE** (no adapter) with v2 Improved Baseline prompts. The RDD-fine-tuned LoRA adapter is built and verified but NOT used in production — empirically beaten by the Improved Baseline on multi-class detection (52.5% vs 16.9%), zero-shot classes (Block crack F1 0.30 vs 0.00), and cross-geography Pothole. See `eval_results/attain_3way_comparison.md`.
@@ -97,8 +119,9 @@ Phone Photo → FastAPI /classify → Stage 1 (Normal/Distress?) → Stage 2 (Wh
 - **Stage 2 per-type probe (shadow, since 2026-09-24):** one Yes/No question per IRC type, P(yes) from logits, ~1.4 s for all 20; stored on every row, labels unchanged until Bengaluru thresholds exist. Also powers the **Stage 1 safety net** (confident "Normal" + probe sees distress ⇒ expert review). See "Stage 2 per-type probe" below.
 - **Condition indicator:** `Patching` (IRC:82 Tables 5.1–5.3) lives in `IRC82_CONDITION_INDICATORS`, never in `distress_types`.
 - **API:** FastAPI with rate limiting, API key auth, CORS, async inference, SSE streaming
-- **DB:** Supabase (PostgreSQL) — tables: assessments, custom_distress_types, retrain_jobs
-- **Expert UI:** Single-page HTML/JS dashboard with Supabase Auth, tab-based pending/reviewed views, adapter version management
+- **DB:** Supabase (PostgreSQL) — `photos` (written by the RoadSide app), `assessments` (pipeline; trigger-linked), `worker_state`, `custom_distress_types`, `retrain_jobs`; migrations 001–004 in `migrations/`
+- **Expert UI:** Single-page HTML/JS (`expert_ui/index.html`), anon-key + RLS scoped to review rows (migration 003), reviewer name instead of login; pending/reviewed tabs
+- **Operator UIs:** `/operator` (worker start/stop, live metrics, model precision) and `/dashboard` (image browser, delete-everywhere, re-classify)
 - **Test Website:** Standalone HTML file for uploading images and getting live AI analysis via SSE
 - **Confidence:** Real logit-based extraction (softmax over class token IDs), NOT heuristic strings
 - **Remote Access:** Cloudflare Tunnel (`cloudflared tunnel --url http://localhost:8000`)
@@ -137,8 +160,7 @@ Phone Photo → FastAPI /classify → Stage 1 (Normal/Distress?) → Stage 2 (Wh
 - 78 of 847 WS_V2.0 images carry no distress annotation (only faded marking / drop-off, or nothing). Earlier evaluations dropped them; the probe study (`stage2_probe_experiment.py`) keeps them as the only all-class negatives.
 - **Purpose:** Zero-shot generalization testing. Model is trained on RDD (4 classes) and evaluated on Attain (10 classes). Classes not in RDD (block crack, raveling, weathering, faded marking, drop-off, manhole) are zero-shot evaluation targets — the model has never trained on them but can recognize them via taxonomy injection in the system prompt.
 - **Phase 3 role:** Misclassifications on Attain's unseen classes become expert correction candidates → few-shot injection → LoRA retrain → measure improvement trajectory
-- Script: `scripts/07_cross_dataset_eval.py` (needs building — loads Attain, runs inference, computes per-class metrics)
-- **IMPORTANT — Annotation format unknown until downloaded:** After downloading Attain, the first task is to inspect the folder structure and annotation format (could be YOLO, VOC XML, COCO JSON, or custom). The `07_cross_dataset_eval.py` script must be written AFTER inspecting the actual data. Run `ls -R Attain/ | head -50` to see structure, then adapt.
+- Scripts: `scripts/07_cross_dataset_eval.py` (built; Attain loading/scoring), `scripts/stage2_probe_experiment.py` and `stage2_views_experiment.py` (all 847 frames, incl. negatives)
 - **Attain class → our taxonomy mapping:**
   ```
   Attain class              → ALL_DISTRESS_TYPES match         → In RDD training?
@@ -176,17 +198,17 @@ Phone Photo → FastAPI /classify → Stage 1 (Normal/Distress?) → Stage 2 (Wh
 15. **No hardcoded file paths** — all paths derive from `PROJECT_ROOT` (auto-detected in `scripts/utils.py`). `validate_all.py` test 12 scans for `C:\Users\suraj` in all .py files and fails if found
 16. **No `capture="environment"`** on mobile file input — this forces rear camera and blocks gallery selection. `accept="image/*"` alone lets mobile users choose camera OR gallery
 
-## 3-Phase Implementation Plan
+## Project History — Pipeline Versions and Phases
 
-### Phase 1: Raw Model Baseline + Test Website + SSE Streaming (CODE DONE)
+| Version | When | Prompts / taxonomy | Adapter | Status | Evidence |
+|---|---|---|---|---|---|
+| P1 | 2026-03 | v1 plain, RDD codes D00–D40 | none | historical baseline | `eval_results/baseline_results.json`, paper §6.1 |
+| P2 | 2026-05-07 | v1 plain, RDD codes | QLoRA `adapters/v2-rdd-2epochs-20260507` | retired 2026-05-16 (lost on Attain) | `finetuned_results.json`, `ab_comparison.json`, §6.2 |
+| P3 | 2026-05-16 | v2 Improved Baseline, pre-IRC names | none | superseded same day | `attain_3way_comparison.md`, §6.3 |
+| **P4** | **2026-05-16 → now** | **v2, IRC:82-2015 (18 types)** | **none** | **production**; since 2026-09: field gate, 1024² cap, shadow probe + tiles, Stage 1 safety net | §6.5–6.9, T7 |
 
-**Goal:** Run raw Qwen2.5-VL-7B-Instruct (no fine-tuning), establish baseline accuracy on ALL RDD test images, expose API with SSE streaming, create test website for remote demo.
-
-**What was built:**
-- `app/model.py` — split `predict()` into `predict_stage1()` and `predict_stage2()` methods (each thread-safe with `self._lock`), `predict()` refactored to call them internally
-- `app/main.py` — added `POST /classify/stream` SSE endpoint using `sse-starlette`, streams progress events per stage (`stage1_start → stage1_complete → stage2_start → stage2_complete → result`)
-- `test_website/index.html` — standalone test website matching expert_ui design (same CSS vars, SK Modernist font, colors, button styles), with API URL input, drag-drop image upload (mobile-friendly via `accept="image/*"`), live SSE progress with spinners/checkmarks, confidence bars with 80% threshold line, session history, error recovery on stream failure
-- `requirements.txt` — added `sse-starlette>=1.6.0`
+**Phase 1 — done (2026-03-29).** Baseline on all 10k GAPs + 5,758 RDD test images; API with SSE
+streaming; test website. Design rules that came out of it are in "Critical Technical Decisions".
 
 **SSE Event Format:**
 ```
@@ -198,102 +220,22 @@ event: result   → {full ClassificationResponse JSON}
 event: error    → {error: "message"} (if something fails)
 ```
 
-**What needs EXECUTING on college machine:**
-```bash
-uv pip install -r requirements.txt
-python scripts/01_convert_gaps_to_images.py
-python scripts/02_build_training_data.py
-python scripts/03_baseline_eval.py --stage 1    # GAPs binary (10k images)
-python scripts/03_baseline_eval.py --stage 2    # RDD type classification (5,758 images)
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
-cloudflared tunnel --url http://localhost:8000   # Expose to internet
-# Open test_website/index.html in browser, paste tunnel URL, test
-```
+**Phase 2 — done (2026-05).** QLoRA fine-tune (43 h, early-stopped; checkpoint-1000), post-fine-tune
+eval, A/B promotion gate passed, Attain cross-dataset study (prompts vs adapter). The adapter won
+in-distribution and lost cross-dataset, so production went to P4. Training workflow and its 7 OOM
+fixes: paper §3.6, §7.5; `scripts/train_qlora.py`, `configs/qwen25vl_qlora_sft.yaml`.
 
-### Phase 2: Fine-Tuned Model + Comparison + Cross-Dataset Evaluation (CODE NOT YET WRITTEN)
+**Since 2026-09 (all on P4):** confidence calibration (§6.5), resolution cap (§6.6), first-label gate
+test (§6.7), per-type probe + safety net (§6.8), views study (§6.9), Supabase load fix (T7.3),
+re-classification of all 341 rows under P4 (2026-09-26, labels reproduced exactly).
 
-**Goal:** Fine-tune Qwen with QLoRA on RDD2022, re-run same test images, compare accuracy vs baseline. Then evaluate on Attain for zero-shot generalization. Auto-detect and load adapter on API startup.
-
-**What needs to be built:**
-- `app/model.py` — add `_find_latest_adapter()` that checks `adapters/active_version.txt` then `outputs/qwen25vl-qlora-gaps-rdd/adapter_config.json`; modify `get_classifier()` to auto-detect if `ADAPTER_PATH` env var not set
-- `scripts/07_cross_dataset_eval.py` — loads Attain images+labels, runs predict_stage2() on each, maps Attain's 10 classes to our taxonomy, computes per-class accuracy/F1/confusion matrix, saves to eval_results/cross_dataset_results.json
-
-**PREREQUISITE:** Phase 1 baseline eval MUST be completed first (scripts 01, 02, 03 executed on A5000 with 7B model, baseline_results.json saved). Phase 2 compares AGAINST those baseline numbers.
-
-**What needs EXECUTING (in this exact order):**
-```bash
-# Step 1: Inspect Attain dataset structure (FIRST — needed to write 07 script)
-ls -R Attain/ | head -50
-
-# Step 2: Build cross-dataset eval script based on Attain's actual format
-# (07_cross_dataset_eval.py — Claude writes this after seeing folder structure)
-
-# Step 3: Run cross-dataset eval on BASELINE model (zero-shot numbers on Attain)
-python scripts/07_cross_dataset_eval.py  # No adapter = baseline model
-
-# Step 4: Fix training config paths for this machine
-python scripts/05_setup_training_config.py
-
-# Step 5: Fine-tune (12-24 hours on A5000)
-llamafactory-cli train configs/qwen25vl_qlora_sft.yaml
-
-# Step 6: Evaluate fine-tuned model on RDD test set (in-distribution)
-python scripts/04_post_finetune_eval.py --adapter-path outputs/qwen25vl-qlora-gaps-rdd/
-
-# Step 7: Evaluate fine-tuned model on Attain (cross-dataset, zero-shot transfer)
-python scripts/07_cross_dataset_eval.py --adapter-path outputs/qwen25vl-qlora-gaps-rdd/
-
-# Step 8: Compare all results → three comparison tables for paper:
-#   Table 1: Baseline vs Fine-tuned on RDD (in-distribution improvement)
-#   Table 2: Baseline vs Fine-tuned on Attain (cross-dataset generalization)
-#   Table 3: Known classes (trained) vs Unknown classes (zero-shot) on Attain
-```
-
-**Three-tier evaluation (core of the paper):**
-1. **In-distribution:** baseline vs fine-tuned on RDD2022 test set (5,758 images, 4 classes)
-2. **Cross-dataset zero-shot:** fine-tuned model on Attain (2,293 images, 10 classes) — measures generalization to unseen geographies + unseen distress types
-3. **Phase 3 improvement:** expert corrections on Attain misclassifications → few-shot + LoRA → before/after comparison
-
-**Zero-shot evaluation strategy:**
-- The system prompt (`STAGE2_SYSTEM_PROMPT` in `utils.py`) includes `ALL_DISTRESS_TYPES` — a comprehensive taxonomy of 20+ distress types with descriptions
-- This taxonomy injection enables "open-world recognition": the VLM's pre-trained visual-semantic alignment matches image features against textual descriptions of distress types it was never trained on
-- Attain classes NOT in RDD training (block crack, raveling, weathering, faded marking, drop-off, manhole) are the zero-shot evaluation targets
-- Published research supports this: DamageQwen (2025, same model family, few-shot improves 18% over zero-shot), Xu et al. (2025, zero-shot LLM beats experts on PSCI), Yong et al. (2023, prompt engineering beats supervised baselines)
-- Even 20-30% accuracy on unseen classes is a publishable zero-shot transfer result
-
-### Phase 3: Expert-in-the-Loop + Incremental Learning (CODE NOT YET WRITTEN)
-
-**Goal:** For images with <80% confidence, experts correct predictions. Corrections improve the model TWO ways: (1) immediate few-shot prompt injection, (2) permanent LoRA incremental retrain. Adapters are versioned for rollback.
-
-**Approach C — Both few-shot + LoRA retrain (chosen for paper-worthiness):**
-- **Immediate improvement:** Expert corrections are stored and injected as few-shot examples in the Stage 2 system prompt (capped at 5 most recent). Model improves instantly without retraining.
-- **Permanent improvement:** Accumulated corrections trigger LoRA incremental retrain (existing `06_incremental_retrain.py`). New adapter saved to `adapters/vN/` with metadata.
-
-**What needs to be built:**
-- `scripts/utils.py` — add `build_dynamic_stage2_prompt(corrections: list[dict])` that appends corrections as few-shot examples to `STAGE2_SYSTEM_PROMPT`
-- `app/model.py` — add `self._few_shot_corrections` list, `add_correction()` method, `reload_adapter(version)` method; load `data/expert_corrections.json` on startup
-- `app/main.py` — add `POST /corrections`, `GET /adapters`, `POST /adapters/switch`, `GET /adapters/active` endpoints
-- `scripts/06_incremental_retrain.py` — add versioned output to `adapters/vN/` with `metadata.json`, update `active_version.txt`
-- `expert_ui/index.html` — add adapter version dropdown, switch button, current version display; after submitting correction also `POST /corrections` to FastAPI
-
-**Versioned Adapter Structure:**
-```
-adapters/
-├── v1/
-│   ├── adapter_config.json
-│   ├── adapter_model.safetensors
-│   └── metadata.json  → {version, created_at, corrections_count, base_adapter, metrics}
-├── v2/ ...
-└── active_version.txt → "v2"
-```
-
-**Corrections Flow:**
-1. Expert corrects prediction in expert_ui
-2. Correction saved to Supabase (authoritative record) AND `POST /corrections` to API (few-shot injection)
-3. Correction persisted to `data/expert_corrections.json` (survives API restarts)
-4. Next prediction for similar images benefits from few-shot example immediately
-5. When enough corrections accumulate, expert clicks "Retrain" → `06_incremental_retrain.py` runs
-6. New adapter saved as `adapters/vN/` → `active_version.txt` updated → API reloads adapter
+**Phase 3 — not started; blocked on expert labels.** Design (unchanged): corrections from the
+expert UI → (1) immediate few-shot injection into the Stage 2 prompt (≤5 most recent), (2) periodic
+incremental LoRA → versioned `adapters/vN/` + `active_version.txt` → hot reload. What exists today:
+the expert UI, stored per-type probe scores on every row, and `calibrate_probe_from_expert_labels.py`.
+Not built: `build_dynamic_stage2_prompt()`, `POST /corrections`, versioned retrain output, adapter
+switch endpoints. Do the probe calibration first (START HERE → Next steps); a new fine-tune should use
+IRC:82 labels from Bengaluru uploads, not RDD's four classes.
 
 ## Project Structure
 
@@ -348,7 +290,7 @@ Capstone/
 ├── gradio_ui/
 │   └── demo.py                        # Interactive testing UI
 ├── expert_ui/
-│   └── index.html                     # Expert review dashboard (Supabase Auth, tabs, retrain trigger, adapter management)
+│   └── index.html                     # Expert review dashboard (anon RLS + reviewer name, pending/reviewed tabs)
 ├── test_website/
 │   └── index.html                     # Public test website: upload image → SSE progress → AI results
 ├── adapters/                          # Versioned LoRA adapters (v1/, v2/, ..., active_version.txt)
@@ -497,7 +439,13 @@ GET /health → {status, model_loaded, model_name, device, adapter_loaded,
                adapter_disabled_in_config, prompts_version, taxonomy,
                pavement_filter_enabled, model_family, model_class,
                quantization_bits, oom_fallback_used, max_image_pixels,
-               stage2_confidence_mode, vram_used_gb}
+               stage2_confidence_mode, stage2_mode, stage2_mode_effective,
+               stage1_safety_net, stage2_probe {enabled, reason, parity, variant,
+               views, provenance}, vram_used_gb}
+
+/classify and /classify/stream results also carry: stage2_mode, stage2_confidence_probe,
+condition_indicators, stage1_safety_net (when Stage 1 said Normal). Stage 2 SSE progress
+events carry the full Stage 2 dict incl. stage2_probe (P(yes) per type, views, recorded tiles).
 
 # Runtime precision control (operator dashboard "Model Precision" panel)
 GET /operator/runtime → {model_path, adapter_path, quantization_bits,
@@ -609,114 +557,34 @@ Both `expert_ui/index.html` and `test_website/index.html` use the same design la
 - Doesn't want to play with code for every operation — needs UIs for adapter management, expert review, etc.
 - Approach C (few-shot + LoRA retrain) was chosen because it gives two methodology sections in the paper and a comparison table showing immediate vs permanent improvement
 
-## What's Done vs What Needs Doing
+## Setup on a New Machine
 
-> **Status 2026-10-27 (authoritative — the checklists below are the original Phase 1 plan and partly historical):**
-> - **Phase 1 DONE** (2026-03-29): 7B baseline on all 10k GAPs + 5,758 RDD test images (`eval_results/baseline_results.json`).
-> - **Phase 2 DONE** (2026-05): QLoRA fine-tune (checkpoint-1000), post-fine-tune eval, A/B gate passed, Attain cross-dataset
->   evaluation and the prompt-vs-adapter study. The adapter won on RDD but lost on Attain, so production runs the base
->   model with v2 IRC prompts (2026-05-16). Since 2026-09: confidence calibration, resolution cap, first-label test,
->   per-type probe (shadow) + safety net, views study — see START HERE and paper §6.5–6.9.
-> - **Phase 3 NOT STARTED**: few-shot injection / incremental LoRA from expert corrections. Blocked on expert labels.
+Status lives in START HERE; history in "Project History". This section is only how to get running.
 
-### Phase 1 — CODE COMPLETE + TESTED ON LAPTOP (3B), NEEDS FULL EVAL ON A5000 (7B)
-
-**Code completed:**
-- [x] `predict_stage1()` and `predict_stage2()` split in `app/model.py`
-- [x] `POST /classify/stream` SSE endpoint in `app/main.py` with `sse-starlette`
-- [x] `test_website/index.html` — standalone HTML, SSE progress, confidence bars, session history
-- [x] `sse-starlette>=1.6.0` added to `requirements.txt`
-- [x] Unparseable Stage 1 responses default to Distress (0% confidence) — errs on caution
-- [x] Client disconnect check before Stage 2 in SSE — avoids wasting GPU on closed connections
-- [x] `image.load()` after `Image.open()` in SSE endpoint — forces pixel decode, frees BytesIO buffer
-- [x] SSE `\r\n` normalization in JS client — Windows servers send `\r\n`, browsers expect `\n`
-- [x] Multi-line `data:` field concatenation in SSE parser — handles split data across lines
-
-**Tested on laptop (RTX 4050, 6GB VRAM):**
-- [x] Data prep: 80k GAPs PNGs + 32k RDD training JSONs generated
-- [x] 7B model does NOT fit on 6GB VRAM — `OutOfMemoryError` even with 4-bit quantization
-- [x] Switched to Qwen2.5-VL-3B-Instruct for laptop testing — works in 4-bit quantization
-- [x] Baseline eval (3B, 50 samples): Stage 1 = 76% accuracy, Stage 2 = 14% accuracy (expected for base model, no fine-tuning)
-- [x] API server runs on localhost:8000 with 3B model
-- [x] Test website connects, uploads images, shows live SSE progress, displays results
-- [x] SSE streaming verified end-to-end (was broken initially due to `\r\n` line endings, fixed)
-
-**Needs executing on college A5000 (7B, fp16, no quantization):**
-- [ ] Run full baseline eval — ALL 10k GAPs + ALL 5,758 RDD test images with 7B model
-- [ ] Save results to `eval_results/baseline_results.json` + confusion matrix PNGs
-- [ ] Start API server with 7B model + Cloudflare tunnel
-- [ ] Test website remotely from phone/laptop via tunnel URL
-
-**Dependency pinning (critical — discovered during laptop testing):**
-- `transformers==4.57.6` + `bitsandbytes==0.44.1` + `accelerate==0.34.2` + `peft==0.14.0`
-- Latest `transformers` (4.52+) has `Params4bit` compatibility bug with `bitsandbytes`
-- These pinned versions are confirmed working on both laptop and should work on A5000
-
-### College Machine Setup Commands
-
-**First time (one-time setup):**
 ```bash
 cd Capstone
 python -m venv venv
-source venv/Scripts/activate
+source venv/Scripts/activate            # Windows Git Bash; PowerShell: venv\Scripts\Activate.ps1
 
-# Install deps
 uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
-uv pip install transformers==4.57.6 accelerate==0.34.2 bitsandbytes==0.44.1 peft==0.14.0
-uv pip install qwen-vl-utils numpy Pillow tqdm psutil scikit-learn matplotlib seaborn
-uv pip install fastapi "uvicorn[standard]" python-multipart slowapi python-dotenv sse-starlette
+uv pip install -r requirements.txt      # pins transformers 4.57.6 + bitsandbytes 0.44.1 (hard pins),
+                                        # accelerate 1.11.0, peft 0.18.1 (what produced all results)
 
-# Download cloudflared (one-time, no admin needed)
+# .env (git-ignored) needs SUPABASE_URL, SUPABASE_SERVICE_KEY, CLOUDINARY_* and the P4 settings in START HERE.
+python scripts/validate_all.py          # 18 checks, CPU only
+.\start.ps1 -AutoStart -Watchdog        # production: loads the model (~1 min), starts the worker
+# check: GET http://localhost:8000/health  (values listed in START HERE)
+
+# Optional remote access
 curl -Lo cloudflared.exe https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe
-
-# Run full baseline eval (7B, fp16, downloads model ~15GB on first run)
-QUANTIZATION_BITS=0 python scripts/03_baseline_eval.py --stage 1
-QUANTIZATION_BITS=0 python scripts/03_baseline_eval.py --stage 2
-
-# Start API server (7B, fp16)
-QUANTIZATION_BITS=0 uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
-
-# Separate terminal — expose to internet
-cd Capstone
 ./cloudflared.exe tunnel --url http://localhost:8000
 ```
 
-**Every time after (historical — production now starts with `.\start.ps1 -AutoStart -Watchdog`, which reads `.env`; see START HERE):**
-```bash
-cd Capstone
-source venv/Scripts/activate
-QUANTIZATION_BITS=0 uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
-
-# Separate terminal:
-cd Capstone
-./cloudflared.exe tunnel --url http://localhost:8000
-```
-
-**Remote testing:** Open `test_website/index.html` on any device (phone, laptop), paste the Cloudflare tunnel URL (e.g., `https://random-words.trycloudflare.com`), click Connect, upload road photo, get AI results live.
-
-### Phase 2 — CODE PARTIALLY DONE, NEEDS EXECUTING
-**Prerequisite: Phase 1 baseline eval must be complete (baseline_results.json exists in eval_results/)**
-- [ ] Download Attain dataset to `Attain/` folder from Mendeley (doi:10.17632/nykrzdm74f/1)
-- [ ] Inspect Attain folder structure + annotation format (`ls -R Attain/ | head -50`)
-- [ ] Build `scripts/07_cross_dataset_eval.py` — Attain cross-dataset evaluation script (format depends on actual Attain structure)
-- [ ] Run `07_cross_dataset_eval.py` on BASELINE model (no adapter) — establishes zero-shot baseline on Attain
-- [ ] Add `_find_latest_adapter()` auto-detection to `app/model.py`
-- [ ] Run `05_setup_training_config.py` to fix paths for college machine
-- [ ] Run LLaMA-Factory training on RTX A5000 (24GB VRAM) — ~12-24 hours
-- [ ] Run `04_post_finetune_eval.py --adapter-path outputs/qwen25vl-qlora-gaps-rdd/` — in-distribution eval
-- [ ] Run `07_cross_dataset_eval.py --adapter-path outputs/qwen25vl-qlora-gaps-rdd/` — cross-dataset eval
-- [ ] Generate three comparison tables for paper: (1) baseline vs fine-tuned on RDD, (2) baseline vs fine-tuned on Attain, (3) known vs unknown classes on Attain
-- [ ] Save all results to eval_results/ + confusion matrix PNGs
-
-### Phase 3 — CODE NOT YET WRITTEN
-- [ ] `build_dynamic_stage2_prompt()` in `scripts/utils.py`
-- [ ] Few-shot correction tracking in `app/model.py`
-- [ ] `POST /corrections` endpoint in `app/main.py`
-- [ ] Versioned adapter output in `scripts/06_incremental_retrain.py`
-- [ ] Adapter management endpoints (`GET /adapters`, `POST /adapters/switch`, `GET /adapters/active`)
-- [ ] `reload_adapter()` method in `app/model.py`
-- [ ] Expert UI enhancements (adapter dropdown, version display)
-- [ ] End-to-end test: correct → few-shot → retrain → version → switch → verify
+- The model (~15 GB) downloads on first load. 7B needs the A5000; on a 6 GB laptop use
+  `MODEL_PATH=Qwen/Qwen2.5-VL-3B-Instruct` for development only (never for reported numbers).
+- Remote testing: open `test_website/index.html`, paste the tunnel URL, upload a road photo.
+- GPU tests (`scripts/tests/test_stage2_probe_integration.py`) load a second model copy (~6 GB);
+  fine next to an idle production server, not during a re-classification run.
 
 ## Model Size vs VRAM Reference
 

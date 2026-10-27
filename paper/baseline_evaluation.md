@@ -18,10 +18,22 @@
 >
 > **Revision 2026-09-24.** Added per-type probing for Stage 2 (§3.4.1), a prevalence-honest evaluation protocol with block-level splits, a recorded protocol and cluster-bootstrap intervals (§5.3), results on all 847 Attain WS_V2.0 frames and on 229 Bengaluru uploads (§6.8), and a discussion of why the probe runs in shadow mode (§7.10). Corrected: Attain's origin (Amirkabir University of Technology, Tehran, not New Zealand; §4.3), the IRC:82 mapping of block cracking (Transverse, §7.3.5.1) and patches (condition indicator, Tables 5.1–5.3), and a class-name parsing bug that had removed 167 patch instances from the zero-shot tally (Tier-2 accuracies 5.88% → 3.81% and 3.27% → 2.11%; ranking unchanged; §4.3).
 >
-> **Not yet revised:** §3.3–3.4 (prompts), §6.1–6.3 and §7.3–7.4 describe the pre-IRC:82
-> taxonomy and a production pipeline that used the QLoRA adapter. Production has since
-> moved to the base model with IRC:82-aligned prompts and no adapter; the adapter is kept
-> for comparison only. Those sections need their own revision before submission.
+> **Revision 2026-10-27 (b) — whole-paper consistency pass.** §1, §2.3 and §3.1–3.4 now
+> describe the production pipeline (base model, IRC:82 v2 prompts, Stage 0 pre-filter, field
+> gate, shadow probe, Stage 1 safety net). §6.1–6.2 are kept as historical results and say which
+> prompts and taxonomy produced them. §6.3 is filled from the stored three-way Attain study, with
+> the corrected zero-shot denominators. §6.4 states the Phase 3 status. §7.1–7.4 explain why the
+> adapter that passed its promotion gate was retired. T2, T3, T5 and T6 updated to the deployed
+> configuration and the package versions actually used. No experimental result changed.
+>
+> **Reading guide.** Results were produced by four successive pipeline versions; every table
+> names the one it used:
+> | Version | Prompts / taxonomy | Adapter | Where reported |
+> |---|---|---|---|
+> | P1 (2026-03) | v1 plain, RDD codes D00–D40 | none | §6.1 |
+> | P2 (2026-05) | v1 plain, RDD codes | QLoRA `v2-rdd-2epochs-20260507` | §6.2, §6.3 (config C) |
+> | P3 (2026-05-16) | v2 Improved Baseline, pre-IRC names | none | §6.3 (config B) |
+> | **P4 (2026-09, production)** | **v2, IRC:82-2015 names** | **none** | §6.5–6.9, T7 |
 
 ---
 
@@ -37,14 +49,14 @@ This work presents a two-stage AI pipeline for pavement distress classification 
 1. Detects whether pavement damage exists (binary classification)
 2. Identifies the specific distress type and severity (multi-class classification)
 3. Flags low-confidence predictions for expert human review
-4. Improves incrementally through expert corrections via few-shot prompt injection and LoRA incremental retraining
+4. Is designed to improve from expert corrections; the correction path is built (expert UI, stored per-type scores, a calibration script), and the retraining loop is future work (§6.4)
 
 The key contributions are:
-- A two-stage pipeline architecture using Qwen2.5-VL-7B-Instruct fine-tuned with QLoRA
+- A two-stage pipeline (plus a pavement pre-filter) built on Qwen2.5-VL-7B-Instruct, aligned to the Indian Roads Congress code IRC:82-2015, with a measured comparison showing that a QLoRA adapter which passed its in-distribution promotion gate generalised worse than careful prompting and was retired (§6.2–6.3, §7.3)
 - Logit-based confidence extraction (not heuristic) for reliable uncertainty quantification
 - A comprehensive taxonomy injection approach enabling zero-shot recognition of distress types beyond the training distribution
 - Cross-dataset generalization evaluation using geographically distinct datasets (RDD2022 from multiple countries; Attain, created by Amirkabir University of Technology, Tehran)
-- An expert-in-the-loop feedback mechanism combining immediate few-shot improvement with permanent LoRA incremental retraining
+- An expert-in-the-loop design in which every production row stores the model's per-type probabilities, so thresholds can be refitted on expert labels without re-running inference (§3.4.1, §6.4)
 - Per-type probing: one Yes/No question per IRC:82 type scored from the model's own next-token probabilities, sharing one cached image prefix (about 1 s for 20 questions). On 847 labelled frames it doubles macro MCC over a free-form type list (0.125 → 0.241, grouped cross-validation), with an image-level confidence that predicts its own errors (AUROC 0.78–0.87)
 - A prevalence-honest evaluation protocol for multi-label distress classification (MCC against a constant baseline, block-level splits and bootstrap, a recorded protocol), which also exposed three scoring and labelling errors in earlier results
 
@@ -67,7 +79,7 @@ Recent work has demonstrated the potential of VLMs for infrastructure inspection
 - **Xu et al. (2025):** Demonstrated that zero-shot LLM-based pavement assessment can match or exceed expert-level performance on the Pavement Surface Condition Index (PSCI).
 - **Yong et al. (2023):** Showed that prompt engineering with VLMs can outperform supervised baselines on infrastructure inspection tasks.
 
-Our work builds on these findings by combining fine-tuning (QLoRA) with taxonomy injection for open-world recognition, evaluated rigorously across both in-distribution and cross-dataset benchmarks.
+Our work builds on these findings with taxonomy injection from a national maintenance code (IRC:82-2015), a head-to-head test of prompting against QLoRA fine-tuning across datasets, per-type probability probing in place of free-form label lists, and an evaluation protocol designed for skewed multi-label data.
 
 ---
 
@@ -85,8 +97,9 @@ We use **Qwen2.5-VL-7B-Instruct** (Alibaba Group, 2024), a 7-billion parameter V
 | Vision Encoder | ViT with dynamic resolution support |
 | Language Model | Qwen2.5-7B-Instruct (decoder-only transformer) |
 | Context Window | 32,768 tokens |
-| Image Resolution | Dynamic (min 7,168 pixels to max 4,840,000 pixels) |
+| Image Resolution | Dynamic; production caps input at 1,048,576 pixels (1024², §3.8, §6.6); min 7,168 |
 | Pre-training Data | Multi-modal web data (images, text, video) |
+| Production weights | 4-bit NF4 storage, bf16 compute, revision `cc594898…` |
 | Instruction Tuning | Chat-optimized with RLHF |
 
 **Why Qwen2.5-VL-7B over alternatives:**
@@ -98,34 +111,35 @@ We use **Qwen2.5-VL-7B-Instruct** (Alibaba Group, 2024), a 7-billion parameter V
 ### 3.2 Two-Stage Pipeline Architecture
 
 ```
-Input Image --> Stage 1: Binary Detection --> Is Distressed?
-                                                  |
-                                     No: Return "Normal"
-                                     Yes: Continue to Stage 2
-                                                  |
-                                              Stage 2: Type Classification
-                                                  |
-                                     Parse: distress types, severity, description
-                                                  |
-                                     Confidence < 80%? --> Flag for expert review
-                                                  |
-                                     Return structured classification result
+Input Image --> Stage 0: Pavement pre-filter --> "no" --> rejected_non_pavement (operator can resend)
+                     | yes / unsure
+                Stage 1: Normal or Distress?
+                     | Normal --> Stage 1 safety net: per-type probe sees distress? --> expert review
+                     |                                   otherwise classified Normal
+                     | Distress
+                Stage 2: free-form IRC:82 types, severity, description
+                     + per-type probe (shadow): P(yes) for 20 questions stored, labels unchanged
+                     |
+                Field confidence < 0.80 on either stage? --> expert review, else classified
 ```
+(Production configuration P4; T7.1 lists every setting.)
 
 **Rationale for two-stage design:**
-- **Computational efficiency:** Stage 2 inference is skipped entirely for normal pavement (approximately 60% of real-world images), halving average inference cost.
+- **Computational efficiency:** Stage 2 is skipped for images Stage 1 calls normal. How much this saves depends on the source: 60% of the GAPs test set is normal, but only 33 of 344 Bengaluru uploads that passed the pre-filter were (T7.2), because citizens photograph damage.
+- **Pre-filter:** Stage 0 removes photographs with no road in them (17 of 361 uploads). It rejects only on a clear "no"; "unsure" and unparseable answers pass, because a false reject loses a citizen's report while a false pass costs one inference.
 - **Independent confidence tracking:** Each stage produces its own confidence score. A high-confidence "Distress" detection followed by a low-confidence type classification correctly triggers expert review for type uncertainty only.
-- **Modular fine-tuning:** Each stage can be fine-tuned independently on its respective dataset (GAPs for Stage 1, RDD for Stage 2) without interference.
+- **Modular fine-tuning:** Each stage can be fine-tuned independently on its respective dataset (GAPs for Stage 1, RDD for Stage 2) without interference. This was done (§3.6, §6.2); production nevertheless runs the base model (§6.3, §7.3).
 
 ### 3.3 Stage 1: Binary Detection
 
 **Task:** Classify a pavement image as "Normal" (no damage) or "Distress" (damage present).
 
-**System Prompt:**
-> You are an expert pavement condition inspector. Your task is to examine pavement images and determine whether the pavement shows any signs of distress or damage. Respond with exactly one word: Normal or Distress.
+**Prompts.** Two prompt sets exist; both are in the repository verbatim (`scripts/utils.py`, `scripts/utils_v2_prompts.py`).
 
-**User Prompt:**
-> Examine this pavement image carefully. Is this pavement in normal condition, or does it show signs of distress? Respond with exactly one word: Normal or Distress.
+- *v1 (used for §6.1–6.2):* a short instruction — an expert inspector persona, a five-item checklist (cracks, crack patterns, holes, edges, surface texture), a list of non-distress look-alikes (shadows, markings, wet patches, oil), and "respond with exactly one word: Normal or Distress".
+- *v2 "Improved Baseline" (production since 2026-05-16):* the same task with a detailed persona (a senior BBMP pavement engineer working to IRC:82-2015), explicit consequences of both error types, a five-step inspection protocol in which any finding means "Distress", the same exclusion list, and a strict one-word answer. The prompt deliberately pushes towards "Distress" when in doubt, because a missed damaged road is the costlier error.
+
+The answer is a single word, so generation is capped at 12 tokens (`STAGE1_MAX_NEW_TOKENS`); a 200-token budget had cost four times the time for identical output (T2.3).
 
 **Confidence Extraction (Stage 1):**
 The confidence score is computed from the model's raw logits, not from string matching or heuristic rules:
@@ -143,25 +157,30 @@ If the model generates a response that cannot be parsed as either "Normal" or "D
 
 **Task:** Given a pavement image showing distress, identify the specific type(s) of damage, estimate severity, and provide a description.
 
-**Taxonomy Injection:**
-The Stage 2 system prompt includes a comprehensive taxonomy of 20+ pavement distress types organized into categories (Cracking, Surface Deformation, Surface Defects, Patches and Repairs, Joint Defects, Other). This taxonomy injection serves two purposes:
-1. **Grounding:** Ensures the model outputs standardized distress type names that can be programmatically parsed
-2. **Open-world recognition:** Enables the model to recognize distress types beyond the RDD training labels (e.g., block crack, raveling, weathering) by leveraging the VLM's pre-trained visual-semantic alignment with textual descriptions
+**Taxonomy injection (IRC:82-2015).** Since 2026-05-16 every label comes from the Indian Roads Congress *Code of Practice for Maintenance of Bituminous Road Surfaces*, IRC:82-2015, Section 7. We use the 18 types that can be judged from a photograph, in the code's four categories:
 
-**Few-Shot Examples in Prompt:**
-Three text-only examples are included in the system prompt demonstrating the expected output format:
-- Example 1: Single distress type (Longitudinal Crack, Low severity)
-- Example 2: Multiple distress types (Alligator Crack + Pothole, High severity)
-- Example 3: Mixed types (Transverse Crack + Inlaid Patch, Medium severity)
+| Category (IRC §) | Types |
+|---|---|
+| Surface defects (7.2) | Bleeding, Streaking, Hungry Surface |
+| Cracks (7.3) | Hairline Cracks, Alligator Cracking, Longitudinal Cracking, Transverse Cracking, Edge Cracking |
+| Deformation (7.4) | Slippage, Rutting, Corrugation, Shoving, Shallow Depression, Settlement |
+| Disintegration (7.5) | Stripping, Ravelling, Potholes, Edge Breaking |
 
-These examples establish the structured output format without using actual training images.
+Two §7 types are left out because a photograph cannot establish them: smooth surface (§7.2.2, severity needs a skid-resistance measurement) and reflection cracking (§7.3.7, needs knowledge of the layer underneath). Patching, which IRC:82 rates as a condition indicator in Tables 5.1–5.3 rather than a distress, is kept separately and never enters the distress list (§4.3). The taxonomy, each type's description, visual cues and severity criteria live in one module (`scripts/irc82_taxonomy.py`); the prompt blocks are generated from it, so prompt and parser cannot drift apart. Compliance was checked in five rounds, including 100 real Attain images with 100% canonical-label compliance and no hallucinated labels (`eval_results/irc82_verification_report.md`).
 
-**Output Format:**
+The injected taxonomy does two jobs: it fixes the vocabulary to names the parser can canonicalise, and it lets the model name types it was never trained on (open-world recognition through its pre-trained visual-semantic alignment).
+
+**Severity.** IRC:82 has three severity vocabularies: Low / Medium / High for most types, Small / Medium / Large for potholes (§7.5.3.4, by depth and width), and *not applicable* for 8 of the 18 types. The prompt gives the code's quantitative criteria (millimetre crack widths, pothole dimensions) and asks for the higher tier when the scale is uncertain. Before storage the answer is normalised to the database's set (Small → Low, Large → High, N/A → None); without this, every pothole rated "Small" or "Large" failed the write (24 rows in May 2026).
+
+**Prompt structure (v2).** A senior-engineer persona, the cost of wrong labels, a six-step protocol (crack orientation, crack patterns, surface defects, disintegration, deformation, then "did you find more than one type?"), the exclusion list, three text-only examples in IRC names (a single longitudinal crack; alligator cracking with a pothole; transverse cracking with ravelling), and the output format:
+
 ```
-DISTRESS_TYPES: <comma-separated list>
-SEVERITY: <Low / Medium / High>
-DESCRIPTION: <one sentence description>
+DISTRESS_TYPES: <comma-separated canonical IRC:82 names>
+SEVERITY: <Low / Medium / High — or Small / Medium / Large for potholes — or N/A>
+DESCRIPTION: <one sentence citing the IRC:82 section>
 ```
+
+The order of that protocol turned out to matter: on Attain the model's list followed it, opening with longitudinal cracking on 96% of frames (§6.7, §6.8).
 
 **Confidence Extraction (Stage 2):**
 Stage 2 uses the **geometric mean of per-token probabilities, restricted to the tokens that carry the classification**:
@@ -414,15 +433,15 @@ Since RDD2022 does not include severity annotations, severity is derived heurist
 |---|---|---|
 | PyTorch | CUDA 12.1 build | GPU computation |
 | transformers | 4.57.6 (pinned) | Model loading + inference |
-| accelerate | 0.34.2 (pinned) | Multi-device model placement |
+| accelerate | 1.11.0 | Multi-device model placement |
 | bitsandbytes | 0.44.1 (pinned) | 4-bit/8-bit quantization |
-| peft | 0.14.0 (pinned) | LoRA adapter management |
+| peft | 0.18.1 | LoRA adapter management |
 | LLaMA-Factory | Latest (git clone) | Fine-tuning orchestration |
 | scikit-learn | Latest | Evaluation metrics |
 | FastAPI | >= 0.110.0 | REST API server |
 | sse-starlette | >= 1.6.0 | Server-Sent Events for streaming |
 
-**Version pinning rationale:** `transformers >= 4.52` introduced a `Params4bit` compatibility bug with `bitsandbytes` that causes model loading to fail. The pinned combination (transformers 4.57.6 + bitsandbytes 0.44.1 + accelerate 0.34.2 + peft 0.14.0) is empirically verified on both laptop and A5000 hardware.
+**Version pinning rationale:** `transformers` and `bitsandbytes` are pinned to 4.57.6 and 0.44.1 because other combinations hit a `Params4bit` loading bug. The versions above are the ones installed in the environment that produced the results (T6).
 
 ### 5.3 Evaluation Protocol
 
@@ -466,6 +485,8 @@ Greedy decoding ensures deterministic, reproducible results across runs.
 ### 6.1 Baseline Results (Pre-Fine-Tuning)
 
 All baseline results use the **raw Qwen2.5-VL-7B-Instruct** model with no fine-tuning, no adapter, evaluated in fp16 (no quantization) on RTX A5000.
+
+> *Version note (P1).* These numbers were produced with the v1 prompts and the RDD class codes (D00/D10/D20/D40), not with the production IRC:82 v2 prompts. They describe the starting point of the project, not the deployed system; the deployed configuration is evaluated in §6.5–6.9.
 
 #### 6.1.1 Stage 1: Binary Detection (GAPs V2 Test Set)
 
@@ -557,6 +578,8 @@ The base model's Stage 2 performance reveals a fundamental limitation of zero-sh
 
 ### 6.2 Fine-Tuned Results (Post-QLoRA Training)
 
+> *Version note (P2).* Same v1 prompts and RDD codes as §6.1, so the deltas below isolate the adapter. The adapter is not used in production; §6.3 and §7.3 explain why.
+
 QLoRA fine-tuned `Qwen2.5-VL-7B-Instruct` with rank-32 LoRA adapter, 2-epoch schedule, paged 8-bit AdamW, on the combined GAPs+RDD training set. Training wall-clock 43h 27m on RTX A5000 24 GB. Best surviving checkpoint: `checkpoint-1000` (eval_loss 0.0485). All numbers verified in `eval_results/finetuned_results.json` and `eval_results/ab_comparison.json`.
 
 #### 6.2.1 Stage 1: Binary Detection (Fine-Tuned)
@@ -606,41 +629,46 @@ The fine-tuned adapter cleared all three production-promotion thresholds defined
 | Stage 2 macro F1 improvement | ≥ +10.0 pp | +19.61 pp | ✅ |
 | Normal-class precision regression | ≥ −5.0 pp | +12.42 pp | ✅ |
 
-The adapter was promoted to `adapters/v2-rdd-2epochs-20260507/` and pointed at via `ADAPTER_PATH` in the production environment.
+The adapter was promoted to `adapters/v2-rdd-2epochs-20260507/` and briefly served production. It was retired on 2026-05-16 after the cross-dataset study in §6.3: the gate measured only in-distribution RDD gains, and on a second dataset the adapter stopped naming potholes, block cracks, ravelling and weathering altogether. The adapter is kept for comparison (`DISABLE_ADAPTER=true` in production).
 
 ### 6.3 Cross-Dataset Generalization (Attain Dataset)
 
-> **[TO BE FILLED — Phase 2]**
-> After running 07_cross_dataset_eval.py on both baseline and fine-tuned models.
+Three configurations were run on the 769 Attain WS_V2.0 frames that carry distress annotations (2026-05, before the IRC:82 migration): **A** the plain v1 prompts, **B** the v2 "Improved Baseline" prompts, both on the base model, and **C** the fine-tuned adapter with v1 prompts. A→B isolates prompting and B→C what the adapter adds on top. Attain merges longitudinal and transverse cracks into one "Linear crack" class. Source: `eval_results/attain_3way_comparison.md`, `scripts/compare_attain_3way.py`.
 
-#### 6.3.1 Known Classes (Trained on RDD)
+**Table 6.3a — Recall over annotated class-instances**
 
-| Class | Baseline Accuracy | Fine-Tuned Accuracy | Delta |
-|---|---|---|---|
-| Alligator Crack | ___ | ___ | ___ |
-| Longitudinal Crack | ___ | ___ | ___ |
-| Transverse Crack | ___ | ___ | ___ |
-| Pothole | ___ | ___ | ___ |
+| Tier | A: plain prompts | B: Improved Baseline | C: fine-tuned | A→B | B→C |
+|---|---:|---:|---:|---:|---:|
+| Classes RDD trained on (Linear, Alligator, Pothole) | 17.51% | 26.93% | **31.11%** | +9.42 pp | +4.18 pp |
+| Zero-shot classes, as first reported (Block, Raveling, Weathering) | 3.27% | **5.88%** | 0.00% | +2.61 pp | −5.88 pp |
+| Zero-shot classes, corrected (adds 167 patch instances, §4.3) | 2.11% | **3.81%** | 0.00% | +1.70 pp | −3.81 pp |
+| Severity exact match | 8.94% | 7.23% | **25.76%** | −1.71 pp | +18.53 pp |
+| Frames given more than one label | 6.63% | **52.54%** | 16.91% | +45.90 pp | −35.63 pp |
 
-#### 6.3.2 Unknown Classes (Zero-Shot via Taxonomy Injection)
+**Table 6.3b — Per-class F1**
 
-| Class | Baseline Accuracy | Fine-Tuned Accuracy | Delta |
-|---|---|---|---|
-| Block Crack | ___ | ___ | ___ |
-| Patch/Utility Cut | ___ | ___ | ___ |
-| Weathering | ___ | ___ | ___ |
-| Raveling | ___ | ___ | ___ |
+| Class | Trained on RDD? | A | B | C |
+|---|---|---:|---:|---:|
+| Linear crack | yes | 0.479 | 0.637 | **0.677** |
+| Alligator crack | yes | 0.018 | 0.055 | **0.217** |
+| Pothole | yes | 0.196 | **0.265** | 0.000 (0 of 163 found) |
+| Block crack | no | 0.215 | **0.304** | 0.000 |
+| Weathering | no | 0.024 | **0.063** | 0.000 |
+| Raveling | no | 0.018 | 0.000 | 0.000 |
+
+Prompting alone delivered about 69% of the total gain on the trained classes (9.42 of 13.60 pp). The adapter added another 4.18 pp there and was far better at severity, but it never named a pothole, block crack, weathering or ravelling on Attain. It also collapsed multi-label answers, from 52.5% of frames to 16.9%. The same adapter over-predicted potholes on close-up Bengaluru photographs, so its pothole behaviour depends on the photographic domain rather than on the damage. IRC:82 §7.1 expects every distress present to be reported, and potholes dominate Bengaluru's roads, so configuration B became production and the adapter was retired (§7.3).
+
+These are pre-IRC results with pre-IRC label names; F1 on classes present in most frames is dominated by prevalence (§5.3). The deployed IRC:82 configuration is re-evaluated with the stricter protocol in §6.8.
 
 ### 6.4 Expert-in-the-Loop Improvement (Phase 3)
 
-> **[TO BE FILLED — Phase 3]**
-> After implementing few-shot prompt injection + LoRA incremental retraining.
+**Status (2026-10-27): not yet run — blocked on expert labels.** One of 361 production uploads carries an expert correction. What is in place:
 
-| Metric | Before Corrections | After Few-Shot | After LoRA Retrain |
-|---|---|---|---|
-| Stage 2 Accuracy (RDD) | ___ | ___ | ___ |
-| Stage 2 Accuracy (Attain Known) | ___ | ___ | ___ |
-| Stage 2 Accuracy (Attain Unknown) | ___ | ___ | ___ |
+- The expert review UI (`expert_ui/`), which writes corrected types, severity and notes to the database.
+- Every production row stores the per-type probe probabilities (and tile scores), so labels collected later can calibrate the probe with no re-inference (§3.4.1).
+- `scripts/calibrate_probe_from_expert_labels.py`, which fits per-type thresholds on expert-labelled uploads with day-grouped cross-validation, compares full-photograph against tiled scores, and writes a candidate configuration only if enough labels exist (at least 15 positives per type). Its whole path was checked on Attain frames standing in for expert labels: it reproduced the cross-validated figures (free-form list 0.125, full-photo probe 0.253, tiled probe 0.308 macro MCC) and chose tiling.
+
+Planned measurements, once roughly 300–1,000 uploads are reviewed: free-form list against the calibrated probe on held-out Bengaluru labels (macro MCC, block/day bootstrap), the review load and error rate at the 0.80 gate, and only then few-shot injection and incremental retraining.
 
 ### 6.5 Stage 2 Confidence Calibration
 
@@ -937,6 +965,8 @@ A type's score combines the full-photo P(yes) with the views' P(yes). The hypoth
 
 ### 7.1 Baseline Performance Interpretation
 
+*(§7.1–7.2 discuss the P1 baseline of §6.1: v1 prompts, RDD codes.)*
+
 The baseline results establish that a general-purpose VLM (Qwen2.5-VL-7B) has some capability for pavement assessment but falls far short of practical deployment:
 
 - **Stage 1** demonstrates that the model understands the concept of pavement damage but has a conservative (Normal-biased) decision boundary. The 96.51% Distress precision indicates that the visual features of damage are distinguishable — the model simply has a high threshold for declaring damage.
@@ -961,13 +991,15 @@ Three of the four predictions in the original Phase 1 plan held; one did not. Ve
 
 Stage 1 also dramatically improved (Distress recall +30.27 pp) — fine-tuning shifted the decision boundary closer to ground truth and away from the Normal-bias.
 
+**Why the adapter is nevertheless not in production.** Every gain above was measured on the RDD test split — the same dataset, cameras and label set the adapter was trained on — and the promotion gate (§6.2.3) only looked there. On Attain (§6.3) the adapter kept a modest edge on the classes it was trained on but lost every class it was not, including potholes on wide frames, and largely stopped reporting more than one distress per image. Fine-tuning on four RDD classes narrowed the model's vocabulary to those four. Prompting with the full IRC:82 taxonomy kept the vocabulary open and recovered most of the gain (69% of it on the trained classes). The general lesson is that a promotion gate measured in-distribution says little about deployment on a different photographic domain. The production domain — handheld close-ups of Bengaluru roads — differs from both RDD's dashcam frames and Attain's vehicle-mounted strips (§4, §6.8).
+
 ### 7.4 What Fine-Tuning Did NOT Solve
 
 D10 transverse-crack recall remains at ~2%. This is the open problem after Phase 2. Two hypotheses:
 - **Insufficient orientation discrimination signal in the loss** — the model can copy the structured response format but the visual feature distinguishing horizontal from vertical cracks isn't leveraged.
 - **Class imbalance in training data** — D10 is the smallest of the four RDD classes. Resampling, focal loss, or pair-based contrastive examples could help.
 
-Future work should target this specifically. The current adapter is otherwise production-ready.
+Future work should target this specifically. Since the adapter was retired (§6.3), these are now questions for any future fine-tune, which should be trained on IRC:82 labels from the production domain rather than on RDD's four classes.
 
 ### 7.5 The Engineering Cost — Not Trivial
 
@@ -1078,20 +1110,23 @@ Production therefore keeps the whole-field gate at 0.80 and the unmodified promp
 4. Auto-detect attention implementation: Flash Attention 2 > SDPA > Eager
 5. Load base model with `device_map="auto"` (automatic device placement)
 6. If adapter exists: load as `PeftModel` (never merge)
-7. Load processor with pixel limits: min=7,168, max=4,840,000
-8. Cache "Normal" and "Distress" token IDs for Stage 1 confidence extraction
-9. Set model to eval mode
+7. Load processor with pixel limits: min=7,168, max=1,048,576 in production (`MAX_IMAGE_PIXELS`; code default 4,840,000)
+8. Free the loader's cached allocator blocks (`torch.cuda.empty_cache()`), run a synthetic-image self-test, and report any CPU/disk offload
+9. Cache "Normal" and "Distress" token IDs for Stage 1 confidence extraction
+10. If the probe is configured, build it and run its fast/slow parity self-test; on failure it is disabled and `/health` reports why
+
+All of this lives in `scripts/model_loader.py`, shared by production and the evaluation scripts so that an A/B comparison cannot be measuring two different loaders.
 
 ### T2.2 Processor Pixel Limits
 
 | Parameter | Value | Rationale |
 |---|---|---|
 | MIN_PIXELS | 7,168 (256 * 28) | Low enough for 160x160 GAPs images (25,600 pixels) |
-| MAX_PIXELS | 4,840,000 (2200 * 2200) | Prevents memory explosion on very large images |
+| MAX_PIXELS | 1,048,576 (1024²) in production; code default 4,840,000 (2200²) | Keeps a photograph's peak GPU memory under the 24 GB card (§6.6) |
 
 These bounds control how many visual tokens the Qwen2.5-VL processor generates. More pixels = more tokens = more VRAM and compute.
 
-**Measured recommendation (§6.6, §7.6):** `MAX_PIXELS = 1,048,576` (1024²). At the current 4,840,000 cap a 1736² photograph is not downscaled and a worker pass reserves a peak of 47.8 GB of GPU memory; at 1024² it needs 19.8 GB and the worker runs 24× faster with no measured accuracy loss on labelled data. The production value remains 4,840,000 until this recommendation is applied.
+**Production value: `MAX_PIXELS = 1,048,576` (1024²), applied 2026-09-23 (§6.6, §7.6).** At the old 4,840,000 cap a 1736² photograph was not downscaled and a worker pass reserved a peak of 47.8 GB of GPU memory; at 1024² it needs 19.8 GB and the worker runs 24× faster with no measured accuracy loss on labelled data.
 
 ### T2.3 Inference Performance
 
@@ -1132,9 +1167,14 @@ The table above is weights at rest. Peak memory during Stage 2 inference on a 17
 | `/classify` | POST | Standard classification (multipart/form-data) |
 | `/classify/stream` | POST | SSE streaming with per-stage progress events |
 | `/classify/base64` | POST | Base64-encoded image input |
-| `/health` | GET | Model status, device info, adapter status |
+| `/health` | GET | Model status, device, adapter, prompt version, quantization, pixel cap, confidence mode, Stage 2 mode (generate / shadow / probe), probe parity result, safety-net state |
 | `/retrain/start` | POST | Trigger incremental retraining |
 | `/retrain/status` | GET | Training progress |
+| `/operator`, `/dashboard` | GET | Operator dashboard (worker start/stop, live metrics, model precision) and image browser |
+| `/operator/start`, `/operator/stop` | POST | Start or drain the queue worker |
+| `/operator/metrics`, `/operator/recent` | GET | Queue metrics and activity feed; served from a 10–30 s cache with backoff (T7.3) |
+| `/operator/runtime/quantization` | POST | Reload the model at 4-bit, 8-bit or bf16 without a restart |
+| `/dashboard/reclassify/{id}` | POST | Send one upload back to the queue |
 | `/dashboard/delete/{id}?confirm=true` | DELETE | Remove an upload everywhere: Cloudinary image first (signed destroy with CDN invalidation), then the app's `photos` row, which cascades to the assessment. Deletes nothing if the image cannot be confirmed gone. |
 
 ### T3.2 SSE Streaming Protocol
@@ -1189,19 +1229,24 @@ All evaluations use greedy decoding (`do_sample=False, temperature=None, top_p=N
 | `capture="environment"` on mobile | Blocks gallery selection | Use `accept="image/*"` alone |
 | JS `history` variable collision | Conflicts with `window.history` | Renamed to `sessionHistory` |
 | CPU offload with bitsandbytes | Not supported | Use smaller model or larger GPU |
+| Over-reserved allocator on Windows (WDDM) | Silent paging to system RAM, 5–25× slower | `empty_cache()` after load and after every image (§7.7) |
+| Attain class `Patch and utility cut- Low` (no space before dash) | 167 patch instances silently dropped from scoring | Regex severity split (§4.3) |
+| IRC "Small"/"Large"/"N/A" severities | Database CHECK constraint rejected the row | `normalize_severity()` before every write |
+| Dashboard polling pulled every row's `raw_response` | Supabase stopped answering (2026-09-26) | JSON-path selects + cached reads (T7.3) |
 
 ## T6. Dependency Pinning (Critical)
 
+Versions that produced every result in §6.5–6.9 and that production runs (checked 2026-10-27):
+
 ```
+torch==2.5.1+cu121
 transformers==4.57.6
-accelerate==0.34.2
 bitsandbytes==0.44.1
-peft==0.14.0
+accelerate==1.11.0
+peft==0.18.1
 ```
 
-These four packages must be installed at these exact versions. Any upgrade to `transformers` past 4.52 will break `bitsandbytes` integration. This combination has been tested on:
-- Windows 11 + RTX 4050 (6GB) + CUDA 12.1
-- Windows 11 + RTX A5000 (24GB) + CUDA 12.1
+`transformers` and `bitsandbytes` are the hard pins: other `transformers` releases hit a `Params4bit` incompatibility with this `bitsandbytes` build. Earlier drafts and `requirements.txt` listed `accelerate 0.34.2` and `peft 0.14.0`; those were the laptop-era versions, and the A5000 environment has run the newer two throughout without issue (`requirements.txt` corrected 2026-10-27). flash-attn has no Windows/cp312 wheel, so attention runs on SDPA. Tested on Windows 11 with an RTX A5000 (24 GB, CUDA 12.1); the 2026-03 laptop runs (RTX 4050, 6 GB) used the 3B model.
 
 ---
 
@@ -1267,4 +1312,4 @@ Figures 6.5–6.9 are drawn by `scripts/generate_paper_figures.py` from the stor
 ---
 
 *Last updated: 2026-10-27*
-*Status: Production pipeline as in T7.1 (base model, v2 IRC prompts, field gate, probe in shadow, Stage 1 safety net). Phase 2 fine-tuning complete but the adapter is not used in production (it lost to the Improved Baseline on Attain). Phase 3 (expert-in-the-loop retraining) not started; it is blocked on expert labels for Bengaluru uploads. Sections §3.3–3.4, §6.1–6.3 and §7.3–7.4 still describe the pre-IRC:82, adapter-era pipeline and need revision before submission.*
+*Status: Production pipeline P4 as in T7.1 (base model, v2 IRC:82 prompts, 1024² cap, field gate at 0.80, probe in shadow with tile scores recorded, Stage 1 safety net). Phase 2 fine-tuning complete; the adapter is retired (§6.3, §7.3). Phase 3 (expert-in-the-loop) is blocked on expert labels for Bengaluru uploads (§6.4). All sections now describe the pipeline version they report; remaining work before submission: the Bengaluru labelled evaluation (§6.4), a related-work pass with full citations, and the dataset release discussed in §7.10.*

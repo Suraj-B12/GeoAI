@@ -10,9 +10,9 @@
 
 # Core ML (pinned — latest transformers breaks bitsandbytes Params4bit)
 transformers==4.57.6
-accelerate==0.34.2
+accelerate==1.11.0
 bitsandbytes==0.44.1
-peft==0.14.0
+peft==0.18.1
 
 # Qwen2.5-VL
 qwen-vl-utils
