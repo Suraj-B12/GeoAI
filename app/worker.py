@@ -249,6 +249,12 @@ class PipelineWorker:
         self._task: Optional[asyncio.Task] = None
         self._stop_event = asyncio.Event()
         self._is_running = False
+        # GPU hold (app/video_pipeline.py): while drive-video extraction or
+        # classification runs, nothing else may use the GPU (the VLM team's
+        # sharing rule). start() during a hold is refused and remembered, so
+        # the worker comes back as soon as the hold is released.
+        self._hold_reason: Optional[str] = None
+        self._start_requested_during_hold = False
 
     @staticmethod
     def _generate_worker_id() -> str:
@@ -261,6 +267,24 @@ class PipelineWorker:
     def is_running(self) -> bool:
         return self._is_running
 
+    @property
+    def hold_reason(self) -> Optional[str]:
+        return self._hold_reason
+
+    def hold(self, reason: str) -> None:
+        """Refuse start() until release_hold(). Does not stop a running loop:
+        the holder drains it with stop() itself."""
+        self._hold_reason = reason
+        self._start_requested_during_hold = False
+
+    def release_hold(self) -> bool:
+        """End the hold; True if a start() was refused meanwhile (the holder
+        then starts the worker, so that request is not lost)."""
+        requested = self._start_requested_during_hold
+        self._hold_reason = None
+        self._start_requested_during_hold = False
+        return requested
+
     # -----------------------------------------------------------
     # Lifecycle
     # -----------------------------------------------------------
@@ -269,6 +293,10 @@ class PipelineWorker:
         """Begin the worker loop. Returns initial state dict."""
         if self._is_running:
             return {"status": "already_running", "worker_id": self.worker_id}
+        if self._hold_reason:
+            self._start_requested_during_hold = True
+            log.info("Start of worker '%s' deferred: %s", self.worker_id, self._hold_reason)
+            return {"status": "held", "worker_id": self.worker_id, "reason": self._hold_reason}
 
         # Recover any stale claims from previous crashed runs
         try:
@@ -331,6 +359,7 @@ class PipelineWorker:
         return {
             "worker_id": self.worker_id,
             "is_running": self._is_running,
+            "hold_reason": self._hold_reason,
             **self.metrics.to_dict(),
             "config": {
                 "poll_interval_s": POLL_INTERVAL_SECONDS,

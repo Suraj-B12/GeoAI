@@ -97,8 +97,17 @@ DASHBOARD_UI_HTML = PROJECT_ROOT / "operator_ui" / "dashboard.html"
 TEST_FIXTURES_DIR = PROJECT_ROOT / "test_fixtures"
 
 
+def _db_backend() -> str:
+    """DB_BACKEND: 'supabase' (default when unset, production) or 'postgres'
+    (local PostgreSQL at DATABASE_URL, app/local_db.py)."""
+    return (os.environ.get("DB_BACKEND") or "supabase").strip().lower()
+
+
 def _has_supabase_env() -> bool:
-    """Operator pipeline only activates if both env vars are set."""
+    """Operator pipeline only activates if its database is configured:
+    SUPABASE_URL + SUPABASE_SERVICE_KEY, or DATABASE_URL with DB_BACKEND=postgres."""
+    if _db_backend() == "postgres":
+        return bool(os.environ.get("DATABASE_URL"))
     return bool(os.environ.get("SUPABASE_URL")) and bool(os.environ.get("SUPABASE_SERVICE_KEY"))
 
 
@@ -130,10 +139,25 @@ async def lifespan(app: FastAPI):
     classifier = get_classifier()
     print("[API] Model ready.")
 
-    if _has_supabase_env():
-        print("[API] Supabase env vars detected — initializing operator pipeline...")
+    if _db_backend() not in ("supabase", "postgres"):
+        # Never guess: a typo must not send local work to the production database.
+        print(f"[API] WARNING: DB_BACKEND={_db_backend()!r} is not 'supabase' or 'postgres' "
+              "— operator pipeline disabled.")
+        app.state.supabase_client = None
+        app.state.image_client = None
+    elif _has_supabase_env():
+        if _db_backend() == "postgres":
+            print("[API] DB_BACKEND=postgres — initializing operator pipeline on the local PostgreSQL...")
+        else:
+            print("[API] Supabase env vars detected — initializing operator pipeline...")
         try:
-            supabase_client = build_supabase_client()
+            if _db_backend() == "postgres":
+                # LocalDb has the supabase_client operations; the worker and the
+                # dashboard code receive it in place of the httpx client.
+                from app.local_db import build_local_db
+                supabase_client = await build_local_db()
+            else:
+                supabase_client = build_supabase_client()
             image_client = build_image_client()
             worker = PipelineWorker(
                 supabase_client=supabase_client,
@@ -153,7 +177,8 @@ async def lifespan(app: FastAPI):
             app.state.image_client = None
     else:
         print("[API] Supabase env vars not set — operator pipeline disabled.")
-        print("[API] Set SUPABASE_URL and SUPABASE_SERVICE_KEY to enable.")
+        print("[API] Set SUPABASE_URL and SUPABASE_SERVICE_KEY to enable "
+              "(or DB_BACKEND=postgres with DATABASE_URL).")
         app.state.supabase_client = None
         app.state.image_client = None
 
@@ -221,6 +246,10 @@ if _test_fixtures_enabled() and TEST_FIXTURES_DIR.exists():
         name="test_fixtures",
     )
     print(f"[API] TEST FIXTURES enabled — serving {TEST_FIXTURES_DIR} at /test_fixtures")
+
+# Drive-video pipeline: /operator/video/* router + its service inside the lifespan above.
+from app.video_routes import install as install_video_pipeline  # noqa: E402
+install_video_pipeline(app)
 
 
 # ============================================================

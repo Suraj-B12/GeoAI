@@ -4,14 +4,34 @@
 # Stops the uvicorn server gracefully (calls /operator/stop first to drain
 # any in-flight worker, then kills the process).
 #
+# With DB_BACKEND=postgres (in .env or the environment) the local PostgreSQL
+# cluster (PG_BIN / PG_DATA) is stopped afterwards ("fast" mode: open
+# transactions roll back, nothing committed is lost). -KeepDb leaves it running.
+#
 # Usage:
 #   .\stop.ps1            # graceful (drains worker first)
 #   .\stop.ps1 -Force     # immediate kill
+#   .\stop.ps1 -KeepDb    # leave the local PostgreSQL running
 # ============================================================
 
-param([switch]$Force, [int]$Port = 8000)
+param([switch]$Force, [switch]$KeepDb, [int]$Port = 8000)
 
 $ErrorActionPreference = "Continue"
+$ProjectRoot = $PSScriptRoot
+
+function Get-EnvSetting {
+    # A setting from the process environment, else from .env (same order as uvicorn's --env-file).
+    param([string]$Name, [string]$Default = '')
+    $v = [Environment]::GetEnvironmentVariable($Name)
+    if ($v) { return $v.Trim() }
+    $envFile = Join-Path $ProjectRoot '.env'
+    if (Test-Path $envFile) {
+        foreach ($line in Get-Content $envFile) {
+            if ($line -match "^\s*$Name\s*=\s*(.*?)\s*$") { return $Matches[1].Trim('"').Trim("'") }
+        }
+    }
+    return $Default
+}
 
 if (-not $Force) {
     Write-Host "Asking worker to drain..."
@@ -31,7 +51,6 @@ $procs = Get-CimInstance Win32_Process |
 
 if (-not $procs) {
     Write-Host "No uvicorn processes found. Already stopped." -ForegroundColor Yellow
-    exit 0
 }
 
 foreach ($p in $procs) {
@@ -47,6 +66,25 @@ foreach ($p in $procs) {
 # Stop any auto-start-worker background jobs left in the shell
 Get-Job -Name "auto-start-worker" -ErrorAction SilentlyContinue |
     Remove-Job -Force -ErrorAction SilentlyContinue | Out-Null
+
+# Local PostgreSQL (DB_BACKEND=postgres only), after the server that uses it
+if ((Get-EnvSetting 'DB_BACKEND' 'supabase').ToLower() -eq 'postgres' -and -not $KeepDb) {
+    $pgCtl  = Join-Path (Get-EnvSetting 'PG_BIN' 'C:\GeoAI\pgsql\bin') 'pg_ctl.exe'
+    $pgData = Get-EnvSetting 'PG_DATA' 'C:\GeoAI\pgdata'
+    if (-not (Test-Path $pgCtl)) {
+        Write-Host "pg_ctl.exe not found at $pgCtl - local PostgreSQL not stopped." -ForegroundColor Yellow
+    } else {
+        & $pgCtl status -D $pgData *> $null
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "Local PostgreSQL is not running." -ForegroundColor Yellow
+        } else {
+            Write-Host "Stopping local PostgreSQL ($pgData)..." -ForegroundColor Cyan
+            & $pgCtl stop -D $pgData -m fast -w -t 60 *> $null
+            if ($LASTEXITCODE -eq 0) { Write-Host "  stopped." -ForegroundColor Green }
+            else { Write-Host "  pg_ctl stop failed (exit $LASTEXITCODE) - see $pgData\log\postgres.log" -ForegroundColor Red }
+        }
+    }
+}
 
 Write-Host ""
 Write-Host "Shutdown complete." -ForegroundColor Green

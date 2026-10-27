@@ -1,0 +1,503 @@
+{
+ "_source": "Supabase PostgREST OpenAPI (GET /rest/v1/ with the service key), read 2026-10-27. Trimmed to table/view definitions and RPC argument schemas. Reference for scripts/tests/test_local_db.py (local schema == live schema).",
+ "definitions": {
+  "retrain_jobs": {
+   "required": [
+    "id",
+    "status"
+   ],
+   "properties": {
+    "id": {
+     "default": "gen_random_uuid()",
+     "description": "Note:\nThis is a Primary Key.<pk/>",
+     "format": "uuid",
+     "type": "string"
+    },
+    "status": {
+     "default": "pending",
+     "format": "text",
+     "type": "string"
+    },
+    "corrections_count": {
+     "default": 0,
+     "format": "integer",
+     "type": "integer"
+    },
+    "started_at": {
+     "format": "timestamp with time zone",
+     "type": "string"
+    },
+    "completed_at": {
+     "format": "timestamp with time zone",
+     "type": "string"
+    },
+    "progress_pct": {
+     "default": 0,
+     "format": "real",
+     "type": "number"
+    },
+    "current_step": {
+     "default": 0,
+     "format": "integer",
+     "type": "integer"
+    },
+    "total_steps": {
+     "default": 0,
+     "format": "integer",
+     "type": "integer"
+    },
+    "error_message": {
+     "format": "text",
+     "type": "string"
+    },
+    "adapter_path": {
+     "format": "text",
+     "type": "string"
+    },
+    "created_at": {
+     "default": "now()",
+     "format": "timestamp with time zone",
+     "type": "string"
+    }
+   },
+   "type": "object"
+  },
+  "custom_distress_types": {
+   "required": [
+    "id",
+    "name"
+   ],
+   "properties": {
+    "id": {
+     "default": "gen_random_uuid()",
+     "description": "Note:\nThis is a Primary Key.<pk/>",
+     "format": "uuid",
+     "type": "string"
+    },
+    "name": {
+     "format": "text",
+     "type": "string"
+    },
+    "description": {
+     "default": "",
+     "format": "text",
+     "type": "string"
+    },
+    "added_by": {
+     "format": "uuid",
+     "type": "string"
+    },
+    "created_at": {
+     "default": "now()",
+     "format": "timestamp with time zone",
+     "type": "string"
+    }
+   },
+   "type": "object"
+  },
+  "pipeline_metrics": {
+   "properties": {
+    "pending_count": {
+     "format": "bigint",
+     "type": "integer"
+    },
+    "processing_count": {
+     "format": "bigint",
+     "type": "integer"
+    },
+    "classified_count": {
+     "format": "bigint",
+     "type": "integer"
+    },
+    "expert_review_count": {
+     "format": "bigint",
+     "type": "integer"
+    },
+    "done_count": {
+     "format": "bigint",
+     "type": "integer"
+    },
+    "failed_count": {
+     "format": "bigint",
+     "type": "integer"
+    },
+    "total_count": {
+     "format": "bigint",
+     "type": "integer"
+    },
+    "throughput_last_hour": {
+     "format": "bigint",
+     "type": "integer"
+    },
+    "throughput_last_minute": {
+     "format": "bigint",
+     "type": "integer"
+    },
+    "avg_stage1_confidence_last_hour": {
+     "format": "double precision",
+     "type": "number"
+    },
+    "avg_stage2_confidence_last_hour": {
+     "format": "double precision",
+     "type": "number"
+    },
+    "distressed_last_hour": {
+     "format": "bigint",
+     "type": "integer"
+    },
+    "normal_last_hour": {
+     "format": "bigint",
+     "type": "integer"
+    }
+   },
+   "type": "object"
+  },
+  "worker_state": {
+   "required": [
+    "worker_id",
+    "is_running",
+    "last_heartbeat",
+    "images_processed",
+    "images_failed",
+    "images_flagged_review",
+    "created_at",
+    "updated_at"
+   ],
+   "properties": {
+    "worker_id": {
+     "description": "Note:\nThis is a Primary Key.<pk/>",
+     "format": "text",
+     "type": "string"
+    },
+    "is_running": {
+     "default": false,
+     "format": "boolean",
+     "type": "boolean"
+    },
+    "started_at": {
+     "format": "timestamp with time zone",
+     "type": "string"
+    },
+    "stopped_at": {
+     "format": "timestamp with time zone",
+     "type": "string"
+    },
+    "last_heartbeat": {
+     "default": "now()",
+     "format": "timestamp with time zone",
+     "type": "string"
+    },
+    "current_image_id": {
+     "description": "Note:\nThis is a Foreign Key to `assessments.id`.<fk table='assessments' column='id'/>",
+     "format": "uuid",
+     "type": "string"
+    },
+    "images_processed": {
+     "default": 0,
+     "format": "integer",
+     "type": "integer"
+    },
+    "images_failed": {
+     "default": 0,
+     "format": "integer",
+     "type": "integer"
+    },
+    "images_flagged_review": {
+     "default": 0,
+     "format": "integer",
+     "type": "integer"
+    },
+    "avg_stage1_time_ms": {
+     "default": 0,
+     "format": "real",
+     "type": "number"
+    },
+    "avg_stage2_time_ms": {
+     "default": 0,
+     "format": "real",
+     "type": "number"
+    },
+    "last_error": {
+     "format": "text",
+     "type": "string"
+    },
+    "last_processed_at": {
+     "format": "timestamp with time zone",
+     "type": "string"
+    },
+    "created_at": {
+     "default": "now()",
+     "format": "timestamp with time zone",
+     "type": "string"
+    },
+    "updated_at": {
+     "default": "now()",
+     "format": "timestamp with time zone",
+     "type": "string"
+    }
+   },
+   "type": "object"
+  },
+  "photos": {
+   "required": [
+    "id",
+    "image_url"
+   ],
+   "properties": {
+    "id": {
+     "description": "Note:\nThis is a Primary Key.<pk/>",
+     "format": "bigint",
+     "type": "integer"
+    },
+    "image_url": {
+     "format": "text",
+     "type": "string"
+    },
+    "address": {
+     "default": "",
+     "format": "text",
+     "type": "string"
+    },
+    "latitude": {
+     "format": "double precision",
+     "type": "number"
+    },
+    "longitude": {
+     "format": "double precision",
+     "type": "number"
+    },
+    "created_at": {
+     "default": "now()",
+     "format": "timestamp with time zone",
+     "type": "string"
+    },
+    "captured_at": {
+     "description": "Original photo capture time when known. NULL means unavailable; created_at remains upload time.",
+     "format": "timestamp with time zone",
+     "type": "string"
+    }
+   },
+   "type": "object"
+  },
+  "pipeline_class_distribution": {
+   "properties": {
+    "distress_type": {
+     "format": "text",
+     "type": "string"
+    },
+    "count": {
+     "format": "bigint",
+     "type": "integer"
+    }
+   },
+   "type": "object"
+  },
+  "assessments": {
+   "required": [
+    "id",
+    "image_url",
+    "status",
+    "retry_count"
+   ],
+   "properties": {
+    "id": {
+     "default": "gen_random_uuid()",
+     "description": "Note:\nThis is a Primary Key.<pk/>",
+     "format": "uuid",
+     "type": "string"
+    },
+    "user_id": {
+     "format": "uuid",
+     "type": "string"
+    },
+    "image_url": {
+     "format": "text",
+     "type": "string"
+    },
+    "image_width": {
+     "format": "integer",
+     "type": "integer"
+    },
+    "image_height": {
+     "format": "integer",
+     "type": "integer"
+    },
+    "latitude": {
+     "format": "double precision",
+     "type": "number"
+    },
+    "longitude": {
+     "format": "double precision",
+     "type": "number"
+    },
+    "address": {
+     "format": "text",
+     "type": "string"
+    },
+    "road_segment_id": {
+     "format": "text",
+     "type": "string"
+    },
+    "stage1_label": {
+     "format": "text",
+     "type": "string"
+    },
+    "stage1_confidence": {
+     "format": "real",
+     "type": "number"
+    },
+    "is_distressed": {
+     "format": "boolean",
+     "type": "boolean"
+    },
+    "distress_types": {
+     "format": "jsonb"
+    },
+    "severity": {
+     "format": "text",
+     "type": "string"
+    },
+    "description": {
+     "default": "",
+     "format": "text",
+     "type": "string"
+    },
+    "stage2_confidence": {
+     "default": 0,
+     "format": "real",
+     "type": "number"
+    },
+    "needs_expert_review": {
+     "default": false,
+     "format": "boolean",
+     "type": "boolean"
+    },
+    "expert_reviewed": {
+     "default": false,
+     "format": "boolean",
+     "type": "boolean"
+    },
+    "expert_corrected_types": {
+     "format": "jsonb"
+    },
+    "expert_corrected_severity": {
+     "format": "text",
+     "type": "string"
+    },
+    "expert_notes": {
+     "format": "text",
+     "type": "string"
+    },
+    "reviewed_by": {
+     "format": "uuid",
+     "type": "string"
+    },
+    "reviewed_at": {
+     "format": "timestamp with time zone",
+     "type": "string"
+    },
+    "included_in_retrain": {
+     "default": false,
+     "format": "boolean",
+     "type": "boolean"
+    },
+    "processing_time_ms": {
+     "format": "real",
+     "type": "number"
+    },
+    "model_version": {
+     "default": "1.0.0",
+     "format": "text",
+     "type": "string"
+    },
+    "raw_response": {
+     "format": "jsonb"
+    },
+    "created_at": {
+     "default": "now()",
+     "format": "timestamp with time zone",
+     "type": "string"
+    },
+    "status": {
+     "default": "pending",
+     "format": "text",
+     "type": "string"
+    },
+    "claimed_at": {
+     "format": "timestamp with time zone",
+     "type": "string"
+    },
+    "claimed_by": {
+     "format": "text",
+     "type": "string"
+    },
+    "retry_count": {
+     "default": 0,
+     "format": "integer",
+     "type": "integer"
+    },
+    "error_message": {
+     "format": "text",
+     "type": "string"
+    },
+    "processed_at": {
+     "format": "timestamp with time zone",
+     "type": "string"
+    },
+    "photo_id": {
+     "description": "Note:\nThis is a Foreign Key to `photos.id`.<fk table='photos' column='id'/>",
+     "format": "bigint",
+     "type": "integer"
+    },
+    "reviewer_name": {
+     "format": "text",
+     "type": "string"
+    },
+    "pavement_filter_decision": {
+     "format": "text",
+     "type": "string"
+    },
+    "pavement_filter_raw": {
+     "format": "text",
+     "type": "string"
+    },
+    "pavement_filter_at": {
+     "format": "timestamp with time zone",
+     "type": "string"
+    }
+   },
+   "type": "object"
+  }
+ },
+ "rpc": {
+  "/rpc/rls_auto_enable": {
+   "type": "object"
+  },
+  "/rpc/claim_pending_assessments": {
+   "properties": {
+    "batch_size": {
+     "format": "integer",
+     "type": "integer"
+    },
+    "worker_id": {
+     "format": "text",
+     "type": "string"
+    }
+   },
+   "required": [
+    "batch_size",
+    "worker_id"
+   ],
+   "type": "object"
+  },
+  "/rpc/reset_stale_processing_assessments": {
+   "properties": {
+    "stale_threshold_seconds": {
+     "format": "integer",
+     "type": "integer"
+    }
+   },
+   "type": "object"
+  }
+ }
+}

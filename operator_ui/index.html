@@ -806,6 +806,61 @@ body {
 }
 .runtime-note b { color: var(--text); font-weight: 600; }
 .runtime-note .rt-warn { color: var(--amber); font-weight: 600; }
+
+/* ============ VIDEO PIPELINE ============ */
+.vp-switch {
+  display: inline-flex; align-items: center; gap: 10px;
+  cursor: pointer; font-size: 13px; font-weight: 600; user-select: none;
+}
+.vp-switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.vp-track {
+  width: 40px; height: 22px; border-radius: 999px;
+  background: var(--border-strong); position: relative;
+  transition: background var(--transition);
+}
+.vp-track::after {
+  content: ''; position: absolute; top: 3px; left: 3px;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--surface); box-shadow: var(--shadow-sm);
+  transition: transform var(--transition);
+}
+.vp-switch input:checked + .vp-track { background: var(--green); }
+.vp-switch input:checked + .vp-track::after { transform: translateX(18px); }
+.vp-switch input:disabled + .vp-track { opacity: 0.5; cursor: not-allowed; }
+.vp-switch input:focus-visible + .vp-track { outline: 2px solid var(--text); outline-offset: 2px; }
+.vp-table-wrap { overflow-x: auto; margin-top: 14px; }
+.vp-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.vp-table th {
+  text-align: left; font-size: 10px; font-weight: 700; letter-spacing: 0.5px;
+  text-transform: uppercase; color: var(--text-tertiary);
+  padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap;
+}
+.vp-table td { padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: top; white-space: nowrap; }
+.vp-table tr.vp-row { cursor: pointer; }
+.vp-table tr.vp-row:hover td { background: var(--surface-hover); }
+.vp-table td.vp-id { font-family: ui-monospace, SF Mono, Menlo, monospace; font-weight: 600; }
+.vp-table .vp-err { color: var(--red); white-space: normal; max-width: 520px; margin-top: 4px; }
+.vp-table .muted { color: var(--text-tertiary); }
+.vp-badge {
+  display: inline-block; padding: 2px 8px; border-radius: 6px;
+  font-size: 11px; font-weight: 600; background: var(--tag-bg); color: var(--text-secondary);
+}
+.vp-badge.extracting, .vp-badge.classifying, .vp-badge.storing { background: var(--blue-light); color: var(--blue); }
+.vp-badge.stored { background: var(--green-light); color: var(--green); }
+.vp-badge.cleaned { background: var(--green); color: white; }
+.vp-badge.failed { background: var(--red-light); color: var(--red); }
+.vp-detail td { background: var(--surface-hover); white-space: normal; }
+.vp-detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.vp-detail h4 {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase;
+  color: var(--text-tertiary); margin-bottom: 4px;
+}
+.vp-detail pre {
+  margin-top: 8px; padding: 8px 10px; max-height: 280px; overflow: auto;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  font-family: ui-monospace, SF Mono, Menlo, monospace; font-size: 11px; white-space: pre-wrap; word-break: break-word;
+}
+.vp-detail .vp-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 </style>
 </head>
 <body>
@@ -1113,6 +1168,47 @@ body {
     </div>
   </div>
 
+  <!-- ============ VIDEO PIPELINE ============ -->
+  <div class="section" id="video-section">
+    <div class="section-title">
+      <span class="label-row">
+        Video Pipeline
+        <span class="help-icon" data-tip="When on, every new drive-video session package dropped into the inbox runs the whole chain with no manual step: validate, extract the best frame per 5 m, classify on this server, store in the local database, clean up. The citizen-upload worker is drained and paused while a session extracts or classifies (one GPU job at a time) and restarted afterwards. Turning it off stops after the current stage; that session resumes from its stage next time.">?</span>
+      </span>
+    </div>
+    <div class="panel" id="video-panel">
+      <div class="adapter-row">
+        <div class="adapter-info">
+          <div class="adapter-label">video_pipeline</div>
+          <div class="adapter-value" id="vp-state">loading…</div>
+        </div>
+        <div class="adapter-controls">
+          <label class="vp-switch" title="Turn the video pipeline on or off">
+            <input type="checkbox" id="vp-toggle" disabled />
+            <span class="vp-track"></span>
+            <span id="vp-toggle-label">off</span>
+          </label>
+        </div>
+      </div>
+      <div class="runtime-note" id="vp-note"></div>
+      <div class="adapter-status" id="vp-status"></div>
+      <div class="vp-table-wrap">
+        <table class="vp-table">
+          <thead>
+            <tr>
+              <th>Session</th><th>State</th><th>Progress</th><th>Route</th>
+              <th>Send / audit / skip</th><th>Covered / not</th><th>VLM s/img (med / p95)</th>
+              <th>Errors / retries</th><th>Storage GB (before → after)</th><th>Updated</th>
+            </tr>
+          </thead>
+          <tbody id="vp-rows">
+            <tr><td colspan="10" class="muted">No sessions yet.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
   <!-- Adapter switcher hidden by default — only shown when
        DISABLE_ADAPTER is OFF (i.e., we're running an experimental A/B config).
        In production (DISABLE_ADAPTER=true), the Pipeline panel above shows
@@ -1291,6 +1387,14 @@ let recentTimer = null;
 // Helpers
 // ============================================================
 function apiBase() { return (apiBaseInput.value || '').replace(/\/$/, ''); }
+
+// image_url is a Cloudinary URL, or (DB_BACKEND=postgres) an absolute path in the local image
+// store, which a browser can't load: the server serves those at /local-images (app/video_routes.py).
+function imageSrc(url) {
+  if (!url) return '';
+  return /^([A-Za-z]:[\\/]|\\\\)/.test(url)
+    ? `${apiBase()}/local-images?path=${encodeURIComponent(url)}` : url;
+}
 function apiKey() { return apiKeyInput.value.trim(); }
 
 function authHeaders() {
@@ -1359,6 +1463,13 @@ async function startPipeline() {
   startBtn.disabled = true;
   try {
     const r = await apiCall('/operator/start', {method: 'POST'});
+    if (r.status === 'held') {
+      // The video pipeline holds the GPU; the worker starts by itself when it is done.
+      toast('Pipeline will start when the video pipeline releases the GPU: ' + (r.reason || ''), 'info');
+      startBtn.disabled = false;
+      pollNow();
+      return;
+    }
     toast('Pipeline started: ' + (r.worker_id || ''), 'success');
     setRunning(true);
     pollNow();
@@ -1626,7 +1737,7 @@ async function updateCurrentCard(currentId, lastProcessedId, worker) {
     document.getElementById('cur-url').textContent = meta.image_url || 'loading...';
 
     if (meta.image_url) {
-      img.src = meta.image_url;
+      img.src = imageSrc(meta.image_url);
       img.style.display = 'block';
       ph.style.display = 'none';
       img.onerror = () => {
@@ -2256,6 +2367,221 @@ async function loadPipelineHealth() {
 }
 
 // ============================================================
+// VIDEO PIPELINE — toggle + per-session state and metrics
+// ============================================================
+const vpToggle      = document.getElementById('vp-toggle');
+const vpToggleLabel = document.getElementById('vp-toggle-label');
+const vpStateEl     = document.getElementById('vp-state');
+const vpNote        = document.getElementById('vp-note');
+const vpStatus      = document.getElementById('vp-status');
+const vpRows        = document.getElementById('vp-rows');
+const _vpOpen = new Set();      // expanded session keys survive the 5 s refresh
+const _vpLogs = {};             // key -> rendered log text, once requested
+let _vpPollTimer = null;
+let _vpBusy = false;
+
+function setVideoStatus(text, kind) {
+  if (!text) { vpStatus.className = 'adapter-status'; vpStatus.textContent = ''; return; }
+  vpStatus.className = 'adapter-status shown ' + (kind || 'info');
+  vpStatus.textContent = text;
+}
+function fmtMeters(m) {
+  if (m == null || isNaN(m)) return '—';
+  return m >= 1000 ? (m / 1000).toFixed(2) + ' km' : Math.round(m) + ' m';
+}
+function fmtNum(x, digits) {
+  return (x == null || isNaN(x)) ? '—' : Number(x).toFixed(digits);
+}
+
+function renderVideoStatus(st) {
+  vpToggle.disabled = _vpBusy;
+  vpToggle.checked = !!st.enabled;
+  vpToggleLabel.textContent = st.enabled ? 'on' : 'off';
+  const cur = st.current;
+  let text;
+  if (cur && st.stopping) {
+    text = 'stopping after the current stage of ' + cur.session_id;
+  } else if (cur) {
+    const p = cur.progress || {};
+    text = 'processing ' + cur.session_id + ' — ' + cur.state +
+           (cur.detail ? ' (' + cur.detail + ')' : '') +
+           (p.requests ? ' · VLM ' + (p.answered || 0) + '/' + p.requests : '');
+  } else {
+    text = st.enabled ? 'on — watching the inbox' : 'off';
+  }
+  vpStateEl.textContent = text;
+
+  const c = st.counts || {};
+  const cfg = st.config || {};
+  const parts = [];
+  parts.push('inbox <b>' + escapeHtml(cfg.inbox || '?') + '</b>');
+  parts.push(['queued', 'extracting', 'classifying', 'storing', 'stored', 'cleaned', 'failed']
+    .filter(k => c[k]).map(k => c[k] + ' ' + k).join(', ') || 'no sessions');
+  const w = st.worker || {};
+  if (w.hold_reason) parts.push('<span class="rt-warn">citizen-upload worker paused for the GPU</span>');
+  const ch = st.checks || {};
+  const warns = [];
+  if (!ch.inbox_exists) warns.push('inbox folder does not exist yet');
+  if (!ch.geoai_repo_exists) warns.push('GeoAI_Video repo not found');
+  if (!ch.python_exists) warns.push('pipeline Python not found');
+  if (ch.video_store && ch.video_store !== 'ok') warns.push('local store unavailable: ' + ch.video_store);
+  if (ch.state_file_error) warns.push('toggle not persisted: ' + ch.state_file_error);
+  for (const x of warns) parts.push('<span class="rt-warn">' + escapeHtml(x) + '</span>');
+  vpNote.innerHTML = parts.join(' · ');
+  if (st.last_error) setVideoStatus('Last error: ' + st.last_error, 'err');
+  else setVideoStatus('');
+}
+
+function vpProgress(s) {
+  const p = s.progress || {};
+  if (s.state === 'classifying' && p.requests) return 'VLM ' + (p.answered || 0) + '/' + p.requests;
+  return escapeHtml(s.detail || '');
+}
+
+function vpDetailHtml(s) {
+  const m = s.metrics || {};
+  const t = m.timings_s || {};
+  const timings = Object.keys(t).map(k => k + ' ' + fmtNum(t[k], 1) + ' s').join(' · ') || '—';
+  const st = m.storage || {};
+  const store = m.verify ? ('rows ' + (m.verify.rows ?? '—') + ' / records ' + (m.verify.records ?? '—') +
+                            ', answered ' + (m.verify.answered_rows ?? '—') +
+                            ', missing images ' + (m.verify.missing_images ?? 0) +
+                            ', bad checksums ' + (m.verify.bad_checksums ?? 0)) : '—';
+  let h = '<div class="vp-detail-grid">' +
+    '<div><h4>Package</h4>' + escapeHtml(s.package_dir || '—') + '</div>' +
+    '<div><h4>Run folder</h4>' + escapeHtml(s.run_dir || '—') + '</div>' +
+    '<div><h4>Timings per stage</h4>' + escapeHtml(timings) + '</div>' +
+    '<div><h4>VLM</h4>' + (m.vlm_requests != null
+        ? m.vlm_answered + '/' + m.vlm_requests + ' answered, mean ' + fmtNum(m.vlm_s_mean, 1) + ' s, ' +
+          m.vlm_error_lines + ' error lines, ' + m.vlm_retries + ' retries'
+        : '—') + '</div>' +
+    '<div><h4>Store / verify</h4>' + escapeHtml(store) + '</div>' +
+    '<div><h4>Storage</h4>' + (st.before_gb != null
+        ? fmtNum(st.before_gb, 3) + ' → ' + fmtNum(st.after_gb, 3) + ' GB (freed ' + fmtNum(st.freed_gb, 3) +
+          ' GB, ' + (st.deleted_files || 0) + ' files)'
+        : '—') + '</div>' +
+    '</div>';
+  if (s.worker_note) h += '<div class="runtime-note">' + escapeHtml(s.worker_note) + '</div>';
+  if (s.db_warning) h += '<div class="runtime-note"><span class="rt-warn">' + escapeHtml(s.db_warning) + '</span></div>';
+  if (s.validation && s.validation.output) {
+    h += '<h4 style="margin-top:10px">Validator output (exit ' + s.validation.exit_code + ')</h4>' +
+         '<pre>' + escapeHtml(s.validation.output) + '</pre>';
+  }
+  h += '<div class="vp-actions">' +
+       '<button class="btn btn-sm" data-vp-log="' + escapeAttr(s.key) + '">Show log</button>' +
+       (s.state === 'failed'
+         ? '<button class="btn btn-sm" data-vp-retry="' + escapeAttr(s.key) + '">Retry</button>' : '') +
+       '</div>';
+  if (_vpLogs[s.key] != null) h += '<pre>' + escapeHtml(_vpLogs[s.key]) + '</pre>';
+  return h;
+}
+
+function renderVideoSessions(items) {
+  if (!items.length) {
+    vpRows.innerHTML = '<tr><td colspan="10" class="muted">No sessions yet. Drop a session package ' +
+                       '(a folder with manifest.json) into the inbox.</td></tr>';
+    return;
+  }
+  const rows = [];
+  for (const s of items) {
+    const m = s.metrics || {};
+    const st = m.storage || {};
+    const err = s.state === 'failed' && s.error
+      ? '<div class="vp-err">' + escapeHtml(s.error) + '</div>' : '';
+    rows.push(
+      '<tr class="vp-row" data-vp-key="' + escapeAttr(s.key) + '">' +
+      '<td class="vp-id">' + escapeHtml(s.session_id) + (s.current ? ' ●' : '') + err + '</td>' +
+      '<td><span class="vp-badge ' + escapeAttr(s.state) + '">' + escapeHtml(s.state) + '</span></td>' +
+      '<td>' + vpProgress(s) + '</td>' +
+      '<td>' + fmtMeters(m.route_m) + (m.segments != null ? ' <span class="muted">(' + m.segments + ' seg)</span>' : '') + '</td>' +
+      '<td>' + (m.send != null ? m.send + ' / ' + m.audit + ' / ' + m.skip : '—') + '</td>' +
+      '<td>' + (m.covered_m != null ? fmtMeters(m.covered_m) + ' / ' + fmtMeters(m.not_covered_m) : '—') + '</td>' +
+      '<td>' + (m.vlm_s_median != null ? fmtNum(m.vlm_s_median, 1) + ' / ' + fmtNum(m.vlm_s_p95, 1) + ' s' : '—') + '</td>' +
+      '<td>' + (m.vlm_requests != null ? m.vlm_error_lines + ' / ' + m.vlm_retries : '—') + '</td>' +
+      '<td>' + (st.before_gb != null ? fmtNum(st.before_gb, 2) + ' → ' + fmtNum(st.after_gb, 2) : '—') + '</td>' +
+      '<td class="muted">' + fmtTimeAgo(s.updated_utc) + '</td>' +
+      '</tr>');
+    if (_vpOpen.has(s.key)) {
+      rows.push('<tr class="vp-detail"><td colspan="10">' + vpDetailHtml(s) + '</td></tr>');
+    }
+  }
+  vpRows.innerHTML = rows.join('');
+}
+
+async function loadVideo() {
+  try {
+    const [st, ss] = await Promise.all([
+      apiCall('/operator/video/status'),
+      apiCall('/operator/video/sessions?limit=100'),
+    ]);
+    renderVideoStatus(st);
+    renderVideoSessions(ss.items || []);
+  } catch (e) {
+    vpToggle.disabled = true;
+    vpStateEl.textContent = '(unavailable)';
+    setVideoStatus('Could not read the video pipeline status: ' + e.message, 'err');
+  }
+}
+
+vpToggle.addEventListener('change', async () => {
+  const on = vpToggle.checked;
+  if (!on && !confirm('Turn the video pipeline off?\n\nThe stage that is running now finishes first; ' +
+                      'that session resumes from its stage when the pipeline is turned on again.')) {
+    vpToggle.checked = true;
+    return;
+  }
+  _vpBusy = true;
+  vpToggle.disabled = true;
+  try {
+    const r = await apiCall('/operator/video/' + (on ? 'enable' : 'disable'), {method: 'POST'});
+    toast(on ? 'Video pipeline on' : (r.stopping ? 'Video pipeline off — stopping after the current stage'
+                                                 : 'Video pipeline off'), 'success');
+  } catch (e) {
+    toast('Video pipeline ' + (on ? 'enable' : 'disable') + ' failed: ' + e.message, 'error');
+  } finally {
+    _vpBusy = false;
+    loadVideo();
+  }
+});
+
+vpRows.addEventListener('click', async (ev) => {
+  const logBtn = ev.target.closest('[data-vp-log]');
+  const retryBtn = ev.target.closest('[data-vp-retry]');
+  if (logBtn) {
+    const key = logBtn.getAttribute('data-vp-log');
+    try {
+      const r = await apiCall('/operator/video/sessions/' + encodeURIComponent(key) + '/log?limit=60');
+      _vpLogs[key] = (r.events || []).map(e => {
+        let line = e.ts + '  ' + e.stage + ' ' + e.event;
+        if (e.seconds != null) line += ' ' + e.seconds + ' s';
+        if (e.error) line += '  ' + e.error;
+        return line;
+      }).join('\n') || '(no events yet)';
+    } catch (e) {
+      _vpLogs[key] = 'Could not read the log: ' + e.message;
+    }
+    loadVideo();
+    return;
+  }
+  if (retryBtn) {
+    const key = retryBtn.getAttribute('data-vp-retry');
+    try {
+      await apiCall('/operator/video/sessions/' + encodeURIComponent(key) + '/retry', {method: 'POST'});
+      toast('Session ' + key + ' queued again', 'success');
+    } catch (e) {
+      toast('Retry failed: ' + e.message, 'error');
+    }
+    loadVideo();
+    return;
+  }
+  const row = ev.target.closest('tr.vp-row');
+  if (!row) return;
+  const key = row.getAttribute('data-vp-key');
+  if (_vpOpen.has(key)) _vpOpen.delete(key); else _vpOpen.add(key);
+  loadVideo();
+});
+
+// ============================================================
 // CONFIG-BAR TOGGLE — click connection pill to open overrides
 // ============================================================
 const configBar = document.getElementById('config-bar');
@@ -2272,7 +2598,7 @@ document.getElementById('btn-config-save').addEventListener('click', () => {
   configBar.classList.remove('shown');
   // Reload everything against the new base
   pollNow(); pollRecent(); loadAdapters(); pollTraining();
-  loadPipelineHealth(); loadRuntime();
+  loadPipelineHealth(); loadRuntime(); loadVideo();
 });
 
 // ============================================================
@@ -2294,10 +2620,13 @@ _adapterPollTimer = setInterval(loadAdapters, 30_000);   // adapter list rarely 
 _trainPollTimer = setInterval(pollTraining, 5_000);      // training metrics every 5s
 setInterval(loadPipelineHealth, 60_000);                  // pipeline config rarely changes
 _rtPollTimer = setInterval(loadRuntime, 30_000);         // VRAM moves; precision rarely does
+loadVideo();
+_vpPollTimer = setInterval(loadVideo, 5_000);            // session stages and VLM progress
 
 // Cleanup on navigation
 window.addEventListener('beforeunload', () => {
   stopSSE();
+  if (_vpPollTimer) clearInterval(_vpPollTimer);
   if (recentTimer) clearInterval(recentTimer);
   if (_adapterPollTimer) clearInterval(_adapterPollTimer);
   if (_trainPollTimer) clearInterval(_trainPollTimer);

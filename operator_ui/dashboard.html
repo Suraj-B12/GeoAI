@@ -380,6 +380,14 @@ const LS = {
 const DEFAULT_API_BASE = window.location.origin && window.location.origin !== 'null'
   ? window.location.origin
   : 'http://localhost:8000';
+// image_url is a Cloudinary URL, or (DB_BACKEND=postgres) an absolute path in the local image
+// store, which a browser can't load: the server serves those at /local-images (app/video_routes.py).
+function imageSrc(url) {
+  if (!url) return '';
+  return /^([A-Za-z]:[\\/]|\\\\)/.test(url)
+    ? `${state.apiBase.replace(/\/$/, '')}/local-images?path=${encodeURIComponent(url)}` : url;
+}
+
 const state = {
   apiBase: LS.getItem('dash_api_base') || DEFAULT_API_BASE,
   apiKey:  LS.getItem('dash_api_key')  || '',
@@ -576,7 +584,7 @@ function renderCard(row) {
     <div class="card" data-id="${row.id}">
       <div class="card-thumb" data-load-id="${row.id}" title="Click to load image">
         ${row.image_url
-          ? `<img ${alreadyLoaded ? 'src' : 'data-src'}="${row.image_url}"
+          ? `<img ${alreadyLoaded ? 'src' : 'data-src'}="${imageSrc(row.image_url)}"
                  alt="" class="${alreadyLoaded ? 'loaded' : ''}" />
              <div class="placeholder" style="${alreadyLoaded ? 'display:none' : ''}">
                <div class="ph-icon">↓</div>
@@ -773,13 +781,13 @@ function onActionClick(ev) {
   if (!row) return;
   if (action === 'delete') {
     state.pendingDeleteId = id;
-    document.getElementById('delete-preview').src = row.image_url || '';
+    document.getElementById('delete-preview').src = imageSrc(row.image_url);
     document.getElementById('delete-detail').textContent =
       `id: ${id}\nstatus: ${row.status}\ncreated: ${row.created_at}`;
     document.getElementById('delete-modal').classList.add('show');
   } else if (action === 'reclassify') {
     state.pendingReclassifyId = id;
-    document.getElementById('reclass-preview').src = row.image_url || '';
+    document.getElementById('reclass-preview').src = imageSrc(row.image_url);
     document.getElementById('reclass-detail').textContent =
       `id: ${id}\ncurrent status: ${row.status}\nfilter decision: ${row.pavement_filter_decision || 'n/a'}`;
     document.getElementById('reclass-modal').classList.add('show');

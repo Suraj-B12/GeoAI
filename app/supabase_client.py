@@ -12,6 +12,11 @@ Wraps PostgREST + RPC calls used by the pipeline worker:
 Uses ONE shared httpx.AsyncClient — created in FastAPI lifespan and
 passed in. Don't construct this class per-request.
 
+DB_BACKEND=postgres: the lifespan passes an app.local_db.LocalDb instead,
+and each function below hands it over to the LocalDb method of the same name
+on its first line (same return shapes). Image URLs that are local paths are
+read from LOCAL_IMAGE_ROOT (app/local_images.py). Unset / supabase: unchanged.
+
 Env vars required:
     SUPABASE_URL        = https://<project-ref>.supabase.co
     SUPABASE_SERVICE_KEY = sb_secret_xxx  (server-side only — bypasses RLS)
@@ -19,10 +24,24 @@ Env vars required:
 
 from __future__ import annotations
 
+import asyncio
 import os
 from typing import Any, Optional
 
 import httpx
+
+from app.local_images import local_image_path, read_local_image
+
+
+def is_local_db(client: Any) -> bool:
+    """True when `client` is an app.local_db.LocalDb (DB_BACKEND=postgres).
+
+    Every operation below starts with one line handing a LocalDb over to its
+    method of the same name, so the worker and the dashboard code run
+    unchanged on either backend. Duck-typed: importing app.local_db here would
+    make the Supabase path depend on psycopg.
+    """
+    return getattr(client, "IS_LOCAL_DB", False) is True
 
 
 # ============================================================
@@ -126,6 +145,7 @@ async def claim_pending_batch(
 
     Returns the claimed rows (list of dicts). Empty list if queue is empty.
     """
+    if is_local_db(client): return await client.claim_pending_batch(batch_size, worker_id)
     resp = await client.post(
         "/rest/v1/rpc/claim_pending_assessments",
         json={"batch_size": batch_size, "worker_id": worker_id},
@@ -142,6 +162,7 @@ async def update_assessment(
     """
     PATCH a single assessment row by id. Returns the updated row.
     """
+    if is_local_db(client): return await client.update_assessment(assessment_id, fields)
     resp = await client.patch(
         f"/rest/v1/assessments?id=eq.{assessment_id}",
         json=fields,
@@ -166,6 +187,7 @@ async def reset_stale_processing(
 
     Returns the number of rows reset.
     """
+    if is_local_db(client): return await client.reset_stale_processing(stale_threshold_seconds)
     resp = await client.post(
         "/rest/v1/rpc/reset_stale_processing_assessments",
         json={"stale_threshold_seconds": stale_threshold_seconds},
@@ -187,6 +209,7 @@ async def upsert_worker_state(
     Upsert the worker_state row for this worker. Used for heartbeat
     and cumulative metrics.
     """
+    if is_local_db(client): return await client.upsert_worker_state(worker_id, fields)
     payload = {"worker_id": worker_id, **fields}
     resp = await client.post(
         "/rest/v1/worker_state",
@@ -205,6 +228,7 @@ async def get_worker_state(
     worker_id: str,
 ) -> Optional[dict]:
     """Fetch the worker_state row for this worker, or None if it doesn't exist."""
+    if is_local_db(client): return await client.get_worker_state(worker_id)
     resp = await client.get(
         f"/rest/v1/worker_state?worker_id=eq.{worker_id}&select=*",
     )
@@ -250,6 +274,7 @@ async def _fetch_get_pipeline_metrics(client: httpx.AsyncClient) -> dict:
        history. We fall back to an all-time average and flag which one is being
        shown, so the UI can label it honestly rather than imply it is recent.
     """
+    if is_local_db(client): return await client.get_pipeline_metrics()
     resp = await client.get("/rest/v1/pipeline_metrics?select=*")
     _check(resp)
     rows = resp.json()
@@ -352,6 +377,7 @@ async def _fetch_get_class_distribution(client: httpx.AsyncClient) -> list[dict]
 
     Each row carries `window` so the UI can label which one it is showing.
     """
+    if is_local_db(client): return await client.get_class_distribution()
     resp = await client.get("/rest/v1/pipeline_class_distribution?select=*")
     _check(resp)
     rows = resp.json() or []
@@ -395,6 +421,7 @@ async def get_assessment_by_id(
     Returns None if the row doesn't exist (e.g., already moved to done
     by the time the dashboard polled).
     """
+    if is_local_db(client): return await client.get_assessment_by_id(assessment_id)
     # Validate UUID format minimally to avoid odd characters in the URL.
     # PostgREST will reject malformed UUIDs anyway, but cheap to gate here.
     if not assessment_id or len(assessment_id) > 64:
@@ -421,6 +448,7 @@ async def _fetch_get_recent_processed(
     Fetch the most recently processed assessments for the dashboard
     activity feed. Includes status, confidences, and class.
     """
+    if is_local_db(client): return await client.get_recent_processed(limit)
     resp = await client.get(
         "/rest/v1/assessments"
         "?select=id,status,stage1_label,stage1_confidence,distress_types,"
@@ -472,6 +500,7 @@ async def list_assessments_for_dashboard(
     limit: int = 50,
     offset: int = 0,
 ) -> dict:
+    if is_local_db(client): return await client.list_assessments_for_dashboard(status, date_from, date_to, limit, offset)
     # Lazy probe: first dashboard request determines if migration 004 ran
     await probe_migration_004(client)
     """
@@ -549,6 +578,7 @@ async def reset_for_reclassify(
     Reset a single assessment row back to 'pending' so the worker re-runs it.
     Used by the dashboard's "Send back to AI pipeline" button.
     """
+    if is_local_db(client): return await client.reset_for_reclassify(assessment_id)
     if not assessment_id or len(assessment_id) > 64:
         raise ValueError(f"invalid assessment_id: {assessment_id!r}")
     payload = {
@@ -586,6 +616,7 @@ async def _fetch_dashboard_summary(client: httpx.AsyncClient) -> dict:
     """
     Aggregate counts by status, for the dashboard's tab badges.
     """
+    if is_local_db(client): return await client.dashboard_summary()
     resp = await client.get("/rest/v1/assessments?select=status,created_at")
     _check(resp)
     rows = resp.json() or []
@@ -615,9 +646,15 @@ async def download_image_bytes(
     """
     Download an image from a public URL (typically Cloudinary).
 
+    A local path (DB_BACKEND=postgres stores the image's absolute path in
+    image_url, see app/local_images.py) is read from disk instead, only from
+    under LOCAL_IMAGE_ROOT: FileNotFoundError / PermissionError otherwise.
+
     Raises httpx.HTTPError on network failure. Caller is responsible
     for retry logic.
     """
+    if local_image_path(url) is not None:
+        return await asyncio.to_thread(read_local_image, url)
     resp = await image_client.get(url)
     resp.raise_for_status()
     return resp.content

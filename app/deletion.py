@@ -24,6 +24,14 @@ Nothing is deleted from the database unless the image is confirmed gone
 from Cloudinary, or is not hosted there at all. Missing credentials, a
 foreign Cloudinary account, an API error or an unverifiable "not found"
 abort the whole delete, so a failure never leaves an orphaned image.
+
+Local image store (DB_BACKEND=postgres, app/local_images.py): an image_url
+that is a local path is a file under LOCAL_IMAGE_ROOT, deleted from disk in
+place of Cloudinary, with the same order (file first, rows after) and the same
+rule (a path outside the root, or a file that stays, aborts the delete before
+any row is touched). A missing file counts as already deleted: unlike
+Cloudinary there is no CDN copy that could still be served. When a LocalDb is
+passed in place of the Supabase client, the rows go through it.
 """
 
 from __future__ import annotations
@@ -39,7 +47,8 @@ from urllib.parse import unquote, urlparse
 
 import httpx
 
-from app.supabase_client import SupabaseError, _check
+from app.local_images import delete_local_image, inside_root, local_image_path
+from app.supabase_client import SupabaseError, _check, is_local_db
 
 
 class DeleteError(Exception):
@@ -189,10 +198,44 @@ async def _fetch_one(supabase: httpx.AsyncClient, path: str) -> Optional[dict]:
     return rows[0] if rows else None
 
 
+class _RestRows:
+    """The row operations of a delete, over Supabase PostgREST.
+
+    app.local_db.LocalDb has the same methods for the local backend."""
+
+    def __init__(self, supabase: httpx.AsyncClient):
+        self.supabase = supabase
+
+    async def deletion_assessment(self, assessment_id: str) -> Optional[dict]:
+        return await _fetch_one(self.supabase, f"/rest/v1/assessments?id=eq.{assessment_id}"
+                                               "&select=id,status,image_url,photo_id&limit=1")
+
+    async def deletion_photo(self, photo_id) -> Optional[dict]:
+        return await _fetch_one(self.supabase, f"/rest/v1/photos?id=eq.{photo_id}"
+                                               "&select=id,image_url&limit=1")
+
+    async def deletion_delete_photo(self, photo_id) -> bool:
+        r = await self.supabase.delete(f"/rest/v1/photos?id=eq.{photo_id}",
+                                       headers={"Prefer": "return=representation"})
+        _check(r)
+        return bool(r.json())
+
+    async def deletion_delete_assessment(self, assessment_id: str) -> bool:
+        r = await self.supabase.delete(f"/rest/v1/assessments?id=eq.{assessment_id}",
+                                       headers={"Prefer": "return=representation"})
+        _check(r)
+        return bool(r.json())
+
+    async def deletion_assessment_exists(self, assessment_id: str) -> bool:
+        return await _fetch_one(self.supabase, f"/rest/v1/assessments?id=eq.{assessment_id}"
+                                               "&select=id&limit=1") is not None
+
+
 async def delete_everywhere(supabase: httpx.AsyncClient, http: httpx.AsyncClient,
                             assessment_id: str) -> dict:
-    """Delete an upload from Cloudinary, photos and assessments.
+    """Delete an upload from Cloudinary (or the local image store), photos and assessments.
 
+    `supabase` is the Supabase httpx client, or the LocalDb with DB_BACKEND=postgres.
     Raises DeleteError when nothing was deleted, or when the image was
     deleted but the database step failed; the detail says which.
     """
@@ -200,8 +243,8 @@ async def delete_everywhere(supabase: httpx.AsyncClient, http: httpx.AsyncClient
             not re.fullmatch(r"[0-9A-Za-z-]+", assessment_id):
         raise DeleteError(400, f"invalid assessment id: {assessment_id!r}")
 
-    a = await _fetch_one(supabase, f"/rest/v1/assessments?id=eq.{assessment_id}"
-                                   "&select=id,status,image_url,photo_id&limit=1")
+    rows = supabase if is_local_db(supabase) else _RestRows(supabase)
+    a = await rows.deletion_assessment(assessment_id)
     if a is None:
         raise DeleteError(404, "assessment not found")
     if a.get("status") == "processing":
@@ -211,18 +254,26 @@ async def delete_everywhere(supabase: httpx.AsyncClient, http: httpx.AsyncClient
 
     photo = None
     if a.get("photo_id") is not None:
-        photo = await _fetch_one(supabase, f"/rest/v1/photos?id=eq.{a['photo_id']}"
-                                           "&select=id,image_url&limit=1")
+        photo = await rows.deletion_photo(a["photo_id"])
 
-    # ---- 1. Cloudinary: every distinct image the rows point at ----
+    # ---- 1. Images: every distinct image the rows point at ----
     urls = []
     for u in (a.get("image_url"), (photo or {}).get("image_url")):
         if u and u not in urls:
             urls.append(u)
+    local_files = [u for u in urls if local_image_path(u) is not None]
+    for u in local_files:
+        # Every local path is checked before anything is deleted anywhere.
+        try:
+            inside_root(local_image_path(u))
+        except PermissionError as e:
+            raise DeleteError(409, f"{e}. Nothing was deleted.") from e
 
     creds = cloudinary_credentials()
     cloudinary = []
     for u in urls:
+        if u in local_files:
+            continue
         asset = parse_cloudinary_url(u)
         if asset is None:
             # Not hosted on Cloudinary (e.g. a test row with an external URL):
@@ -252,23 +303,24 @@ async def delete_everywhere(supabase: httpx.AsyncClient, http: httpx.AsyncClient
                                    f"Nothing was deleted.")
         cloudinary.append({"url": u, "public_id": asset.public_id, **res})
 
+    local_images = []
+    for u in local_files:
+        try:
+            local_images.append({"url": u, **delete_local_image(u)})
+        except OSError as e:
+            raise DeleteError(502, f"could not delete the local image {u} ({e}). "
+                                   f"The database rows were not touched.") from e
+
     # ---- 2. Database: the photos row cascades to the assessment ----
     try:
         photo_deleted = False
         if photo is not None:
-            r = await supabase.delete(f"/rest/v1/photos?id=eq.{photo['id']}",
-                                      headers={"Prefer": "return=representation"})
-            _check(r)
-            photo_deleted = bool(r.json())
+            photo_deleted = await rows.deletion_delete_photo(photo["id"])
         # The cascade should already have removed the assessment. Delete it
         # explicitly anyway: covers rows without a photo, and a database whose
         # FK lacks ON DELETE CASCADE.
-        r = await supabase.delete(f"/rest/v1/assessments?id=eq.{assessment_id}",
-                                  headers={"Prefer": "return=representation"})
-        _check(r)
-        remaining = await _fetch_one(supabase, f"/rest/v1/assessments?id=eq.{assessment_id}"
-                                               "&select=id&limit=1")
-        if remaining is not None:
+        await rows.deletion_delete_assessment(assessment_id)
+        if await rows.deletion_assessment_exists(assessment_id):
             raise DeleteError(502, "the image was removed from Cloudinary but the "
                                    "assessment row is still in Supabase. Retry the delete.")
     except SupabaseError as e:
@@ -282,4 +334,5 @@ async def delete_everywhere(supabase: httpx.AsyncClient, http: httpx.AsyncClient
         "photo_deleted": photo_deleted,
         "image_url": a.get("image_url"),
         "cloudinary": cloudinary,
+        "local_images": local_images,
     }

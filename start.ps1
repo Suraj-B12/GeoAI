@@ -10,6 +10,11 @@
 #   .\start.ps1 -Watchdog                 # auto-restart on crash (infinite loop)
 #   .\start.ps1 -AutoStart -Tunnel -Watchdog  # full production runner
 #
+# DB_BACKEND=postgres (in .env or the environment): the local PostgreSQL
+# cluster (PG_BIN / PG_DATA, default C:\GeoAI\pgsql\bin and C:\GeoAI\pgdata)
+# is started first if it is not running, and before every watchdog restart.
+# Unset / supabase (production): nothing changes. See SETUP.md "Local PostgreSQL".
+#
 # First-time setup (run once after cloning):
 #   Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
 #
@@ -62,6 +67,62 @@ function Stop-StalePython {
     if ($procs) { Start-Sleep -Seconds 2 }
 }
 
+function Get-EnvSetting {
+    # A setting from the process environment, else from .env (uvicorn's
+    # --env-file does not override variables already set, so the same order).
+    param([string]$Name, [string]$Default = '')
+    $v = [Environment]::GetEnvironmentVariable($Name)
+    if ($v) { return $v.Trim() }
+    $envFile = Join-Path $ProjectRoot '.env'
+    if (Test-Path $envFile) {
+        foreach ($line in Get-Content $envFile) {
+            if ($line -match "^\s*$Name\s*=\s*(.*?)\s*$") { return $Matches[1].Trim('"').Trim("'") }
+        }
+    }
+    return $Default
+}
+
+function Start-LocalPostgres {
+    # Start the local PostgreSQL cluster unless it is already running.
+    # Returns $true once it accepts connections. Never prints DATABASE_URL.
+    $ErrorActionPreference = 'Continue'   # pg_ctl writes progress to stderr
+    $pgBin  = Get-EnvSetting 'PG_BIN'  'C:\GeoAI\pgsql\bin'
+    $pgData = Get-EnvSetting 'PG_DATA' 'C:\GeoAI\pgdata'
+    $pgCtl  = Join-Path $pgBin 'pg_ctl.exe'
+    if (-not (Test-Path $pgCtl)) { Write-FAIL "pg_ctl.exe not found at $pgCtl (set PG_BIN)"; return $false }
+    if (-not (Test-Path (Join-Path $pgData 'PG_VERSION'))) {
+        Write-FAIL "no PostgreSQL data directory at $pgData (set PG_DATA)"; return $false
+    }
+    & $pgCtl status -D $pgData *> $null
+    if ($LASTEXITCODE -eq 0) { Write-OK "PostgreSQL running ($pgData)"; return $true }
+    $logDir = Join-Path $pgData 'log'
+    New-Item -ItemType Directory -Force $logDir | Out-Null
+    # Start-Process, not "& pg_ctl start": the postgres server inherits pg_ctl's
+    # stdout/stderr, and when those are a PowerShell pipe (output redirected to a
+    # log, as in production) PowerShell waits for them to close - forever.
+    $logFile = Join-Path $logDir 'postgres.log'
+    Start-Process -FilePath $pgCtl -WindowStyle Hidden `
+        -ArgumentList @('start', '-D', "`"$pgData`"", '-l', "`"$logFile`"") | Out-Null
+    # After an unclean stop PostgreSQL first fsyncs the data directory (35 s measured), then recovers.
+    $deadline = (Get-Date).AddSeconds(180)
+    do {
+        Start-Sleep -Seconds 1
+        & $pgCtl status -D $pgData *> $null
+        $running = ($LASTEXITCODE -eq 0)
+    } until ($running -or (Get-Date) -gt $deadline)
+    $isReady = Join-Path $pgBin 'pg_isready.exe'
+    while ($running -and (Test-Path $isReady) -and (Get-Date) -lt $deadline) {
+        & $isReady -q -h localhost -p (Get-EnvSetting 'PG_PORT' '5432') *> $null
+        if ($LASTEXITCODE -eq 0) { break }
+        Start-Sleep -Seconds 1
+    }
+    if (-not $running) { Write-FAIL "PostgreSQL did not start - see $logFile"; return $false }
+    Write-OK "PostgreSQL started ($pgData, log: $logDir\postgres.log)"
+    return $true
+}
+
+$DbBackend = (Get-EnvSetting 'DB_BACKEND' 'supabase').ToLower()
+
 # ============================================================
 # Pre-flight checks
 # ============================================================
@@ -92,7 +153,15 @@ $venvPy = Join-Path $ProjectRoot "venv\Scripts\python.exe"
         exit 1
     }
     $envText = Get-Content .env -Raw
-    $required = @('SUPABASE_URL', 'SUPABASE_SERVICE_KEY')
+    if ($DbBackend -eq 'postgres') {
+        $required = @('DATABASE_URL')
+        Write-OK "DB_BACKEND=postgres (local PostgreSQL + local image store)"
+    } elseif ($DbBackend -eq 'supabase') {
+        $required = @('SUPABASE_URL', 'SUPABASE_SERVICE_KEY')
+    } else {
+        Write-FAIL "DB_BACKEND='$DbBackend' is not 'supabase' or 'postgres'"
+        exit 1
+    }
     foreach ($k in $required) {
         if ($envText -notmatch "(?m)^\s*$k\s*=\s*\S") {
             Write-FAIL ".env missing required key: $k"
@@ -143,6 +212,14 @@ $venvPy = Join-Path $ProjectRoot "venv\Scripts\python.exe"
     } else {
         Write-WARN "nvidia-smi not found — running on CPU only?"
     }
+}
+
+# ============================================================
+# Local PostgreSQL (DB_BACKEND=postgres only)
+# ============================================================
+if ($DbBackend -eq 'postgres') {
+    Write-Step "Local PostgreSQL"
+    if (-not (Start-LocalPostgres)) { exit 1 }
 }
 
 # ============================================================
@@ -235,6 +312,7 @@ if ($Watchdog) {
     $crashCount = 0
     while ($true) {
         Write-Step "Starting uvicorn (attempt #$($crashCount + 1))"
+        if ($DbBackend -eq 'postgres') { [void](Start-LocalPostgres) }
         & $venvPy @uvicornArgs
         $exitCode = $LASTEXITCODE
         if ($exitCode -eq 0 -or $exitCode -eq -1073741510) {

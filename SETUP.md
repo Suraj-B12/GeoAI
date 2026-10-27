@@ -11,7 +11,7 @@
 8. [Constants & Label Maps](#constants--label-maps)
 9. [CLI Arguments Reference](#cli-arguments-reference)
 10. [Training Config Reference](#training-config-reference)
-11. [Database Schema](#database-schema)
+11. [Database Schema](#database-schema) (and [Local PostgreSQL](#local-postgresql-db_backendpostgres))
 12. [File Inventory](#file-inventory)
 13. [Data Flow](#data-flow)
 14. [Troubleshooting](#troubleshooting)
@@ -524,6 +524,10 @@ cloudflared tunnel --url http://localhost:8000
 | `MAX_IMAGE_PIXELS` | `4840000` (2200×2200) | Visual-token cap on production model. Higher = more detail but more VRAM (O(n²) attention). Set lower (e.g. `1920*1920=3686400`) if hitting OOM on 3000+ px Cloudinary photos. | `3686400` |
 | `MIN_IMAGE_PIXELS` | `7168` (256×28) | Minimum visual-token count. Low enough for 160×160 GAPs images. | `7168` |
 | `ENABLE_TEST_FIXTURES` | unset | When `1`/`true`, mounts `/test_fixtures/*` static route serving `test_fixtures/*.jpg`. Smoke testing only. | `1` |
+| `DB_BACKEND` | unset = `supabase` | Where the operator pipeline's rows live. `supabase` = production (PostgREST + Cloudinary, unchanged). `postgres` = local PostgreSQL at `DATABASE_URL` + local image store. Any other value disables the pipeline (a typo must not write local work to production). See [Local PostgreSQL](#local-postgresql-db_backendpostgres). | `postgres` |
+| `DATABASE_URL` | unset | Local PostgreSQL DSN, used only with `DB_BACKEND=postgres` and by `scripts/setup_local_db.py`. Holds the generated password: lives only in `.env`, never print it. | `postgresql://postgres:***@localhost:5432/geoai` |
+| `LOCAL_IMAGE_ROOT` | `C:\GeoAI\images` | Local image store. Images live at `<root>\<session_id>\<segment_id>.png`; the server reads and deletes image files only under this root. | `D:\GeoAI\images` |
+| `PG_BIN` / `PG_DATA` | `C:\GeoAI\pgsql\bin` / `C:\GeoAI\pgdata` | PostgreSQL binaries and data directory, used by `start.ps1` / `stop.ps1` when `DB_BACKEND=postgres`. | |
 
 ---
 
@@ -686,6 +690,66 @@ See `configs/qwen25vl_qlora_sft.yaml`. Every key explained:
 | `enable_liger_kernel` | `true` | Fused CUDA kernels: 20% faster, 60% less memory |
 | `gradient_checkpointing` | `true` | Recompute activations: saves major VRAM |
 | `optim` | `adamw_8bit` | 8-bit optimizer: halves optimizer memory |
+
+---
+
+## Local PostgreSQL (DB_BACKEND=postgres)
+
+The drive-video survey (GeoAI_Video, `docs/HANDOFF_PLAN.md` section 7) stores its results on this
+machine: a local PostgreSQL with **the same schema as the Supabase project**, and images on the local
+disk in place of Cloudinary, with the image's absolute path in the column that held the Cloudinary URL.
+Supabase stays the default; production is unchanged while `DB_BACKEND` is unset.
+
+**Installed (2026-10-27):** PostgreSQL 17.11, EDB Windows x64 binaries zip (no installer, no admin).
+The zip is not Authenticode-signed; its bytes were checked against the ETag of the file on
+`get.enterprisedb.com` (S3 multipart MD5, 41 parts, matched).
+
+| What | Where |
+|---|---|
+| Binaries | `C:\GeoAI\pgsql\bin` (`PG_BIN`) |
+| Data directory | `C:\GeoAI\pgdata` (`PG_DATA`): UTF8, C locale, `listen_addresses = localhost`, port 5432, `scram-sha-256` for every connection, timezone UTC |
+| Server log | `C:\GeoAI\pgdata\log\postgres.log` |
+| Database | `geoai`; superuser `postgres` with a generated password that exists only in `DATABASE_URL` in `.env` |
+| Images | `LOCAL_IMAGE_ROOT` (default `C:\GeoAI\images`) |
+
+**Schema.** `venv\Scripts\python.exe scripts\setup_local_db.py` creates the database and applies, in
+order: `migrations/000_local_postgres_shim.sql` (local only: `auth.users`, `auth.uid()`/`auth.role()`,
+the `anon`/`authenticated`/`service_role` roles and the RoadSide app's `photos` table, column for column),
+then `db_schema.sql` and migrations 001-005 **unchanged**. Each file is applied once, in one transaction
+with its row in `geoai_local.schema_migrations`; re-running is a no-op. `scripts/tests/test_local_db.py`
+compares every table and view with the live Supabase columns (`scripts/tests/supabase_schema_2026-10-27.json`,
+from the PostgREST OpenAPI).
+
+**Migration 005** (`video_sessions`, `video_segments`, unique `assessments.road_segment_id`) is additive.
+To keep Supabase identical, run the same file once in the Supabase SQL editor (it aborts, changing nothing,
+if `road_segment_id` already has duplicates).
+
+**Start / stop.**
+```powershell
+# by hand
+C:\GeoAI\pgsql\bin\pg_ctl.exe start -D C:\GeoAI\pgdata -l C:\GeoAI\pgdata\log\postgres.log
+C:\GeoAI\pgsql\bin\pg_ctl.exe stop  -D C:\GeoAI\pgdata -m fast
+C:\GeoAI\pgsql\bin\pg_isready.exe -h localhost          # "accepting connections"
+# with the server: set DB_BACKEND=postgres in .env, then
+.\start.ps1 -AutoStart -Watchdog     # starts PostgreSQL first (and before every watchdog restart)
+.\stop.ps1                           # stops uvicorn, then PostgreSQL; -KeepDb leaves it running
+```
+
+**What the switch changes.** `app/main.py` builds an `app.local_db.LocalDb` instead of the Supabase
+httpx client; every function in `app/supabase_client.py` hands a LocalDb over to its method of the same
+name, with the same return shapes (rows are rendered by PostgreSQL's `json_agg`/`row_to_json`, as
+PostgREST does), so the worker and the dashboards run unchanged. Image URLs that are local paths are read
+from disk (`app/local_images.py`, only under `LOCAL_IMAGE_ROOT`), and the operator delete removes the file
+instead of the Cloudinary asset, file first, rows after. The video pipeline stores runs with
+`app/video_store.py` (`store_session`, `verify_session`, `set_session_state`, `list_sessions`); the
+column mapping is GeoAI_Video `docs/DB_MAPPING.md`.
+
+**Showing local images.** A browser can't load a local path, so the server serves stored images at
+`GET /local-images?path=<image_url>` (`app/video_routes.py`), and both operator pages map local paths to it
+(`imageSrc()` in `operator_ui/index.html` and `dashboard.html`); Cloudinary URLs are used as before. The
+route needs no API key, as the public Cloudinary URLs it replaces didn't, but serves only `.png`/`.jpg`
+files inside `LOCAL_IMAGE_ROOT`. The expert UI reads Supabase directly from the browser and does not see
+the local database.
 
 ---
 
