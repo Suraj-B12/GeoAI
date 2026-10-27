@@ -861,6 +861,24 @@ body {
   font-family: ui-monospace, SF Mono, Menlo, monospace; font-size: 11px; white-space: pre-wrap; word-break: break-word;
 }
 .vp-detail .vp-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+/* Live card of the video session in progress: the citizen-upload card's layout, a 16:9 frame */
+.vp-live { margin-top: 14px; grid-template-columns: 360px 1fr; box-shadow: none; }
+@media (max-width: 768px) { .vp-live { grid-template-columns: 1fr; } }
+.vp-live .current-image-wrap { aspect-ratio: 16 / 9; background: #1c1917; }
+.vp-live .current-image-wrap img { object-fit: contain; }
+.vp-live .current-image-wrap .vp-frame-tag {
+  position: absolute; left: 8px; bottom: 8px; padding: 2px 8px; border-radius: 6px;
+  background: rgba(28, 25, 23, 0.72); color: white; font-size: 11px; font-weight: 600;
+  font-family: ui-monospace, SF Mono, Menlo, monospace;
+}
+.vp-stage .stage-sub {
+  font-size: 11px; color: var(--text-secondary); margin: 3px 0 0 34px; font-variant-numeric: tabular-nums;
+}
+.vp-stage .stage-bar {
+  height: 4px; margin: 5px 10px 2px 34px; background: var(--border); border-radius: 2px; overflow: hidden;
+}
+.vp-stage .stage-bar > div { height: 100%; width: 0; background: var(--blue); transition: width 0.4s ease; }
+.vp-stage.done .stage-bar > div { background: var(--green); }
 </style>
 </head>
 <body>
@@ -1192,6 +1210,36 @@ body {
       </div>
       <div class="runtime-note" id="vp-note"></div>
       <div class="adapter-status" id="vp-status"></div>
+      <!-- Live card of the session in progress, like "Currently Processing" for citizen uploads -->
+      <div id="vp-live" class="current-card idle vp-live">
+        <div class="current-image-wrap">
+          <img id="vp-live-img" alt="" style="display: none;" />
+          <div id="vp-live-ph" class="placeholder">No video session being processed</div>
+          <span id="vp-live-tag" class="vp-frame-tag" style="display: none;"></span>
+        </div>
+        <div class="current-meta">
+          <div class="current-meta-row">
+            <span class="key">Session</span>
+            <span class="val muted" id="vp-live-session">—</span>
+          </div>
+          <div class="current-meta-row">
+            <span class="key">Segment <span class="help-icon" data-tip="While extracting: the newest best frame written (one per 5 m of road). While classifying: the segment the VLM is answering now; its frame is what is shown.">?</span></span>
+            <span class="val muted" id="vp-live-seg">—</span>
+          </div>
+          <div class="current-meta-row">
+            <span class="key">Location</span>
+            <span class="val muted" id="vp-live-loc">—</span>
+          </div>
+          <div class="current-meta-row">
+            <span class="key">Stage Progress</span>
+            <div class="stage-progress" id="vp-live-stages"></div>
+          </div>
+          <div class="current-meta-row">
+            <span class="key">Last Result</span>
+            <span class="val" id="vp-live-last">—</span>
+          </div>
+        </div>
+      </div>
       <div class="vp-table-wrap">
         <table class="vp-table">
           <thead>
@@ -2508,6 +2556,203 @@ function renderVideoSessions(items) {
   vpRows.innerHTML = rows.join('');
 }
 
+// ---- Live card: the session in progress, like "Currently Processing" for citizen uploads ----
+// Rows group the service's stages (app/video_pipeline.py `_stage` names) into what an operator sees.
+const VP_LIVE_STAGES = [
+  {id: 'validate', label: 'Validate package',             stages: ['validate']},
+  {id: 'extract',  label: 'Extract — best frame per 5 m', stages: ['extract']},
+  {id: 'classify', label: 'Classify — VLM on each frame', stages: ['export', 'classify']},
+  {id: 'import',   label: 'Import & analyse',             stages: ['import', 'analyze', 'collect']},
+  {id: 'store',    label: 'Store & verify',               stages: ['store']},
+  {id: 'cleanup',  label: 'Clean up',                     stages: ['cleanup']},
+];
+// Row a session is in when no stage is running (between stages, or waiting): index into VP_LIVE_STAGES.
+const VP_STATE_ROW = {queued: 0, extracting: 1, classifying: 2, storing: 4, stored: 5, cleaned: 6};
+const vpLive = {
+  card: document.getElementById('vp-live'),
+  img: document.getElementById('vp-live-img'),
+  ph: document.getElementById('vp-live-ph'),
+  tag: document.getElementById('vp-live-tag'),
+  session: document.getElementById('vp-live-session'),
+  seg: document.getElementById('vp-live-seg'),
+  loc: document.getElementById('vp-live-loc'),
+  last: document.getElementById('vp-live-last'),
+  stages: document.getElementById('vp-live-stages'),
+};
+let _vpLiveSrc = null;          // frame URL on screen: changed only when the segment changes (no flicker)
+let _vpLiveStage = null;        // {rowId, startedIso} of the running stage, for the 200 ms ticker
+let _vpLiveTicker = null;
+
+vpLive.stages.innerHTML = VP_LIVE_STAGES.map(r =>
+  '<div class="vp-stage" id="vp-st-' + r.id + '">' +
+    '<div class="stage-row" id="vp-row-' + r.id + '">' +
+      '<span class="stage-dot" id="vp-dot-' + r.id + '"></span>' +
+      '<span class="stage-label">' + escapeHtml(r.label) + '</span>' +
+      '<span class="stage-timer" id="vp-timer-' + r.id + '">—</span>' +
+    '</div>' +
+    '<div class="stage-sub" id="vp-sub-' + r.id + '" style="display:none"></div>' +
+    '<div class="stage-bar" id="vp-bar-' + r.id + '" style="display:none"><div></div></div>' +
+  '</div>').join('');
+
+function vpDur(sec) {
+  if (sec == null || isNaN(sec) || sec < 0) return '—';
+  if (sec < 60) return sec.toFixed(1) + 's';
+  if (sec < 3600) return Math.floor(sec / 60) + 'm ' + String(Math.floor(sec % 60)).padStart(2, '0') + 's';
+  return Math.floor(sec / 3600) + 'h ' + String(Math.floor((sec % 3600) / 60)).padStart(2, '0') + 'm';
+}
+
+function vpSegLabel(id) {
+  const m = /_seg(\d{5})$/.exec(id || '');
+  return m ? 'seg ' + m[1] : (id || '—');
+}
+
+function setVpStage(row, state, timerText, sub, pct) {
+  const wrap = document.getElementById('vp-st-' + row.id);
+  wrap.className = 'vp-stage ' + state;
+  document.getElementById('vp-row-' + row.id).className = 'stage-row ' + state;
+  document.getElementById('vp-dot-' + row.id).className = 'stage-dot ' + state;
+  document.getElementById('vp-timer-' + row.id).textContent = timerText;
+  const subEl = document.getElementById('vp-sub-' + row.id);
+  subEl.style.display = sub ? 'block' : 'none';
+  subEl.textContent = sub || '';
+  const bar = document.getElementById('vp-bar-' + row.id);
+  bar.style.display = pct == null ? 'none' : 'block';
+  if (pct != null) bar.firstElementChild.style.width = Math.max(0, Math.min(100, pct)).toFixed(1) + '%';
+}
+
+function vpExtractSub(p) {
+  if (!p) return ['starting…', null];
+  const t = p.total;
+  switch (p.phase) {
+    case 'plan':          return ['planned ' + t + ' segments over ' + fmtMeters(p.route_m), 0];
+    case 'bank':          return ['learning normal road: ' + p.done + ' / ~' + t + ' bank frames',
+                                  t ? 100 * p.done / t : null];
+    case 'bank_finalize': return ['finalising the bank (' + p.done + ' frames)', 100];
+    case 'decode':        return ['segments ' + p.done + ' / ' + t + ' · send ' + (p.send || 0) + ' · audit ' +
+                                  (p.audit || 0) + ' · skip ' + (p.skip || 0) + ' · not covered ' + (p.not_covered || 0),
+                                  t ? 100 * p.done / t : null];
+    case 'outputs':       return ['writing records, CSV, GeoJSON (' + p.done + ' segments)', 100];
+    default:              return [p.phase, null];
+  }
+}
+
+function resetVideoLive(text) {
+  vpLive.card.classList.add('idle');
+  vpLive.img.style.display = 'none';
+  vpLive.tag.style.display = 'none';
+  vpLive.ph.style.display = 'flex';
+  vpLive.ph.textContent = text;
+  _vpLiveSrc = null;
+  _vpLiveStage = null;
+  for (const id of ['session', 'seg', 'loc']) { vpLive[id].textContent = '—'; vpLive[id].className = 'val muted'; }
+  VP_LIVE_STAGES.forEach(r => setVpStage(r, 'idle', '—', null, null));
+}
+
+function renderVideoLive(st) {
+  const cur = st.current;
+  if (!cur) {
+    resetVideoLive(st.enabled ? 'Watching the inbox — no video session being processed'
+                              : 'Video pipeline off — no session being processed');
+    return;
+  }
+  const live = cur.live || {};
+  const timings = live.timings_s || {};
+  vpLive.card.classList.remove('idle');
+  vpLive.session.textContent = cur.session_id + ' — ' + cur.state + (cur.detail ? ' (' + cur.detail + ')' : '');
+  vpLive.session.className = 'val';
+
+  // Which row is running: the live stage if one is, else the row the state implies.
+  let active = VP_LIVE_STAGES.findIndex(r => r.stages.includes(live.stage));
+  if (active < 0) active = VP_STATE_ROW[cur.state] ?? -1;
+  _vpLiveStage = live.stage && active >= 0 ? {rowId: VP_LIVE_STAGES[active].id, startedIso: live.stage_started_utc}
+                                          : null;
+  const ex = live.extract || {};
+  const cl = live.classify || null;
+  VP_LIVE_STAGES.forEach((r, i) => {
+    const t = r.stages.reduce((a, s) => a + (timings[s] || 0), 0);
+    let state = i < active ? 'done' : (i === active ? 'active' : 'idle');
+    let timer = state === 'done' ? (t > 0 ? vpDur(t) : 'reused') : '—';
+    if (state === 'active') timer = live.stage ? vpDur(nowMsSinceISO(live.stage_started_utc) / 1000) : 'waiting';
+    let sub = null, pct = null;
+    if (r.id === 'extract' && state === 'active') [sub, pct] = vpExtractSub(ex.progress);
+    if (r.id === 'classify' && cl && (state === 'active' || state === 'done')) {
+      sub = cl.answered + ' / ' + cl.requests + ' answered' +
+            (cl.rejected ? ' · ' + cl.rejected + ' rejected' : '') +
+            (cl.s_per_image_median != null ? ' · ' + cl.s_per_image_median.toFixed(1) + ' s/image' : '') +
+            (state === 'active' && cl.eta_s != null && cl.remaining ? ' · ETA ' + vpDur(cl.eta_s) : '');
+      pct = cl.requests ? 100 * (cl.answered + cl.rejected) / cl.requests : null;
+    }
+    if (cur.state === 'failed' && i === active) state = 'failed';
+    setVpStage(r, state, timer, sub, pct);
+  });
+
+  // The frame on screen: the segment in flight (classify) or the newest best frame (extract).
+  const frame = live.frame;
+  const inFlight = cl && cl.in_flight;
+  if (frame) {
+    const src = apiBase() + '/video-frame?key=' + encodeURIComponent(cur.key) +
+                '&segment=' + encodeURIComponent(frame) + '&w=720';
+    if (src !== _vpLiveSrc) {
+      _vpLiveSrc = src;
+      vpLive.img.onload = () => { vpLive.img.style.display = 'block'; vpLive.ph.style.display = 'none'; };
+      vpLive.img.onerror = () => {
+        vpLive.img.style.display = 'none';
+        vpLive.ph.style.display = 'flex';
+        vpLive.ph.textContent = 'Frame preview unavailable';
+      };
+      vpLive.img.src = src;
+    }
+    vpLive.tag.textContent = vpSegLabel(frame) + (inFlight && inFlight.segment_id === frame ? ' · classifying' : '');
+    vpLive.tag.style.display = 'block';
+  } else {
+    _vpLiveSrc = null;
+    vpLive.img.style.display = 'none';
+    vpLive.tag.style.display = 'none';
+    vpLive.ph.style.display = 'flex';
+    vpLive.ph.textContent = live.stage ? 'Working: ' + live.stage + ' — no frame yet' : 'Waiting for the next stage';
+  }
+
+  // Segment + location lines.
+  if (inFlight) {
+    vpLive.seg.textContent = vpSegLabel(inFlight.segment_id) + ' (k ' + inFlight.k + ') · ' +
+      fmtMeters(inFlight.s0_m) + ' along the route · ' + inFlight.status +
+      (inFlight.gate_decision_if_gated && inFlight.gate_decision_if_gated !== inFlight.status
+        ? ' (gate would ' + inFlight.gate_decision_if_gated + ')' : '') +
+      ' · in flight ' + vpDur(nowMsSinceISO(cl.in_flight_since_utc) / 1000);
+    vpLive.loc.textContent = (inFlight.lat != null ? inFlight.lat.toFixed(6) + ', ' + inFlight.lon.toFixed(6) : 'unknown') +
+      (inFlight.chainage_start_km != null ? ' · km ' + inFlight.chainage_start_km.toFixed(3) : '') +
+      (inFlight.utc_iso ? ' · ' + inFlight.utc_iso : '');
+  } else if (ex.progress && ex.progress.segment) {
+    vpLive.seg.textContent = 'latest: ' + vpSegLabel(ex.progress.segment) + ' → ' + ex.progress.status +
+      (ex.latest_frame && ex.latest_frame !== ex.progress.segment ? ' · newest frame ' + vpSegLabel(ex.latest_frame) : '');
+    vpLive.loc.textContent = '—';
+  } else {
+    vpLive.seg.textContent = '—';
+    vpLive.loc.textContent = '—';
+  }
+  vpLive.seg.className = vpLive.seg.textContent === '—' ? 'val muted' : 'val';
+  vpLive.loc.className = vpLive.loc.textContent === '—' ? 'val muted' : 'val';
+
+  // Last result: the VLM's latest answer (or error) while classifying.
+  const la = cl && cl.last_answer;
+  if (cl && cl.last_error && (!la || cl.last_error.segment_id !== la.segment_id)) {
+    vpLive.last.textContent = vpSegLabel(cl.last_error.segment_id) + ' — error: ' + cl.last_error.error;
+  } else if (la) {
+    const conf = la.stage1_confidence != null ? ' ' + Math.round(la.stage1_confidence * 100) + '%' : '';
+    vpLive.last.textContent = vpSegLabel(la.segment_id) + ' — ' + (la.labels.join(', ') || 'no label') +
+      ' · Stage 1 ' + (la.stage1_label || '?') + conf +
+      (la.severity && la.severity !== 'None' ? ' · severity ' + la.severity : '') +
+      (la.seconds != null ? ' · ' + la.seconds.toFixed(1) + ' s' : '');
+  }
+}
+
+// Running stage's timer ticks every 200 ms between polls, like the citizen-upload card.
+_vpLiveTicker = setInterval(() => {
+  if (!_vpLiveStage) return;
+  const el = document.getElementById('vp-timer-' + _vpLiveStage.rowId);
+  if (el) el.textContent = vpDur(nowMsSinceISO(_vpLiveStage.startedIso) / 1000);
+}, 200);
+
 async function loadVideo() {
   try {
     const [st, ss] = await Promise.all([
@@ -2515,6 +2760,8 @@ async function loadVideo() {
       apiCall('/operator/video/sessions?limit=100'),
     ]);
     renderVideoStatus(st);
+    renderVideoLive(st);
+    _vpActive = !!st.current;
     renderVideoSessions(ss.items || []);
   } catch (e) {
     vpToggle.disabled = true;
@@ -2620,13 +2867,19 @@ _adapterPollTimer = setInterval(loadAdapters, 30_000);   // adapter list rarely 
 _trainPollTimer = setInterval(pollTraining, 5_000);      // training metrics every 5s
 setInterval(loadPipelineHealth, 60_000);                  // pipeline config rarely changes
 _rtPollTimer = setInterval(loadRuntime, 30_000);         // VRAM moves; precision rarely does
-loadVideo();
-_vpPollTimer = setInterval(loadVideo, 5_000);            // session stages and VLM progress
+// Session stages and VLM progress: every 2 s while a session runs (the live card), else every 5 s.
+let _vpActive = false;
+async function videoPollLoop() {
+  await loadVideo();
+  _vpPollTimer = setTimeout(videoPollLoop, _vpActive ? 2_000 : 5_000);
+}
+videoPollLoop();
 
 // Cleanup on navigation
 window.addEventListener('beforeunload', () => {
   stopSSE();
-  if (_vpPollTimer) clearInterval(_vpPollTimer);
+  if (_vpPollTimer) clearTimeout(_vpPollTimer);
+  if (_vpLiveTicker) clearInterval(_vpLiveTicker);
   if (recentTimer) clearInterval(recentTimer);
   if (_adapterPollTimer) clearInterval(_adapterPollTimer);
   if (_trainPollTimer) clearInterval(_trainPollTimer);

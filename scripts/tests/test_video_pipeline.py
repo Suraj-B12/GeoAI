@@ -863,6 +863,138 @@ def test_local_images_route() -> None:
                 os.environ["LOCAL_IMAGE_ROOT"] = old
 
 
+def test_live_view() -> None:
+    print("\n[9f] live view of the session in progress (operator page's live card)")
+    import io as _io
+
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from PIL import Image
+
+    from app import video_routes
+
+    def png(w: int, h: int, color) -> bytes:
+        buf = _io.BytesIO()
+        Image.new("RGB", (w, h), color).save(buf, format="PNG")
+        return buf.getvalue()
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        sid = "20261027T050257Z_SM-G991B-F0D1_d47c"
+        # -- extract_progress: the LAST progress line wins; noise, other lines and a cut-off line are ignored
+        out = root / "extract.txt"
+        write(out, "\n".join([
+            '2026-10-27 12:00:00,000 INFO geoai: plan: 528 segments of 5.0 m',
+            '2026-10-27 12:00:00,001 INFO geoai: progress {"done": 0, "phase": "plan", "route_m": 2637.5, "total": 528}',
+            '2026-10-27 12:00:05,000 INFO geoai: progress {"done": 40, "phase": "bank", "total": 175}',
+            '2026-10-27 12:03:00,000 INFO geoai: progress {"done": 120, "k": 119, "phase": "decode", "segment": "'
+            + sid + '_seg00119", "send": 100, "skip": 20, "status": "send", "total": 528}',
+            'some other line', '2026-10-27 12:03:01,000 INFO geoai: progress {"done": 121, "pha']))
+        p = vp.extract_progress(out)
+        check("extract_progress reads the last complete progress line",
+              p is not None and p["phase"] == "decode" and (p["done"], p["total"], p["send"]) == (120, 528, 100), str(p))
+        check("extract_progress: missing file -> None", vp.extract_progress(root / "nope.txt") is None)
+        check("extract_progress: no file given -> None", vp.extract_progress(None) is None)
+
+        # -- latest_frame_id: newest PNG by mtime
+        run = root / "runs" / sid
+        for k, t in ((3, 1_000), (7, 3_000), (5, 2_000)):
+            f = run / "frames" / f"{sid}_seg{k:05d}.png"
+            write(f, png(64, 36, (k * 30, 0, 0)))
+            os.utime(f, ns=(t * 1_000_000_000, t * 1_000_000_000))
+        write(run / "frames" / "notes.txt", "x")
+        check("latest_frame_id = newest frame", vp.latest_frame_id(run) == f"{sid}_seg00007")
+        check("latest_frame_id: no frames dir -> None", vp.latest_frame_id(root / "empty") is None)
+
+        # -- classify_live: 4 requests; 0 answered (14 s), 1 Stage-1 Normal (10 s), 2 errored once, 3 pending
+        batch = root / "batches" / f"batch_{sid}"
+        ids = [f"{sid}_seg{k:05d}" for k in range(4)]
+        write(batch / "requests.jsonl", "".join(json.dumps({"request_id": i, "kind": "segment"}) + "\n" for i in ids))
+        for k, i in enumerate(ids):
+            write(batch / "records" / f"{i}.json", json.dumps({
+                "id": i, "status": "send", "segment": {"k": k, "s0_m": 100.0 + 5 * k, "length_m": 5.0,
+                                                       "centre": {"lat": 12.9 + k * 1e-5, "lon": 77.6},
+                                                       "chainage_start_km": None},
+                "frame": {"utc_iso": "2026-10-27T05:03:00.000Z"}, "gate": {"decision_if_gated": "skip", "reasons": []}}))
+            write(batch / "images" / f"{i}.png", png(64, 36, (0, k * 50, 0)))
+        lines = [
+            {"request_id": ids[0], "seconds": 14.0, "response": {"stage1_label": "Distress", "stage1_confidence": 0.91,
+                                                                  "distress_types": ["Potholes"], "severity": "Medium"}},
+            {"request_id": ids[1], "seconds": 10.0, "response": {"stage1_label": "Normal", "stage1_confidence": 0.88,
+                                                                  "distress_types": [], "severity": "None"}},
+            {"request_id": ids[2], "seconds": 3.0, "http_status": 500, "error": "HTTP 500", "response": {"detail": "x"}},
+        ]
+        write(batch / "responses.jsonl", "".join(json.dumps(x) + "\n" for x in lines))
+        c = vp.classify_live(batch)
+        check("classify_live counts", c is not None and (c["requests"], c["answered"], c["rejected"], c["remaining"])
+              == (4, 2, 0, 2), str(c)[:300])
+        # By hand: mean of 14 and 10 = 12 s; 2 remaining -> ETA 24 s; median of two values = 12.
+        check("classify_live speed and ETA", (c["s_per_image_mean"], c["s_per_image_median"], c["eta_s"]) == (12.0, 12.0, 24.0),
+              str((c["s_per_image_mean"], c["s_per_image_median"], c["eta_s"])))
+        check("in flight = first unanswered request, with its record",
+              c["in_flight"]["segment_id"] == ids[2] and c["in_flight"]["k"] == 2 and c["in_flight"]["s0_m"] == 110.0
+              and c["in_flight"]["gate_decision_if_gated"] == "skip", str(c["in_flight"]))
+        check("last answer is the Stage-1 Normal one, read as Normal",
+              c["last_answer"]["segment_id"] == ids[1] and c["last_answer"]["labels"] == ["Normal"]
+              and c["last_answer"]["seconds"] == 10.0, str(c["last_answer"]))
+        check("last error reported (it is the last line)",
+              c["last_error"] and c["last_error"]["segment_id"] == ids[2] and "500" in c["last_error"]["error"])
+        check("classify_live: no requests -> None", vp.classify_live(root / "nobatch") is None)
+
+        # -- service: _live per state, frame_file, /video-frame
+        w = World(root / "w")
+        svc = w.service(image_root=root / "images")
+        key = "pkgL"
+        svc._sessions[key] = {"key": key, "session_id": sid, "state": "extracting", "run_dir": str(run),
+                              "batch_dir": str(batch), "metrics": {"timings_s": {"validate": 1.5}},
+                              "stage": "extract", "stage_started_utc": "2026-10-27T12:00:00Z",
+                              "live_output": {"step": "extract", "file": str(out)}, "history": []}
+        live = svc._live(svc._sessions[key])
+        check("live while extracting: stage, progress, newest frame",
+              live["stage"] == "extract" and live["extract"]["progress"]["done"] == 120
+              and live["frame"] == f"{sid}_seg00007" and live["timings_s"] == {"validate": 1.5}, str(live)[:300])
+        svc._sessions[key].update(state="classifying", stage="classify")
+        live = svc._live(svc._sessions[key])
+        check("live while classifying: the frame shown is the segment in flight",
+              live["frame"] == ids[2] and live["classify"]["answered"] == 2, str(live)[:300])
+        svc._sessions[key].update(state="storing", stage="store")
+        live = svc._live(svc._sessions[key])
+        check("live while storing: no extract/classify block", "extract" not in live and "classify" not in live)
+
+        write(root / "images" / sid / f"{sid}_seg00009.png", png(32, 18, (9, 9, 9)))
+        check("frame_file: run frames/", svc.frame_file(key, f"{sid}_seg00005") == run / "frames" / f"{sid}_seg00005.png")
+        check("frame_file: batch images/ (not in the run's frames)",
+              svc.frame_file(key, ids[0]) == batch / "images" / f"{ids[0]}.png")
+        check("frame_file: image store after cleanup", svc.frame_file(key, f"{sid}_seg00009") == root / "images" / sid / f"{sid}_seg00009.png")
+        check("frame_file: another session's id -> None", svc.frame_file(key, "OTHER_seg00001") is None)
+        check("frame_file: a path -> None", svc.frame_file(key, "..\\..\\x") is None)
+        check("frame_file: unknown session -> None", svc.frame_file("nope", f"{sid}_seg00005") is None)
+
+        app = FastAPI()
+        app.include_router(video_routes.image_router)
+        client = TestClient(app)
+        old = vp.get_service()
+        vp.set_service(svc)
+        try:
+            r = client.get("/video-frame", params={"key": key, "segment": f"{sid}_seg00007", "w": 32})
+            im = Image.open(_io.BytesIO(r.content)) if r.status_code == 200 else None
+            # w=32 is clamped to the 160 px minimum, wider than the 64 px frame: never enlarged.
+            check("/video-frame: JPEG, a small frame is not enlarged",
+                  im is not None and r.headers["content-type"] == "image/jpeg" and im.format == "JPEG"
+                  and im.size == (64, 36), f"{r.status_code} {im.size if im else None}")
+            write(run / "frames" / f"{sid}_seg00011.png", png(2000, 1000, (1, 2, 3)))
+            r = client.get("/video-frame", params={"key": key, "segment": f"{sid}_seg00011", "w": 640})
+            im = Image.open(_io.BytesIO(r.content)) if r.status_code == 200 else None
+            check("/video-frame: a large frame is scaled to w, aspect kept (2000x1000 -> 640x320)",
+                  im is not None and im.size == (640, 320), f"{r.status_code} {im.size if im else None}")
+            r2 = client.get("/video-frame", params={"key": key, "segment": "OTHER_seg00001"})
+            check("/video-frame: unknown segment -> 404", r2.status_code == 404)
+            r3 = client.get("/video-frame", params={"key": key, "segment": f"{sid}_seg00042"})
+            check("/video-frame: missing frame -> 404", r3.status_code == 404)
+        finally:
+            vp.set_service(old)
+
+
 def main() -> int:
     test_helpers()
     test_happy_path()
@@ -874,6 +1006,7 @@ def main() -> int:
     test_real_worker_hold()
     test_routes()
     test_local_images_route()
+    test_live_view()
     print(f"\n{CHECKS - len(FAILURES)}/{CHECKS} checks passed")
     if FAILURES:
         print("FAILED:", *FAILURES, sep="\n  ")

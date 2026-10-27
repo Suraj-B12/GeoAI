@@ -371,6 +371,124 @@ def vlm_metrics(lines: list[dict], ids: list[str]) -> dict:
     }
 
 
+# ============================================================
+# Live view of the session in progress (operator page, like the citizen-upload card)
+# ============================================================
+PROGRESS_TAIL_BYTES = 64_000          # the extraction's output tail searched for its last progress line
+_PROGRESS_LINE = re.compile(r"progress (\{.*\})\s*$")
+_SEGMENT_ID = re.compile(r"^(?P<sid>.+)_seg(?P<k>\d{5})$")
+
+
+def extract_progress(output_file: Optional[Path]) -> Optional[dict]:
+    """The last `progress {json}` line `geoai process` logged (GeoAI_Video frames._Progress), or None.
+
+    Phases: plan, bank, bank_finalize, decode, outputs; `done`/`total` count bank frames (total an
+    estimate) or segments. Only the file's tail is read: a long run's log is megabytes.
+    """
+    if not output_file:
+        return None
+    p = Path(output_file)
+    try:
+        with open(p, "rb") as f:
+            f.seek(0, os.SEEK_END)
+            f.seek(max(0, f.tell() - PROGRESS_TAIL_BYTES))
+            text = f.read().decode("utf-8", errors="replace")
+    except OSError:
+        return None
+    for line in reversed(text.splitlines()):
+        m = _PROGRESS_LINE.search(line)
+        if m:
+            try:
+                d = json.loads(m.group(1))
+            except ValueError:
+                continue
+            if isinstance(d, dict) and d.get("phase"):
+                return d
+    return None
+
+
+def latest_frame_id(run_dir: Path) -> Optional[str]:
+    """Segment id of the newest best frame written to <run>/frames (the extraction's latest sent segment)."""
+    best, newest = None, -1
+    try:
+        it = os.scandir(Path(run_dir) / "frames")
+    except OSError:
+        return None
+    with it:
+        for e in it:
+            if e.name.endswith(".png") and e.is_file():
+                try:
+                    t = e.stat().st_mtime_ns
+                except OSError:
+                    continue
+                if t > newest or (t == newest and e.name > best):
+                    best, newest = e.name, t
+    return best[:-4] if best else None
+
+
+def _record_summary(batch_dir: Path, rid: str) -> Optional[dict]:
+    """Where a segment is (from the batch's copy of its geoai.segment.v1 record), for the live card."""
+    rec = _read_json(Path(batch_dir) / "records" / f"{rid}.json")
+    if not rec:
+        return None
+    seg, gate = rec.get("segment") or {}, rec.get("gate") or {}
+    centre = seg.get("centre") or {}
+    frame = rec.get("frame") or {}
+    return {"segment_id": rid, "k": seg.get("k"), "s0_m": seg.get("s0_m"), "length_m": seg.get("length_m"),
+            "lat": centre.get("lat"), "lon": centre.get("lon"), "chainage_start_km": seg.get("chainage_start_km"),
+            "utc_iso": frame.get("utc_iso"), "status": rec.get("status"),
+            "gate_decision_if_gated": gate.get("decision_if_gated"), "gate_reasons": gate.get("reasons")}
+
+
+def _answer_summary(line: dict) -> dict:
+    resp = line.get("response") or {}
+    types = resp.get("distress_types") or []
+    labels = [str(t) for t in types] if isinstance(types, list) else [str(types)]
+    if not labels and str(resp.get("stage1_label") or "").lower() == "normal":
+        labels = ["Normal"]  # Stage 1 Normal: Stage 2 never ran (GeoAI_Video vlm._labels reads it the same way)
+    return {"segment_id": line.get("request_id"), "labels": labels, "stage1_label": resp.get("stage1_label"),
+            "stage1_confidence": resp.get("stage1_confidence"), "severity": resp.get("severity"),
+            "stage2_confidence": resp.get("stage2_confidence"), "needs_expert_review": resp.get("needs_expert_review"),
+            "seconds": line.get("seconds"), "started_utc": line.get("started_utc")}
+
+
+def classify_live(batch_dir: Path) -> Optional[dict]:
+    """The classification in progress: counts, the segment the runner is sending now, the last answer.
+
+    The runner sends requests in requests.jsonl order and appends one line per image, so the segment
+    in flight is the first one neither answered nor permanently rejected; it has been in flight since
+    responses.jsonl was last written (or since the batch was exported, before the first answer).
+    s/image and the ETA come from the answered images' own round trips.
+    """
+    b = Path(batch_dir)
+    ids = request_ids(b)
+    if not ids:
+        return None
+    lines = read_jsonl(b / "responses.jsonl")
+    answered = set(answers_from_responses(lines)) & set(ids)
+    rejected = permanently_rejected(lines, answered)
+    pending = [rid for rid in ids if rid not in answered and rid not in rejected]
+    secs = [float(r["seconds"]) for r in lines
+            if r.get("request_id") in answered and not r.get("error") and isinstance(r.get("seconds"), (int, float))]
+    mean = sum(secs) / len(secs) if secs else None
+    last_ok = next((r for r in reversed(lines) if not r.get("error") and isinstance(r.get("response"), dict)), None)
+    last_err = lines[-1] if lines and lines[-1].get("error") else None
+    resp_file = b / "responses.jsonl"
+    try:
+        since = datetime.fromtimestamp((resp_file if resp_file.exists() else b / "requests.jsonl").stat().st_mtime,
+                                       timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+    except OSError:
+        since = None
+    in_flight = pending[0] if pending else None
+    return {"requests": len(ids), "answered": len(answered), "rejected": len(rejected), "remaining": len(pending),
+            "s_per_image_mean": _round(mean, 2), "s_per_image_median": _round(percentile(secs, 50), 2),
+            "eta_s": _round(mean * len(pending), 0) if mean is not None else None,
+            "in_flight": _record_summary(b, in_flight) if in_flight else None, "in_flight_since_utc": since,
+            "last_answer": _answer_summary(last_ok) if last_ok else None,
+            "last_error": {"segment_id": last_err.get("request_id"), "error": str(last_err.get("error"))[:300]}
+            if last_err else None}
+
+
 def _round(x: Optional[float], nd: int) -> Optional[float]:
     return None if x is None else round(x, nd)
 
@@ -999,6 +1117,7 @@ class VideoPipelineService:
         """Time a stage, log start/end (or the error with its stack trace) to the JSON-lines log."""
         t0, start = time.monotonic(), utc_now()
         jl.write(stage, "start", **start_fields)
+        s["stage"], s["stage_started_utc"] = stage, start   # the operator page's live stage timer
         counts: dict = {}
         try:
             yield counts
@@ -1012,10 +1131,12 @@ class VideoPipelineService:
             dt = time.monotonic() - t0
             timings = s["metrics"].setdefault("timings_s", {})
             timings[stage] = round(timings.get(stage, 0.0) + dt, 3)
+            s["stage"] = None
         jl.write(stage, "end", start_utc=start, end_utc=utc_now(), seconds=round(dt, 3), counts=counts)
 
     async def _cmd(self, s: dict, jl: SessionLog, step: str, argv: list, cwd: Path) -> tuple[int, Path]:
         out = jl.output_file(step)
+        s["live_output"] = {"step": step, "file": str(out)}   # tailed by status() for extraction progress
         timeout = TIMEOUT_S.get(step.split("_")[0])
         code = await asyncio.to_thread(self._run_command, step, argv, cwd, out, timeout, self.cancel)
         if self._shutting_down:
@@ -1334,7 +1455,7 @@ class VideoPipelineService:
                     answered = set(answers_from_responses(read_jsonl(b / "responses.jsonl"))) & set(ids)
                     progress.update(answered=len(answered), requests=len(ids))
             out["current"] = {"key": cur["key"], "session_id": cur["session_id"], "state": cur["state"],
-                              "detail": cur.get("detail"), "progress": progress}
+                              "detail": cur.get("detail"), "progress": progress, "live": self._live(cur)}
         worker = self._get_worker()
         out["worker"] = {"present": worker is not None,
                          "running": bool(worker and worker.is_running),
@@ -1351,6 +1472,65 @@ class VideoPipelineService:
                          "state_file_error": self._persist_error}
         out["last_error"] = self._last_error
         return out
+
+    def _live(self, cur: dict) -> dict:
+        """What the session in progress is doing right now, for the operator page's live card.
+
+        stage / stage_started_utc: the running stage (validate, extract, export, classify, import,
+        analyze, store, cleanup) and when it began; timings_s: seconds of each finished stage.
+        extract: the last progress line of `geoai process` (phase, done/total, last segment) plus the
+        newest best frame written. classify: counts, the segment in flight and the last answer
+        (classify_live). frame: the segment whose image to show (GET /video-frame).
+        """
+        live: dict = {"stage": cur.get("stage"), "stage_started_utc": cur.get("stage_started_utc"),
+                      "timings_s": dict((cur.get("metrics") or {}).get("timings_s") or {}),
+                      "history": list(cur.get("history") or [])[-12:], "frame": None}
+        run = Path(cur["run_dir"]) if cur.get("run_dir") else None
+        lo = cur.get("live_output") or {}
+        if cur["state"] == "extracting" and run is not None:
+            prog = extract_progress(Path(lo["file"])) if lo.get("step") == "extract" and lo.get("file") else None
+            frame = latest_frame_id(run)
+            live["extract"] = {"progress": prog, "latest_frame": frame}
+            live["frame"] = frame
+        elif cur["state"] == "classifying" and cur.get("batch_dir"):
+            c = classify_live(Path(cur["batch_dir"]))
+            live["classify"] = c
+            if c:
+                live["frame"] = (c.get("in_flight") or {}).get("segment_id") or \
+                    (c.get("last_answer") or {}).get("segment_id")
+        return live
+
+    def frame_file(self, key_or_id: str, segment_id: str) -> Optional[Path]:
+        """The PNG of one of a session's segments, wherever it is now: the run's frames/ (extraction),
+        the batch's images/ (classification), or the local image store (after cleanup). Only that
+        session's own `<session_id>_segNNNNN` ids resolve, so no other file can be named."""
+        key = self._find(key_or_id)
+        if key is None:
+            return None
+        s = self._sessions[key]
+        m = _SEGMENT_ID.match(segment_id or "")
+        if not m or m.group("sid") != s["session_id"]:
+            return None
+        name = f"{segment_id}.png"
+        dirs = []
+        if s.get("run_dir"):
+            dirs.append(Path(s["run_dir"]) / "frames")
+        if s.get("batch_dir"):
+            dirs.append(Path(s["batch_dir"]) / "images")
+        root = getattr(self.cfg, "image_root", None)
+        if root is None:
+            try:
+                from app.local_images import image_root
+                root = image_root()
+            except Exception:
+                root = None
+        if root is not None:
+            dirs.append(Path(root) / s["session_id"])
+        for d in dirs:
+            p = d / name
+            if p.is_file():
+                return p
+        return None
 
     def sessions(self, limit: int = 100) -> list[dict]:
         """Sessions, newest first, without the bulky validator output."""

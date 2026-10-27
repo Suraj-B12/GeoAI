@@ -8,8 +8,9 @@ HTTP endpoints of the video pipeline (app/video_pipeline.py) for the operator da
     GET  /operator/video/sessions/{id}/log    the session's JSON-lines log events
     POST /operator/video/sessions/{id}/retry  put a failed session back in the queue
     GET  /local-images?path=<image_url>       a stored image, for <img> tags (see below)
+    GET  /video-frame?key=&segment=&w=        JPEG preview of a session's segment frame (live card)
 
-All but /local-images require the same X-API-Key as the other /operator endpoints. An <img> tag
+All but /local-images and /video-frame require the same X-API-Key as the other /operator endpoints. An <img> tag
 can't send that header, and the images it replaces were public Cloudinary URLs, so /local-images
 is open like they were, but serves only .png/.jpg/.jpeg files inside LOCAL_IMAGE_ROOT
 (app/local_images.inside_root): with DB_BACKEND=postgres, image_url holds that absolute path.
@@ -24,10 +25,13 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import io
 import traceback
+from collections import OrderedDict
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 
 from app.local_images import inside_root, local_image_path
 from app.security import verify_api_key
@@ -36,6 +40,51 @@ from app.video_pipeline import VideoPipelineService, get_service, set_service
 router = APIRouter(prefix="/operator/video", tags=["video_pipeline"], dependencies=[Depends(verify_api_key)])
 image_router = APIRouter(tags=["video_pipeline"])
 _IMAGE_TYPES = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg"}
+
+
+_THUMB_CACHE: "OrderedDict[tuple, bytes]" = OrderedDict()
+_THUMB_CACHE_MAX = 32        # previews kept (~60 KB each at 640 px): the live card reuses the same frame for ~15 s
+_THUMB_WIDTHS = (160, 1600)  # allowed preview widths, px
+
+
+def _thumbnail(path: Path, width: int) -> bytes:
+    """A JPEG preview of a segment frame, cached by (path, mtime, width). Display only: the VLM always
+    gets the lossless full-resolution PNG; a 4K PNG is 5-9 MB, too much to reload every few seconds."""
+    from PIL import Image
+
+    key = (str(path), path.stat().st_mtime_ns, width)
+    if key in _THUMB_CACHE:
+        _THUMB_CACHE.move_to_end(key)
+        return _THUMB_CACHE[key]
+    with Image.open(path) as im:
+        im.draft("RGB", (width, width))
+        im = im.convert("RGB")
+        if im.width > width:
+            im = im.resize((width, max(1, round(im.height * width / im.width))), Image.BILINEAR)
+        buf = io.BytesIO()
+        im.save(buf, format="JPEG", quality=82)
+    data = buf.getvalue()
+    _THUMB_CACHE[key] = data
+    while len(_THUMB_CACHE) > _THUMB_CACHE_MAX:
+        _THUMB_CACHE.popitem(last=False)
+    return data
+
+
+@image_router.get("/video-frame")
+async def video_frame(key: str, segment: str, w: int = 640):
+    """Preview of one segment frame of a video session (the live card's image). Open like /local-images:
+    an <img> can't send X-API-Key. Only `<session_id>_segNNNNN` frames of a known session resolve
+    (VideoPipelineService.frame_file), never an arbitrary path."""
+    svc = get_service()
+    path = await asyncio.to_thread(svc.frame_file, key, segment) if svc is not None else None
+    if path is None:
+        raise HTTPException(status_code=404, detail="no such segment frame")
+    width = min(max(int(w), _THUMB_WIDTHS[0]), _THUMB_WIDTHS[1])
+    try:
+        data = await asyncio.to_thread(_thumbnail, path, width)
+    except (OSError, ValueError) as e:
+        raise HTTPException(status_code=404, detail=f"frame not readable: {type(e).__name__}")
+    return Response(content=data, media_type="image/jpeg", headers={"Cache-Control": "no-cache"})
 
 
 @image_router.get("/local-images")
