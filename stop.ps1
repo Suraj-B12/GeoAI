@@ -7,6 +7,8 @@
 # With DB_BACKEND=postgres (in .env or the environment) the local PostgreSQL
 # cluster (PG_BIN / PG_DATA) is stopped afterwards ("fast" mode: open
 # transactions roll back, nothing committed is lost). -KeepDb leaves it running.
+# With DB_BACKEND=supabase it is left running even when start.ps1 started it
+# for the video pipeline: its store and the GIS outlive a server restart.
 #
 # Usage:
 #   .\stop.ps1            # graceful (drains worker first)

@@ -10,10 +10,11 @@
 #   .\start.ps1 -Watchdog                 # auto-restart on crash (infinite loop)
 #   .\start.ps1 -AutoStart -Tunnel -Watchdog  # full production runner
 #
-# DB_BACKEND=postgres (in .env or the environment): the local PostgreSQL
-# cluster (PG_BIN / PG_DATA, default C:\GeoAI\pgsql\bin and C:\GeoAI\pgdata)
-# is started first if it is not running, and before every watchdog restart.
-# Unset / supabase (production): nothing changes. See SETUP.md "Local PostgreSQL".
+# DB_BACKEND=postgres, or a DATABASE_URL on this machine (the video pipeline's
+# store): the local PostgreSQL cluster (PG_BIN / PG_DATA, default
+# C:\GeoAI\pgsql\bin and C:\GeoAI\pgdata) is started first if it is not
+# running, and before every watchdog restart. With DB_BACKEND=supabase a start
+# failure is only a warning. See SETUP.md "Local PostgreSQL".
 #
 # First-time setup (run once after cloning):
 #   Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
@@ -122,6 +123,10 @@ function Start-LocalPostgres {
 }
 
 $DbBackend = (Get-EnvSetting 'DB_BACKEND' 'supabase').ToLower()
+# The video pipeline stores its results in the local PostgreSQL (DATABASE_URL) whatever DB_BACKEND
+# says, so a DATABASE_URL on this machine also starts it. With DB_BACKEND=supabase a failure is only
+# a warning: citizen uploads don't need it, and the video toggle reports its store as unavailable.
+$LocalPg = ($DbBackend -eq 'postgres') -or ((Get-EnvSetting 'DATABASE_URL' '') -match '@(localhost|127\.0\.0\.1|\[::1\])[:/]')
 
 # ============================================================
 # Pre-flight checks
@@ -215,11 +220,14 @@ $venvPy = Join-Path $ProjectRoot "venv\Scripts\python.exe"
 }
 
 # ============================================================
-# Local PostgreSQL (DB_BACKEND=postgres only)
+# Local PostgreSQL (DB_BACKEND=postgres, or a local DATABASE_URL for the video pipeline)
 # ============================================================
-if ($DbBackend -eq 'postgres') {
+if ($LocalPg) {
     Write-Step "Local PostgreSQL"
-    if (-not (Start-LocalPostgres)) { exit 1 }
+    if (-not (Start-LocalPostgres)) {
+        if ($DbBackend -eq 'postgres') { exit 1 }
+        Write-WARN "local PostgreSQL not running: the video pipeline cannot store results until it is"
+    }
 }
 
 # ============================================================
@@ -312,7 +320,7 @@ if ($Watchdog) {
     $crashCount = 0
     while ($true) {
         Write-Step "Starting uvicorn (attempt #$($crashCount + 1))"
-        if ($DbBackend -eq 'postgres') { [void](Start-LocalPostgres) }
+        if ($LocalPg) { [void](Start-LocalPostgres) }
         & $venvPy @uvicornArgs
         $exitCode = $LASTEXITCODE
         if ($exitCode -eq 0 -or $exitCode -eq -1073741510) {
