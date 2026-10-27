@@ -75,16 +75,19 @@ _CHUNK = 1 << 20
 # Connection / transactions
 # ============================================================
 
-def connect(dsn: Optional[str] = None) -> psycopg.Connection:
+def connect(dsn: Optional[str] = None, *, connect_timeout: Optional[int] = None) -> psycopg.Connection:
     """A psycopg connection to DATABASE_URL (autocommit; UTC session).
 
     Autocommit, so each function below runs exactly one explicit transaction
     and commits it, whatever the caller did before on the connection.
+    connect_timeout (s): give up sooner than psycopg's default (~130 s) when the
+    server is down; the read-only GIS API uses it so a stopped database is a quick 503.
     """
     dsn = dsn or os.environ.get("DATABASE_URL")
     if not dsn:
         raise RuntimeError("DATABASE_URL is not set (see SETUP.md, 'Local PostgreSQL').")
-    return psycopg.connect(dsn, autocommit=True, options="-c TimeZone=UTC")
+    extra = {"connect_timeout": int(connect_timeout)} if connect_timeout else {}
+    return psycopg.connect(dsn, autocommit=True, options="-c TimeZone=UTC", **extra)
 
 
 @contextmanager
