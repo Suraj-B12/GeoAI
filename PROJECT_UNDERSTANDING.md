@@ -4,6 +4,8 @@
 > (local `C:\Users\PRO-LAB-3\Documents\Capstone`, branch `main`, HEAD `75a2317`, in sync with
 > `origin/main`, working tree clean, 30 commits, 124 tracked files).
 > Written 2026-09-15 from source, git history, every project `.md`, and Claude memory.
+> **2026-10-27:** for the CURRENT production pipeline, configuration, data counts and next steps read
+> `CLAUDE.md` → "START HERE" and paper §T7 first; sections below that predate 2026-09-23 may be stale.
 
 ---
 
@@ -134,8 +136,9 @@ still written into `raw_response`.
 
 ## 4. Production configuration — and why the fine-tuned adapter is shelved
 
-`.env` production values: `DISABLE_ADAPTER=true`, `PROMPTS_VERSION=v2`, `QUANTIZATION_BITS=0`
-(fp16 on the A5000). `ADAPTER_PATH` is commented out.
+`.env` production values (2026-10-27): `DISABLE_ADAPTER=true`, `PROMPTS_VERSION=v2`, `QUANTIZATION_BITS=4`,
+`MAX_IMAGE_PIXELS=1048576`, `STAGE2_CONFIDENCE_MODE=field`, `STAGE2_MODE=shadow`, `STAGE1_SAFETY_NET=true`.
+`ADAPTER_PATH` is commented out.
 
 So **production = base Qwen2.5-VL-7B-Instruct + v2 "Improved Baseline" IRC prompts. No LoRA.**
 

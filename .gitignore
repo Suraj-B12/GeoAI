@@ -128,3 +128,9 @@ build/
 
 # Database dumps contain citizen addresses and GPS; keep them local.
 eval_results/snapshots/assessments_*.json
+
+# Production backups contain citizen addresses, GPS and image URLs - never commit
+eval_results/snapshots/pre_reclassify_*.json
+
+# Zipped copy of vlm_handoff/ for e-mailing; the folder itself is tracked.
+vlm_handoff.zip

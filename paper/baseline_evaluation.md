@@ -12,6 +12,8 @@
 > Neither was adopted; both are reported with the evidence. §7.7 adds a second allocator
 > effect (image shape).
 >
+> **Revision 2026-10-27.** Added Figures 6.5–6.9, regenerated from the stored result files by `scripts/generate_paper_figures.py` (no inference). Added §T7 (production deployment record: pipeline version, configuration, row counts, incidents, test suites). No result changed.
+>
 > **Revision 2026-09-26.** Added §6.9: the probe on tiles and on self-located zoom crops, against the full photograph, with an oracle-localisation ceiling (development/test split, grouped cross-validation, 231 Bengaluru uploads). Tiling beats find-then-zoom but does not meet the pre-registered adoption rule; production records tile scores for later calibration. §3.4.1 and §7.10 updated.
 >
 > **Revision 2026-09-24.** Added per-type probing for Stage 2 (§3.4.1), a prevalence-honest evaluation protocol with block-level splits, a recorded protocol and cluster-bootstrap intervals (§5.3), results on all 847 Attain WS_V2.0 frames and on 229 Bengaluru uploads (§6.8), and a discussion of why the probe runs in shadow mode (§7.10). Corrected: Attain's origin (Amirkabir University of Technology, Tehran, not New Zealand; §4.3), the IRC:82 mapping of block cracking (Transverse, §7.3.5.1) and patches (condition indicator, Tables 5.1–5.3), and a class-name parsing bug that had removed 167 patch instances from the zero-shot tally (Tier-2 accuracies 5.88% → 3.81% and 3.27% → 2.11%; ranking unchanged; §4.3).
@@ -655,6 +657,10 @@ We ran the production classifier (4-bit, IRC:82 prompts, no adapter) over 407 ra
 
 *± is the Hanley–McNeil standard error. Exact match has only 15 correct predictions and is not interpreted. Source: `eval_results/calib_attain_407.json`.*
 
+![Figure 6.5 — Stage 2 confidence AUC by correctness rule](../eval_results/plots/paper/fig_6_5_confidence_auc.png)
+
+*Figure 6.5 — The data of Table 6.5a. The whole-sequence score sits below chance under the no-false-positives rule; the field-restricted score is informative under that rule only.*
+
 Two findings follow. First, the whole-sequence score used before this revision is **inverted** under the no-false-positives rule: at 0.373 it sits more than three standard errors below chance, meaning it gave higher confidence to predictions that contained a spurious label. Second, the field-restricted score is informative under that rule (0.744, eight standard errors above chance) but uninformative under Jaccard ≥ 0.5 (0.473). The restricted score falls as the model names more distress types, so it detects over-prediction and is blind to under-prediction, which the Jaccard rule also counts as an error. The choice of correctness definition, not the choice of metric, determines which conclusion a single AUC would report, which is why all four are given.
 
 **Production photographs.** On the 49 Bengaluru uploads that reached Stage 2, the restricted score separates committed predictions from hedged ones: single-label predictions averaged 0.961 (all 9 above 0.80), two-label predictions 0.698 (3 of 40 above 0.80). The gap is 0.264, against 0.041 for the whole-sequence score (0.809 against 0.768). The whole-sequence score occupied only the range 0.707–0.872 across all 49 predictions; the restricted score spans 0.545–0.990. These photographs have no expert labels, so this is a separation result, not an accuracy result. Source: `eval_results/uploaded_photos_confidence.json`.
@@ -729,6 +735,10 @@ Two findings follow. First, the whole-sequence score used before this revision i
 
 *Pavement pre-filter + detection + classification. Source: `eval_results/resolution_timing.json`.*
 
+![Figure 6.6 — Time, peak memory and accuracy by input cap](../eval_results/plots/paper/fig_6_6_resolution.png)
+
+*Figure 6.6 — Left and centre: Table 6.6e (log time axis; the orange line is the card's 24 GB). Right: paired Attain accuracy under the no-false-positives rule at each cap (Table 6.6b). Time falls 24× from full resolution to 1024² while accuracy does not move.*
+
 **Against the pre-registered criteria, every cap failed.** 1280² failed on Stage 2 Jaccard (0.779); 1024² and 768² on Stage 1 agreement (91.2%) and Jaccard; 640² on Jaccard; 512² on both. No cap failed the safety criterion (at most 1.8% Distress → Normal) or the Attain accuracy criterion. §7.6 explains why we nevertheless recommend 1024².
 
 ### 6.7 Gating on the First Label Alone
@@ -771,6 +781,10 @@ The model leads with Longitudinal Cracking on 96% of Attain images with or witho
 
 *Right = the dataset annotates the first label's class on the image. Hanley–McNeil SE.*
 
+![Figure 6.7 — First-label versus whole-field confidence](../eval_results/plots/paper/fig_6_7_first_label.png)
+
+*Figure 6.7 — Left: Table 6.7c. Right: review load of each gate at 0.80 on the same 68 Bengaluru uploads (see the production paragraph below). Neither panel favours the first-label gate.*
+
 The first label's own confidence carries no information about whether it is right; both variants are within one standard error of chance. The whole-field score, designed for a different question, predicts first-label correctness better than the first label's own score does. On the same fresh run it also reproduces its §6.5 result under the no-false-positives rule (0.726 ± 0.030, against 0.744 in the stored run).
 
 At the live 0.80 threshold, the joint score would send 91% of Attain images to review, and the 35 it would pass are wrong at 17% (95% CI 8–33%), against a base rate of 8.8% if nothing were reviewed. No threshold on it does better than the base rate by more than the width of its interval.
@@ -810,6 +824,12 @@ The pre-registered criterion is met: macro MCC doubles, with an interval that ex
 | Block crack (diagnostic) | 3.3% | — | 0.000 | 0.07 / 0.72 | 0.138 [−0.052, 0.285] | 0.774 | not in headline |
 
 In the continuity terms of §6.3, recall of the classes RDD trained on rises from 46.1% to 90.8% (938 annotated class-instances). Recall of the zero-shot classes both methods can name (ravelling, weathering) rises from 0 of 214 to 93 of 214. Recall figures of this kind must be read with the precision column.
+
+![Figure 6.8a — Per-class MCC, production list vs probe](../eval_results/plots/probe/per_class_mcc.png)
+
+![Figure 6.8b — Per-class ROC curves of the probe](../eval_results/plots/probe/roc_per_class.png)
+
+*Figures 6.8a–b — Per-class MCC of the production list and the probe on the test split (Table 6.8b), and the probe's per-class ROC curves.*
 
 **Table 6.8c — Question wording (test split, each variant with its own development-tuned thresholds)**
 
@@ -885,6 +905,10 @@ A type's score combines the full-photo P(yes) with the views' P(yes). The hypoth
 | Oracle zoom (annotated boxes) | 0.652 | +0.008 [−0.019, +0.039] | 0.326 | +0.078 [+0.039, +0.117] | — |
 
 *Paired cluster bootstrap over 20-frame blocks. The full-photograph baseline reproduces the §6.8 values exactly (0.644 and 0.248). CV thresholds are refitted per variant through the production `combine()` rule, with every headline class decided by the probe. Sources: `eval_results/stage2_views_report.json`, `scripts/stage2_views_report.py`.*
+
+![Figure 6.9 — Macro AUROC change by view](../eval_results/plots/paper/fig_6_9_views.png)
+
+*Figure 6.9 — Test-split macro AUROC of each view minus the full photograph, with 95% block-bootstrap intervals. Every interval includes zero; even oracle crops, which are given the annotated damage location, add only 0.008.*
 
 **Table 6.9b — Per class (test AUROC / out-of-fold MCC)**
 
@@ -1181,5 +1205,66 @@ These four packages must be installed at these exact versions. Any upgrade to `t
 
 ---
 
-*Last updated: 2026-05-07*
-*Status: Phase 1 baseline complete. **Phase 2 fine-tuning + post-finetune eval + A/B promotion gate complete (PASSED).** Adapter promoted to `adapters/v2-rdd-2epochs-20260507/`. Cross-dataset eval on Attain pending. Phase 3 (expert-in-the-loop) not yet started.*
+## T7. Production Deployment Record (as of 2026-10-27)
+
+### T7.1 Pipeline version
+
+| Component | Value |
+|---|---|
+| Code | `main`, last pipeline-code commit `a59eec1` (2026-09-26); later commits are documentation, figures and the VLM hand-off only |
+| Model | `Qwen/Qwen2.5-VL-7B-Instruct` @ `cc594898137f460bfe9f0759e9844b3ce807cfb5`, base, no adapter (`DISABLE_ADAPTER=true`) |
+| Weights | 4-bit NF4 (`QUANTIZATION_BITS=4`), bf16 compute |
+| Input cap | `MAX_IMAGE_PIXELS=1048576` (1024², §3.8, §6.6) |
+| Prompts | `PROMPTS_VERSION=v2` (IRC:82 Improved Baseline); Stage 2 prompt id `9da1601cfec54f76` |
+| Stage 0 | Pavement pre-filter (yes / no / unsure; only "no" rejects) |
+| Stage 1 | Normal / Distress, softmax over the two first tokens |
+| Stage 2 labels | Free-form `DISTRESS_TYPES` list; first label shown as the main one (§6.7) |
+| Stage 2 gate | `STAGE2_CONFIDENCE_MODE=field` at 0.80 (§3.5, §6.5) |
+| Per-type probe | `STAGE2_MODE=shadow`: 20 Yes/No P(yes) scores stored on every Stage 2 row, labels unchanged (§6.8); tile scores recorded (§6.9) |
+| Stage 1 safety net | `STAGE1_SAFETY_NET=true`: a confident "Normal" whose probe sees distress goes to review (§6.8) |
+| Review | Either stage below 0.80 → `expert_review` |
+
+### T7.2 Production data
+
+| | Count |
+|---|---:|
+| Uploads (`photos` = `assessments`), 2026-04-27 to 2026-09-25 | 361 |
+| `classified` | 131 |
+| `expert_review` | 213 |
+| `rejected_non_pavement` | 17 |
+| Rows carrying shadow-probe scores | 310 |
+| Confident-Normal rows sent to review by the safety net | 23 of 33 |
+| Expert-reviewed rows | 1 |
+
+All 341 processed rows were re-classified on 2026-09-26 under the configuration above, so every stored result comes from one pipeline version. No upload has arrived since 2026-09-25. The server has not run since 2026-10-22 (log `eval_results/production_final.log`). Only one row carries an expert label, so the Bengaluru calibration that would let the probe decide labels (§7.10) has not started.
+
+### T7.3 Operational incidents
+
+| Date | Incident | Fix |
+|---|---|---|
+| 2026-09-23 | Full-resolution photos paged GPU memory to system RAM (~272 s per photo) | 1024² cap (§6.6) |
+| 2026-09-23 | Mixed image shapes grew the allocator past 24 GB (8 → 84 s per frame) | Cache released after every image (§7.7) |
+| 2026-09-23 | Dashboard delete removed only the assessment; 16 `photos` rows kept dead images visible in the app | Cloudinary-first, all-or-nothing delete of image + photo + assessment (`app/deletion.py`); orphans removed |
+| 2026-09-26 | Supabase stopped answering (PostgREST 503): the operator page polled every 3 s and each poll downloaded every row's full `raw_response` (~0.7 MB) | JSON-path selects, TTL cache with backoff (`_ReadCache`), explicit column lists in the expert UI |
+
+### T7.4 Test suites (all passing on 2026-10-27)
+
+| Suite | Checks | Needs |
+|---|---|---|
+| `scripts/validate_all.py` | 18 static checks (structure, single sources of truth, no hard-coded paths) | — |
+| `scripts/tests/test_primary_confidence.py` | 17: per-label token spans against the real tokenizer | CPU |
+| `scripts/tests/test_delete_everywhere.py` | 34 offline; `--live-signature`, `--live-e2e` against Cloudinary and the running server | network / server |
+| `scripts/tests/test_operator_runtime.py` | 30: precision reload orchestration | CPU |
+| `scripts/tests/test_dashboard_cache.py` | dashboard read cache, single-flight, backoff | CPU |
+| `scripts/tests/test_calibrate_from_expert_labels.py` | expert-label calibration end to end on synthetic labels | CPU |
+| `scripts/tests/test_stage2_probe_integration.py` | probe inside the real classifier: parity, fallbacks, views, memory release | GPU |
+| `scripts/tests/test_pipeline_robustness.py` | 404 / corrupt / timeout / mid-stop / concurrent claim against the live queue | server |
+
+### T7.5 Reproducing the figures
+
+Figures 6.5–6.9 are drawn by `scripts/generate_paper_figures.py` from the stored result files; Figures 6.8a–b by the probe report. No figure requires inference.
+
+---
+
+*Last updated: 2026-10-27*
+*Status: Production pipeline as in T7.1 (base model, v2 IRC prompts, field gate, probe in shadow, Stage 1 safety net). Phase 2 fine-tuning complete but the adapter is not used in production (it lost to the Improved Baseline on Attain). Phase 3 (expert-in-the-loop retraining) not started; it is blocked on expert labels for Bengaluru uploads. Sections §3.3–3.4, §6.1–6.3 and §7.3–7.4 still describe the pre-IRC:82, adapter-era pipeline and need revision before submission.*

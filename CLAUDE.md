@@ -1,5 +1,74 @@
 # Pavement Distress Classification — Capstone Project Context
 
+## START HERE — Current State (updated 2026-10-27)
+
+**Pipeline version in production** (code: `main`, last pipeline-code commit `a59eec1`, 2026-09-26):
+
+```
+RoadSide app → Cloudinary image + Supabase `photos` row → trigger → `assessments` (pending)
+  → PipelineWorker (app/worker.py, inside uvicorn, FIFO claim, batch 5)
+     Stage 0  pavement pre-filter          only "no" rejects → rejected_non_pavement
+     Stage 1  Normal / Distress            softmax over the two first tokens
+              + Stage 1 safety net         confident "Normal" but probe sees distress → expert_review
+     Stage 2  free-form DISTRESS_TYPES     first label shown as main, others beside it
+              + per-type probe (SHADOW)    20 Yes/No P(yes) + tile scores stored, labels unchanged
+     Gate     field confidence ≥ 0.80 on both stages → classified, else expert_review
+```
+
+| Setting (`.env`) | Value |
+|---|---|
+| Model | `Qwen/Qwen2.5-VL-7B-Instruct` @ `cc594898…` base, `DISABLE_ADAPTER=true` |
+| `QUANTIZATION_BITS` | `4` (NF4, bf16 compute) — measured at this setting only |
+| `MAX_IMAGE_PIXELS` | `1048576` (1024²) |
+| `PROMPTS_VERSION` | `v2` (Stage 2 prompt id `9da1601cfec54f76`) |
+| `STAGE2_CONFIDENCE_MODE` | `field` |
+| `STAGE2_MODE` / `STAGE2_PROBE_CONFIG` | `shadow` / `configs/stage2_probe.json` (views: decide on full photo, record tiles) |
+| `STAGE1_SAFETY_NET` | `true` |
+
+**Is it running?** No. The server last ran on 2026-10-22 (log `eval_results/production_final.log`);
+the machine was restarted since. No upload has arrived since 2026-09-25. To start:
+`.\start.ps1 -AutoStart -Watchdog` (logs to console; redirect with `*> eval_results\production_final.log`),
+then check `GET /health` and `GET /operator/status`. Stop: `.\stop.ps1`. See "Restarting production"
+below before restarting a running server.
+
+**Production data (2026-10-27):** 361 uploads (`photos` = `assessments`, 2026-04-27 → 2026-09-25):
+131 classified, 213 expert_review, 17 rejected_non_pavement. All re-classified on 2026-09-26 under the
+version above. 310 rows carry probe scores. Only **1** row is expert-reviewed — this is the blocker
+for everything below.
+
+**What is decided (with evidence — don't re-litigate without new data):**
+| Decision | Evidence | Paper |
+|---|---|---|
+| Base model, no LoRA adapter | adapter lost on Attain (zero on pothole/block/ravelling) | §6.3, `attain_3way_comparison.md` |
+| 1024² cap | 272 s → 11 s per photo, no accuracy change down to 512² | §6.6, Fig 6.6 |
+| Field confidence gate at 0.80 | AUC 0.744 (no-FP rule); sequence inverted 0.373 | §6.5, Fig 6.5 |
+| NOT gating on first label | AUC 0.468; no review-load gain on 68 uploads | §6.7, Fig 6.7 |
+| NOT "most prominent first" prompt | first label unchanged, false positives up (p = 0.021) | §6.7 |
+| Probe in shadow, not live | doubles Attain macro MCC, but Attain thresholds add Ravelling to 98% of Bengaluru uploads | §6.8 |
+| Full photo, tiles recorded only | tiles +0.020 AUROC (CI incl. 0); find-then-zoom worse | §6.9, Fig 6.9 |
+
+**Next steps, in order:**
+1. Get expert labels: experts review uploads in `expert_ui/` (only 1 so far).
+2. `scripts/calibrate_probe_from_expert_labels.py` (exits 2 until ≥15 positives per type) → promote its
+   config to `configs/stage2_probe.json` and set `STAGE2_MODE=probe` only if it beats the free-form list
+   on held-out expert labels.
+3. Re-run `scripts/calibrate_confidence.py` on labelled Bengaluru photos before moving the 0.80 threshold.
+4. Paper: §3.3–3.4, §6.1–6.3, §7.3–7.4 still describe the pre-IRC, adapter-era pipeline — revise before submission.
+5. Open requests: external VLM hand-off (`vlm_handoff/`, 11 `[CONFIRM]` items for the user; folder-batch
+   runner + Stage-1 bypass promised but unbuilt); drive-video ingestion (researched, not built).
+
+**Where things are:**
+- Research paper: `paper/baseline_evaluation.md` (§T7 = deployment record, test suites, incidents).
+  Figures: `scripts/generate_paper_figures.py` → `eval_results/plots/paper/` (no inference needed).
+- Results: `eval_results/` — `*_report.md` / `*.json` per study; `*.log` are run logs (git-ignored),
+  `*_checkpoint.json` resumable state (git-ignored), `snapshots/assessments_*` / `pre_reclassify_*`
+  are DB dumps with citizen addresses (git-ignored, keep local).
+- Tests: `scripts/validate_all.py` (18 checks) + `scripts/tests/*` — all passing 2026-10-27; table in paper §T7.4.
+- Architecture reference: `PROJECT_UNDERSTANDING.md`. Setup / every variable: `SETUP.md`.
+- Commit rule: **no `Co-Authored-By` lines** in commits (user preference).
+- Secrets live only in `.env` (git-ignored). Never print them. The Cloudinary API secret was shown once in
+  a 2026-09-23 session transcript — rotation was recommended.
+
 ## What This Project Is
 
 A two-stage AI pipeline that classifies pavement distress from phone photos, built by students in Bengaluru. Users snap a photo of a road, the AI detects if there's damage, classifies the type, estimates severity, and flags low-confidence results for expert human review. The long-term goal is a geospatial heatmap of road distress across Bengaluru. This is a college-level capstone project that must produce a publishable paper.
@@ -261,9 +330,18 @@ Capstone/
 │   ├── stage2_views.py               # Tiles / find-then-zoom crops for the probe, aggregate(), record-only views, DamageLocator
 │   ├── stage2_views_experiment.py    # Sandbox: full vs tiles vs zoom vs oracle per-view scores (Attain dev/test, Bengaluru)
 │   ├── stage2_views_report.py        # dev choice / test+CV comparison / --stage emit config for a views variant
-│   └── validate_all.py               # 14-test validation suite
+│   ├── generate_paper_figures.py     # Paper Figures 6.5-6.9 from stored results (no inference)
+│   ├── primary_confidence_report.py  # §6.7 first-label confidence evaluation
+│   ├── production_gate_comparison.py # §6.7 gate comparison on production rows (read-only)
+│   ├── cleanup_orphan_photos.py      # photos rows without an assessment (dry run by default)
+│   ├── reset_for_reclassify.py       # re-queue rows (backs up first; --processed-before)
+│   ├── tests/                        # see paper §T7.4
+│   └── validate_all.py               # 18-check static validation suite
 ├── app/
-│   ├── main.py                        # FastAPI: /classify, /classify/stream, /classify/base64, /health, /retrain/*, /corrections, /adapters/*
+│   ├── main.py                        # FastAPI: /classify*, /health, /operator/*, /dashboard/*, /retrain/*
+│   ├── worker.py                      # PipelineWorker: claims pending rows, runs stages 0-2, writes results
+│   ├── supabase_client.py             # PostgREST calls + _ReadCache for dashboard reads
+│   ├── deletion.py                    # Cloudinary-first delete of image + photo + assessment
 │   ├── model.py                       # PavementClassifier: predict_stage1(), predict_stage2(), predict(), confidence extraction
 │   ├── schemas.py                     # Pydantic models for API request/response
 │   └── security.py                    # API key auth, rate limiting, upload size, image validation
@@ -289,7 +367,7 @@ Capstone/
 | `DISABLE_ADAPTER` | `true` in production .env | Skip LoRA loading entirely. Production runs pure base model. |
 | `PROMPTS_VERSION` | `v2` (default in app/model.py) | `v2` = Improved Baseline (production). `v2_primary_first` = v2 plus a "most prominent distress first" rule: tested 2026-09-23 and NOT adopted (first label unchanged, false positives up 85.3% → 83.3% correct, p = 0.021; `eval_results/primary_confidence.md`). `v1` = Plain Baseline (paper experiments only). |
 | `ADAPTER_PATH` | Unset in production | LoRA adapter directory. Used only when `DISABLE_ADAPTER=false` for A/B experiments. |
-| `QUANTIZATION_BITS` | `4` | Weight storage format at startup: `4` = NF4 + double quant (~4.3 GB), `8` = int8 (~8.6 GB), `0` = bf16, no quantization (~16.6 GB). Compute is bf16 in all three — only storage changes. Changeable at runtime from the operator dashboard (Model Precision panel) without a restart; this env var only sets the boot default. **Note:** the `.env` line is commented out, so production has been running 4-bit despite the "use fp16 on A5000" note below. |
+| `QUANTIZATION_BITS` | `4` | Weight storage format at startup: `4` = NF4 + double quant (~4.3 GB), `8` = int8 (~8.6 GB), `0` = bf16, no quantization (~16.6 GB). Compute is bf16 in all three — only storage changes. Changeable at runtime from the operator dashboard (Model Precision panel) without a restart; this env var only sets the boot default. Production `.env` sets `4` explicitly (since 2026-09-23): the 1024² cap was measured at 4-bit, and bf16 adds ~12 GB that very likely pushes the peak past 24 GB. |
 | `STAGE2_CONFIDENCE_MODE` | `field` (since 2026-09-17) | `field` = geomean over the DISTRESS_TYPES tokens only. `sequence` = geomean over all generated tokens, the pre-2026-09-17 default. On 407 labelled Attain images, under the no-false-positives rule: field AUC **0.744**, sequence **0.373** (inverted). Under Jaccard ≥ 0.5 field is 0.473 — it detects over-prediction, not correctness in general. Always quote the rule with the AUC. `primary` = joint probability of the FIRST label only (2026-09-23): **tested, not adopted** — AUC 0.468 for first-label correctness vs field 0.635 on the same 407 images, and 91% review load at 0.80 (`eval_results/primary_confidence.md`, paper §6.7). All three values are recorded on every row (`raw_response.stage2_confidence_primary`, `stage2_type_confidences`). |
 | `STAGE2_MODE` | `shadow` in production `.env` (code default `generate`) | `generate` = free-form DISTRESS_TYPES list only. `shadow` = the per-type probe runs on every image and every type's P(yes) is stored in `raw_response.stage2_probe` (`applied: false`); labels and gate unchanged. `probe` = the probe decides calibrated types. **Do not switch to `probe` on the Attain config**: it doubled macro MCC on Attain (0.125→0.241, grouped CV) but adds Ravelling to 98% of Bengaluru uploads — thresholds don't transfer. Switch only after `calibrate_probe_from_expert_labels.py` produces a Bengaluru config that wins on held-out expert labels. |
 | `STAGE1_SAFETY_NET` | `true` in production `.env` | When Stage 1 says Normal, the probe checks headline types; if one reaches the configured threshold the image goes to expert review. Never changes a label. Stage 1 recall on Attain distress is only 51.8%; the net catches 313/371 misses (22/78 clean frames flagged). Recorded in `raw_response.stage1_safety_net`. |
@@ -533,6 +611,14 @@ Both `expert_ui/index.html` and `test_website/index.html` use the same design la
 
 ## What's Done vs What Needs Doing
 
+> **Status 2026-10-27 (authoritative — the checklists below are the original Phase 1 plan and partly historical):**
+> - **Phase 1 DONE** (2026-03-29): 7B baseline on all 10k GAPs + 5,758 RDD test images (`eval_results/baseline_results.json`).
+> - **Phase 2 DONE** (2026-05): QLoRA fine-tune (checkpoint-1000), post-fine-tune eval, A/B gate passed, Attain cross-dataset
+>   evaluation and the prompt-vs-adapter study. The adapter won on RDD but lost on Attain, so production runs the base
+>   model with v2 IRC prompts (2026-05-16). Since 2026-09: confidence calibration, resolution cap, first-label test,
+>   per-type probe (shadow) + safety net, views study — see START HERE and paper §6.5–6.9.
+> - **Phase 3 NOT STARTED**: few-shot injection / incremental LoRA from expert corrections. Blocked on expert labels.
+
 ### Phase 1 — CODE COMPLETE + TESTED ON LAPTOP (3B), NEEDS FULL EVAL ON A5000 (7B)
 
 **Code completed:**
@@ -595,7 +681,7 @@ cd Capstone
 ./cloudflared.exe tunnel --url http://localhost:8000
 ```
 
-**Every time after:**
+**Every time after (historical — production now starts with `.\start.ps1 -AutoStart -Watchdog`, which reads `.env`; see START HERE):**
 ```bash
 cd Capstone
 source venv/Scripts/activate
@@ -641,7 +727,7 @@ cd Capstone
 | Qwen2.5-VL-13B | ~26GB | ~7-8GB | No | No |
 | Qwen2.5-VL-72B | ~144GB | ~40GB | No | No |
 
-**Decision:** Use 7B fp16 (no quantization) on A5000 for best accuracy. Use 3B 4-bit on laptop for dev testing only.
+**Decision (original):** 7B fp16 on the A5000. **Actual production:** 7B 4-bit NF4 with the 1024² cap — every production and evaluation number since 2026-09 is at 4-bit. Use 3B 4-bit on the laptop for dev testing only.
 
 ## Future Plans (Beyond Phase 3)
 
