@@ -26,6 +26,11 @@
 > adapter that passed its promotion gate was retired. T2, T3, T5 and T6 updated to the deployed
 > configuration and the package versions actually used. No experimental result changed.
 >
+> **Revision 2026-10-28 — drive-video survey.** Added §8: one frame per 5 m of road from a vehicle-mounted
+> phone, classified by the production model (P4) on 813 segments (4.06 km); coverage, position accuracy,
+> frame quality, extraction and VLM cost, label shares by road length, and the frame-level distress
+> check against the model. Figures 8.1–8.8 by `scripts/generate_video_figures.py` (no inference).
+>
 > **Reading guide.** Results were produced by four successive pipeline versions; every table
 > names the one it used:
 > | Version | Prompts / taxonomy | Adapter | Where reported |
@@ -1064,6 +1069,64 @@ Production therefore keeps the whole-field gate at 0.80 and the unmodified promp
 **Looking closer did not fix it.** Tiles and zoom crops give the probe more pixels per crack. Tiling helped linear cracks, ravelling and weathering and cross-validated macro MCC rose from 0.248 to 0.308, but test macro AUROC did not rise significantly, and alligator cracking got worse. The model's own damage boxes were too unreliable for find-then-zoom to help, and even crops placed on the annotated damage added only +0.008 test AUROC (§6.9). On these frames the probe's remaining errors are mostly about recognising the distress, not about finding it. That points at the per-type classifiers on the model's internal features, trained once local labels exist, rather than at more elaborate cropping.
 
 **Limitations.** (1) All labelled evidence is from one dataset (Attain WS_V2.0), whose frames and annotation practice differ from production. (2) The 78 no-distress frames are the only all-negative examples, so specificity estimates are wide. (3) The development split (15 blocks) was too small to tune per-class choices; the cross-validated configuration is the one deployed. (4) Twelve of the eighteen IRC types have no labelled data at all, so the probe may only remove them; its removals (e.g. Bleeding on 45 of 52 uploads) are unvalidated. (5) Severity is unchanged and not evaluated here. Attain labels only High or Low and the image-level maximum is High on most frames, while the model mostly answers Medium, so exact-match severity accuracy on Attain (§6.3) measures the vocabulary mismatch more than the model. (6) The description sentence still comes from the free-form generation and can mention types the probe would remove.
+
+---
+
+## 8. Drive-Video Road Survey: One Classified Frame per 5 m of Road
+
+Citizen photos sample the roads people choose to report. A road agency needs the opposite: every metre of a route, at a known position, counted once. This section reports the drive-video extension built on the same production model (P4): a phone on a vehicle records 4K video, the pipeline chooses one frame per 5 m of road, and the VLM classifies that frame. Code: `GeoAI_Video` (capture app, extraction pipeline) and the VLM system here (`app/video_pipeline.py`, `app/video_store.py`, `/gis`). Every number below is reproduced by `scripts/generate_video_figures.py` from stored run outputs, and is listed with its method in `GeoAI_Video/docs/research/METRICS.md`.
+
+### 8.1 Method
+
+**Capture.** A Samsung Galaxy S21 (SM-G991B) on a fixed mount 1.35 m above the road, tilted about 23° down, records 3840×2160 HEVC at 30 fps with a speed-adaptive shutter (2.5 mm blur budget). A custom Android app logs every frame's sensor timestamp on the same clock as GNSS (1 Hz) and the IMU (200 Hz), and signs the session package (ECDSA P-256). The phone shows road from 1.44 m to about 23–33 m ahead.
+
+**Segments and best frames.** The GNSS track is interpolated per frame (piecewise-cubic Hermite with Doppler velocities) and cut into consecutive 5.0 m segments of driven path. A frame is a candidate for a segment when the segment's near edge lies within 1 m beyond the nearest visible road, so the segment is seen from as close as possible. Among the candidates, the sharpest frame (normalised Tenengrad on the segment's rows, exposure-invariant) under a 4 px predicted-blur limit is kept, at full resolution and lossless (PNG; JPEG re-encoding was shown to change VLM labels on 9 of 49 photos).
+
+**Distress check (gate).** Before the VLM, a frame-level check scores the segment's rows with three detectors: a session-relative DINOv2 novelty bank, a linear probe trained on Attain patches, and a Hessian crack filter. It decides `send`, `audit` (a deterministic 10 % sample of rejections, sent to measure misses) or `skip`.
+
+**Classification and storage.** Each sent frame goes to the P4 model unchanged (the processor resizes 3840×2160 to 1344×756). Results are stored like citizen uploads: a `photos` + `assessments` pair per segment, plus a `video_segments` row with the full record (footprint polygon, camera pose, gate scores, frame quality) in a local PostgreSQL, with the image on local disk.
+
+**Data.** Three drives on 26–27 Oct 2026 in south Bengaluru, 4.06 km, 813 segments, run in send-all mode (every segment classified) so that the gate could be evaluated against the VLM on every segment.
+
+### 8.2 Coverage and position accuracy
+
+All 813 segments had a usable frame (100 % coverage); a segment had a median of 5 candidate frames. Every best frame has a distinct position: consecutive best frames are 0.8–1.2 s apart, so positions are interpolated per frame rather than copied from the 1 Hz fixes. Computed independently from the raw fixes, the stored camera positions agree to a median of 0.05 m (maximum 0.56 m), and consecutive segment centres are 4.98–5.00 m apart on straight road, shorter only on turns, as the chord of a curved 5 m arc must be (Figure 8.2). The absolute position is the phone's GNSS: σ ≈ 6 m (68 %), larger than a segment. Segments are therefore exact relative to each other along a drive, but a map shows each one as "the 5 m of road around here".
+
+![Figure 8.1 — Routes and gate decisions](../eval_results/plots/paper/fig_v1_routes_gate.png)
+
+![Figure 8.2 — Positions against the raw GNSS fixes; centre spacing against road curvature](../eval_results/plots/paper/fig_v5_gps_consistency.png)
+
+### 8.3 Frame quality and extraction cost
+
+Predicted blur of the chosen frames stays below the 4 px limit up to 45 km/h (median 1.0–1.5 px at 4K; Figure 8.3). Best-frame sharpness differs about 3.5× between drives (Figure 8.4): drive C (focus set from geometry, bright light, median ISO 76) against drive A (autofocus, overcast, median ISO 1,209 with 40 % of frames at the ISO cap). Focus and light changed together, so the difference cannot be attributed to the focus method; a paired drive is needed. Extraction on the A5000 takes 214–315 s per km of road (Figure 8.5), well below the VLM time per km.
+
+![Figure 8.3 — Predicted blur against speed](../eval_results/plots/paper/fig_v3_blur_vs_speed.png)
+
+![Figure 8.4 — Best-frame sharpness by drive](../eval_results/plots/paper/fig_v2_sharpness_by_focus.png)
+
+![Figure 8.5 — Extraction time per km by stage](../eval_results/plots/paper/fig_v4_extraction_time.png)
+
+### 8.4 What the model reports on the surveyed roads
+
+The model labelled 164 of 813 segments as distressed: 815 m, **20.1 % of the surveyed length** (17.8 %, 37.7 % and 19.2 % per drive). Potholes were named on 16.1 % of the length, longitudinal cracking on 8.9 % and bleeding on 7.5 % (Figure 8.6). No hairline cracks, ravelling or deformation types were named. Hairline cracks are below the resolution the model receives: at its input one pixel covers a median 11.5 mm of road along the segment. The bleeding share should not be read as bitumen bleeding: on Bengaluru close-ups the same model labelled 52 of 204 uploads Bleeding, and the 4 inspected showed shadows, wet surfaces or patches, not a bitumen film (`vlm_handoff/vlm-information-response.md`). 389 of the 813 results (47.8 %) were flagged for expert review by the confidence gate and the Stage 1 safety net.
+
+![Figure 8.6 — VLM labels by share of road length](../eval_results/plots/paper/fig_v6_label_share.png)
+
+### 8.5 Cost, and how well the cheap check predicts the model
+
+The model took 3.44 h for the 813 frames with no failed request: median 13.0 s when Stage 1 answered Normal and 21.7 s when it answered Distress (Figure 8.7), about 0.85 h per km in send-all mode. The gate's default thresholds sent 90.9 % of segments [88.7, 92.7] with a recall of 92.1 % [86.9, 95.3] of the model's distress segments, i.e. it barely filtered (Figure 8.8). Of its three signals, only the Attain probe ranks the model's distress segments above Normal ones (AUROC 0.77 [0.72, 0.81]); the bank evidence (0.56) and the crack length (0.55) are near chance, because on real 4K frames the crack filter fires on kerbs, wheels, parked vehicles and slab joints. Fitted on the same data, the probe alone keeps 90.2 % recall at a 61.4 % pass rate; §8.6 gives the held-out estimate.
+
+![Figure 8.7 — VLM time per segment frame](../eval_results/plots/paper/fig_v7_vlm_time.png)
+
+![Figure 8.8 — Gate recall against VLM load](../eval_results/plots/paper/fig_v8_gate_curves.png)
+
+### 8.6 Improvements found by adversarial review, and their measured effect
+
+*(Filled from the before/after measurements in `C:\GeoAI\analysis\fixes\`: VLM time per frame, held-out gate calibration and extraction time, best-frame choice and the view of the segment the model receives.)*
+
+### 8.7 Limitations
+
+(1) The reference is the model, not engineers: the gate's recall and precision, and every "% of length", inherit the model's errors (on Attain its Stage 1 found about half of distressed frames). (2) Three drives on two test roads over two days; per-drive differences mix road, light, speed and focus. (3) Positions are phone GNSS (σ ≈ 6 m) without latency correction (no drive had enough braking events for the automatic estimate) and without map-matching; chainage is absent because no start chainage was entered. (4) The full frame shows road beyond the segment, so a label can come from outside it; positive segments cluster more than chance (P(positive | previous positive) 0.43–0.60 against base rates 0.18–0.38), which may inflate "% of length" (§8.6). (5) The model's labels are per segment, not measurements of extent; "% of length" counts a whole segment for any distress in it, as IRC:82 section ratings by length do, but it is not an area.
 
 ---
 
