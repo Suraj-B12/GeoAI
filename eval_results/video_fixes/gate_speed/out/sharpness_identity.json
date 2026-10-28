@@ -1,0 +1,105 @@
+{
+ "f428": {
+  "session": "20261026T114332Z_SM-G991B-F0D1_f428",
+  "segments": 230,
+  "covered": 230,
+  "candidates_scored": 1304,
+  "chosen_frame_differences": [],
+  "n_differences": 0,
+  "old_vs_existing_sendall_run_differences": [],
+  "sharpness_rel_diff": {
+   "median": 0.011675179868925762,
+   "p99": 0.11061935240155148,
+   "max": 0.17793908966726218
+  },
+  "spearman_old_new": 0.9999753272067525,
+  "ms_per_call": {
+   "old_float_rgb": 35.85926065962818,
+   "new_u8_luma": 12.58837246956441
+  },
+  "elapsed_s": 123.12290215492249
+ },
+ "293d": {
+  "session": "20261026T114907Z_SM-G991B-F0D1_293d",
+  "segments": 55,
+  "covered": 55,
+  "candidates_scored": 513,
+  "chosen_frame_differences": [],
+  "n_differences": 0,
+  "old_vs_existing_sendall_run_differences": [],
+  "sharpness_rel_diff": {
+   "median": 0.009102554713593464,
+   "p99": 0.16048104738264823,
+   "max": 0.4483714147041382
+  },
+  "spearman_old_new": 0.9999681789997042,
+  "ms_per_call": {
+   "old_float_rgb": 28.420674463869734,
+   "new_u8_luma": 10.079687329481304
+  },
+  "elapsed_s": 43.820801973342896
+ },
+ "d47c": {
+  "session": "20261027T050257Z_SM-G991B-F0D1_d47c",
+  "segments": 528,
+  "covered": 528,
+  "candidates_scored": 2964,
+  "chosen_frame_differences": [
+   {
+    "k": 143,
+    "old": [
+     [
+      1,
+      4150
+     ],
+     1,
+     25,
+     "sharpest"
+    ],
+    "new": [
+     [
+      1,
+      4155
+     ],
+     1,
+     25,
+     "sharpest"
+    ]
+   },
+   {
+    "k": 367,
+    "old": [
+     [
+      2,
+      1791
+     ],
+     1,
+     5,
+     "sharpest"
+    ],
+    "new": [
+     [
+      2,
+      1793
+     ],
+     1,
+     5,
+     "sharpest"
+    ]
+   }
+  ],
+  "n_differences": 2,
+  "old_vs_existing_sendall_run_differences": [],
+  "sharpness_rel_diff": {
+   "median": 0.003833026574153733,
+   "p99": 0.054058897230168886,
+   "max": 0.17794556538646297
+  },
+  "spearman_old_new": 0.9999780766338675,
+  "ms_per_call": {
+   "old_float_rgb": 31.031534413008565,
+   "new_u8_luma": 10.426648583045036
+  },
+  "elapsed_s": 235.32260847091675
+ }
+}

@@ -1,0 +1,53 @@
+id,stratum,frame_rerun,frame_labels,band,band_labels,verdict,note
+20261026T114332Z_SM-G991B-F0D1_f428_seg00012,normal,normal,,distress,Longitudinal Cracking+Transverse Cracking,frame,clean road; band's cracks not visible
+20261026T114332Z_SM-G991B-F0D1_f428_seg00014,positive,distress,Bleeding+Hungry Surface+Streaking,normal,,band,"clean road, litter at kerb; no bleeding/streaking"
+20261026T114332Z_SM-G991B-F0D1_f428_seg00019,positive,distress,Potholes,normal,,frame,dark round pothole/patch spot inside the segment
+20261026T114332Z_SM-G991B-F0D1_f428_seg00023,normal,normal,,distress,Longitudinal Cracking+Transverse Cracking,band,thin longitudinal crack on the right inside the segment
+20261026T114332Z_SM-G991B-F0D1_f428_seg00029,positive,distress,Potholes,normal,,unclear,small ravelled patch near the bottom; no clear pothole
+20261026T114332Z_SM-G991B-F0D1_f428_seg00031,positive,distress,Bleeding+Hungry Surface,normal,,unclear,"defocused frame; coarse surface, hungry surface plausible"
+20261026T114332Z_SM-G991B-F0D1_f428_seg00035,positive,distress,Bleeding+Potholes,normal,,frame,dark sealed crack / bleeding streak inside the segment
+20261026T114332Z_SM-G991B-F0D1_f428_seg00036,positive,distress,Potholes,normal,,frame,small pothole with dust ring inside the segment
+20261026T114332Z_SM-G991B-F0D1_f428_seg00053,positive,distress,Longitudinal Cracking+Potholes,normal,,band,segment clean; broken edge and pothole beyond the far edge (discriminator example)
+20261026T114332Z_SM-G991B-F0D1_f428_seg00083,positive,distress,Bleeding+Potholes,normal,,band,clean road; garbage at kerb
+20261026T114332Z_SM-G991B-F0D1_f428_seg00084,positive,distress,Bleeding+Potholes,normal,,band,clean road; garbage bags at kerb
+20261026T114332Z_SM-G991B-F0D1_f428_seg00123,positive,distress,Bleeding+Streaking,normal,,band,scuff marks only; patches beyond the far edge
+20261026T114332Z_SM-G991B-F0D1_f428_seg00133,positive,distress,Alligator Cracking+Potholes,normal,,unclear,pothole on the far-edge line; worn patched area inside
+20261026T114332Z_SM-G991B-F0D1_f428_seg00143,positive,distress,Potholes,normal,,band,segment clean; pothole beyond the far edge (discriminator example)
+20261026T114332Z_SM-G991B-F0D1_f428_seg00159,positive,distress,Edge Breaking+Potholes,normal,,frame,broken edge filled with rubble at the kerb inside the segment
+20261026T114332Z_SM-G991B-F0D1_f428_seg00212,positive,distress,Bleeding+Potholes,normal,,band,clean road with speed-breaker markings
+20261026T114332Z_SM-G991B-F0D1_f428_seg00218,positive,distress,Bleeding+Hungry Surface,normal,,unclear,coarse aggregate-exposed texture; unsealed dirt shoulder
+20261026T114907Z_SM-G991B-F0D1_293d_seg00011,positive,distress,Edge Breaking+Potholes,normal,,frame,"small potholes just inside the far edge, ravelled surface"
+20261026T114907Z_SM-G991B-F0D1_293d_seg00023,positive,distress,Bleeding+Hungry Surface,normal,,band,"dusty road, dirt shoulder; no distress visible"
+20261026T114907Z_SM-G991B-F0D1_293d_seg00027,positive,distress,Potholes,normal,,frame,pothole/patch ring inside the segment
+20261026T114907Z_SM-G991B-F0D1_293d_seg00028,positive,distress,Bleeding+Hungry Surface,normal,,frame,dark ravelled spots / shallow potholes along the centre
+20261026T114907Z_SM-G991B-F0D1_293d_seg00030,positive,distress,Edge Breaking+Potholes,normal,,unclear,rough surface; small dark spot on the far-edge line
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00003,normal,normal,,distress,Alligator Cracking+Longitudinal Cracking,frame,carriageway clean; the cracks are on the concrete footpath
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00005,normal,normal,,distress,Longitudinal Cracking+Transverse Cracking,frame,carriageway clean; cracked footpath slabs
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00089,positive,distress,Bleeding+Potholes,normal,,band,over-exposed; no distress visible
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00100,positive,distress,Alligator Cracking+Potholes,normal,,frame,transverse patched trench across the lane inside the segment
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00121,positive,distress,Bleeding+Streaking,normal,,band,"wet stain on the shoulder, not bleeding"
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00122,positive,distress,Bleeding+Longitudinal Cracking,normal,,band,very dark; the same stain; nothing else
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00142,positive,distress,Bleeding+Potholes,normal,,frame,"ravelled, stained patched area inside the segment"
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00144,normal,normal,,distress,Bleeding+Potholes,unclear,strongly blurred frame; nothing verifiable
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00174,normal,normal,,distress,Edge Cracking+Longitudinal Cracking,frame,"shaded road, no cracks; gravel at kerb"
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00198,positive,distress,Bleeding+Potholes,normal,,unclear,rectangular patch at right; no pothole visible
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00199,positive,distress,Edge Breaking+Potholes,normal,,band,clean road; stones at kerb
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00235,positive,distress,Bleeding+Potholes,normal,,frame,patched pothole outlines on the right inside the segment
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00236,positive,distress,Potholes,normal,,band,segment clean; the big patched pothole lies BELOW the near edge (previous segment)
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00256,positive,distress,Bleeding+Hungry Surface,normal,,unclear,construction material; stained patch outline
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00259,positive,distress,Longitudinal Cracking+Potholes,normal,,frame,cracked patch beside the scooter inside the segment
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00271,normal,normal,,distress,Edge Cracking+Longitudinal Cracking,unclear,rough/ravelled texture; no clear edge cracking
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00307,normal,normal,,distress,Alligator Cracking+Longitudinal Cracking,unclear,"weathered surface, faint cracks possible"
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00325,positive,distress,Bleeding+Potholes,normal,,band,manhole and wet stain; no pothole
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00353,positive,distress,Bleeding+Longitudinal Cracking,normal,,band,carriageway clean; cracked footpath
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00358,positive,distress,Longitudinal Cracking+Potholes,normal,,unclear,broken patch at shade edge on the shoulder
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00359,positive,distress,Longitudinal Cracking+Potholes,normal,,band,segment clean; the ravelled patch lies BELOW the near edge (previous segment)
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00368,positive,distress,Longitudinal Cracking+Potholes,normal,,frame,small pothole/patch beside the manhole inside the segment
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00386,normal,normal,,distress,Longitudinal Cracking+Potholes+Transverse Cracking,unclear,broken surface around a pole base; patches
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00391,positive,distress,Potholes,normal,,unclear,large rectangular patches; pothole doubtful
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00396,normal,normal,,distress,Longitudinal Cracking+Potholes,band,"longitudinal joint crack, patches and a dark pothole-like spot inside the segment"
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00414,positive,distress,Longitudinal Cracking+Potholes,normal,,unclear,dark patch and manhole; worn surface
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00419,positive,distress,Longitudinal Cracking+Potholes,normal,,frame,clear longitudinal crack and ravelled patch inside the segment
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00442,positive,distress,Bleeding+Potholes,normal,,band,"shaded road, manhole; no distress visible"
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00507,positive,distress,Bleeding+Hungry Surface,normal,,band,zebra/speed-table markings and dirt; no distress
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00519,positive,distress,Longitudinal Cracking+Potholes,normal,,band,dark; clean road with a joint line

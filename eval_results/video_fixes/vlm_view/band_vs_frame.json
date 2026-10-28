@@ -1,0 +1,213 @@
+{
+ "sample": {
+  "seed": 20261028,
+  "n_positive": 164,
+  "n_normal_pool": 649,
+  "n_normal_drawn": 164,
+  "n_unknown_excluded": 0
+ },
+ "agreement": {
+  "band_vs_frame_rerun": {
+   "pp": 122,
+   "pn": 42,
+   "np": 10,
+   "nn": 154,
+   "unknown": 0,
+   "n": 328,
+   "agreement": 0.8414634146341463,
+   "kappa": 0.6829268292682926,
+   "label_set_equal": 0.6432926829268293
+  },
+  "frame_rerun_vs_frame_b001": {
+   "pp": 164,
+   "pn": 0,
+   "np": 0,
+   "nn": 164,
+   "unknown": 0,
+   "n": 328,
+   "agreement": 1.0,
+   "kappa": 1.0,
+   "label_set_equal": 1.0
+  },
+  "band_vs_frame_b001": {
+   "pp": 122,
+   "pn": 42,
+   "np": 10,
+   "nn": 154,
+   "unknown": 0,
+   "n": 328,
+   "agreement": 0.8414634146341463,
+   "kappa": 0.6829268292682926,
+   "label_set_equal": 0.6432926829268293
+  }
+ },
+ "strata": {
+  "frame_b001": {
+   "pos_stratum_positive": 164,
+   "pos_stratum_n": 164,
+   "pos_stratum_share": 1.0,
+   "pos_stratum_ci": [
+    0.9771125745277701,
+    1.0
+   ],
+   "normal_stratum_positive": 0,
+   "normal_stratum_n": 164,
+   "normal_stratum_share": 0.0,
+   "normal_stratum_ci": [
+    0.0,
+    0.022887425472229894
+   ]
+  },
+  "frame_rerun": {
+   "pos_stratum_positive": 164,
+   "pos_stratum_n": 164,
+   "pos_stratum_share": 1.0,
+   "pos_stratum_ci": [
+    0.9771125745277701,
+    1.0
+   ],
+   "normal_stratum_positive": 0,
+   "normal_stratum_n": 164,
+   "normal_stratum_share": 0.0,
+   "normal_stratum_ci": [
+    0.0,
+    0.022887425472229894
+   ]
+  },
+  "band": {
+   "pos_stratum_positive": 122,
+   "pos_stratum_n": 164,
+   "pos_stratum_share": 0.7439024390243902,
+   "pos_stratum_ci": [
+    0.6720518814146011,
+    0.8045883988428476
+   ],
+   "normal_stratum_positive": 10,
+   "normal_stratum_n": 164,
+   "normal_stratum_share": 0.06097560975609756,
+   "normal_stratum_ci": [
+    0.0334545611697331,
+    0.10859293436685899
+   ]
+  }
+ },
+ "weighted": {
+  "frame_b001": {
+   "base": 0.2017220172201722,
+   "p_pos_given_prev_pos": 0.4960150406670209,
+   "lift": 2.4589038296480976,
+   "lag1_r": 0.3454575611945113
+  },
+  "frame_rerun": {
+   "base": 0.2017220172201722,
+   "p_pos_given_prev_pos": 0.4960150406670209,
+   "lift": 2.4589038296480976,
+   "lag1_r": 0.3454575611945113
+  },
+  "band": {
+   "base": 0.1987369873698737,
+   "p_pos_given_prev_pos": 0.5511916954330636,
+   "lift": 2.7734731351604363,
+   "lag1_r": 0.4157541328564863
+  }
+ },
+ "weighted_ci95": {
+  "frame_rerun": {
+   "base": [
+    0.15346225826575136,
+    0.2594825017323809
+   ],
+   "cond": [
+    0.34701530533037556,
+    0.6690464048954615
+   ]
+  },
+  "band": {
+   "base": [
+    0.1458713397181599,
+    0.25517130820587236
+   ],
+   "cond": [
+    0.3773217014361773,
+    0.7336635497514632
+   ]
+  },
+  "frame_b001": {
+   "base": [
+    0.15346225826575136,
+    0.2594825017323809
+   ],
+   "cond": [
+    0.34701530533037556,
+    0.6690464048954615
+   ]
+  }
+ },
+ "band_minus_frame_rerun_ci95": {
+  "base": [
+   -0.03889789144765674,
+   0.032336039295523894
+  ],
+  "cond": [
+   -0.15839569486448885,
+   0.25843750633842266
+  ]
+ },
+ "full_batch_frame_b001_reference": {
+  "base": 0.2017220172201722,
+  "p_pos_given_prev_pos": 0.45962732919254656
+ },
+ "timing": {
+  "frame_b001": {
+   "tokens_median": 1296,
+   "tokens_range": [
+    1296,
+    1296
+   ],
+   "seconds_median": 20.609499999999997,
+   "seconds_mean": 18.004185975609754,
+   "seconds_median_stage1_normal": 13.032,
+   "seconds_median_stage1_distress": 21.6645,
+   "n_stage1_distress": 164,
+   "profile": [
+    null
+   ]
+  },
+  "frame_rerun": {
+   "tokens_median": 1296.0,
+   "tokens_range": [
+    1296,
+    1296
+   ],
+   "seconds_median": 7.75,
+   "seconds_mean": 8.084365853658536,
+   "seconds_median_stage1_normal": 3.641,
+   "seconds_median_stage1_distress": 12.297,
+   "n_stage1_distress": 164,
+   "profile": [
+    "video"
+   ]
+  },
+  "band": {
+   "tokens_median": 1302.0,
+   "tokens_range": [
+    1260,
+    1334
+   ],
+   "seconds_median": 3.547,
+   "seconds_mean": 6.997759146341465,
+   "seconds_median_stage1_normal": 3.516,
+   "seconds_median_stage1_distress": 11.9925,
+   "n_stage1_distress": 132,
+   "profile": [
+    "video"
+   ]
+  }
+ },
+ "n_flips": 52,
+ "flips_by_direction": {
+  "frame_pos_band_normal": 42,
+  "frame_normal_band_pos": 10,
+  "involving_unknown": 0
+ }
+}

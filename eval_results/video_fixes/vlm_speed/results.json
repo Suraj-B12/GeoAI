@@ -1,0 +1,1273 @@
+{
+  "ab": {
+    "pairs": 60,
+    "identical_pairs": 60,
+    "differences": [],
+    "default_vs_batch001_identical": 60,
+    "video_echo_ok": true,
+    "default_reply_has_no_profile_key": true,
+    "by_answer": {
+      "Normal": {
+        "default_wall_s": {
+          "n": 40,
+          "median": 13.719999999999999,
+          "median_ci95": [
+            13.378499999999999,
+            14.294
+          ],
+          "p90": 15.3255,
+          "mean": 13.9421,
+          "min": 12.681,
+          "max": 16.43
+        },
+        "video_wall_s": {
+          "n": 40,
+          "median": 3.759,
+          "median_ci95": [
+            3.6195,
+            3.943
+          ],
+          "p90": 4.1761,
+          "mean": 3.821025,
+          "min": 3.485,
+          "max": 4.652
+        },
+        "default_server_s": {
+          "n": 40,
+          "median": 13.6574,
+          "median_ci95": [
+            13.32815,
+            14.23695
+          ],
+          "p90": 15.25079,
+          "mean": 13.879557499999999,
+          "min": 12.630600000000001,
+          "max": 16.3724
+        },
+        "video_server_s": {
+          "n": 40,
+          "median": 3.69445,
+          "median_ci95": [
+            3.566,
+            3.8806
+          ],
+          "p90": 4.10637,
+          "mean": 3.7618075000000006,
+          "min": 3.4365,
+          "max": 4.5774
+        },
+        "paired_wall": {
+          "n": 40,
+          "median_saving_s": 10.0215,
+          "median_saving_ci95": [
+            9.674,
+            10.337
+          ],
+          "median_ratio_video_over_default": 0.2764596772189424,
+          "ratio_ci95": [
+            0.27306554870522715,
+            0.2783742640370845
+          ]
+        },
+        "stage1_s": {
+          "n": 40,
+          "median": 1.5837,
+          "median_ci95": [
+            1.5656500000000002,
+            1.6167500000000001
+          ],
+          "p90": 1.7593400000000001,
+          "mean": 1.617905,
+          "min": 1.5308,
+          "max": 1.87
+        },
+        "default_recorded_tiles_s_on_normal": {
+          "n": 40,
+          "median": 9.91595,
+          "median_ci95": [
+            9.64675,
+            10.2517
+          ],
+          "p90": 11.46915,
+          "mean": 10.08565,
+          "min": 8.921100000000001,
+          "max": 11.995899999999999
+        }
+      },
+      "Distress": {
+        "default_wall_s": {
+          "n": 20,
+          "median": 24.4095,
+          "median_ci95": [
+            22.802500000000002,
+            25.741500000000002
+          ],
+          "p90": 27.5886,
+          "mean": 24.588650000000005,
+          "min": 20.874,
+          "max": 30.362
+        },
+        "video_wall_s": {
+          "n": 20,
+          "median": 14.434000000000001,
+          "median_ci95": [
+            13.883,
+            15.690000000000001
+          ],
+          "p90": 16.735600000000005,
+          "mean": 14.7798,
+          "min": 11.781,
+          "max": 18.704
+        },
+        "default_server_s": {
+          "n": 20,
+          "median": 24.3562,
+          "median_ci95": [
+            22.74485,
+            25.6559
+          ],
+          "p90": 27.505390000000002,
+          "mean": 24.526975,
+          "min": 20.815099999999997,
+          "max": 30.3201
+        },
+        "video_server_s": {
+          "n": 20,
+          "median": 14.371400000000001,
+          "median_ci95": [
+            13.8116,
+            15.61945
+          ],
+          "p90": 16.65855,
+          "mean": 14.71699,
+          "min": 11.724200000000002,
+          "max": 18.643900000000002
+        },
+        "paired_wall": {
+          "n": 20,
+          "median_saving_s": 9.798,
+          "median_saving_ci95": [
+            9.407499999999999,
+            10.2245
+          ],
+          "median_ratio_video_over_default": 0.5925947060308103,
+          "ratio_ci95": [
+            0.582729772803166,
+            0.6046045240984425
+          ]
+        },
+        "stage1_s": {
+          "n": 20,
+          "median": 1.69055,
+          "median_ci95": [
+            1.6654499999999999,
+            1.7340499999999999
+          ],
+          "p90": 1.9087,
+          "mean": 1.7271450000000002,
+          "min": 1.5951,
+          "max": 1.9699
+        }
+      },
+      "all": {
+        "default_wall_s": {
+          "n": 60,
+          "median": 14.4775,
+          "median_ci95": [
+            14.099,
+            15.832
+          ],
+          "p90": 25.409900000000004,
+          "mean": 17.49095,
+          "min": 12.681,
+          "max": 30.362
+        },
+        "video_wall_s": {
+          "n": 60,
+          "median": 3.995,
+          "median_ci95": [
+            3.831,
+            4.301
+          ],
+          "p90": 15.450000000000001,
+          "mean": 7.473950000000001,
+          "min": 3.485,
+          "max": 18.704
+        },
+        "default_server_s": {
+          "n": 60,
+          "median": 14.42165,
+          "median_ci95": [
+            14.0383,
+            15.673263749999972
+          ],
+          "p90": 25.32326,
+          "mean": 17.428696666666667,
+          "min": 12.630600000000001,
+          "max": 30.3201
+        },
+        "video_server_s": {
+          "n": 60,
+          "median": 3.92625,
+          "median_ci95": [
+            3.7712,
+            4.21
+          ],
+          "p90": 15.39501,
+          "mean": 7.4135349999999995,
+          "min": 3.4365,
+          "max": 18.643900000000002
+        },
+        "paired_wall": {
+          "n": 60,
+          "median_saving_s": 9.834999999999999,
+          "median_saving_ci95": [
+            9.664,
+            10.24
+          ],
+          "median_ratio_video_over_default": 0.28016949966254207,
+          "ratio_ci95": [
+            0.2772765826200941,
+            0.2889246774227986
+          ]
+        },
+        "stage1_s": {
+          "n": 60,
+          "median": 1.62535,
+          "median_ci95": [
+            1.5936,
+            1.6621
+          ],
+          "p90": 1.7914,
+          "mean": 1.6543183333333336,
+          "min": 1.5308,
+          "max": 1.9699
+        },
+        "default_recorded_tiles_s_on_normal": {
+          "n": 40,
+          "median": 9.91595,
+          "median_ci95": [
+            9.64675,
+            10.2517
+          ],
+          "p90": 11.46915,
+          "mean": 10.08565,
+          "min": 8.921100000000001,
+          "max": 11.995899999999999
+        }
+      }
+    },
+    "order_check": {
+      "default_first_median_s": 14.371500000000001,
+      "default_second_median_s": 15.0775
+    },
+    "batch_mix_projection_s_per_image": {
+      "default_mean": 16.089743542435425,
+      "video_mean": 6.031651199261992,
+      "note": "server wall time per request only; the runner adds its pacing (6.5 s floor before, 0 on loopback after)"
+    },
+    "rows": [
+      {
+        "request_id": "20261026T114332Z_SM-G991B-F0D1_f428_seg00000",
+        "session": "f428",
+        "answer": "Normal",
+        "default_s": 15.266,
+        "video_s": 4.0,
+        "default_server_ms": 15209.7,
+        "video_server_ms": 3927.5,
+        "stage1_ms": 1584.9,
+        "default_tiles_ms": 11536.2,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": true
+      },
+      {
+        "request_id": "20261026T114332Z_SM-G991B-F0D1_f428_seg00013",
+        "session": "f428",
+        "answer": "Normal",
+        "default_s": 15.1,
+        "video_s": 4.168,
+        "default_server_ms": 15034.2,
+        "video_server_ms": 4097.4,
+        "stage1_ms": 1710.0,
+        "default_tiles_ms": 11056.3,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": true
+      },
+      {
+        "request_id": "20261026T114332Z_SM-G991B-F0D1_f428_seg00029",
+        "session": "f428",
+        "answer": "Distress",
+        "default_s": 25.327,
+        "video_s": 13.818,
+        "default_server_ms": 25240.1,
+        "video_server_ms": 13750.0,
+        "stage1_ms": 1969.9,
+        "default_tiles_ms": null,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": true
+      },
+      {
+        "request_id": "20261026T114332Z_SM-G991B-F0D1_f428_seg00030",
+        "session": "f428",
+        "answer": "Distress",
+        "default_s": 28.476,
+        "video_s": 16.565,
+        "default_server_ms": 28389.1,
+        "video_server_ms": 16485.2,
+        "stage1_ms": 1871.8,
+        "default_tiles_ms": null,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": false
+      },
+      {
+        "request_id": "20261026T114332Z_SM-G991B-F0D1_f428_seg00053",
+        "session": "f428",
+        "answer": "Distress",
+        "default_s": 23.728,
+        "video_s": 14.148,
+        "default_server_ms": 23674.3,
+        "video_server_ms": 14100.1,
+        "stage1_ms": 1668.8,
+        "default_tiles_ms": null,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": false
+      },
+      {
+        "request_id": "20261026T114332Z_SM-G991B-F0D1_f428_seg00076",
+        "session": "f428",
+        "answer": "Normal",
+        "default_s": 13.017,
+        "video_s": 3.485,
+        "default_server_ms": 12873.1,
+        "video_server_ms": 3436.5,
+        "stage1_ms": 1870.0,
+        "default_tiles_ms": 8921.1,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": true
+      },
+      {
+        "request_id": "20261026T114332Z_SM-G991B-F0D1_f428_seg00079",
+        "session": "f428",
+        "answer": "Normal",
+        "default_s": 13.386,
+        "video_s": 3.722,
+        "default_server_ms": 13340.1,
+        "video_server_ms": 3663.3,
+        "stage1_ms": 1610.1,
+        "default_tiles_ms": 9643.1,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": true
+      },
+      {
+        "request_id": "20261026T114332Z_SM-G991B-F0D1_f428_seg00083",
+        "session": "f428",
+        "answer": "Distress",
+        "default_s": 22.607,
+        "video_s": 13.301,
+        "default_server_ms": 22556.3,
+        "video_server_ms": 13251.8,
+        "stage1_ms": 1619.9,
+        "default_tiles_ms": null,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": false
+      },
+      {
+        "request_id": "20261026T114332Z_SM-G991B-F0D1_f428_seg00118",
+        "session": "f428",
+        "answer": "Normal",
+        "default_s": 15.323,
+        "video_s": 4.15,
+        "default_server_ms": 15249.3,
+        "video_server_ms": 4085.0,
+        "stage1_ms": 1772.3,
+        "default_tiles_ms": 11009.9,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": false
+      },
+      {
+        "request_id": "20261026T114332Z_SM-G991B-F0D1_f428_seg00135",
+        "session": "f428",
+        "answer": "Normal",
+        "default_s": 13.371,
+        "video_s": 3.763,
+        "default_server_ms": 13316.2,
+        "video_server_ms": 3710.3,
+        "stage1_ms": 1578.9,
+        "default_tiles_ms": 9622.0,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": true
+      },
+      {
+        "request_id": "20261026T114332Z_SM-G991B-F0D1_f428_seg00142",
+        "session": "f428",
+        "answer": "Distress",
+        "default_s": 20.874,
+        "video_s": 13.948,
+        "default_server_ms": 20815.1,
+        "video_server_ms": 13873.2,
+        "stage1_ms": 1619.8,
+        "default_tiles_ms": null,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": true
+      },
+      {
+        "request_id": "20261026T114332Z_SM-G991B-F0D1_f428_seg00150",
+        "session": "f428",
+        "answer": "Normal",
+        "default_s": 13.881,
+        "video_s": 3.541,
+        "default_server_ms": 13828.2,
+        "video_server_ms": 3485.0,
+        "stage1_ms": 1565.4,
+        "default_tiles_ms": 10110.0,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": false
+      },
+      {
+        "request_id": "20261026T114332Z_SM-G991B-F0D1_f428_seg00151",
+        "session": "f428",
+        "answer": "Normal",
+        "default_s": 12.843,
+        "video_s": 3.535,
+        "default_server_ms": 12787.9,
+        "video_server_ms": 3486.3,
+        "stage1_ms": 1554.1,
+        "default_tiles_ms": 9284.4,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": true
+      },
+      {
+        "request_id": "20261026T114332Z_SM-G991B-F0D1_f428_seg00184",
+        "session": "f428",
+        "answer": "Normal",
+        "default_s": 14.071,
+        "video_s": 3.953,
+        "default_server_ms": 14029.8,
+        "video_server_ms": 3897.3,
+        "stage1_ms": 1593.6,
+        "default_tiles_ms": 10249.8,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": false
+      },
+      {
+        "request_id": "20261026T114332Z_SM-G991B-F0D1_f428_seg00203",
+        "session": "f428",
+        "answer": "Normal",
+        "default_s": 16.43,
+        "video_s": 4.367,
+        "default_server_ms": 16372.4,
+        "video_server_ms": 4312.8,
+        "stage1_ms": 1788.9,
+        "default_tiles_ms": 11995.9,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": false
+      },
+      {
+        "request_id": "20261026T114332Z_SM-G991B-F0D1_f428_seg00211",
+        "session": "f428",
+        "answer": "Normal",
+        "default_s": 14.071,
+        "video_s": 3.831,
+        "default_server_ms": 14015.2,
+        "video_server_ms": 3771.2,
+        "stage1_ms": 1623.4,
+        "default_tiles_ms": 10180.1,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": true
+      },
+      {
+        "request_id": "20261026T114332Z_SM-G991B-F0D1_f428_seg00218",
+        "session": "f428",
+        "answer": "Distress",
+        "default_s": 26.156,
+        "video_s": 18.704,
+        "default_server_ms": 26071.7,
+        "video_server_ms": 18643.9,
+        "stage1_ms": 1960.0,
+        "default_tiles_ms": null,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": false
+      },
+      {
+        "request_id": "20261026T114332Z_SM-G991B-F0D1_f428_seg00227",
+        "session": "f428",
+        "answer": "Normal",
+        "default_s": 14.832,
+        "video_s": 3.707,
+        "default_server_ms": 14780.2,
+        "video_server_ms": 3642.1,
+        "stage1_ms": 1530.8,
+        "default_tiles_ms": 11148.3,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": false
+      },
+      {
+        "request_id": "20261026T114907Z_SM-G991B-F0D1_293d_seg00008",
+        "session": "293d",
+        "answer": "Normal",
+        "default_s": 12.798,
+        "video_s": 3.605,
+        "default_server_ms": 12746.3,
+        "video_server_ms": 3550.2,
+        "stage1_ms": 1550.9,
+        "default_tiles_ms": 9242.7,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": true
+      },
+      {
+        "request_id": "20261026T114907Z_SM-G991B-F0D1_293d_seg00014",
+        "session": "293d",
+        "answer": "Normal",
+        "default_s": 14.446,
+        "video_s": 3.645,
+        "default_server_ms": 14389.4,
+        "video_server_ms": 3592.7,
+        "stage1_ms": 1703.3,
+        "default_tiles_ms": 10176.2,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": true
+      },
+      {
+        "request_id": "20261026T114907Z_SM-G991B-F0D1_293d_seg00015",
+        "session": "293d",
+        "answer": "Distress",
+        "default_s": 22.592,
+        "video_s": 12.757,
+        "default_server_ms": 22540.1,
+        "video_server_ms": 12700.1,
+        "stage1_ms": 1662.1,
+        "default_tiles_ms": null,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": true
+      },
+      {
+        "request_id": "20261026T114907Z_SM-G991B-F0D1_293d_seg00023",
+        "session": "293d",
+        "answer": "Distress",
+        "default_s": 22.245,
+        "video_s": 12.736,
+        "default_server_ms": 22190.5,
+        "video_server_ms": 12688.3,
+        "stage1_ms": 1644.9,
+        "default_tiles_ms": null,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": false
+      },
+      {
+        "request_id": "20261026T114907Z_SM-G991B-F0D1_293d_seg00024",
+        "session": "293d",
+        "answer": "Distress",
+        "default_s": 21.542,
+        "video_s": 11.781,
+        "default_server_ms": 21490.4,
+        "video_server_ms": 11724.2,
+        "stage1_ms": 1680.0,
+        "default_tiles_ms": null,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": true
+      },
+      {
+        "request_id": "20261026T114907Z_SM-G991B-F0D1_293d_seg00026",
+        "session": "293d",
+        "answer": "Normal",
+        "default_s": 13.249,
+        "video_s": 3.526,
+        "default_server_ms": 13209.3,
+        "video_server_ms": 3484.8,
+        "stage1_ms": 1562.1,
+        "default_tiles_ms": 9683.9,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": false
+      },
+      {
+        "request_id": "20261026T114907Z_SM-G991B-F0D1_293d_seg00029",
+        "session": "293d",
+        "answer": "Normal",
+        "default_s": 14.509,
+        "video_s": 3.943,
+        "default_server_ms": 14453.9,
+        "video_server_ms": 3881.2,
+        "stage1_ms": 1632.0,
+        "default_tiles_ms": 10491.8,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": true
+      },
+      {
+        "request_id": "20261026T114907Z_SM-G991B-F0D1_293d_seg00054",
+        "session": "293d",
+        "answer": "Distress",
+        "default_s": 24.911,
+        "video_s": 14.718,
+        "default_server_ms": 24851.8,
+        "video_server_ms": 14648.2,
+        "stage1_ms": 1733.8,
+        "default_tiles_ms": null,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": false
+      },
+      {
+        "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00003",
+        "session": "d47c",
+        "answer": "Normal",
+        "default_s": 12.801,
+        "video_s": 3.549,
+        "default_server_ms": 12737.6,
+        "video_server_ms": 3497.4,
+        "stage1_ms": 1582.5,
+        "default_tiles_ms": 9170.1,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": false
+      },
+      {
+        "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00020",
+        "session": "d47c",
+        "answer": "Normal",
+        "default_s": 13.152,
+        "video_s": 3.533,
+        "default_server_ms": 13085.9,
+        "video_server_ms": 3475.1,
+        "stage1_ms": 1563.6,
+        "default_tiles_ms": 9448.8,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": true
+      },
+      {
+        "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00024",
+        "session": "d47c",
+        "answer": "Normal",
+        "default_s": 12.751,
+        "video_s": 3.549,
+        "default_server_ms": 12694.7,
+        "video_server_ms": 3500.3,
+        "stage1_ms": 1535.5,
+        "default_tiles_ms": 9246.1,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": false
+      },
+      {
+        "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00073",
+        "session": "d47c",
+        "answer": "Normal",
+        "default_s": 12.743,
+        "video_s": 3.554,
+        "default_server_ms": 12695.2,
+        "video_server_ms": 3508.0,
+        "stage1_ms": 1550.2,
+        "default_tiles_ms": 9208.3,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": false
+      },
+      {
+        "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00114",
+        "session": "d47c",
+        "answer": "Distress",
+        "default_s": 24.246,
+        "video_s": 14.411,
+        "default_server_ms": 24197.0,
+        "video_server_ms": 14343.7,
+        "stage1_ms": 1740.0,
+        "default_tiles_ms": null,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": false
+      },
+      {
+        "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00116",
+        "session": "d47c",
+        "answer": "Normal",
+        "default_s": 15.348,
+        "video_s": 4.301,
+        "default_server_ms": 15264.2,
+        "video_server_ms": 4210.0,
+        "stage1_ms": 1574.9,
+        "default_tiles_ms": 11461.7,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": true
+      },
+      {
+        "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00118",
+        "session": "d47c",
+        "answer": "Normal",
+        "default_s": 12.969,
+        "video_s": 3.596,
+        "default_server_ms": 12902.5,
+        "video_server_ms": 3538.9,
+        "stage1_ms": 1548.5,
+        "default_tiles_ms": 9325.1,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": true
+      },
+      {
+        "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00131",
+        "session": "d47c",
+        "answer": "Normal",
+        "default_s": 13.498,
+        "video_s": 3.727,
+        "default_server_ms": 13427.7,
+        "video_server_ms": 3679.8,
+        "stage1_ms": 1558.5,
+        "default_tiles_ms": 9755.3,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": false
+      },
+      {
+        "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00147",
+        "session": "d47c",
+        "answer": "Normal",
+        "default_s": 12.681,
+        "video_s": 3.561,
+        "default_server_ms": 12630.6,
+        "video_server_ms": 3505.1,
+        "stage1_ms": 1550.0,
+        "default_tiles_ms": 9140.1,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": false
+      },
+      {
+        "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00203",
+        "session": "d47c",
+        "answer": "Distress",
+        "default_s": 26.946,
+        "video_s": 16.368,
+        "default_server_ms": 26883.9,
+        "video_server_ms": 16300.1,
+        "stage1_ms": 1686.2,
+        "default_tiles_ms": null,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": true
+      },
+      {
+        "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00228",
+        "session": "d47c",
+        "answer": "Distress",
+        "default_s": 22.998,
+        "video_s": 14.899,
+        "default_server_ms": 22933.4,
+        "video_server_ms": 14810.4,
+        "stage1_ms": 1630.0,
+        "default_tiles_ms": null,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": true
+      },
+      {
+        "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00275",
+        "session": "d47c",
+        "answer": "Normal",
+        "default_s": 13.559,
+        "video_s": 3.634,
+        "default_server_ms": 13486.6,
+        "video_server_ms": 3581.8,
+        "stage1_ms": 1608.2,
+        "default_tiles_ms": 9720.0,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": true
+      },
+      {
+        "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00296",
+        "session": "d47c",
+        "answer": "Distress",
+        "default_s": 22.044,
+        "video_s": 12.868,
+        "default_server_ms": 22000.1,
+        "video_server_ms": 12809.8,
+        "stage1_ms": 1595.1,
+        "default_tiles_ms": null,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": false
+      },
+      {
+        "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00301",
+        "session": "d47c",
+        "answer": "Normal",
+        "default_s": 12.778,
+        "video_s": 3.534,
+        "default_server_ms": 12729.6,
+        "video_server_ms": 3476.1,
+        "stage1_ms": 1556.6,
+        "default_tiles_ms": 9240.2,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": true
+      },
+      {
+        "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00331",
+        "session": "d47c",
+        "answer": "Normal",
+        "default_s": 14.412,
+        "video_s": 3.947,
+        "default_server_ms": 14342.5,
+        "video_server_ms": 3879.6,
+        "stage1_ms": 1719.8,
+        "default_tiles_ms": 10253.6,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": true
+      },
+      {
+        "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00340",
+        "session": "d47c",
+        "answer": "Normal",
+        "default_s": 14.331,
+        "video_s": 3.99,
+        "default_server_ms": 14271.6,
+        "video_server_ms": 3925.0,
+        "stage1_ms": 1645.1,
+        "default_tiles_ms": 10399.9,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": true
+      },
+      {
+        "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00356",
+        "session": "d47c",
+        "answer": "Normal",
+        "default_s": 14.583,
+        "video_s": 4.249,
+        "default_server_ms": 14473.9,
+        "video_server_ms": 4187.1,
+        "stage1_ms": 1813.9,
+        "default_tiles_ms": 10076.6,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": false
+      },
+      {
+        "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00360",
+        "session": "d47c",
+        "answer": "Distress",
+        "default_s": 26.376,
+        "video_s": 16.458,
+        "default_server_ms": 26300.2,
+        "video_server_ms": 16401.0,
+        "stage1_ms": 1903.0,
+        "default_tiles_ms": null,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": false
+      },
+      {
+        "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00361",
+        "session": "d47c",
+        "answer": "Normal",
+        "default_s": 16.133,
+        "video_s": 3.948,
+        "default_server_ms": 16078.3,
+        "video_server_ms": 3900.0,
+        "stage1_ms": 1757.9,
+        "default_tiles_ms": 11767.3,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": true
+      },
+      {
+        "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00363",
+        "session": "d47c",
+        "answer": "Normal",
+        "default_s": 13.361,
+        "video_s": 3.573,
+        "default_server_ms": 13301.5,
+        "video_server_ms": 3516.1,
+        "stage1_ms": 1574.8,
+        "default_tiles_ms": 9658.5,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": true
+      },
+      {
+        "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00372",
+        "session": "d47c",
+        "answer": "Normal",
+        "default_s": 13.452,
+        "video_s": 3.768,
+        "default_server_ms": 13375.1,
+        "video_server_ms": 3693.2,
+        "stage1_ms": 1581.5,
+        "default_tiles_ms": 9650.4,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": true
+      },
+      {
+        "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00384",
+        "session": "d47c",
+        "answer": "Normal",
+        "default_s": 14.414,
+        "video_s": 4.052,
+        "default_server_ms": 14350.1,
+        "video_server_ms": 3989.0,
+        "stage1_ms": 1639.5,
+        "default_tiles_ms": 10370.4,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": false
+      },
+      {
+        "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00387",
+        "session": "d47c",
+        "answer": "Distress",
+        "default_s": 24.573,
+        "video_s": 15.39,
+        "default_server_ms": 24515.4,
+        "video_server_ms": 15338.9,
+        "stage1_ms": 1728.4,
+        "default_tiles_ms": null,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": false
+      },
+      {
+        "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00415",
+        "session": "d47c",
+        "answer": "Distress",
+        "default_s": 24.713,
+        "video_s": 14.457,
+        "default_server_ms": 24657.5,
+        "video_server_ms": 14399.1,
+        "stage1_ms": 1714.7,
+        "default_tiles_ms": null,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": false
+      },
+      {
+        "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00426",
+        "session": "d47c",
+        "answer": "Normal",
+        "default_s": 15.832,
+        "video_s": 4.652,
+        "default_server_ms": 15751.8,
+        "video_server_ms": 4577.4,
+        "stage1_ms": 1589.4,
+        "default_tiles_ms": 11880.1,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": true
+      },
+      {
+        "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00440",
+        "session": "d47c",
+        "answer": "Normal",
+        "default_s": 14.257,
+        "video_s": 3.927,
+        "default_server_ms": 14202.3,
+        "video_server_ms": 3880.0,
+        "stage1_ms": 1605.3,
+        "default_tiles_ms": 10323.0,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": false
+      },
+      {
+        "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00443",
+        "session": "d47c",
+        "answer": "Normal",
+        "default_s": 13.469,
+        "video_s": 4.002,
+        "default_server_ms": 13410.2,
+        "video_server_ms": 3940.0,
+        "stage1_ms": 1627.3,
+        "default_tiles_ms": 9551.8,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": false
+      },
+      {
+        "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00461",
+        "session": "d47c",
+        "answer": "Normal",
+        "default_s": 14.127,
+        "video_s": 3.904,
+        "default_server_ms": 14046.8,
+        "video_server_ms": 3819.8,
+        "stage1_ms": 1633.9,
+        "default_tiles_ms": 10165.8,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": false
+      },
+      {
+        "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00474",
+        "session": "d47c",
+        "answer": "Distress",
+        "default_s": 23.567,
+        "video_s": 14.008,
+        "default_server_ms": 23505.3,
+        "video_server_ms": 13953.1,
+        "stage1_ms": 1685.3,
+        "default_tiles_ms": null,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": false
+      },
+      {
+        "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00493",
+        "session": "d47c",
+        "answer": "Normal",
+        "default_s": 12.738,
+        "video_s": 3.562,
+        "default_server_ms": 12685.5,
+        "video_server_ms": 3503.0,
+        "stage1_ms": 1540.0,
+        "default_tiles_ms": 9217.0,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": true
+      },
+      {
+        "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00507",
+        "session": "d47c",
+        "answer": "Distress",
+        "default_s": 27.49,
+        "video_s": 15.99,
+        "default_server_ms": 27407.2,
+        "video_server_ms": 15900.0,
+        "stage1_ms": 1734.3,
+        "default_tiles_ms": null,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": false
+      },
+      {
+        "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00517",
+        "session": "d47c",
+        "answer": "Normal",
+        "default_s": 13.502,
+        "video_s": 3.755,
+        "default_server_ms": 13450.1,
+        "video_server_ms": 3695.7,
+        "stage1_ms": 1565.9,
+        "default_tiles_ms": 9740.9,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": false
+      },
+      {
+        "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00522",
+        "session": "d47c",
+        "answer": "Normal",
+        "default_s": 14.2,
+        "video_s": 4.033,
+        "default_server_ms": 14152.8,
+        "video_server_ms": 3970.3,
+        "stage1_ms": 1562.7,
+        "default_tiles_ms": 10303.3,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": true
+      },
+      {
+        "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00523",
+        "session": "d47c",
+        "answer": "Distress",
+        "default_s": 30.362,
+        "video_s": 18.271,
+        "default_server_ms": 30320.1,
+        "video_server_ms": 18218.7,
+        "stage1_ms": 1694.9,
+        "default_tiles_ms": null,
+        "video_profile_echo": "video",
+        "video_views_recorded": false,
+        "default_has_profile_key": false,
+        "default_first": true
+      }
+    ]
+  },
+  "runner": {
+    "runner_before": {
+      "args": [
+        "--min-interval",
+        "6.5"
+      ],
+      "exit_code": 0,
+      "wall_s": 432.14,
+      "answered": 30,
+      "errors": 0,
+      "s_per_image_end_to_end": 14.404666666666666,
+      "request_seconds": {
+        "n": 30,
+        "median": 12.766,
+        "median_ci95": [
+          12.75,
+          12.788499999999999
+        ],
+        "p90": 20.7972,
+        "mean": 14.379733333333336,
+        "min": 12.671,
+        "max": 21.235
+      },
+      "run_log": {
+        "started_utc": "2026-10-28T04:39:41Z",
+        "url": "http://127.0.0.1:8000",
+        "health": "omitted",
+        "runner_version": "3",
+        "host": "DESKTOP-E9G31I5",
+        "python": "3.12.10",
+        "profile": null,
+        "min_interval_s": 6.5,
+        "batch_check": "verified",
+        "finished_utc": "2026-10-28T04:46:53Z",
+        "sent": 30,
+        "ok": 30
+      }
+    },
+    "runner_after": {
+      "args": [
+        "--profile",
+        "video"
+      ],
+      "exit_code": 0,
+      "wall_s": 156.33,
+      "answered": 30,
+      "errors": 0,
+      "s_per_image_end_to_end": 5.211,
+      "request_seconds": {
+        "n": 30,
+        "median": 3.547,
+        "median_ci95": [
+          3.531,
+          3.5625
+        ],
+        "p90": 11.729899999999999,
+        "mean": 5.186466666666666,
+        "min": 3.469,
+        "max": 12.063
+      },
+      "run_log": {
+        "started_utc": "2026-10-28T04:46:54Z",
+        "url": "http://127.0.0.1:8000",
+        "health": "omitted",
+        "runner_version": "3",
+        "host": "DESKTOP-E9G31I5",
+        "python": "3.12.10",
+        "profile": "video",
+        "min_interval_s": 0.0,
+        "batch_check": "verified",
+        "finished_utc": "2026-10-28T04:49:29Z",
+        "sent": 30,
+        "ok": 30,
+        "profile_not_confirmed": 0
+      }
+    },
+    "identical_answers_before_vs_after": 30,
+    "compared": 30,
+    "projection_video_with_6_5s_pacing_s_per_image": 7.5599,
+    "speedup_end_to_end": 2.7642806882875965
+  },
+  "batch_check": {
+    "files": 1633,
+    "bytes": 4898610453,
+    "passes": [
+      {
+        "pass": 1,
+        "seconds": 19.04,
+        "bad": 0
+      },
+      {
+        "pass": 2,
+        "seconds": 15.85,
+        "bad": 0
+      }
+    ],
+    "gb_per_s": [
+      0.257,
+      0.309
+    ]
+  }
+}

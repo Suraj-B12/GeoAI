@@ -1,0 +1,482 @@
+[
+ {
+  "request_id": "20261026T114332Z_SM-G991B-F0D1_f428_seg00076",
+  "session": "f428",
+  "batch001_stage1": "Normal",
+  "image": "images/20261026T114332Z_SM-G991B-F0D1_f428_seg00076.png",
+  "image_sha256": "8d8d75d3b114a35ec40db0a5b67a3d9caa2d96ca335cf1498853e9adb72ca3d1",
+  "batch001_seconds": 13.062
+ },
+ {
+  "request_id": "20261026T114332Z_SM-G991B-F0D1_f428_seg00150",
+  "session": "f428",
+  "batch001_stage1": "Normal",
+  "image": "images/20261026T114332Z_SM-G991B-F0D1_f428_seg00150.png",
+  "image_sha256": "e095f8311d149701194cd35df351c5576d8c88f3d0d61767c0fcdbbb422e8aa7",
+  "batch001_seconds": 13.203
+ },
+ {
+  "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00275",
+  "session": "d47c",
+  "batch001_stage1": "Normal",
+  "image": "images/20261027T050257Z_SM-G991B-F0D1_d47c_seg00275.png",
+  "image_sha256": "f44fa4e03b9128f3dd405d6847f4f482e799e8c7bdeaeddc5142344ed7ed6b10",
+  "batch001_seconds": 13.063
+ },
+ {
+  "request_id": "20261026T114332Z_SM-G991B-F0D1_f428_seg00227",
+  "session": "f428",
+  "batch001_stage1": "Normal",
+  "image": "images/20261026T114332Z_SM-G991B-F0D1_f428_seg00227.png",
+  "image_sha256": "3c62f582e404a0320eab92c8977bb85397b49c8a1e0c21ce85d70112f3a2fb0c",
+  "batch001_seconds": 13.079
+ },
+ {
+  "request_id": "20261026T114332Z_SM-G991B-F0D1_f428_seg00013",
+  "session": "f428",
+  "batch001_stage1": "Normal",
+  "image": "images/20261026T114332Z_SM-G991B-F0D1_f428_seg00013.png",
+  "image_sha256": "653dfdd180c37ca0da152db411563e2e846945a2bbae93b617c49546b300ce5f",
+  "batch001_seconds": 12.906
+ },
+ {
+  "request_id": "20261026T114332Z_SM-G991B-F0D1_f428_seg00218",
+  "session": "f428",
+  "batch001_stage1": "Distress",
+  "image": "images/20261026T114332Z_SM-G991B-F0D1_f428_seg00218.png",
+  "image_sha256": "0fb0221f41c037dcda812356fef7a2ef7c2a1c72ae8ce70b259d0fd3185fd92d",
+  "batch001_seconds": 30.266
+ },
+ {
+  "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00020",
+  "session": "d47c",
+  "batch001_stage1": "Normal",
+  "image": "images/20261027T050257Z_SM-G991B-F0D1_d47c_seg00020.png",
+  "image_sha256": "037f0143eba6fffc41aa750c25c79d43aaf9709d3ecdb84c956e1839a35608f5",
+  "batch001_seconds": 13.375
+ },
+ {
+  "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00003",
+  "session": "d47c",
+  "batch001_stage1": "Normal",
+  "image": "images/20261027T050257Z_SM-G991B-F0D1_d47c_seg00003.png",
+  "image_sha256": "288edcb949dfcb95a0592ed7817d646fbb408bd73114e2cf476ccea7ce23ef96",
+  "batch001_seconds": 13.5
+ },
+ {
+  "request_id": "20261026T114907Z_SM-G991B-F0D1_293d_seg00008",
+  "session": "293d",
+  "batch001_stage1": "Normal",
+  "image": "images/20261026T114907Z_SM-G991B-F0D1_293d_seg00008.png",
+  "image_sha256": "b24754e276537db928c904173308abf5eb13649dc3b4de360de2f11c7dce3096",
+  "batch001_seconds": 13.079
+ },
+ {
+  "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00387",
+  "session": "d47c",
+  "batch001_stage1": "Distress",
+  "image": "images/20261027T050257Z_SM-G991B-F0D1_d47c_seg00387.png",
+  "image_sha256": "c9321b28db91cb34b797f5614936f77837d428aba696b1efef7b4144c6588c7a",
+  "batch001_seconds": 22.141
+ },
+ {
+  "request_id": "20261026T114332Z_SM-G991B-F0D1_f428_seg00142",
+  "session": "f428",
+  "batch001_stage1": "Distress",
+  "image": "images/20261026T114332Z_SM-G991B-F0D1_f428_seg00142.png",
+  "image_sha256": "c42071cce5e8d615758507010073f03e6883d63c97af7af6530bf3b7b97788ef",
+  "batch001_seconds": 20.859
+ },
+ {
+  "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00443",
+  "session": "d47c",
+  "batch001_stage1": "Normal",
+  "image": "images/20261027T050257Z_SM-G991B-F0D1_d47c_seg00443.png",
+  "image_sha256": "8ecf6a47cd3e30b016190d5c693c058f0c6cb64e6be12b6e3ba4a8423026c899",
+  "batch001_seconds": 13.094
+ },
+ {
+  "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00118",
+  "session": "d47c",
+  "batch001_stage1": "Normal",
+  "image": "images/20261027T050257Z_SM-G991B-F0D1_d47c_seg00118.png",
+  "image_sha256": "bbcab7be524fc5c0cdadfbff04f3b6a60e95fa6f98ab0020a9edf995e8dad386",
+  "batch001_seconds": 13.093
+ },
+ {
+  "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00024",
+  "session": "d47c",
+  "batch001_stage1": "Normal",
+  "image": "images/20261027T050257Z_SM-G991B-F0D1_d47c_seg00024.png",
+  "image_sha256": "36727721194fc4ed06cfcc627bffb908eb90ecf2304caf5e9f5abbe7f19e2f3a",
+  "batch001_seconds": 13.063
+ },
+ {
+  "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00228",
+  "session": "d47c",
+  "batch001_stage1": "Distress",
+  "image": "images/20261027T050257Z_SM-G991B-F0D1_d47c_seg00228.png",
+  "image_sha256": "05af1cd55dc6a7398c938dd2643bd35fa78f465d2e785aee9ab650413c96e930",
+  "batch001_seconds": 21.329
+ },
+ {
+  "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00507",
+  "session": "d47c",
+  "batch001_stage1": "Distress",
+  "image": "images/20261027T050257Z_SM-G991B-F0D1_d47c_seg00507.png",
+  "image_sha256": "de5e6f6ae1b32fc0b48e066313c4285a175c5b962bef1d574e557e3441b2748a",
+  "batch001_seconds": 21.297
+ },
+ {
+  "request_id": "20261026T114907Z_SM-G991B-F0D1_293d_seg00014",
+  "session": "293d",
+  "batch001_stage1": "Normal",
+  "image": "images/20261026T114907Z_SM-G991B-F0D1_293d_seg00014.png",
+  "image_sha256": "2c2e44798d40470ffba67b7a8b61e2238756dd823c70124962abd8320e31e7f7",
+  "batch001_seconds": 13.047
+ },
+ {
+  "request_id": "20261026T114907Z_SM-G991B-F0D1_293d_seg00023",
+  "session": "293d",
+  "batch001_stage1": "Distress",
+  "image": "images/20261026T114907Z_SM-G991B-F0D1_293d_seg00023.png",
+  "image_sha256": "a8da2b149cf6537f95e9a380dd3f566a9f613621cf0134ddf062f107e40b1074",
+  "batch001_seconds": 21.078
+ },
+ {
+  "request_id": "20261026T114332Z_SM-G991B-F0D1_f428_seg00079",
+  "session": "f428",
+  "batch001_stage1": "Normal",
+  "image": "images/20261026T114332Z_SM-G991B-F0D1_f428_seg00079.png",
+  "image_sha256": "4acd6a7c19c847472548abe0a5d3757311bf7a4dcdee802ed20bc109d66f6e8c",
+  "batch001_seconds": 13.234
+ },
+ {
+  "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00131",
+  "session": "d47c",
+  "batch001_stage1": "Normal",
+  "image": "images/20261027T050257Z_SM-G991B-F0D1_d47c_seg00131.png",
+  "image_sha256": "ddbd0033dcdf4f3ae082075481de7a8c475d074f7377710b383e11e5364da170",
+  "batch001_seconds": 13.032
+ },
+ {
+  "request_id": "20261026T114332Z_SM-G991B-F0D1_f428_seg00135",
+  "session": "f428",
+  "batch001_stage1": "Normal",
+  "image": "images/20261026T114332Z_SM-G991B-F0D1_f428_seg00135.png",
+  "image_sha256": "c8f58a0bc596dfb323cef5629d3352d094d4fd9f0259c541ed139c835da5b87b",
+  "batch001_seconds": 12.875
+ },
+ {
+  "request_id": "20261026T114332Z_SM-G991B-F0D1_f428_seg00053",
+  "session": "f428",
+  "batch001_stage1": "Distress",
+  "image": "images/20261026T114332Z_SM-G991B-F0D1_f428_seg00053.png",
+  "image_sha256": "daee78fa8b4ea60ca270acba8044d80979df9c69bf2c58837daad689b2e5f148",
+  "batch001_seconds": 24.907
+ },
+ {
+  "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00372",
+  "session": "d47c",
+  "batch001_stage1": "Normal",
+  "image": "images/20261027T050257Z_SM-G991B-F0D1_d47c_seg00372.png",
+  "image_sha256": "21c8b4c3b7b6e26b4f5c75ab04d13aa3e5ec624f815c0a48d2c81ed1d4bf75ba",
+  "batch001_seconds": 13.031
+ },
+ {
+  "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00474",
+  "session": "d47c",
+  "batch001_stage1": "Distress",
+  "image": "images/20261027T050257Z_SM-G991B-F0D1_d47c_seg00474.png",
+  "image_sha256": "17e1007fcb606f15a3335be42d815cc93674b750ef22f2c90c6521782813c5f7",
+  "batch001_seconds": 22.141
+ },
+ {
+  "request_id": "20261026T114907Z_SM-G991B-F0D1_293d_seg00015",
+  "session": "293d",
+  "batch001_stage1": "Distress",
+  "image": "images/20261026T114907Z_SM-G991B-F0D1_293d_seg00015.png",
+  "image_sha256": "da44c7e8fea176839abb3b2c3a621cae89ad73ecbe7529f0edcb2c3220ce6d45",
+  "batch001_seconds": 21.172
+ },
+ {
+  "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00517",
+  "session": "d47c",
+  "batch001_stage1": "Normal",
+  "image": "images/20261027T050257Z_SM-G991B-F0D1_d47c_seg00517.png",
+  "image_sha256": "2fb3b6f55522f0c1bdf4dc805c28129f5c517a5fdee913b964e661d68769c1c1",
+  "batch001_seconds": 13.031
+ },
+ {
+  "request_id": "20261026T114907Z_SM-G991B-F0D1_293d_seg00024",
+  "session": "293d",
+  "batch001_stage1": "Distress",
+  "image": "images/20261026T114907Z_SM-G991B-F0D1_293d_seg00024.png",
+  "image_sha256": "85033c04a8f9a4740c79f93a99bb1fbbf449803004b89e9f7e1d30d9e59f12be",
+  "batch001_seconds": 21.188
+ },
+ {
+  "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00073",
+  "session": "d47c",
+  "batch001_stage1": "Normal",
+  "image": "images/20261027T050257Z_SM-G991B-F0D1_d47c_seg00073.png",
+  "image_sha256": "6236cf56c6fc6c18b72f587816d3e2ccb204149b1ad9be402f698ed940900e4f",
+  "batch001_seconds": 13.078
+ },
+ {
+  "request_id": "20261026T114332Z_SM-G991B-F0D1_f428_seg00151",
+  "session": "f428",
+  "batch001_stage1": "Normal",
+  "image": "images/20261026T114332Z_SM-G991B-F0D1_f428_seg00151.png",
+  "image_sha256": "7abb24d344bb81a924330ba8e824d2cc43b4f3d4e5cb4f20c293e29f2ed17a33",
+  "batch001_seconds": 13.031
+ },
+ {
+  "request_id": "20261026T114907Z_SM-G991B-F0D1_293d_seg00026",
+  "session": "293d",
+  "batch001_stage1": "Normal",
+  "image": "images/20261026T114907Z_SM-G991B-F0D1_293d_seg00026.png",
+  "image_sha256": "95e8081ef9ee27b5fa7536a6dae9f06d8600d2c37311344e951c5eae3f46a128",
+  "batch001_seconds": 13.016
+ },
+ {
+  "request_id": "20261026T114332Z_SM-G991B-F0D1_f428_seg00000",
+  "session": "f428",
+  "batch001_stage1": "Normal",
+  "image": "images/20261026T114332Z_SM-G991B-F0D1_f428_seg00000.png",
+  "image_sha256": "f801a43532a5b6f265fa4a42f9da8c62f2ba040691189431bd1a698f567a675a",
+  "batch001_seconds": 12.703
+ },
+ {
+  "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00384",
+  "session": "d47c",
+  "batch001_stage1": "Normal",
+  "image": "images/20261027T050257Z_SM-G991B-F0D1_d47c_seg00384.png",
+  "image_sha256": "128f1c900e02b8317347f57abf805d765e4c42ea52ec9348c0fbd306c2d33597",
+  "batch001_seconds": 13.063
+ },
+ {
+  "request_id": "20261026T114907Z_SM-G991B-F0D1_293d_seg00029",
+  "session": "293d",
+  "batch001_stage1": "Normal",
+  "image": "images/20261026T114907Z_SM-G991B-F0D1_293d_seg00029.png",
+  "image_sha256": "0d76bf70a463399a9d5d97e68b5d638bdf9c5c7bf6c20f76f0f757bc0d79d15d",
+  "batch001_seconds": 13.046
+ },
+ {
+  "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00114",
+  "session": "d47c",
+  "batch001_stage1": "Distress",
+  "image": "images/20261027T050257Z_SM-G991B-F0D1_d47c_seg00114.png",
+  "image_sha256": "dfe334a33d8913d521ba6b1fb4d1d8cb325c814bf2a1571374c870e129930c89",
+  "batch001_seconds": 21.485
+ },
+ {
+  "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00426",
+  "session": "d47c",
+  "batch001_stage1": "Normal",
+  "image": "images/20261027T050257Z_SM-G991B-F0D1_d47c_seg00426.png",
+  "image_sha256": "718c1e1344df988ec4ba3c46e83503bb072c222bca62ed08650ce05349eca57e",
+  "batch001_seconds": 13.031
+ },
+ {
+  "request_id": "20261026T114332Z_SM-G991B-F0D1_f428_seg00203",
+  "session": "f428",
+  "batch001_stage1": "Normal",
+  "image": "images/20261026T114332Z_SM-G991B-F0D1_f428_seg00203.png",
+  "image_sha256": "981bb7bf99b883e128b9d5bc9d65d20453ba0fadbba2690c7ebb4e879743f66d",
+  "batch001_seconds": 20.406
+ },
+ {
+  "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00331",
+  "session": "d47c",
+  "batch001_stage1": "Normal",
+  "image": "images/20261027T050257Z_SM-G991B-F0D1_d47c_seg00331.png",
+  "image_sha256": "635807c9754fde494337f6d4cc7852bfeb3e3b6b192b81414e8645acdc243028",
+  "batch001_seconds": 13.047
+ },
+ {
+  "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00415",
+  "session": "d47c",
+  "batch001_stage1": "Distress",
+  "image": "images/20261027T050257Z_SM-G991B-F0D1_d47c_seg00415.png",
+  "image_sha256": "c9a59025ef87beeb4b20d84f1545b0d51618f6d055200ea0ec2e58ccdf156c7e",
+  "batch001_seconds": 21.469
+ },
+ {
+  "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00340",
+  "session": "d47c",
+  "batch001_stage1": "Normal",
+  "image": "images/20261027T050257Z_SM-G991B-F0D1_d47c_seg00340.png",
+  "image_sha256": "6ffa8ae2ba6f09705117f500b6cf3164d7b4e86dc7f0dad6af9a4c154abab5c6",
+  "batch001_seconds": 13.031
+ },
+ {
+  "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00461",
+  "session": "d47c",
+  "batch001_stage1": "Normal",
+  "image": "images/20261027T050257Z_SM-G991B-F0D1_d47c_seg00461.png",
+  "image_sha256": "a30e31c2227c77ae3b463c1d7428c35f5aa2b9f69463254034eca8cadf2af868",
+  "batch001_seconds": 13.047
+ },
+ {
+  "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00116",
+  "session": "d47c",
+  "batch001_stage1": "Normal",
+  "image": "images/20261027T050257Z_SM-G991B-F0D1_d47c_seg00116.png",
+  "image_sha256": "17a18f66526e56c419169abd50edad35753bdd045bbc3cfee9bbbe69784df305",
+  "batch001_seconds": 13.109
+ },
+ {
+  "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00360",
+  "session": "d47c",
+  "batch001_stage1": "Distress",
+  "image": "images/20261027T050257Z_SM-G991B-F0D1_d47c_seg00360.png",
+  "image_sha256": "d39570201b5ab6c0865f04e60d92af789465a85ec8083659b99d09eda8b1dc1f",
+  "batch001_seconds": 21.453
+ },
+ {
+  "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00522",
+  "session": "d47c",
+  "batch001_stage1": "Normal",
+  "image": "images/20261027T050257Z_SM-G991B-F0D1_d47c_seg00522.png",
+  "image_sha256": "7ebbd42dae6ec5298b021203d076b99f1862ddf36e1cfcbef5ca8583d3d3701e",
+  "batch001_seconds": 12.985
+ },
+ {
+  "request_id": "20261026T114907Z_SM-G991B-F0D1_293d_seg00054",
+  "session": "293d",
+  "batch001_stage1": "Distress",
+  "image": "images/20261026T114907Z_SM-G991B-F0D1_293d_seg00054.png",
+  "image_sha256": "8cfa01fd5cf4a83fe868da844bae47bc1584635c7aabe4e9feffd75dbd2c2028",
+  "batch001_seconds": 22.047
+ },
+ {
+  "request_id": "20261026T114332Z_SM-G991B-F0D1_f428_seg00211",
+  "session": "f428",
+  "batch001_stage1": "Normal",
+  "image": "images/20261026T114332Z_SM-G991B-F0D1_f428_seg00211.png",
+  "image_sha256": "7b4e3816d6c615e27bfd70b8046b20d8f3408bea27e7fd77d1fce361793afa7e",
+  "batch001_seconds": 19.265
+ },
+ {
+  "request_id": "20261026T114332Z_SM-G991B-F0D1_f428_seg00030",
+  "session": "f428",
+  "batch001_stage1": "Distress",
+  "image": "images/20261026T114332Z_SM-G991B-F0D1_f428_seg00030.png",
+  "image_sha256": "f02acb0960b7efb98fa41340590231dc65c3df1b5ad821d809637d3da4a54a34",
+  "batch001_seconds": 21.64
+ },
+ {
+  "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00361",
+  "session": "d47c",
+  "batch001_stage1": "Normal",
+  "image": "images/20261027T050257Z_SM-G991B-F0D1_d47c_seg00361.png",
+  "image_sha256": "78fb3fcdac12d86565e3cda77d201038f7b14b85d4e44ab5bdf47dbaf39d5dca",
+  "batch001_seconds": 13.016
+ },
+ {
+  "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00440",
+  "session": "d47c",
+  "batch001_stage1": "Normal",
+  "image": "images/20261027T050257Z_SM-G991B-F0D1_d47c_seg00440.png",
+  "image_sha256": "71ddd7f0157887b2d1b5036ee930243eeb61a77d3ad1415d8980882d80022f6e",
+  "batch001_seconds": 13.016
+ },
+ {
+  "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00203",
+  "session": "d47c",
+  "batch001_stage1": "Distress",
+  "image": "images/20261027T050257Z_SM-G991B-F0D1_d47c_seg00203.png",
+  "image_sha256": "5a57d106b57a2ed3dc7a248e6b9020794cf5dee2264351ac5d842a29a28a2538",
+  "batch001_seconds": 22.75
+ },
+ {
+  "request_id": "20261026T114332Z_SM-G991B-F0D1_f428_seg00184",
+  "session": "f428",
+  "batch001_stage1": "Normal",
+  "image": "images/20261026T114332Z_SM-G991B-F0D1_f428_seg00184.png",
+  "image_sha256": "ee2aec9e801d2d91a4407653fb24e8d48b090acbaacc5aadeb8b486ba2375b51",
+  "batch001_seconds": 17.328
+ },
+ {
+  "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00523",
+  "session": "d47c",
+  "batch001_stage1": "Distress",
+  "image": "images/20261027T050257Z_SM-G991B-F0D1_d47c_seg00523.png",
+  "image_sha256": "b0480522c12880537be68d5d8531bb2a200c97ac3c23663d9b5e5edb634b0976",
+  "batch001_seconds": 22.843
+ },
+ {
+  "request_id": "20261026T114332Z_SM-G991B-F0D1_f428_seg00118",
+  "session": "f428",
+  "batch001_stage1": "Normal",
+  "image": "images/20261026T114332Z_SM-G991B-F0D1_f428_seg00118.png",
+  "image_sha256": "f8c6d619c7fd735b6559508fa7ec5b9f77845e7d5fe775c281a309e593483fb1",
+  "batch001_seconds": 12.907
+ },
+ {
+  "request_id": "20261026T114332Z_SM-G991B-F0D1_f428_seg00029",
+  "session": "f428",
+  "batch001_stage1": "Distress",
+  "image": "images/20261026T114332Z_SM-G991B-F0D1_f428_seg00029.png",
+  "image_sha256": "19219eeea164530b423a03ce7c8a8c36d97542d857ef79c50969aff428555968",
+  "batch001_seconds": 21.031
+ },
+ {
+  "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00356",
+  "session": "d47c",
+  "batch001_stage1": "Normal",
+  "image": "images/20261027T050257Z_SM-G991B-F0D1_d47c_seg00356.png",
+  "image_sha256": "3fa7f2bddc3a4131ef44a9db220177e3968b4c1e30ab00e4f8206c15d931c6fe",
+  "batch001_seconds": 13.0
+ },
+ {
+  "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00363",
+  "session": "d47c",
+  "batch001_stage1": "Normal",
+  "image": "images/20261027T050257Z_SM-G991B-F0D1_d47c_seg00363.png",
+  "image_sha256": "426bd93884a367e8584965e98a5011f0178828dc7d12fa2bd7a17344e47a9d98",
+  "batch001_seconds": 12.985
+ },
+ {
+  "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00147",
+  "session": "d47c",
+  "batch001_stage1": "Normal",
+  "image": "images/20261027T050257Z_SM-G991B-F0D1_d47c_seg00147.png",
+  "image_sha256": "a9a347f7feb70c06fc66ec11c1afdfa69729154cc30c3030f6a4de2e347129c4",
+  "batch001_seconds": 13.016
+ },
+ {
+  "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00301",
+  "session": "d47c",
+  "batch001_stage1": "Normal",
+  "image": "images/20261027T050257Z_SM-G991B-F0D1_d47c_seg00301.png",
+  "image_sha256": "a1958fda28456b2f3235d3f001e9e0a9d255744ef6df95411cdc48d2385b35bd",
+  "batch001_seconds": 13.0
+ },
+ {
+  "request_id": "20261026T114332Z_SM-G991B-F0D1_f428_seg00083",
+  "session": "f428",
+  "batch001_stage1": "Distress",
+  "image": "images/20261026T114332Z_SM-G991B-F0D1_f428_seg00083.png",
+  "image_sha256": "7f3371d85577874952f38c31d216cd982d54339add8c9f540df85ab439991f94",
+  "batch001_seconds": 26.5
+ },
+ {
+  "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00493",
+  "session": "d47c",
+  "batch001_stage1": "Normal",
+  "image": "images/20261027T050257Z_SM-G991B-F0D1_d47c_seg00493.png",
+  "image_sha256": "0f9046e449877aa55b45319fd48d11a69ea1ecf8c88c33b3f3a5b243ec89d677",
+  "batch001_seconds": 13.047
+ },
+ {
+  "request_id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00296",
+  "session": "d47c",
+  "batch001_stage1": "Distress",
+  "image": "images/20261027T050257Z_SM-G991B-F0D1_d47c_seg00296.png",
+  "image_sha256": "ed08ccce0cd59555914c392328f62279f8020c55c688c0f901f6ffec5e8a9658",
+  "batch001_seconds": 22.282
+ }
+]

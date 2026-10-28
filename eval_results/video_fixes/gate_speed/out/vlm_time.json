@@ -1,0 +1,213 @@
+{
+ "seconds_per_image": {
+  "normal": {
+   "n": 649,
+   "mean": 13.409234206471496,
+   "median": 13.032,
+   "p90": 13.4842
+  },
+  "distress": {
+   "n": 164,
+   "mean": 22.450097560975607,
+   "median": 21.6645,
+   "p90": 22.657
+  }
+ },
+ "seconds_per_image_all": {
+  "n": 813,
+  "mean": 15.232975399753999,
+  "median": 13.062,
+  "p90": 21.669
+ },
+ "audit_frac": 0.1,
+ "gates": {
+  "send_all": {
+   "f428": {
+    "km": 1.1497602662056403,
+    "segments": 230,
+    "pass": 230,
+    "sent": 230,
+    "sent_per_km": 200.04170152707587,
+    "vlm_s": 3712.721,
+    "vlm_min_per_km": 53.81877000980483,
+    "vlm_positive_sent": 41,
+    "vlm_positive": 41
+   },
+   "293d": {
+    "km": 0.2730468090693787,
+    "segments": 55,
+    "pass": 55,
+    "sent": 55,
+    "sent_per_km": 201.43066380250207,
+    "vlm_s": 893.765,
+    "vlm_min_per_km": 54.55505370710402,
+    "vlm_positive_sent": 21,
+    "vlm_positive": 21
+   },
+   "d47c": {
+    "km": 2.637503605119082,
+    "segments": 528,
+    "pass": 528,
+    "sent": 528,
+    "sent_per_km": 200.1892998270086,
+    "vlm_s": 7777.923,
+    "vlm_min_per_km": 49.149525236060164,
+    "vlm_positive_sent": 102,
+    "vlm_positive": 102
+   },
+   "all": {
+    "km": 4.060310680394101,
+    "segments": 813,
+    "pass": 813,
+    "sent": 813,
+    "sent_per_km": 200.23098329044336,
+    "vlm_s": 12384.409,
+    "vlm_min_per_km": 50.83522737886462,
+    "vlm_positive_sent": 164,
+    "vlm_positive": 164
+   }
+  },
+  "default": {
+   "f428": {
+    "km": 1.1497602662056403,
+    "segments": 230,
+    "pass": 220,
+    "sent": 220,
+    "sent_per_km": 191.34423624328997,
+    "vlm_s": 3559.268,
+    "vlm_min_per_km": 51.59434977615017,
+    "vlm_positive_sent": 41,
+    "vlm_positive": 41
+   },
+   "293d": {
+    "km": 0.2730468090693787,
+    "segments": 55,
+    "pass": 52,
+    "sent": 53,
+    "sent_per_km": 194.105912391502,
+    "vlm_s": 867.624,
+    "vlm_min_per_km": 52.95941765181274,
+    "vlm_positive_sent": 21,
+    "vlm_positive": 21
+   },
+   "d47c": {
+    "km": 2.637503605119082,
+    "segments": 528,
+    "pass": 467,
+    "sent": 470,
+    "sent_per_km": 178.19880855813264,
+    "vlm_s": 6907.329,
+    "vlm_min_per_km": 43.64814886946942,
+    "vlm_positive_sent": 89,
+    "vlm_positive": 102
+   },
+   "all": {
+    "km": 4.060310680394101,
+    "segments": 813,
+    "pass": 739,
+    "sent": 743,
+    "sent_per_km": 182.99092322853556,
+    "vlm_s": 11334.221,
+    "vlm_min_per_km": 46.52444066546109,
+    "vlm_positive_sent": 151,
+    "vlm_positive": 164
+   }
+  },
+  "probe_calibrated_in_sample": {
+   "f428": {
+    "km": 1.1497602662056403,
+    "segments": 230,
+    "pass": 116,
+    "sent": 127,
+    "sent_per_km": 110.45780910408102,
+    "vlm_s": 2129.687,
+    "vlm_min_per_km": 30.87146457971693,
+    "vlm_positive_sent": 38,
+    "vlm_positive": 41
+   },
+   "293d": {
+    "km": 0.2730468090693787,
+    "segments": 55,
+    "pass": 37,
+    "sent": 40,
+    "sent_per_km": 146.4950282200015,
+    "vlm_s": 698.498,
+    "vlm_min_per_km": 42.63603509233943,
+    "vlm_positive_sent": 21,
+    "vlm_positive": 21
+   },
+   "d47c": {
+    "km": 2.637503605119082,
+    "segments": 528,
+    "pass": 346,
+    "sent": 363,
+    "sent_per_km": 137.6301436310684,
+    "vlm_s": 5530.249,
+    "vlm_min_per_km": 34.94623343368101,
+    "vlm_positive_sent": 91,
+    "vlm_positive": 102
+   },
+   "all": {
+    "km": 4.060310680394101,
+    "segments": 813,
+    "pass": 499,
+    "sent": 530,
+    "sent_per_km": 130.53188332587328,
+    "vlm_s": 8358.434,
+    "vlm_min_per_km": 34.309500996069566,
+    "vlm_positive_sent": 150,
+    "vlm_positive": 164
+   }
+  },
+  "probe_loso_held_out": {
+   "f428": {
+    "km": 1.1497602662056403,
+    "segments": 230,
+    "pass": 116,
+    "sent": 127,
+    "sent_per_km": 110.45780910408102,
+    "vlm_s": 2129.687,
+    "vlm_min_per_km": 30.87146457971693,
+    "vlm_positive_sent": 38,
+    "vlm_positive": 41
+   },
+   "293d": {
+    "km": 0.2730468090693787,
+    "segments": 55,
+    "pass": 37,
+    "sent": 40,
+    "sent_per_km": 146.4950282200015,
+    "vlm_s": 698.498,
+    "vlm_min_per_km": 42.63603509233943,
+    "vlm_positive_sent": 21,
+    "vlm_positive": 21
+   },
+   "d47c": {
+    "km": 2.637503605119082,
+    "segments": 528,
+    "pass": 330,
+    "sent": 349,
+    "sent_per_km": 132.32209401444317,
+    "vlm_s": 5313.735,
+    "vlm_min_per_km": 33.57805836856911,
+    "vlm_positive_sent": 87,
+    "vlm_positive": 102
+   },
+   "all": {
+    "km": 4.060310680394101,
+    "segments": 813,
+    "pass": 483,
+    "sent": 516,
+    "sent_per_km": 127.08387131349173,
+    "vlm_s": 8141.92,
+    "vlm_min_per_km": 33.420759480773405,
+    "vlm_positive_sent": 146,
+    "vlm_positive": 164
+   }
+  }
+ },
+ "saved_min_per_km_probe_calibrated_in_sample_vs_default": 12.214939669391526,
+ "saved_min_per_km_probe_calibrated_in_sample_vs_send_all": 16.525726382795057,
+ "saved_min_per_km_probe_loso_held_out_vs_default": 13.103681184687687,
+ "saved_min_per_km_probe_loso_held_out_vs_send_all": 17.414467898091218
+}

@@ -79,7 +79,11 @@ for everything below.
 3. Re-run `scripts/calibrate_confidence.py` on labelled Bengaluru photos before moving the 0.80 threshold.
 4. Paper: revised to P4 on 2026-10-27 (all sections, P1–P4 reading guide at the top). Before submission: proof-read, and add Bengaluru expert-label results to §6.4 once they exist.
 5. Open requests: external VLM hand-off (`vlm_handoff/`, 11 `[CONFIRM]` items for the user; folder-batch
-   runner + Stage-1 bypass promised but unbuilt); drive-video ingestion (researched, not built).
+   runner + Stage-1 bypass promised but unbuilt).
+6. **Drive-video survey (GeoAI_Video repo, built 2026-10-27/28):** all 813 segments of 3 S21 drives
+   classified, stored in local PostgreSQL + `C:\GeoAI\images`; paper §8; GIS API + teammate brief
+   `paper/GIS_VIDEO_HANDOFF.md`. **Resume from `eval_results/video_fixes/STATUS.md`** (unfinished
+   studies, stuck GPU lock, §8.6 placeholder, owner actions). Memory: project_geoai_video_repo.
 
 **Where things are:**
 - Research paper: `paper/baseline_evaluation.md` (§T7 = deployment record, test suites, incidents).
