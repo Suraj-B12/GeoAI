@@ -474,7 +474,8 @@ cloudflared tunnel --url http://localhost:8000
 | `CONFIDENCE_THRESHOLD` | `0.80` | `scripts/utils.py` | Below this, results are flagged for expert review |
 | `MAX_UPLOAD_BYTES` | 10 MB | `app/security.py` | Maximum image upload size |
 | `MAX_DIMENSION` | 4096 px | `app/security.py` | Maximum image width/height |
-| Rate: `/classify` | 10/min | `app/main.py` | Rate limit for classification |
+| Rate: `/classify`, `/classify/base64` | 10/min | `app/main.py` | Per remote client. Unproxied loopback requests (127.0.0.1/::1 with no `X-Forwarded-For`/`Cf-Connecting-Ip`/`Forwarded` header) are exempt: the drive-video toggle and `run_vlm_batch.py` on this PC. Tunnel traffic also arrives from 127.0.0.1 but carries those headers, so it keeps the limit |
+| `/classify` form field `profile` | none | `app/main.py`, `app/model.py` `REQUEST_PROFILES` | Omitted = citizen behaviour, reply unchanged. `video` = skip RECORDING the probe's tile views (~9 s per Normal frame); labels, confidences, safety net and review identical; reply adds `profile`, `views_recorded`. Also a JSON key on `/classify/base64` |
 | Rate: `/health` | 60/min | `app/main.py` | Rate limit for health check |
 | Rate: `/retrain/start` | 2/min | `app/main.py` | Rate limit for retrain trigger |
 | Rate: `/operator/start\|stop` | 10/min | `app/main.py` | Rate limit for pipeline control |

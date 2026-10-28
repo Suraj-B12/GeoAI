@@ -1261,8 +1261,9 @@ class VideoPipelineService:
         seg = await asyncio.to_thread(segment_metrics, run)
         s["metrics"].update(seg)
         report = await asyncio.to_thread(_read_json, run / "report.json")
-        if isinstance(report.get("timings"), dict):
-            s["metrics"]["extract_report_timings"] = report["timings"]
+        # geoai process writes its wall-clock timings as report.json "timings_s" (frames.py)
+        if isinstance(report.get("timings_s"), dict):
+            s["metrics"]["extract_report_timings"] = report["timings_s"]
 
     # --- classify
     def _classify_done(self, batch: Path) -> bool:
@@ -1299,6 +1300,10 @@ class VideoPipelineService:
         ids = await asyncio.to_thread(request_ids, batch)
         runner = self.cfg.geoai_repo / "pipeline" / "tools" / "run_vlm_batch.py"
         stalls = 0
+        # The runner re-hashes the whole batch against SHA256SUMS on every call (~5 GB for an 800-image
+        # batch, 0.24-0.31 GB/s here). The first call of this pass verifies it; later chunks skip that
+        # (--skip-batch-check), and every image is still hashed as it is uploaded.
+        batch_verified = False
         async with self._stage(s, jl, "classify", requests=len(ids)) as counts:
             while True:
                 lines = await asyncio.to_thread(read_jsonl, batch / "responses.jsonl")
@@ -1320,7 +1325,9 @@ class VideoPipelineService:
                 self._check_tools()
                 limit = self.cfg.classify_chunk + len(rejected)
                 argv = [str(self.cfg.python), str(runner), str(batch), "--url", self.cfg.classify_url,
-                        "--limit", str(limit)]
+                        "--limit", str(limit), "--profile", "video"]
+                if batch_verified:
+                    argv.append("--skip-batch-check")
                 if self.cfg.api_key:
                     argv += ["--api-key", self.cfg.api_key]
                 self._transition(s, "classifying", detail=f"VLM {len(answered)}/{len(ids)} images")
@@ -1329,6 +1336,7 @@ class VideoPipelineService:
                     raise StageError(f"VLM runner stopped (exit 2: batch checksums, /health or API key): {_tail(out, 600)}")
                 if code not in (0, 1):
                     raise StageError(f"VLM runner exited with {code}: {_tail(out, 600)}")
+                batch_verified = True   # exit 0/1 only after SHA256SUMS matched (or was already verified)
                 after = set(answers_from_responses(await asyncio.to_thread(read_jsonl, batch / "responses.jsonl")))
                 stalls = 0 if len(after & set(ids)) > len(answered) else stalls + 1
             if rejected:

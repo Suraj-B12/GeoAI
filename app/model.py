@@ -170,6 +170,21 @@ print(f"[PavementClassifier] Stage 2 mode: {STAGE2_MODE}")
 STAGE1_SAFETY_NET = os.environ.get("STAGE1_SAFETY_NET", "false").lower() in ("1", "true", "yes")
 print(f"[PavementClassifier] Stage 1 safety net: {'on' if STAGE1_SAFETY_NET else 'off'}")
 
+# Request profiles (2026-10-28)
+# =============================
+# A profile chooses what a /classify request RECORDS, never what it decides:
+# Stage 1, Stage 2 generation, the full-photo probe, the safety net and the
+# review gate are the same under every profile. No profile = the citizen path.
+# 'video': drive-video frames (GeoAI_Video) skip the probe's record-only tile
+#     views (configs/stage2_probe.json views.record). Those tiles are stored
+#     for calibrating citizen photos against expert labels; the video project
+#     never reads them, and they were ~9.4 s of a 13.0 s Normal answer on 649
+#     batch_001 frames (C:/GeoAI/analysis/discriminator/FINDINGS.json item 1).
+REQUEST_PROFILES = {
+    "citizen": {"record_views": True},
+    "video": {"record_views": False},
+}
+
 
 def _release_cuda_cache() -> None:
     """Hand cached allocator blocks back between inference steps. On Windows
@@ -533,13 +548,20 @@ class PavementClassifier:
     def probe_status(self) -> dict:
         return dict(self._probe_status)
 
-    def _probe_scores(self, image: Image.Image) -> tuple[dict, dict]:
+    def _probe_scores(self, image: Image.Image, record_views: bool = True) -> tuple[dict, dict]:
         """Per-type P(yes) under the configured views (full photo, tiles or
         zoom crops; scripts/stage2_views.py). The caller holds self._lock.
-        Extra views that fail fall back to the full-photo scores."""
+        Extra views that fail fall back to the full-photo scores.
+
+        record_views=False drops only the config's record-only view spec
+        (views.record): the views that DECIDE (views.mode) are untouched, so
+        the returned scores are the same; only info["recorded"] is absent."""
         from scripts.stage2_views import probe_scores
         max_px = int(self._load_info.get("max_pixels") or 1024 * 1024)
-        return probe_scores(self._prober, image, (self._probe_cfg or {}).get("views"),
+        views = (self._probe_cfg or {}).get("views")
+        if not record_views and views and views.get("record"):
+            views = {k: v for k, v in views.items() if k != "record"}
+        return probe_scores(self._prober, image, views,
                             locator=self._locator, release=_release_cuda_cache,
                             max_pixels=max_px)
 
@@ -838,7 +860,7 @@ class PavementClassifier:
         from peft import PeftModel
         return isinstance(self._model, PeftModel) and self.adapter_path is not None
 
-    def predict_stage2(self, image: Image.Image) -> dict:
+    def predict_stage2(self, image: Image.Image, *, record_views: bool = True) -> dict:
         """
         Run Stage 2 with adapter-cascade fallback.
 
@@ -855,6 +877,8 @@ class PavementClassifier:
         outside the RDD distribution.
 
         Returns dict with stage 2 fields plus 'stage2_used_fallback' bool.
+        record_views=False skips the probe's record-only views (see
+        _probe_scores); nothing that decides labels or review changes.
         Thread-safe.
         """
         image = image.convert("RGB")
@@ -908,7 +932,7 @@ class PavementClassifier:
                 try:
                     from scripts import stage2_probe_rules as rules
                     t_p = time.time()
-                    p, vinfo = self._probe_scores(image)
+                    p, vinfo = self._probe_scores(image, record_views)
                     probe_out = rules.combine(parsed["distress_types"], p,
                                               self._probe_cfg, self._probe_labels)
                     probe_out["p"] = {k: round(v, 5) for k, v in p.items()}
@@ -989,7 +1013,7 @@ class PavementClassifier:
         return (STAGE1_SAFETY_NET and self._prober is not None
                 and bool((self._probe_cfg or {}).get("stage1_safety_net")))
 
-    def stage1_safety_check(self, image: Image.Image) -> dict | None:
+    def stage1_safety_check(self, image: Image.Image, *, record_views: bool = True) -> dict | None:
         """Stage 1 said Normal - does the probe see distress anyway?
 
         Returns None when the safety net is off. Otherwise a dict with
@@ -1006,7 +1030,7 @@ class PavementClassifier:
         with self._lock:
             t0 = time.time()
             try:
-                p, vinfo = self._probe_scores(image)
+                p, vinfo = self._probe_scores(image, record_views)
                 out = rules.safety_net(p, self._probe_cfg) or {"flagged": False}
                 out["p"] = {k: round(v, 5) for k, v in p.items()}
                 out["views"] = {k: v for k, v in vinfo.items() if k != "min_yes_no_mass"}
@@ -1019,13 +1043,20 @@ class PavementClassifier:
             out["time_ms"] = round((time.time() - t0) * 1000, 1)
         return out
 
-    def predict(self, image: Image.Image) -> dict:
+    def predict(self, image: Image.Image, *, profile: str | None = None) -> dict:
         """
         Run the full two-stage classification pipeline with real confidence scores.
 
         Returns dict matching ClassificationResponse schema.
         Internally calls predict_stage1() and predict_stage2().
+
+        profile: None (every existing caller) runs exactly the citizen path.
+        A name from REQUEST_PROFILES selects what is RECORDED, never what is
+        decided; the result then also carries "profile" and "views_recorded".
         """
+        if profile is not None and profile not in REQUEST_PROFILES:
+            raise ValueError(f"unknown profile {profile!r}; one of {sorted(REQUEST_PROFILES)}")
+        record_views = REQUEST_PROFILES[profile]["record_views"] if profile is not None else True
         total_start = time.time()
 
         # --- Stage 1: Binary Detection ---
@@ -1048,7 +1079,7 @@ class PavementClassifier:
 
         # --- Stage 2: Type Classification (only if distressed) ---
         if s1["is_distressed"]:
-            s2 = self.predict_stage2(image)
+            s2 = self.predict_stage2(image, record_views=record_views)
             result["distress_types"] = s2["distress_types"]
             result["severity"] = s2["severity"]
             result["description"] = s2["description"]
@@ -1077,7 +1108,7 @@ class PavementClassifier:
             )
         else:
             # Stage 1 said Normal: the safety net may route it to a human.
-            sn = self.stage1_safety_check(image)
+            sn = self.stage1_safety_check(image, record_views=record_views)
             result["stage1_safety_net"] = sn
             if sn and sn.get("flagged"):
                 result["needs_expert_review"] = True
@@ -1085,6 +1116,12 @@ class PavementClassifier:
         total_time = (time.time() - total_start) * 1000
         result["processing_time_ms"] = round(total_time, 1)
 
+        if profile is not None:
+            # What actually happened on this image, read from the probe's own output.
+            probe_views = [((result.get("stage2_probe") or {}).get("views") or {}),
+                           ((result.get("stage1_safety_net") or {}).get("views") or {})]
+            result["profile"] = profile
+            result["views_recorded"] = any("recorded" in v for v in probe_views)
         return result
 
     @property

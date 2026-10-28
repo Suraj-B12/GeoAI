@@ -46,7 +46,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Optional
 
-from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from PIL import Image
@@ -55,7 +55,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 from sse_starlette.sse import EventSourceResponse
 
-from app.model import get_classifier
+from app.model import REQUEST_PROFILES, get_classifier
 from app.schemas import (
     ClassificationResponse,
     ErrorResponse,
@@ -119,6 +119,68 @@ def _test_fixtures_enabled() -> bool:
 # Rate Limiter
 # ============================================================
 limiter = Limiter(key_func=get_remote_address)
+
+# /classify and /classify/base64: 10/minute per client, except requests made on this
+# machine itself. The drive-video toggle (app/video_pipeline.py) and an operator running
+# GeoAI_Video's run_vlm_batch.py here send one image at a time to 127.0.0.1; the GPU
+# lock serialises them anyway, so the per-minute cap only added idle time (~6.5 s per
+# image, measured: C:/GeoAI/analysis/fixes/vlm_speed/). A request is "local" only when
+# the TCP peer is a loopback address AND it carries no proxy header: the Cloudflare
+# tunnel (cloudflared --url http://localhost:8000) also connects from 127.0.0.1, but adds
+# Cf-Connecting-Ip / X-Forwarded-For, so remote users behind it keep the 10/minute limit,
+# keyed exactly as before (get_remote_address).
+CLASSIFY_RATE_LIMIT = "10/minute"
+_LOCAL_RATE_KEY = "local-unproxied"
+_LOCAL_RATE_LIMIT = "100000/minute"   # effectively none; slowapi has no per-request exempt
+_PROXY_HEADERS = ("x-forwarded-for", "forwarded", "x-real-ip", "cf-connecting-ip", "cf-ray",
+                  "true-client-ip")
+
+
+def is_local_unproxied(request: Request) -> bool:
+    """True for a request from this machine that did not come through a proxy/tunnel."""
+    import ipaddress
+    host = request.client.host if request.client else ""
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    if getattr(ip, "ipv4_mapped", None):
+        ip = ip.ipv4_mapped
+    return ip.is_loopback and not any(h in request.headers for h in _PROXY_HEADERS)
+
+
+def classify_rate_key(request: Request) -> str:
+    return _LOCAL_RATE_KEY if is_local_unproxied(request) else get_remote_address(request)
+
+
+def classify_rate_limit(key: str) -> str:
+    return _LOCAL_RATE_LIMIT if key == _LOCAL_RATE_KEY else CLASSIFY_RATE_LIMIT
+
+
+def _parse_profile(value) -> Optional[str]:
+    """None/empty = the default (citizen) path, byte-for-byte as before; else a known profile."""
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise HTTPException(status_code=400, detail="profile must be a string")
+    v = value.strip().lower()
+    if not v:
+        return None
+    if v not in REQUEST_PROFILES:
+        raise HTTPException(status_code=400,
+                            detail=f"unknown profile {value!r}; one of {sorted(REQUEST_PROFILES)}")
+    return v
+
+
+def _classification_reply(result: dict, profile: Optional[str]):
+    """The default path returns the model exactly as before (FastAPI serialises it via
+    response_model). A profile request adds which profile ran and whether probe views were
+    recorded; response_model would drop those keys, so that reply is built here."""
+    resp = ClassificationResponse(**result)
+    if profile is None:
+        return resp
+    return JSONResponse({**resp.model_dump(mode="json"), "profile": result.get("profile", profile),
+                         "views_recorded": bool(result.get("views_recorded"))})
 
 
 # ============================================================
@@ -247,6 +309,12 @@ if _test_fixtures_enabled() and TEST_FIXTURES_DIR.exists():
     )
     print(f"[API] TEST FIXTURES enabled — serving {TEST_FIXTURES_DIR} at /test_fixtures")
 
+# Read-only GIS API (/gis/*) for the WebGIS, and the WebGIS itself at /gis/app when webgis/ exists.
+# Installed before the video pipeline: FastAPI's include_router re-wraps the lifespan, and the
+# video pipeline's install() must wrap last so its service starts inside the final lifespan.
+from app.gis_routes import install as install_gis  # noqa: E402
+install_gis(app)
+
 # Drive-video pipeline: /operator/video/* router + its service inside the lifespan above.
 from app.video_routes import install as install_video_pipeline  # noqa: E402
 install_video_pipeline(app)
@@ -311,10 +379,14 @@ async def health(request: Request):
     response_model=ClassificationResponse,
     dependencies=[Depends(verify_api_key)],
 )
-@limiter.limit("10/minute")
+@limiter.limit(classify_rate_limit, key_func=classify_rate_key)
 async def classify(
     request: Request,
     file: UploadFile = File(..., description="Pavement image to classify"),
+    profile: Optional[str] = Form(None, description=(
+        "Optional. Omit for the default (citizen) behaviour. 'video' skips RECORDING the "
+        "probe's per-tile views; labels, confidences and review are identical. The reply "
+        "then also carries 'profile' and 'views_recorded'.")),
 ):
     """
     Classify a pavement image for distress.
@@ -322,6 +394,7 @@ async def classify(
     Returns detection result, distress types, severity, confidence scores,
     and whether the result needs expert review (confidence < 80%).
     """
+    profile = _parse_profile(profile)
     # Validate content type
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(
@@ -340,8 +413,11 @@ async def classify(
         # GPU inference releases the GIL during CUDA kernel execution,
         # so other requests can be accepted while inference runs.
         clf = get_classifier()
-        result = await asyncio.to_thread(clf.predict, image)
-        return ClassificationResponse(**result)
+        if profile is None:
+            result = await asyncio.to_thread(clf.predict, image)
+        else:
+            result = await asyncio.to_thread(clf.predict, image, profile=profile)
+        return _classification_reply(result, profile)
 
     except HTTPException:
         raise
@@ -355,16 +431,17 @@ async def classify(
     response_model=ClassificationResponse,
     dependencies=[Depends(verify_api_key)],
 )
-@limiter.limit("10/minute")
+@limiter.limit(classify_rate_limit, key_func=classify_rate_key)
 async def classify_base64(request: Request, payload: dict):
     """
     Classify a base64-encoded image.
-    Payload: {"image": "<base64-string>"}
+    Payload: {"image": "<base64-string>", "profile": optional, as for /classify}
     """
     import base64
 
     if "image" not in payload:
         raise HTTPException(status_code=400, detail="Missing 'image' field in payload")
+    profile = _parse_profile(payload.get("profile"))
 
     try:
         image_data = base64.b64decode(payload["image"])
@@ -373,8 +450,11 @@ async def classify_base64(request: Request, payload: dict):
         validate_image(image)
 
         clf = get_classifier()
-        result = await asyncio.to_thread(clf.predict, image)
-        return ClassificationResponse(**result)
+        if profile is None:
+            result = await asyncio.to_thread(clf.predict, image)
+        else:
+            result = await asyncio.to_thread(clf.predict, image, profile=profile)
+        return _classification_reply(result, profile)
 
     except HTTPException:
         raise

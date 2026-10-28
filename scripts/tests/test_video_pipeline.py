@@ -209,6 +209,7 @@ class World:
         self.worker = FakeWorker(worker_running)
         self.store = FakeStore(self)
         self.calls: list[tuple[str, str]] = []
+        self.classify_argvs: list[list[str]] = []
         self.violations: list[str] = []
         self.fail_at: dict[str, tuple[int, str]] = {}
         self.on_step: dict = {}
@@ -301,7 +302,7 @@ class World:
         write(run / "segments.csv", "id,status\n")
         write(run / "segments.geojson", '{"type": "FeatureCollection", "features": []}')
         write(run / "contact_sheet.jpg", b"j" * 40)
-        write(run / "report.json", json.dumps({"mode": "segments", "session_id": sid, "timings": {"total_s": 1.5}}))
+        write(run / "report.json", json.dumps({"mode": "segments", "session_id": sid, "timings_s": {"total": 1.5, "decode": 0.9}}))
         write(out_file, f"{sid}: {len(SEGMENTS)} segments\n")
         return 0
 
@@ -325,6 +326,7 @@ class World:
 
     def _classify(self, argv, out_file, cancel):
         batch = Path(argv[2])
+        self.classify_argvs.append([str(a) for a in argv])
         if arg_after(argv, "--url") != "http://127.0.0.1:8000" or arg_after(argv, "--api-key") != API_KEY:
             self.violations.append("runner argv lacks url or api key")
         limit = int(arg_after(argv, "--limit"))
@@ -428,7 +430,14 @@ def test_happy_path() -> None:
               str((m.get("vlm_error_lines"), m.get("vlm_retries"), m.get("vlm_unanswered"))))
         check("timings for every stage", set(m["timings_s"]) >= {"validate", "extract", "export", "classify", "import",
                                                                  "analyze", "store", "cleanup"}, str(m["timings_s"]))
-        check("extraction report timings carried", m.get("extract_report_timings") == {"total_s": 1.5})
+        check("extraction report timings carried (report.json 'timings_s')",
+              m.get("extract_report_timings") == {"total": 1.5, "decode": 0.9}, str(m.get("extract_report_timings")))
+        # Runner argv: every chunk sends profile=video; only the first chunk re-hashes the batch.
+        cav = w.classify_argvs
+        check("runner gets --profile video on every chunk",
+              len(cav) == 3 and all(arg_after(a, "--profile") == "video" for a in cav), str(cav))
+        check("first chunk verifies SHA256SUMS, later chunks skip it",
+              ["--skip-batch-check" in a for a in cav] == [False, True, True], str(cav))
         # 6: cleanup
         run = w.runs / "S1"
         gone = [run / "frames" / f"{seg_id('S1', 1)}.png", run / "segment_views", run / "crops", run / "cache",
@@ -607,8 +616,12 @@ def test_disable_and_resume() -> None:
         check("resumed without re-extracting", w.count("extract") == 1)
         check("stopped after the current chunk", a["state"] == "classifying" and w.count("classify") == 1, a["state"])
         check("progress kept", (a.get("progress") or {}).get("answered") == 2, str(a.get("progress")))
+        n_before = len(w.classify_argvs)
         svc2.enable()
         asyncio.run(drain(svc2))
+        resumed = [a for a in w.classify_argvs[n_before:] if Path(a[2]).name == "batch_SA"]
+        check("a resumed classify pass re-verifies the batch on its first chunk",
+              bool(resumed) and "--skip-batch-check" not in resumed[0], str(resumed[:1]))
         check("first session cleaned after resume", svc2._sessions["pkgA"]["state"] == "cleaned",
               str(svc2._sessions["pkgA"].get("error")))
         check("second session cleaned after it", svc2._sessions["pkgB"]["state"] == "cleaned")

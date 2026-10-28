@@ -140,12 +140,15 @@ def fig_sharpness(runs: list[Run]) -> None:
         ax.plot(np.log10([q1, q3]), [i, i], color=BLUE, lw=3, solid_capstyle="butt")
         ax.plot(np.log10(med), i, "o", color="white", mec=INK, ms=5)
         ax.text(np.log10(np.percentile(d, 99)) + 0.05, i, f"median {med:.3f}", va="center", fontsize=7.5, color=INK)
-    ax.set_yticks(pos, [f"{r.name}\n{r.focus}" for r in runs], fontsize=7.5)
+    iso = [int(np.median([r["capture"]["iso"] for r in run.covered if r["capture"]["iso"]])) for run in runs]
+    ax.set_yticks(pos, [f"{r.name}\n{r.focus}\nmedian ISO {i}" for r, i in zip(runs, iso)], fontsize=7.5)
     ax.invert_yaxis()
     ticks = [0.003, 0.01, 0.03, 0.1, 0.3, 1]
     ax.set_xticks(np.log10(ticks), [str(t) for t in ticks])
     ax.set_xlabel("Best-frame sharpness on the segment rows (normalised Tenengrad, log)")
-    fig.suptitle("Focus from geometry (drive C): best frames ~3.5× sharper than with autofocus",
+    # One drive per condition: focus method and light (ISO, i.e. noise reduction) change together,
+    # so this shows the difference, not its cause.
+    fig.suptitle("Best-frame sharpness by drive: geometric focus and bright light together give ~3.5×",
                  x=0.01, ha="left", fontsize=9.5, color=INK)
     save(fig, "fig_v2_sharpness_by_focus.png")
 
