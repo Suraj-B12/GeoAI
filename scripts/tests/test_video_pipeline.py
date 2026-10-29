@@ -288,7 +288,7 @@ class World:
         for k, status, length in SEGMENTS:
             rid = seg_id(sid, k)
             rec = {"id": rid, "kind": "segment", "schema": "geoai.segment.v1", "status": status, "session_id": sid,
-                   "segment": {"k": k, "length_m": length}, "flags": {"low_light": False}}
+                   "segment": {"k": k, "length_m": length}, "flags": ["geometry_nominal"]}
             if status in ("send", "audit"):
                 write(run / "frames" / f"{rid}.png", bytes([k]) * FRAME_BYTES)
                 rec["frame"] = {"file": f"frames/{rid}.png", "width": 3840, "height": 2160,

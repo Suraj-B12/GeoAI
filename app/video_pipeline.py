@@ -558,7 +558,9 @@ def segment_metrics(run_dir: Path) -> dict:
         route += length
         if status != "not_covered":
             covered += length
-            low_light += bool((r.get("flags") or {}).get("low_light") or (r.get("capture") or {}).get("low_light"))
+            flags = r.get("flags") or []  # contract: list of flag names; tolerate a dict too
+            flagged = flags.get("low_light") if isinstance(flags, dict) else "low_light" in flags
+            low_light += bool(flagged or (r.get("capture") or {}).get("low_light"))
     n_cov = len(recs) - counts["not_covered"]
     return {"segments": len(recs), "route_m": round(route, 2), "covered_m": round(covered, 2),
             "not_covered_m": round(route - covered, 2),
