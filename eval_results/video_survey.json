@@ -1,0 +1,1448 @@
+{
+ "generated_by": "scripts/video_survey_metrics.py",
+ "toggle_sessions": {
+  "segments": 3266,
+  "route_m": 16315.8,
+  "status": {
+   "send": 2989,
+   "skip": 231,
+   "audit": 29,
+   "not_covered": 17
+  },
+  "answered": 3018,
+  "answered_m": 15075.8,
+  "distress_segments": 504,
+  "distress_m": 2517.5,
+  "distress_share_of_answered_m": 0.167,
+  "distress_share_of_answered_n": 0.167,
+  "distress_share_n_ci95": [
+   0.1541,
+   0.1807
+  ],
+  "labels_m_share": {
+   "Potholes": 0.1073,
+   "Longitudinal Cracking": 0.0769,
+   "Bleeding": 0.0612,
+   "Transverse Cracking": 0.0242,
+   "Streaking": 0.0169,
+   "Edge Breaking": 0.0156,
+   "Hungry Surface": 0.0146,
+   "Alligator Cracking": 0.0136,
+   "Edge Cracking": 0.0053,
+   "Corrugation": 0.0003
+  },
+  "labels_segments": {
+   "Potholes": 324,
+   "Longitudinal Cracking": 232,
+   "Bleeding": 185,
+   "Transverse Cracking": 73,
+   "Streaking": 51,
+   "Edge Breaking": 47,
+   "Hungry Surface": 44,
+   "Alligator Cracking": 41,
+   "Edge Cracking": 16,
+   "Corrugation": 1
+  },
+  "send_distress_rate": 0.1676,
+  "send_distress_ci95": [
+   0.1547,
+   0.1814
+  ],
+  "audit_n": 29,
+  "audit_distress": 3,
+  "audit_distress_rate": 0.1034,
+  "audit_distress_ci95": [
+   0.0358,
+   0.2639
+  ],
+  "expert_review_share": 0.5205,
+  "sessions": 22,
+  "dates": [
+   "20261027"
+  ],
+  "vlm_seconds": {
+   "n": 3018,
+   "median": 3.78,
+   "normal_median": 3.77,
+   "normal_n": 2513,
+   "distress_median": 12.92,
+   "distress_n": 505,
+   "profile": "video"
+  },
+  "wall_s_total": 20204.6,
+  "wall_h_per_km": 0.344,
+  "all_verified": true,
+  "db_rows": 3266,
+  "image_store_gb": 17.91,
+  "low_light_sessions": 1
+ },
+ "per_session": [
+  {
+   "session_id": "20261027T095431Z_SM-G991B-F0D1_b81d",
+   "label": "27 Oct 09:54Z \u00b7 b81d",
+   "segments": 108,
+   "route_m": 537.5,
+   "status": {
+    "send": 101,
+    "skip": 7
+   },
+   "answered": 101,
+   "answered_m": 502.5,
+   "distress_segments": 14,
+   "distress_m": 67.5,
+   "distress_share_of_answered_m": 0.1344,
+   "distress_share_of_answered_n": 0.1386,
+   "distress_share_n_ci95": [
+    0.0844,
+    0.2193
+   ],
+   "labels_m_share": {
+    "Potholes": 0.1244,
+    "Longitudinal Cracking": 0.0696,
+    "Bleeding": 0.0249,
+    "Alligator Cracking": 0.0199,
+    "Edge Breaking": 0.0199,
+    "Transverse Cracking": 0.0099
+   },
+   "labels_segments": {
+    "Potholes": 13,
+    "Longitudinal Cracking": 7,
+    "Bleeding": 3,
+    "Alligator Cracking": 2,
+    "Edge Breaking": 2,
+    "Transverse Cracking": 1
+   },
+   "send_distress_rate": 0.1386,
+   "send_distress_ci95": [
+    0.0844,
+    0.2193
+   ],
+   "audit_n": 0,
+   "audit_distress": 0,
+   "audit_distress_rate": null,
+   "audit_distress_ci95": null,
+   "expert_review_share": 0.3267,
+   "extract_note": null,
+   "extract_s": 133.188,
+   "classify_s": 532.219,
+   "wall_s": 691.3,
+   "wall_min_per_km": 21.4,
+   "vlm_s_median": 3.734,
+   "vlm_s_p95": 12.578,
+   "low_light_share": 0.0093,
+   "coverage_pct": 100.0,
+   "storage_after_gb": 1.62407,
+   "image_store_gb": 0.698,
+   "verify_ok": true,
+   "db_rows": 108
+  },
+  {
+   "session_id": "20261027T095650Z_SM-G991B-F0D1_5651",
+   "label": "27 Oct 09:56Z \u00b7 5651",
+   "segments": 56,
+   "route_m": 280.0,
+   "status": {
+    "send": 55,
+    "skip": 1
+   },
+   "answered": 55,
+   "answered_m": 275.0,
+   "distress_segments": 10,
+   "distress_m": 50.0,
+   "distress_share_of_answered_m": 0.1818,
+   "distress_share_of_answered_n": 0.1818,
+   "distress_share_n_ci95": [
+    0.1019,
+    0.3033
+   ],
+   "labels_m_share": {
+    "Longitudinal Cracking": 0.1273,
+    "Potholes": 0.1273,
+    "Transverse Cracking": 0.0727,
+    "Bleeding": 0.0545,
+    "Alligator Cracking": 0.0182
+   },
+   "labels_segments": {
+    "Longitudinal Cracking": 7,
+    "Potholes": 7,
+    "Transverse Cracking": 4,
+    "Bleeding": 3,
+    "Alligator Cracking": 1
+   },
+   "send_distress_rate": 0.1818,
+   "send_distress_ci95": [
+    0.1019,
+    0.3033
+   ],
+   "audit_n": 0,
+   "audit_distress": 0,
+   "audit_distress_rate": null,
+   "audit_distress_ci95": null,
+   "expert_review_share": 0.4,
+   "extract_note": null,
+   "extract_s": 56.031,
+   "classify_s": 300.343,
+   "wall_s": 369.3,
+   "wall_min_per_km": 22.0,
+   "vlm_s_median": 3.781,
+   "vlm_s_p95": 13.155,
+   "low_light_share": 0.1071,
+   "coverage_pct": 100.0,
+   "storage_after_gb": 0.843759,
+   "image_store_gb": 0.349,
+   "verify_ok": true,
+   "db_rows": 56
+  },
+  {
+   "session_id": "20261027T100432Z_SM-G991B-F0D1_4884",
+   "label": "27 Oct 10:04Z \u00b7 4884",
+   "segments": 46,
+   "route_m": 230.0,
+   "status": {
+    "send": 45,
+    "skip": 1
+   },
+   "answered": 45,
+   "answered_m": 225.0,
+   "distress_segments": 3,
+   "distress_m": 15.0,
+   "distress_share_of_answered_m": 0.0667,
+   "distress_share_of_answered_n": 0.0667,
+   "distress_share_n_ci95": [
+    0.0229,
+    0.1786
+   ],
+   "labels_m_share": {
+    "Potholes": 0.0667,
+    "Bleeding": 0.0222,
+    "Longitudinal Cracking": 0.0222
+   },
+   "labels_segments": {
+    "Potholes": 3,
+    "Bleeding": 1,
+    "Longitudinal Cracking": 1
+   },
+   "send_distress_rate": 0.0667,
+   "send_distress_ci95": [
+    0.0229,
+    0.1786
+   ],
+   "audit_n": 0,
+   "audit_distress": 0,
+   "audit_distress_rate": null,
+   "audit_distress_ci95": null,
+   "expert_review_share": 0.3333,
+   "extract_note": null,
+   "extract_s": 45.594,
+   "classify_s": 195.969,
+   "wall_s": 252.4,
+   "wall_min_per_km": 18.3,
+   "vlm_s_median": 3.75,
+   "vlm_s_p95": 10.178,
+   "low_light_share": 0.087,
+   "coverage_pct": 100.0,
+   "storage_after_gb": 0.644663,
+   "image_store_gb": 0.282,
+   "verify_ok": true,
+   "db_rows": 46
+  },
+  {
+   "session_id": "20261027T100550Z_SM-G991B-F0D1_9766",
+   "label": "27 Oct 10:05Z \u00b7 9766",
+   "segments": 43,
+   "route_m": 213.8,
+   "status": {
+    "send": 39,
+    "skip": 3,
+    "audit": 1
+   },
+   "answered": 40,
+   "answered_m": 198.8,
+   "distress_segments": 2,
+   "distress_m": 10.0,
+   "distress_share_of_answered_m": 0.0503,
+   "distress_share_of_answered_n": 0.05,
+   "distress_share_n_ci95": [
+    0.0138,
+    0.165
+   ],
+   "labels_m_share": {
+    "Longitudinal Cracking": 0.0251,
+    "Alligator Cracking": 0.0251,
+    "Potholes": 0.0251
+   },
+   "labels_segments": {
+    "Longitudinal Cracking": 1,
+    "Alligator Cracking": 1,
+    "Potholes": 1
+   },
+   "send_distress_rate": 0.0513,
+   "send_distress_ci95": [
+    0.0142,
+    0.1689
+   ],
+   "audit_n": 1,
+   "audit_distress": 0,
+   "audit_distress_rate": 0.0,
+   "audit_distress_ci95": [
+    0.0,
+    0.7935
+   ],
+   "expert_review_share": 0.125,
+   "extract_note": null,
+   "extract_s": 39.843,
+   "classify_s": 169.766,
+   "wall_s": 219.6,
+   "wall_min_per_km": 17.1,
+   "vlm_s_median": 3.766,
+   "vlm_s_p95": 4.311,
+   "low_light_share": 0.0465,
+   "coverage_pct": 100.0,
+   "storage_after_gb": 0.546641,
+   "image_store_gb": 0.265,
+   "verify_ok": true,
+   "db_rows": 43
+  },
+  {
+   "session_id": "20261027T100809Z_SM-G991B-F0D1_19db",
+   "label": "27 Oct 10:08Z \u00b7 19db",
+   "segments": 195,
+   "route_m": 975.0,
+   "status": {
+    "send": 159,
+    "skip": 29,
+    "audit": 7
+   },
+   "answered": 166,
+   "answered_m": 830.0,
+   "distress_segments": 7,
+   "distress_m": 35.0,
+   "distress_share_of_answered_m": 0.0422,
+   "distress_share_of_answered_n": 0.0422,
+   "distress_share_n_ci95": [
+    0.0206,
+    0.0845
+   ],
+   "labels_m_share": {
+    "Potholes": 0.0301,
+    "Longitudinal Cracking": 0.0241,
+    "Transverse Cracking": 0.012,
+    "Bleeding": 0.006
+   },
+   "labels_segments": {
+    "Potholes": 5,
+    "Longitudinal Cracking": 4,
+    "Transverse Cracking": 2,
+    "Bleeding": 1
+   },
+   "send_distress_rate": 0.044,
+   "send_distress_ci95": [
+    0.0215,
+    0.0881
+   ],
+   "audit_n": 7,
+   "audit_distress": 0,
+   "audit_distress_rate": 0.0,
+   "audit_distress_ci95": [
+    0.0,
+    0.3543
+   ],
+   "expert_review_share": 0.4639,
+   "extract_note": "extract time from report.json (finished across a server restart)",
+   "extract_s": 199.0,
+   "classify_s": 699.422,
+   "wall_s": 931.0,
+   "wall_min_per_km": 15.9,
+   "vlm_s_median": 3.766,
+   "vlm_s_p95": 3.918,
+   "low_light_share": 0.0,
+   "coverage_pct": 100.0,
+   "storage_after_gb": 2.166676,
+   "image_store_gb": 1.061,
+   "verify_ok": true,
+   "db_rows": 195
+  },
+  {
+   "session_id": "20261027T101057Z_SM-G991B-F0D1_3d9b",
+   "label": "27 Oct 10:10Z \u00b7 3d9b",
+   "segments": 579,
+   "route_m": 2894.0,
+   "status": {
+    "send": 562,
+    "not_covered": 7,
+    "skip": 10
+   },
+   "answered": 562,
+   "answered_m": 2809.0,
+   "distress_segments": 42,
+   "distress_m": 210.0,
+   "distress_share_of_answered_m": 0.0748,
+   "distress_share_of_answered_n": 0.0747,
+   "distress_share_n_ci95": [
+    0.0558,
+    0.0995
+   ],
+   "labels_m_share": {
+    "Longitudinal Cracking": 0.0534,
+    "Potholes": 0.032,
+    "Transverse Cracking": 0.0303,
+    "Bleeding": 0.016,
+    "Alligator Cracking": 0.0089,
+    "Streaking": 0.0053,
+    "Hungry Surface": 0.0036
+   },
+   "labels_segments": {
+    "Longitudinal Cracking": 30,
+    "Potholes": 18,
+    "Transverse Cracking": 17,
+    "Bleeding": 9,
+    "Alligator Cracking": 5,
+    "Streaking": 3,
+    "Hungry Surface": 2
+   },
+   "send_distress_rate": 0.0747,
+   "send_distress_ci95": [
+    0.0558,
+    0.0995
+   ],
+   "audit_n": 0,
+   "audit_distress": 0,
+   "audit_distress_rate": null,
+   "audit_distress_ci95": null,
+   "expert_review_share": 0.4057,
+   "extract_note": null,
+   "extract_s": 459.078,
+   "classify_s": 2687.031,
+   "wall_s": 3245.9,
+   "wall_min_per_km": 18.7,
+   "vlm_s_median": 3.781,
+   "vlm_s_p95": 12.701,
+   "low_light_share": 0.0472,
+   "coverage_pct": 98.79,
+   "storage_after_gb": 6.777493,
+   "image_store_gb": 3.399,
+   "verify_ok": true,
+   "db_rows": 579
+  },
+  {
+   "session_id": "20261027T102007Z_SM-G991B-F0D1_22d5",
+   "label": "27 Oct 10:20Z \u00b7 22d5",
+   "segments": 38,
+   "route_m": 189.3,
+   "status": {
+    "send": 33,
+    "skip": 4,
+    "audit": 1
+   },
+   "answered": 34,
+   "answered_m": 169.3,
+   "distress_segments": 15,
+   "distress_m": 75.0,
+   "distress_share_of_answered_m": 0.4431,
+   "distress_share_of_answered_n": 0.4412,
+   "distress_share_n_ci95": [
+    0.2888,
+    0.6055
+   ],
+   "labels_m_share": {
+    "Potholes": 0.384,
+    "Longitudinal Cracking": 0.2068,
+    "Bleeding": 0.1772,
+    "Alligator Cracking": 0.0295,
+    "Edge Cracking": 0.0295
+   },
+   "labels_segments": {
+    "Potholes": 13,
+    "Longitudinal Cracking": 7,
+    "Bleeding": 6,
+    "Alligator Cracking": 1,
+    "Edge Cracking": 1
+   },
+   "send_distress_rate": 0.4242,
+   "send_distress_ci95": [
+    0.2724,
+    0.5919
+   ],
+   "audit_n": 1,
+   "audit_distress": 1,
+   "audit_distress_rate": 1.0,
+   "audit_distress_ci95": [
+    0.2065,
+    1.0
+   ],
+   "expert_review_share": 0.5882,
+   "extract_note": null,
+   "extract_s": 40.75,
+   "classify_s": 266.641,
+   "wall_s": 316.2,
+   "wall_min_per_km": 27.8,
+   "vlm_s_median": 3.851,
+   "vlm_s_p95": 13.411,
+   "low_light_share": 0.0,
+   "coverage_pct": 100.0,
+   "storage_after_gb": 0.538233,
+   "image_store_gb": 0.217,
+   "verify_ok": true,
+   "db_rows": 38
+  },
+  {
+   "session_id": "20261027T102142Z_SM-G991B-F0D1_7bf4",
+   "label": "27 Oct 10:21Z \u00b7 7bf4",
+   "segments": 327,
+   "route_m": 1635.0,
+   "status": {
+    "send": 276,
+    "not_covered": 2,
+    "skip": 45,
+    "audit": 4
+   },
+   "answered": 280,
+   "answered_m": 1400.0,
+   "distress_segments": 30,
+   "distress_m": 150.0,
+   "distress_share_of_answered_m": 0.1071,
+   "distress_share_of_answered_n": 0.1071,
+   "distress_share_n_ci95": [
+    0.0761,
+    0.1488
+   ],
+   "labels_m_share": {
+    "Potholes": 0.0893,
+    "Bleeding": 0.05,
+    "Longitudinal Cracking": 0.0429,
+    "Transverse Cracking": 0.0107,
+    "Alligator Cracking": 0.0071,
+    "Streaking": 0.0036,
+    "Edge Breaking": 0.0036
+   },
+   "labels_segments": {
+    "Potholes": 25,
+    "Bleeding": 14,
+    "Longitudinal Cracking": 12,
+    "Transverse Cracking": 3,
+    "Alligator Cracking": 2,
+    "Streaking": 1,
+    "Edge Breaking": 1
+   },
+   "send_distress_rate": 0.1051,
+   "send_distress_ci95": [
+    0.0742,
+    0.1468
+   ],
+   "audit_n": 4,
+   "audit_distress": 1,
+   "audit_distress_rate": 0.25,
+   "audit_distress_ci95": [
+    0.0456,
+    0.6994
+   ],
+   "expert_review_share": 0.5107,
+   "extract_note": null,
+   "extract_s": 280.625,
+   "classify_s": 1363.938,
+   "wall_s": 1697.2,
+   "wall_min_per_km": 17.3,
+   "vlm_s_median": 3.782,
+   "vlm_s_p95": 12.893,
+   "low_light_share": 0.0,
+   "coverage_pct": 99.39,
+   "storage_after_gb": 3.547854,
+   "image_store_gb": 1.784,
+   "verify_ok": true,
+   "db_rows": 327
+  },
+  {
+   "session_id": "20261027T102704Z_SM-G991B-F0D1_b63f",
+   "label": "27 Oct 10:27Z \u00b7 b63f",
+   "segments": 87,
+   "route_m": 432.9,
+   "status": {
+    "send": 84,
+    "not_covered": 3
+   },
+   "answered": 84,
+   "answered_m": 417.9,
+   "distress_segments": 4,
+   "distress_m": 20.0,
+   "distress_share_of_answered_m": 0.0479,
+   "distress_share_of_answered_n": 0.0476,
+   "distress_share_n_ci95": [
+    0.0187,
+    0.1161
+   ],
+   "labels_m_share": {
+    "Bleeding": 0.0359,
+    "Potholes": 0.0359,
+    "Streaking": 0.012,
+    "Longitudinal Cracking": 0.012
+   },
+   "labels_segments": {
+    "Bleeding": 3,
+    "Potholes": 3,
+    "Streaking": 1,
+    "Longitudinal Cracking": 1
+   },
+   "send_distress_rate": 0.0476,
+   "send_distress_ci95": [
+    0.0187,
+    0.1161
+   ],
+   "audit_n": 0,
+   "audit_distress": 0,
+   "audit_distress_rate": null,
+   "audit_distress_ci95": null,
+   "expert_review_share": 0.4405,
+   "extract_note": null,
+   "extract_s": 95.157,
+   "classify_s": 358.531,
+   "wall_s": 471.7,
+   "wall_min_per_km": 18.2,
+   "vlm_s_median": 3.766,
+   "vlm_s_p95": 3.857,
+   "low_light_share": 0.0238,
+   "coverage_pct": 96.53,
+   "storage_after_gb": 1.152953,
+   "image_store_gb": 0.538,
+   "verify_ok": true,
+   "db_rows": 87
+  },
+  {
+   "session_id": "20261027T103050Z_SM-G991B-F0D1_eaf1",
+   "label": "27 Oct 10:30Z \u00b7 eaf1",
+   "segments": 105,
+   "route_m": 525.0,
+   "status": {
+    "send": 101,
+    "audit": 1,
+    "skip": 3
+   },
+   "answered": 102,
+   "answered_m": 510.0,
+   "distress_segments": 12,
+   "distress_m": 60.0,
+   "distress_share_of_answered_m": 0.1176,
+   "distress_share_of_answered_n": 0.1176,
+   "distress_share_n_ci95": [
+    0.0686,
+    0.1945
+   ],
+   "labels_m_share": {
+    "Potholes": 0.0686,
+    "Longitudinal Cracking": 0.0588,
+    "Bleeding": 0.0392,
+    "Transverse Cracking": 0.0196,
+    "Hungry Surface": 0.0196,
+    "Streaking": 0.0196,
+    "Alligator Cracking": 0.0098,
+    "Edge Breaking": 0.0098
+   },
+   "labels_segments": {
+    "Potholes": 7,
+    "Longitudinal Cracking": 6,
+    "Bleeding": 4,
+    "Transverse Cracking": 2,
+    "Hungry Surface": 2,
+    "Streaking": 2,
+    "Alligator Cracking": 1,
+    "Edge Breaking": 1
+   },
+   "send_distress_rate": 0.1188,
+   "send_distress_ci95": [
+    0.0693,
+    0.1963
+   ],
+   "audit_n": 1,
+   "audit_distress": 0,
+   "audit_distress_rate": 0.0,
+   "audit_distress_ci95": [
+    0.0,
+    0.7935
+   ],
+   "expert_review_share": 0.3529,
+   "extract_note": null,
+   "extract_s": 69.984,
+   "classify_s": 473.984,
+   "wall_s": 557.0,
+   "wall_min_per_km": 17.7,
+   "vlm_s_median": 3.438,
+   "vlm_s_p95": 13.056,
+   "low_light_share": 0.0,
+   "coverage_pct": 100.0,
+   "storage_after_gb": 0.733443,
+   "image_store_gb": 0.301,
+   "verify_ok": true,
+   "db_rows": 105
+  },
+  {
+   "session_id": "20261027T103315Z_SM-G991B-F0D1_2b50",
+   "label": "27 Oct 10:33Z \u00b7 2b50",
+   "segments": 41,
+   "route_m": 205.0,
+   "status": {
+    "send": 39,
+    "skip": 1,
+    "audit": 1
+   },
+   "answered": 40,
+   "answered_m": 200.0,
+   "distress_segments": 12,
+   "distress_m": 60.0,
+   "distress_share_of_answered_m": 0.3,
+   "distress_share_of_answered_n": 0.3,
+   "distress_share_n_ci95": [
+    0.1807,
+    0.4543
+   ],
+   "labels_m_share": {
+    "Potholes": 0.3,
+    "Longitudinal Cracking": 0.1,
+    "Edge Breaking": 0.05,
+    "Alligator Cracking": 0.025,
+    "Bleeding": 0.025
+   },
+   "labels_segments": {
+    "Potholes": 12,
+    "Longitudinal Cracking": 4,
+    "Edge Breaking": 2,
+    "Alligator Cracking": 1,
+    "Bleeding": 1
+   },
+   "send_distress_rate": 0.3077,
+   "send_distress_ci95": [
+    0.1857,
+    0.4642
+   ],
+   "audit_n": 1,
+   "audit_distress": 0,
+   "audit_distress_rate": 0.0,
+   "audit_distress_ci95": [
+    0.0,
+    0.7935
+   ],
+   "expert_review_share": 0.5,
+   "extract_note": null,
+   "extract_s": 52.078,
+   "classify_s": 258.047,
+   "wall_s": 320.8,
+   "wall_min_per_km": 26.1,
+   "vlm_s_median": 3.828,
+   "vlm_s_p95": 12.927,
+   "low_light_share": 0.0,
+   "coverage_pct": 100.0,
+   "storage_after_gb": 0.743212,
+   "image_store_gb": 0.279,
+   "verify_ok": true,
+   "db_rows": 41
+  },
+  {
+   "session_id": "20261027T103525Z_SM-G991B-F0D1_35fd",
+   "label": "27 Oct 10:35Z \u00b7 35fd",
+   "segments": 156,
+   "route_m": 779.6,
+   "status": {
+    "send": 139,
+    "skip": 13,
+    "not_covered": 2,
+    "audit": 2
+   },
+   "answered": 141,
+   "answered_m": 704.6,
+   "distress_segments": 22,
+   "distress_m": 110.0,
+   "distress_share_of_answered_m": 0.1561,
+   "distress_share_of_answered_n": 0.156,
+   "distress_share_n_ci95": [
+    0.1054,
+    0.2249
+   ],
+   "labels_m_share": {
+    "Potholes": 0.1348,
+    "Bleeding": 0.0497,
+    "Longitudinal Cracking": 0.0497,
+    "Edge Breaking": 0.0142,
+    "Alligator Cracking": 0.0142,
+    "Transverse Cracking": 0.0071
+   },
+   "labels_segments": {
+    "Potholes": 19,
+    "Bleeding": 7,
+    "Longitudinal Cracking": 7,
+    "Edge Breaking": 2,
+    "Alligator Cracking": 2,
+    "Transverse Cracking": 1
+   },
+   "send_distress_rate": 0.1583,
+   "send_distress_ci95": [
+    0.1069,
+    0.228
+   ],
+   "audit_n": 2,
+   "audit_distress": 0,
+   "audit_distress_rate": 0.0,
+   "audit_distress_ci95": [
+    0.0,
+    0.6576
+   ],
+   "expert_review_share": 0.4681,
+   "extract_note": null,
+   "extract_s": 174.375,
+   "classify_s": 738.031,
+   "wall_s": 945.7,
+   "wall_min_per_km": 20.2,
+   "vlm_s_median": 3.782,
+   "vlm_s_p95": 12.922,
+   "low_light_share": 0.0,
+   "coverage_pct": 98.72,
+   "storage_after_gb": 2.308561,
+   "image_store_gb": 0.968,
+   "verify_ok": true,
+   "db_rows": 156
+  },
+  {
+   "session_id": "20261027T103852Z_SM-G991B-F0D1_e2c7",
+   "label": "27 Oct 10:38Z \u00b7 e2c7",
+   "segments": 36,
+   "route_m": 179.2,
+   "status": {
+    "send": 35,
+    "skip": 1
+   },
+   "answered": 35,
+   "answered_m": 174.2,
+   "distress_segments": 3,
+   "distress_m": 15.0,
+   "distress_share_of_answered_m": 0.0861,
+   "distress_share_of_answered_n": 0.0857,
+   "distress_share_n_ci95": [
+    0.0296,
+    0.2238
+   ],
+   "labels_m_share": {
+    "Bleeding": 0.0861,
+    "Streaking": 0.0574,
+    "Hungry Surface": 0.0287,
+    "Potholes": 0.0287
+   },
+   "labels_segments": {
+    "Bleeding": 3,
+    "Streaking": 2,
+    "Hungry Surface": 1,
+    "Potholes": 1
+   },
+   "send_distress_rate": 0.0857,
+   "send_distress_ci95": [
+    0.0296,
+    0.2238
+   ],
+   "audit_n": 0,
+   "audit_distress": 0,
+   "audit_distress_rate": null,
+   "audit_distress_ci95": null,
+   "expert_review_share": 0.3143,
+   "extract_note": null,
+   "extract_s": 51.954,
+   "classify_s": 161.5,
+   "wall_s": 222.5,
+   "wall_min_per_km": 20.7,
+   "vlm_s_median": 3.735,
+   "vlm_s_p95": 12.958,
+   "low_light_share": 0.1111,
+   "coverage_pct": 100.0,
+   "storage_after_gb": 0.435586,
+   "image_store_gb": 0.197,
+   "verify_ok": true,
+   "db_rows": 36
+  },
+  {
+   "session_id": "20261027T112443Z_SM-G991B-F0D1_2fb1",
+   "label": "27 Oct 11:24Z \u00b7 2fb1",
+   "segments": 152,
+   "route_m": 759.5,
+   "status": {
+    "skip": 37,
+    "send": 111,
+    "audit": 4
+   },
+   "answered": 115,
+   "answered_m": 574.5,
+   "distress_segments": 7,
+   "distress_m": 35.0,
+   "distress_share_of_answered_m": 0.0609,
+   "distress_share_of_answered_n": 0.0609,
+   "distress_share_n_ci95": [
+    0.0298,
+    0.1203
+   ],
+   "labels_m_share": {
+    "Bleeding": 0.0609,
+    "Potholes": 0.0435,
+    "Streaking": 0.0174
+   },
+   "labels_segments": {
+    "Bleeding": 7,
+    "Potholes": 5,
+    "Streaking": 2
+   },
+   "send_distress_rate": 0.0631,
+   "send_distress_ci95": [
+    0.0309,
+    0.1245
+   ],
+   "audit_n": 4,
+   "audit_distress": 0,
+   "audit_distress_rate": 0.0,
+   "audit_distress_ci95": [
+    0.0,
+    0.4899
+   ],
+   "expert_review_share": 0.4435,
+   "extract_note": null,
+   "extract_s": 151.516,
+   "classify_s": 507.75,
+   "wall_s": 682.7,
+   "wall_min_per_km": 15.0,
+   "vlm_s_median": 3.766,
+   "vlm_s_p95": 12.129,
+   "low_light_share": 0.4803,
+   "coverage_pct": 100.0,
+   "storage_after_gb": 1.662231,
+   "image_store_gb": 0.691,
+   "verify_ok": true,
+   "db_rows": 152
+  },
+  {
+   "session_id": "20261027T112804Z_SM-G991B-F0D1_c561",
+   "label": "27 Oct 11:28Z \u00b7 c561",
+   "segments": 370,
+   "route_m": 1850.0,
+   "status": {
+    "send": 365,
+    "skip": 3,
+    "audit": 1,
+    "not_covered": 1
+   },
+   "answered": 366,
+   "answered_m": 1830.0,
+   "distress_segments": 98,
+   "distress_m": 490.0,
+   "distress_share_of_answered_m": 0.2678,
+   "distress_share_of_answered_n": 0.2678,
+   "distress_share_n_ci95": [
+    0.225,
+    0.3154
+   ],
+   "labels_m_share": {
+    "Longitudinal Cracking": 0.1885,
+    "Potholes": 0.1202,
+    "Transverse Cracking": 0.0792,
+    "Alligator Cracking": 0.0574,
+    "Bleeding": 0.0546,
+    "Streaking": 0.0137,
+    "Edge Breaking": 0.0109,
+    "Hungry Surface": 0.0082,
+    "Edge Cracking": 0.0027
+   },
+   "labels_segments": {
+    "Longitudinal Cracking": 69,
+    "Potholes": 44,
+    "Transverse Cracking": 29,
+    "Alligator Cracking": 21,
+    "Bleeding": 20,
+    "Streaking": 5,
+    "Edge Breaking": 4,
+    "Hungry Surface": 3,
+    "Edge Cracking": 1
+   },
+   "send_distress_rate": 0.2685,
+   "send_distress_ci95": [
+    0.2256,
+    0.3162
+   ],
+   "audit_n": 1,
+   "audit_distress": 0,
+   "audit_distress_rate": 0.0,
+   "audit_distress_ci95": [
+    0.0,
+    0.7935
+   ],
+   "expert_review_share": 0.653,
+   "extract_note": null,
+   "extract_s": 355.312,
+   "classify_s": 2342.922,
+   "wall_s": 2760.8,
+   "wall_min_per_km": 24.9,
+   "vlm_s_median": 3.797,
+   "vlm_s_p95": 13.375,
+   "low_light_share": 0.4011,
+   "coverage_pct": 99.73,
+   "storage_after_gb": 4.848195,
+   "image_store_gb": 2.018,
+   "verify_ok": true,
+   "db_rows": 370
+  },
+  {
+   "session_id": "20261027T113604Z_SM-G991B-F0D1_3fe3",
+   "label": "27 Oct 11:36Z \u00b7 3fe3",
+   "segments": 70,
+   "route_m": 350.0,
+   "status": {
+    "send": 56,
+    "skip": 14
+   },
+   "answered": 56,
+   "answered_m": 280.0,
+   "distress_segments": 7,
+   "distress_m": 35.0,
+   "distress_share_of_answered_m": 0.125,
+   "distress_share_of_answered_n": 0.125,
+   "distress_share_n_ci95": [
+    0.0619,
+    0.2363
+   ],
+   "labels_m_share": {
+    "Bleeding": 0.0893,
+    "Potholes": 0.0714,
+    "Streaking": 0.0357,
+    "Hungry Surface": 0.0357,
+    "Longitudinal Cracking": 0.0179
+   },
+   "labels_segments": {
+    "Bleeding": 5,
+    "Potholes": 4,
+    "Streaking": 2,
+    "Hungry Surface": 2,
+    "Longitudinal Cracking": 1
+   },
+   "send_distress_rate": 0.125,
+   "send_distress_ci95": [
+    0.0619,
+    0.2363
+   ],
+   "audit_n": 0,
+   "audit_distress": 0,
+   "audit_distress_rate": null,
+   "audit_distress_ci95": null,
+   "expert_review_share": 0.4643,
+   "extract_note": null,
+   "extract_s": 83.985,
+   "classify_s": 278.015,
+   "wall_s": 375.2,
+   "wall_min_per_km": 17.9,
+   "vlm_s_median": 3.766,
+   "vlm_s_p95": 12.887,
+   "low_light_share": 0.0714,
+   "coverage_pct": 100.0,
+   "storage_after_gb": 0.898757,
+   "image_store_gb": 0.35,
+   "verify_ok": true,
+   "db_rows": 70
+  },
+  {
+   "session_id": "20261027T113840Z_SM-G991B-F0D1_d278",
+   "label": "27 Oct 11:38Z \u00b7 d278",
+   "segments": 444,
+   "route_m": 2220.0,
+   "status": {
+    "send": 435,
+    "skip": 7,
+    "not_covered": 2
+   },
+   "answered": 435,
+   "answered_m": 2175.0,
+   "distress_segments": 172,
+   "distress_m": 860.0,
+   "distress_share_of_answered_m": 0.3954,
+   "distress_share_of_answered_n": 0.3954,
+   "distress_share_n_ci95": [
+    0.3506,
+    0.4421
+   ],
+   "labels_m_share": {
+    "Potholes": 0.2529,
+    "Bleeding": 0.1816,
+    "Longitudinal Cracking": 0.1356,
+    "Hungry Surface": 0.0736,
+    "Edge Breaking": 0.0713,
+    "Streaking": 0.0621,
+    "Transverse Cracking": 0.0322,
+    "Edge Cracking": 0.0299,
+    "Alligator Cracking": 0.0046
+   },
+   "labels_segments": {
+    "Potholes": 110,
+    "Bleeding": 79,
+    "Longitudinal Cracking": 59,
+    "Hungry Surface": 32,
+    "Edge Breaking": 31,
+    "Streaking": 27,
+    "Transverse Cracking": 14,
+    "Edge Cracking": 13,
+    "Alligator Cracking": 2
+   },
+   "send_distress_rate": 0.3954,
+   "send_distress_ci95": [
+    0.3506,
+    0.4421
+   ],
+   "audit_n": 0,
+   "audit_distress": 0,
+   "audit_distress_rate": null,
+   "audit_distress_ci95": null,
+   "expert_review_share": 0.7954,
+   "extract_note": null,
+   "extract_s": 384.906,
+   "classify_s": 3379.828,
+   "wall_s": 3844.2,
+   "wall_min_per_km": 28.9,
+   "vlm_s_median": 3.859,
+   "vlm_s_p95": 14.127,
+   "low_light_share": 0.2195,
+   "coverage_pct": 99.55,
+   "storage_after_gb": 5.856107,
+   "image_store_gb": 2.684,
+   "verify_ok": true,
+   "db_rows": 444
+  },
+  {
+   "session_id": "20261027T114902Z_SM-G991B-F0D1_9fb5",
+   "label": "27 Oct 11:49Z \u00b7 9fb5",
+   "segments": 40,
+   "route_m": 200.0,
+   "status": {
+    "send": 38,
+    "skip": 2
+   },
+   "answered": 38,
+   "answered_m": 190.0,
+   "distress_segments": 8,
+   "distress_m": 40.0,
+   "distress_share_of_answered_m": 0.2105,
+   "distress_share_of_answered_n": 0.2105,
+   "distress_share_n_ci95": [
+    0.1107,
+    0.3635
+   ],
+   "labels_m_share": {
+    "Potholes": 0.1579,
+    "Edge Breaking": 0.0789,
+    "Bleeding": 0.0789,
+    "Hungry Surface": 0.0526,
+    "Streaking": 0.0526,
+    "Longitudinal Cracking": 0.0526
+   },
+   "labels_segments": {
+    "Potholes": 6,
+    "Edge Breaking": 3,
+    "Bleeding": 3,
+    "Hungry Surface": 2,
+    "Streaking": 2,
+    "Longitudinal Cracking": 2
+   },
+   "send_distress_rate": 0.2105,
+   "send_distress_ci95": [
+    0.1107,
+    0.3635
+   ],
+   "audit_n": 0,
+   "audit_distress": 0,
+   "audit_distress_rate": null,
+   "audit_distress_ci95": null,
+   "expert_review_share": 0.7895,
+   "extract_note": null,
+   "extract_s": 41.922,
+   "classify_s": 217.625,
+   "wall_s": 268.9,
+   "wall_min_per_km": 22.4,
+   "vlm_s_median": 3.758,
+   "vlm_s_p95": 13.637,
+   "low_light_share": 0.5,
+   "coverage_pct": 100.0,
+   "storage_after_gb": 0.558041,
+   "image_store_gb": 0.238,
+   "verify_ok": true,
+   "db_rows": 40
+  },
+  {
+   "session_id": "20261027T122128Z_SM-G991B-F0D1_2d59",
+   "label": "27 Oct 12:21Z \u00b7 2d59",
+   "segments": 151,
+   "route_m": 754.3,
+   "status": {
+    "send": 143,
+    "skip": 6,
+    "audit": 2
+   },
+   "answered": 145,
+   "answered_m": 724.3,
+   "distress_segments": 16,
+   "distress_m": 80.0,
+   "distress_share_of_answered_m": 0.1105,
+   "distress_share_of_answered_n": 0.1103,
+   "distress_share_n_ci95": [
+    0.0691,
+    0.1717
+   ],
+   "labels_m_share": {
+    "Potholes": 0.069,
+    "Longitudinal Cracking": 0.0621,
+    "Bleeding": 0.0483,
+    "Streaking": 0.0207,
+    "Alligator Cracking": 0.0138
+   },
+   "labels_segments": {
+    "Potholes": 10,
+    "Longitudinal Cracking": 9,
+    "Bleeding": 7,
+    "Streaking": 3,
+    "Alligator Cracking": 2
+   },
+   "send_distress_rate": 0.1049,
+   "send_distress_ci95": [
+    0.0646,
+    0.1659
+   ],
+   "audit_n": 2,
+   "audit_distress": 1,
+   "audit_distress_rate": 0.5,
+   "audit_distress_ci95": [
+    0.0945,
+    0.9055
+   ],
+   "expert_review_share": 0.5586,
+   "extract_note": null,
+   "extract_s": 162.719,
+   "classify_s": 694.922,
+   "wall_s": 883.5,
+   "wall_min_per_km": 19.5,
+   "vlm_s_median": 3.734,
+   "vlm_s_p95": 12.563,
+   "low_light_share": 0.9536,
+   "coverage_pct": 100.0,
+   "storage_after_gb": 1.946463,
+   "image_store_gb": 0.763,
+   "verify_ok": true,
+   "db_rows": 151
+  },
+  {
+   "session_id": "20261027T122454Z_SM-G991B-F0D1_f668",
+   "label": "27 Oct 12:24Z \u00b7 f668",
+   "segments": 105,
+   "route_m": 523.2,
+   "status": {
+    "send": 75,
+    "skip": 27,
+    "audit": 3
+   },
+   "answered": 78,
+   "answered_m": 388.2,
+   "distress_segments": 13,
+   "distress_m": 65.0,
+   "distress_share_of_answered_m": 0.1674,
+   "distress_share_of_answered_n": 0.1667,
+   "distress_share_n_ci95": [
+    0.1001,
+    0.2646
+   ],
+   "labels_m_share": {
+    "Potholes": 0.1417,
+    "Longitudinal Cracking": 0.0644,
+    "Bleeding": 0.0644,
+    "Edge Cracking": 0.0129,
+    "Corrugation": 0.0129,
+    "Edge Breaking": 0.0129,
+    "Streaking": 0.0129
+   },
+   "labels_segments": {
+    "Potholes": 11,
+    "Longitudinal Cracking": 5,
+    "Bleeding": 5,
+    "Edge Cracking": 1,
+    "Corrugation": 1,
+    "Edge Breaking": 1,
+    "Streaking": 1
+   },
+   "send_distress_rate": 0.1733,
+   "send_distress_ci95": [
+    0.1042,
+    0.2743
+   ],
+   "audit_n": 3,
+   "audit_distress": 0,
+   "audit_distress_rate": 0.0,
+   "audit_distress_ci95": [
+    0.0,
+    0.5615
+   ],
+   "expert_review_share": 0.5128,
+   "extract_note": null,
+   "extract_s": 115.906,
+   "classify_s": 413.235,
+   "wall_s": 545.0,
+   "wall_min_per_km": 17.4,
+   "vlm_s_median": 3.734,
+   "vlm_s_p95": 13.243,
+   "low_light_share": 0.0,
+   "coverage_pct": 100.0,
+   "storage_after_gb": 1.24228,
+   "image_store_gb": 0.397,
+   "verify_ok": true,
+   "db_rows": 105
+  },
+  {
+   "session_id": "20261027T122814Z_SM-G991B-F0D1_8902",
+   "label": "27 Oct 12:28Z \u00b7 8902",
+   "segments": 31,
+   "route_m": 155.0,
+   "status": {
+    "send": 25,
+    "skip": 6
+   },
+   "answered": 25,
+   "answered_m": 125.0,
+   "distress_segments": 6,
+   "distress_m": 30.0,
+   "distress_share_of_answered_m": 0.24,
+   "distress_share_of_answered_n": 0.24,
+   "distress_share_n_ci95": [
+    0.115,
+    0.4343
+   ],
+   "labels_m_share": {
+    "Potholes": 0.24,
+    "Bleeding": 0.12
+   },
+   "labels_segments": {
+    "Potholes": 6,
+    "Bleeding": 3
+   },
+   "send_distress_rate": 0.24,
+   "send_distress_ci95": [
+    0.115,
+    0.4343
+   ],
+   "audit_n": 0,
+   "audit_distress": 0,
+   "audit_distress_rate": null,
+   "audit_distress_ci95": null,
+   "expert_review_share": 0.64,
+   "extract_note": null,
+   "extract_s": 44.812,
+   "classify_s": 143.969,
+   "wall_s": 194.8,
+   "wall_min_per_km": 20.9,
+   "vlm_s_median": 3.687,
+   "vlm_s_p95": 12.422,
+   "low_light_share": 0.0,
+   "coverage_pct": 100.0,
+   "storage_after_gb": 0.310645,
+   "image_store_gb": 0.103,
+   "verify_ok": true,
+   "db_rows": 31
+  },
+  {
+   "session_id": "20261027T122914Z_SM-G991B-F0D1_debe",
+   "label": "27 Oct 12:29Z \u00b7 debe",
+   "segments": 86,
+   "route_m": 427.6,
+   "status": {
+    "send": 73,
+    "skip": 11,
+    "audit": 2
+   },
+   "answered": 75,
+   "answered_m": 372.6,
+   "distress_segments": 1,
+   "distress_m": 5.0,
+   "distress_share_of_answered_m": 0.0134,
+   "distress_share_of_answered_n": 0.0133,
+   "distress_share_n_ci95": [
+    0.0024,
+    0.0717
+   ],
+   "labels_m_share": {
+    "Bleeding": 0.0134,
+    "Potholes": 0.0134
+   },
+   "labels_segments": {
+    "Bleeding": 1,
+    "Potholes": 1
+   },
+   "send_distress_rate": 0.0137,
+   "send_distress_ci95": [
+    0.0024,
+    0.0736
+   ],
+   "audit_n": 2,
+   "audit_distress": 0,
+   "audit_distress_rate": 0.0,
+   "audit_distress_ci95": [
+    0.0,
+    0.6576
+   ],
+   "expert_review_share": 0.3867,
+   "extract_note": null,
+   "extract_s": 102.594,
+   "classify_s": 292.735,
+   "wall_s": 408.9,
+   "wall_min_per_km": 15.9,
+   "vlm_s_median": 3.688,
+   "vlm_s_p95": 3.844,
+   "low_light_share": 0.0,
+   "coverage_pct": 100.0,
+   "storage_after_gb": 1.0528,
+   "image_store_gb": 0.323,
+   "verify_ok": true,
+   "db_rows": 86
+  }
+ ],
+ "baseline_batch_001": {
+  "segments": 813,
+  "route_m": 4060.3,
+  "status": {
+   "send": 813
+  },
+  "answered": 813,
+  "answered_m": 4060.3,
+  "distress_segments": 164,
+  "distress_m": 815.3,
+  "distress_share_of_answered_m": 0.2008,
+  "distress_share_of_answered_n": 0.2017,
+  "distress_share_n_ci95": [
+   0.1756,
+   0.2307
+  ],
+  "labels_m_share": {
+   "Potholes": 0.1606,
+   "Longitudinal Cracking": 0.0888,
+   "Bleeding": 0.0751,
+   "Edge Breaking": 0.0221,
+   "Hungry Surface": 0.0111,
+   "Alligator Cracking": 0.0106,
+   "Streaking": 0.0086,
+   "Transverse Cracking": 0.0086,
+   "Edge Cracking": 0.0049
+  },
+  "labels_segments": {
+   "Potholes": 131,
+   "Longitudinal Cracking": 73,
+   "Bleeding": 61,
+   "Edge Breaking": 18,
+   "Alligator Cracking": 9,
+   "Hungry Surface": 9,
+   "Streaking": 7,
+   "Transverse Cracking": 7,
+   "Edge Cracking": 4
+  },
+  "send_distress_rate": 0.2017,
+  "send_distress_ci95": [
+   0.1756,
+   0.2307
+  ],
+  "audit_n": 0,
+  "audit_distress": 0,
+  "audit_distress_rate": null,
+  "audit_distress_ci95": null,
+  "expert_review_share": 0.4785,
+  "note": "batch_001: first three drives (26-27 Oct), send-all, default /classify profile"
+ }
+}

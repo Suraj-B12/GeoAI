@@ -31,6 +31,11 @@
 > frame quality, extraction and VLM cost, label shares by road length, and the frame-level distress
 > check against the model. Figures 8.1–8.8 by `scripts/generate_video_figures.py` (no inference).
 >
+> **Revision 2026-10-29 — survey at scale.** §8.6 filled with the measured improvements (model time per
+> frame 2.76× lower with identical answers; band crop and probe-only gate not adopted). New §8.7: 22 more
+> drives (16.32 km, 3,266 segments) processed hands-off; 16.7 % of answered segments distressed; 20.6 min of
+> wall time per km. Figures 8.10–8.13 by `scripts/video_survey_metrics.py`. Limitations moved to §8.8.
+>
 > **Reading guide.** Results were produced by four successive pipeline versions; every table
 > names the one it used:
 > | Version | Prompts / taxonomy | Adapter | Where reported |
@@ -1122,11 +1127,53 @@ The model took 3.44 h for the 813 frames with no failed request: median 13.0 s w
 
 ### 8.6 Improvements found by adversarial review, and their measured effect
 
-*(Filled from the before/after measurements in `C:\GeoAI\analysis\fixes\`: VLM time per frame, held-out gate calibration and extraction time, best-frame choice and the view of the segment the model receives.)*
+A review agent searched the first three drives for flaws whose fix would make the survey faster or better, and each candidate was then measured before and after. Scripts, raw data and results are in `eval_results/video_fixes/` (status and resume notes in `STATUS.md`).
 
-### 8.7 Limitations
+| Change | Measurement | Result | Adopted |
+|---|---|---|---|
+| `profile=video` on `/classify`: skip the record-only probe tiles for video frames | 60 frames, each sent with and without, order alternated | Stage-1-Normal 13.72 → 3.76 s, Distress 24.41 → 14.43 s; **60/60 answers identical** in every decision field; runner end to end 14.4 → 5.2 s/image (2.76×) | Yes |
+| Sharpness on uint8 luma instead of float RGB | all 813 segments re-scored | 31–36 → 10–13 ms per call (~2.9×); same chosen frame on 811/813 segments (Spearman 0.99997) | Safe; not yet switched on |
+| Probe-only distress gate (calibrated on the send-all batch) | leave-one-drive-out | held-out recall 87.8 % [78.5, 95.2] at 59.4 % pass, below the 90 % target (in-sample: 90.2 % at 61.4 %). No pre-registered variant beat it | No: defaults kept |
+| Segment band crop instead of the whole frame | 328 segments (164 distress + 164 Normal), both arms answered | 84.1 % agreement (κ 0.68). Band drops 42/164 frame-distress, adds 10/164. One-look visual check of the 52 flips: band right 21, frame 17, unclear 14 | No: no evidence band is better |
+| Nearest-sharp frame (removes the far-frame bias of raw sharpness) | re-extraction done | analysis not run | Pending |
 
-(1) The reference is the model, not engineers: the gate's recall and precision, and every "% of length", inherit the model's errors (on Attain its Stage 1 found about half of distressed frames). (2) Three drives on two test roads over two days; per-drive differences mix road, light, speed and focus. (3) Positions are phone GNSS (σ ≈ 6 m) without latency correction (no drive had enough braking events for the automatic estimate) and without map-matching; chainage is absent because no start chainage was entered. (4) The full frame shows road beyond the segment, so a label can come from outside it; positive segments cluster more than chance (P(positive | previous positive) 0.43–0.60 against base rates 0.18–0.38), which may inflate "% of length" (§8.6). (5) The model's labels are per segment, not measurements of extent; "% of length" counts a whole segment for any distress in it, as IRC:82 section ratings by length do, but it is not an area.
+The adopted change is the one with identical answers: the per-image cost of the survey fell to the cost of Stage 1 for the four in five frames that are Normal (§8.7).
+
+### 8.7 The survey at scale: 22 further drives through the hands-off pipeline
+
+On 29 Oct 2026 the operator-dashboard toggle processed 22 further drives recorded on 27 Oct, one after another and without manual steps (validate → extract → classify with `profile=video` → import → store in local PostgreSQL → verify → clean up). Unlike §8.2–8.5 these ran **gated** with the uncalibrated default thresholds: segments the cheap check rejected were not sent, except a 10 % audit sample. All numbers: `eval_results/video_survey.md` / `.json` (`scripts/video_survey_metrics.py`, no inference).
+
+| | 22 new drives (gated) | First 3 drives (send-all, §8.4) |
+|---|---|---|
+| Route | 16.32 km, 3,266 segments | 4.06 km, 813 segments |
+| Gate: send / audit / skip / not covered | 2,989 / 29 / 231 / 17 | all sent |
+| Answered by the model | 3,018 segments, 15.08 km | 813 |
+| Distress, share of answered segments [95 % CI] | **16.7 %** [15.4, 18.1] | 20.2 % [17.6, 23.1] |
+| Distress among audited skips | 3/29 = 10.3 % [3.6, 26.4] | — |
+| Flagged for expert review | 52.0 % | 47.9 % |
+| Model time per image, median (Normal / Distress) | **3.78 s** (3.77 / 12.92) | 13.06 s (13.0 / 21.7) |
+| Wall time, whole pipeline | 5.61 h = **20.6 min per km** | — |
+| Stored and verified | 22/22 drives; 3,266 rows; 17.9 GB of lossless frames | 813 rows |
+
+Labels by share of answered length (a segment can carry several): potholes 10.7 % (first drives 16.1 %), longitudinal cracking 7.7 % (8.9 %), bleeding 6.1 % (7.5 %), transverse cracking 2.4 % (0.9 %), streaking 1.7 %, edge breaking 1.6 %, hungry surface 1.5 %, alligator cracking 1.4 %. The ranking is the same as on the first drives. Per drive the distress share ranges from 1.3 % to 44.3 %, so the route, not the method, sets the headline figure (Figure 8.10).
+
+What the scale run shows:
+- **Throughput.** With `profile=video` the model is no longer the bottleneck in the way it was in §8.5: 20.6 min of wall time per km for the whole pipeline, of which extraction is ~3.5 min/km, against ~51 min/km of model time alone in send-all mode before the change.
+- **The gate saves little at default thresholds.** It skipped 7.1 % of segments (231/3,266). Audited skips were distressed at 10.3 %, below the 16.7 % of sent segments but with a wide interval: the skipped length is not distress-free, so the survey-wide share is a slight under-count.
+- **Review load.** Half of the answered segments are flagged for expert review, close to the citizen-upload pipeline (213/361, T7.2), so expert labels remain the limiting resource for both inputs.
+- **Robustness.** One defect surfaced at scale and was fixed the same day: the pipeline's summary step read the per-segment `flags` as a dictionary, while the record format defines a list; every session failed after extraction until it was fixed (commit `e03e2a2`, test fakes now use the real format). One drive's extraction overlapped the first 54 s of another drive's classification because of the restart that applied the fix. This affects timing only: answers do not depend on timing.
+
+![Figure 8.10 — Gate decision and distress share per drive](../eval_results/plots/paper/fig_v10_survey_sessions.png)
+
+![Figure 8.11 — Labels on the new drives vs the first three](../eval_results/plots/paper/fig_v11_survey_labels.png)
+
+![Figure 8.12 — Segment centres of the 22 drives, coloured by the model's answer](../eval_results/plots/paper/fig_v12_survey_map.png)
+
+![Figure 8.13 — Wall time per km and model time per image](../eval_results/plots/paper/fig_v13_survey_throughput.png)
+
+### 8.8 Limitations
+
+(1) The reference is the model, not engineers: the gate's recall and precision, and every "% of length", inherit the model's errors (on Attain its Stage 1 found about half of distressed frames). (2) 25 drives over 20.4 km, recorded on two days (26–27 Oct 2026) with one phone; per-drive differences mix road, light, speed and focus, and the 22 later drives were gated, so their shares are not directly comparable with the send-all first three. (3) Positions are phone GNSS (σ ≈ 6 m) without latency correction (no drive had enough braking events for the automatic estimate) and without map-matching; chainage is absent because no start chainage was entered. (4) The full frame shows road beyond the segment, so a label can come from outside it; positive segments cluster more than chance (P(positive | previous positive) 0.43–0.60 against base rates 0.18–0.38), which may inflate "% of length" (§8.6). (5) The model's labels are per segment, not measurements of extent; "% of length" counts a whole segment for any distress in it, as IRC:82 section ratings by length do, but it is not an area.
 
 ---
 
