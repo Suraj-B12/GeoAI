@@ -959,7 +959,7 @@ body {
     </div>
     <div class="config-field">
       <label for="api-key">API Key (optional)</label>
-      <input id="api-key" type="password" placeholder="empty when auth is off" />
+      <input id="api-key" type="password" placeholder="required when the server sets API_KEYS" />
     </div>
     <button id="btn-config-save" class="btn">Save</button>
     <button id="btn-config-close" class="btn">Close</button>
@@ -1975,6 +1975,19 @@ function showConnectionHelp(err) {
   const banner = document.getElementById('conn-help');
   if (!banner) return;
 
+  if (/HTTP 40[13]/.test(String(err && err.message))) {
+    // The server answered but refused: API_KEYS is set and this browser has no (valid) key.
+    banner.innerHTML =
+      '<b>API key needed</b>' +
+      '<span>The server at ' + escapeHtml(base) + ' is running but requires an API key. ' +
+      'Paste it into the API Key field below and click Save; this browser remembers it.</span>';
+    banner.classList.add('shown');
+    const bar = document.getElementById('config-bar');
+    if (bar) bar.classList.add('shown');
+    const box = document.getElementById('api-key');
+    if (box) box.focus();
+    return;
+  }
   if (isOpaqueOrigin()) {
     const served = (base || 'http://localhost:8000') + '/operator';
     banner.innerHTML =
