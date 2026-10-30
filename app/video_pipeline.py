@@ -915,12 +915,26 @@ class VideoPipelineService:
             self._last_error = problem
             return False
         self._current = key
+        watcher = asyncio.create_task(self._watch_inbox())
         try:
             await self._process(key)
         finally:
+            watcher.cancel()
             self._current = None
             self._save()
         return True
+
+    async def _watch_inbox(self) -> None:
+        """While a session is processed, keep listing newly dropped packages as queued, so the
+        dashboard shows every waiting drive. Listing only: sessions still run one at a time."""
+        while True:
+            await asyncio.sleep(self.cfg.poll_s)
+            try:
+                self._merge_scan(await asyncio.to_thread(self._scan_inbox))
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:  # noqa: BLE001 - a listing hiccup must never stop processing
+                _say(f"inbox scan while busy failed: {e}", logging.WARNING)
 
     # ----------------------------------------------------------- inbox
     def _scan_inbox(self) -> list[dict]:
