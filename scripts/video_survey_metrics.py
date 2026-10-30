@@ -67,10 +67,13 @@ def labels_of(row: dict) -> list[str]:
     return [x for x in SPLIT.split(row.get("vlm_distress_labels") or "") if x]
 
 
-def load_sessions(url: str) -> dict:
+def load_sessions(url: str, key_file: Path) -> dict:
     """Toggle per-session metrics by session_id; refreshes the snapshot when the server answers."""
     try:
-        with urllib.request.urlopen(url.rstrip("/") + "/operator/video/sessions", timeout=15) as r:
+        key = key_file.read_text(encoding="utf-8").strip() if key_file.exists() else ""
+        req = urllib.request.Request(url.rstrip("/") + "/operator/video/sessions",
+                                     headers={"X-API-Key": key} if key else {})
+        with urllib.request.urlopen(req, timeout=15) as r:
             items = json.load(r)["items"]
         keep = [{k: s.get(k) for k in ("session_id", "state", "metrics", "first_seen_utc", "updated_utc")}
                 for s in items]
@@ -79,7 +82,7 @@ def load_sessions(url: str) -> dict:
         SNAPSHOT.write_text(json.dumps(keep, indent=1), encoding="utf-8")
         print("  sessions from server; snapshot", SNAPSHOT.relative_to(PROJECT_ROOT))
     except OSError as e:
-        print("  server unreachable (", e, ") - using snapshot")
+        print(f"  WARNING: server not usable ({e}) - using the saved snapshot, which may be older than the runs")
         keep = json.loads(SNAPSHOT.read_text(encoding="utf-8"))
     return {s["session_id"]: s for s in keep}
 
@@ -145,10 +148,11 @@ def main() -> int:
     ap.add_argument("--baseline", type=Path,
                     default=PROJECT_ROOT.parent / "GeoAI_Video" / "field" / "batches" / "batch_001")
     ap.add_argument("--url", default="http://127.0.0.1:8000")
+    ap.add_argument("--key-file", type=Path, default=Path(r"C:\GeoAI\operator_api_key.txt"))
     a = ap.parse_args()
     OUT_PLOTS.mkdir(parents=True, exist_ok=True)
 
-    meta = load_sessions(a.url)
+    meta = load_sessions(a.url, a.key_file)
     runs = sorted(p.parent.parent.parent for p in a.runs_root.glob("*/vlm/analysis/segments_results.csv"))
     runs = [r for r in runs if meta.get(r.name, {}).get("state") in ("stored", "cleaned")]
     if not runs:
@@ -207,6 +211,16 @@ def main() -> int:
         base = summarise(read_csv(bpath))
         base["note"] = "batch_001: first three drives (26-27 Oct), send-all, default /classify profile"
 
+    by_day = {}
+    for day in sorted({p["session_id"][:8] for p in per}):
+        rows_d = [r for r in all_rows if r["session_id"][:8] == day]
+        pd_ = [p for p in per if p["session_id"][:8] == day]
+        sd = summarise(rows_d)
+        sd.update({"drives": len(pd_), "wall_s": round(sum(p["wall_s"] for p in pd_), 1),
+                   "vlm_s_median_of_drives": round(float(np.median([p["vlm_s_median"] for p in pd_
+                                                                    if p["vlm_s_median"]])), 2)})
+        by_day[day] = sd
+    total["by_day"] = by_day
     out = {"generated_by": "scripts/video_survey_metrics.py", "toggle_sessions": total, "per_session": per,
            "baseline_batch_001": base}
     OUT_JSON.write_text(json.dumps(out, indent=1), encoding="utf-8")
@@ -351,6 +365,22 @@ def write_md(per, t, base) -> None:
     row("Wall time (validate → clean up)", f"{t['wall_s_total'] / 3600:.2f} h = {t['wall_h_per_km'] * 60:.1f} min/km")
     row("Stored and verified", f"{'all' if t['all_verified'] else 'NOT all'} sessions; {t['db_rows']} DB rows; "
         f"{t['image_store_gb']} GB of frames")
+    if t.get("by_day"):
+        days = sorted(t["by_day"])
+        L += ["", "## By recording day (toggle drives)", "",
+              "| | " + " | ".join(f"{d[6:8]} {['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][int(d[4:6]) - 1]}" for d in days) + " |",
+              "|---|" + "---|" * len(days)]
+        def drow(name, fn):
+            L.append(f"| {name} | " + " | ".join(fn(t["by_day"][d]) for d in days) + " |")
+        drow("Drives", lambda x: str(x["drives"]))
+        drow("Route", lambda x: f"{x['route_m'] / 1000:.2f} km, {x['segments']} segments")
+        drow("Answered", lambda x: f"{x['answered']}")
+        drow("Distress, share of answered segments [95 % CI]",
+             lambda x: pct(x["distress_share_of_answered_n"]) + ci(x["distress_share_n_ci95"]))
+        drow("Distress, share of answered length", lambda x: pct(x["distress_share_of_answered_m"]))
+        drow("Potholes, share of answered length", lambda x: pct(x["labels_m_share"].get("Potholes")))
+        drow("Flagged for expert review", lambda x: pct(x["expert_review_share"]))
+        drow("Wall time", lambda x: f"{x['wall_s'] / 3600:.2f} h = {x['wall_s'] / 60 / (x['route_m'] / 1000):.1f} min/km")
     L += ["", "## Labels (share of answered length; a segment can carry several)", "",
           "| IRC:82 label | New drives | First 3 drives |", "|---|---|---|"]
     for l, v in list(t["labels_m_share"].items())[:12]:

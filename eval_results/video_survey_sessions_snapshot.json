@@ -1,5 +1,1702 @@
 [
  {
+  "session_id": "20261029T114942Z_SM-G991B-F0D1_d94c",
+  "state": "cleaned",
+  "metrics": {
+   "timings_s": {
+    "validate": 4.156,
+    "extract": 188.781,
+    "export": 22.296,
+    "classify": 1190.282,
+    "import": 3.703,
+    "analyze": 0.766,
+    "collect": 0.015,
+    "store": 9.516,
+    "cleanup": 9.031
+   },
+   "segments": 186,
+   "route_m": 930.0,
+   "covered_m": 930.0,
+   "not_covered_m": 0.0,
+   "coverage_pct": 100.0,
+   "send": 165,
+   "audit": 1,
+   "skip": 20,
+   "not_covered": 0,
+   "low_light_share": 0.0,
+   "extract_report_timings": {
+    "setup": 0.6800284385681152,
+    "bank_total": 82.23330640792847,
+    "bank_decode": 13.101772658294067,
+    "bank_features": 23.155033000046387,
+    "bank_finalize": 45.97650074958801,
+    "decode_pass": 93.89989256858826,
+    "gate": 88.71750919996703,
+    "gate_dinov2": 18.302326299788547,
+    "gate_wait": 16.280846599969664,
+    "png_wait": 0.5745875835418701,
+    "outputs": 7.060222864151001,
+    "dinov2": 24.09884389975923,
+    "total": 183.89074277877808
+   },
+   "vlm_requests": 166,
+   "vlm_answered": 166,
+   "vlm_unanswered": 0,
+   "vlm_error_lines": 0,
+   "vlm_http_attempts": 166,
+   "vlm_retries": 0,
+   "vlm_s_median": 3.86,
+   "vlm_s_p95": 14.051,
+   "vlm_s_mean": 7.091,
+   "vlm_s_total": 1177.094,
+   "store": {
+    "records": 186,
+    "sent": 166,
+    "answered": 166,
+    "photos": 166,
+    "assessments": 166,
+    "images_written": 166,
+    "images_reused": 0,
+    "photos_created": 166,
+    "assessments_created": 166
+   },
+   "verify": {
+    "ok": true,
+    "records": 186,
+    "rows": 186,
+    "answered_rows": 166,
+    "missing_images": 0,
+    "bad_checksums": 0,
+    "problems": 0
+   },
+   "storage": {
+    "before_gb": 5.142412,
+    "after_gb": 2.638003,
+    "freed_gb": 2.504409,
+    "before_bytes": {
+     "package": 1381938199,
+     "run": 1256065103,
+     "batch": 1252851612,
+     "image_store": 1251557508
+    },
+    "after_bytes": {
+     "package": 1381938199,
+     "run": 4507595,
+     "batch": 0,
+     "image_store": 1251557508
+    },
+    "unit": "GB = 1e9 bytes",
+    "deleted_files": 536
+   }
+  },
+  "first_seen_utc": "2026-10-30T08:39:05.167Z",
+  "updated_utc": "2026-10-30T15:05:13.395Z"
+ },
+ {
+  "session_id": "20261029T114722Z_SM-G991B-F0D1_3726",
+  "state": "cleaned",
+  "metrics": {
+   "timings_s": {
+    "validate": 1.625,
+    "extract": 78.187,
+    "export": 4.156,
+    "classify": 419.75,
+    "import": 1.672,
+    "analyze": 0.719,
+    "collect": 0.015,
+    "store": 3.188,
+    "cleanup": 3.297
+   },
+   "segments": 69,
+   "route_m": 343.72,
+   "covered_m": 343.72,
+   "not_covered_m": 0.0,
+   "coverage_pct": 100.0,
+   "send": 52,
+   "audit": 2,
+   "skip": 15,
+   "not_covered": 0,
+   "low_light_share": 0.0435,
+   "extract_report_timings": {
+    "setup": 0.6053478717803955,
+    "bank_total": 32.11974740028381,
+    "bank_decode": 4.87915963139676,
+    "bank_features": 10.29049140009738,
+    "bank_finalize": 16.950096368789673,
+    "decode_pass": 34.25325894355774,
+    "gate": 31.68773270001111,
+    "gate_dinov2": 6.743854200060014,
+    "gate_wait": 6.926383399957558,
+    "png_wait": 0.48331737518310547,
+    "outputs": 6.926764726638794,
+    "dinov2": 8.921440500111203,
+    "total": 73.91530656814575
+   },
+   "vlm_requests": 54,
+   "vlm_answered": 54,
+   "vlm_unanswered": 0,
+   "vlm_error_lines": 0,
+   "vlm_http_attempts": 54,
+   "vlm_retries": 0,
+   "vlm_s_median": 3.875,
+   "vlm_s_p95": 13.6,
+   "vlm_s_mean": 7.713,
+   "vlm_s_total": 416.485,
+   "store": {
+    "records": 69,
+    "sent": 54,
+    "answered": 54,
+    "photos": 54,
+    "assessments": 54,
+    "images_written": 54,
+    "images_reused": 0,
+    "photos_created": 54,
+    "assessments_created": 54
+   },
+   "verify": {
+    "ok": true,
+    "records": 69,
+    "rows": 69,
+    "answered_rows": 54,
+    "missing_images": 0,
+    "bad_checksums": 0,
+    "problems": 0
+   },
+   "storage": {
+    "before_gb": 1.723434,
+    "after_gb": 0.892994,
+    "freed_gb": 0.83044,
+    "before_bytes": {
+     "package": 476034411,
+     "run": 416959769,
+     "batch": 415686210,
+     "image_store": 414754045
+    },
+    "after_bytes": {
+     "package": 476034411,
+     "run": 2205724,
+     "batch": 0,
+     "image_store": 414754045
+    },
+    "unit": "GB = 1e9 bytes",
+    "deleted_files": 195
+   }
+  },
+  "first_seen_utc": "2026-10-30T08:39:05.167Z",
+  "updated_utc": "2026-10-30T14:41:23.360Z"
+ },
+ {
+  "session_id": "20261029T113633Z_SM-G991B-F0D1_bc80",
+  "state": "cleaned",
+  "metrics": {
+   "timings_s": {
+    "validate": 1.562,
+    "extract": 49.141,
+    "export": 11.797,
+    "classify": 300.64,
+    "import": 1.297,
+    "analyze": 0.688,
+    "collect": 0.016,
+    "store": 1.937,
+    "cleanup": 1.922
+   },
+   "segments": 45,
+   "route_m": 225.0,
+   "covered_m": 220.0,
+   "not_covered_m": 5.0,
+   "coverage_pct": 97.78,
+   "send": 28,
+   "audit": 2,
+   "skip": 14,
+   "not_covered": 1,
+   "low_light_share": 0.0,
+   "extract_report_timings": {
+    "setup": 0.6568269729614258,
+    "bank_total": 14.450037002563477,
+    "bank_decode": 5.23075158757274,
+    "bank_features": 3.729102299985243,
+    "bank_finalize": 5.490183115005493,
+    "decode_pass": 25.60840129852295,
+    "gate": 20.743999900019844,
+    "gate_dinov2": 4.476819100003922,
+    "gate_wait": 0.9065663999790559,
+    "png_wait": 0.5551798343658447,
+    "outputs": 4.357072114944458,
+    "dinov2": 5.904304600000614,
+    "total": 45.08427572250366
+   },
+   "vlm_requests": 30,
+   "vlm_answered": 30,
+   "vlm_unanswered": 0,
+   "vlm_error_lines": 0,
+   "vlm_http_attempts": 30,
+   "vlm_retries": 0,
+   "vlm_s_median": 12.485,
+   "vlm_s_p95": 14.073,
+   "vlm_s_mean": 9.966,
+   "vlm_s_total": 298.985,
+   "store": {
+    "records": 45,
+    "sent": 30,
+    "answered": 30,
+    "photos": 30,
+    "assessments": 30,
+    "images_written": 30,
+    "images_reused": 0,
+    "photos_created": 30,
+    "assessments_created": 30
+   },
+   "verify": {
+    "ok": true,
+    "records": 45,
+    "rows": 45,
+    "answered_rows": 30,
+    "missing_images": 0,
+    "bad_checksums": 0,
+    "problems": 0
+   },
+   "storage": {
+    "before_gb": 1.182458,
+    "after_gb": 0.690568,
+    "freed_gb": 0.49189,
+    "before_bytes": {
+     "package": 443038553,
+     "run": 247529717,
+     "batch": 245735931,
+     "image_store": 246154177
+    },
+    "after_bytes": {
+     "package": 443038553,
+     "run": 1375540,
+     "batch": 0,
+     "image_store": 246154177
+    },
+    "unit": "GB = 1e9 bytes",
+    "deleted_files": 123
+   }
+  },
+  "first_seen_utc": "2026-10-30T08:39:05.167Z",
+  "updated_utc": "2026-10-30T14:32:49.340Z"
+ },
+ {
+  "session_id": "20261029T113256Z_SM-G991B-F0D1_4128",
+  "state": "cleaned",
+  "metrics": {
+   "timings_s": {
+    "validate": 4.485,
+    "extract": 195.641,
+    "export": 27.843,
+    "classify": 946.813,
+    "import": 3.484,
+    "analyze": 0.781,
+    "collect": 0.016,
+    "store": 9.062,
+    "cleanup": 8.359
+   },
+   "segments": 193,
+   "route_m": 965.0,
+   "covered_m": 960.0,
+   "not_covered_m": 5.0,
+   "coverage_pct": 99.48,
+   "send": 148,
+   "audit": 9,
+   "skip": 35,
+   "not_covered": 1,
+   "low_light_share": 0.0,
+   "extract_report_timings": {
+    "setup": 0.6608884334564209,
+    "bank_total": 88.85069036483765,
+    "bank_decode": 15.1217450012482,
+    "bank_features": 24.723449100085418,
+    "bank_finalize": 49.00549626350403,
+    "decode_pass": 94.10061526298523,
+    "gate": 90.1816866997251,
+    "gate_dinov2": 18.81333140010247,
+    "gate_wait": 12.2611471999262,
+    "png_wait": 0.5199227333068848,
+    "outputs": 7.035305023193359,
+    "dinov2": 25.22525550016144,
+    "total": 190.6624002456665
+   },
+   "vlm_requests": 157,
+   "vlm_answered": 157,
+   "vlm_unanswered": 0,
+   "vlm_error_lines": 0,
+   "vlm_http_attempts": 157,
+   "vlm_retries": 0,
+   "vlm_s_median": 3.859,
+   "vlm_s_p95": 13.291,
+   "vlm_s_mean": 5.954,
+   "vlm_s_total": 934.783,
+   "store": {
+    "records": 193,
+    "sent": 157,
+    "answered": 157,
+    "photos": 157,
+    "assessments": 157,
+    "images_written": 157,
+    "images_reused": 0,
+    "photos_created": 157,
+    "assessments_created": 157
+   },
+   "verify": {
+    "ok": true,
+    "records": 193,
+    "rows": 193,
+    "answered_rows": 157,
+    "missing_images": 0,
+    "bad_checksums": 0,
+    "problems": 0
+   },
+   "storage": {
+    "before_gb": 4.911513,
+    "after_gb": 2.615597,
+    "freed_gb": 2.295916,
+    "before_bytes": {
+     "package": 1463419071,
+     "run": 1152177946,
+     "batch": 1148161898,
+     "image_store": 1147753943
+    },
+    "after_bytes": {
+     "package": 1463419071,
+     "run": 4424003,
+     "batch": 0,
+     "image_store": 1147753943
+    },
+    "unit": "GB = 1e9 bytes",
+    "deleted_files": 525
+   }
+  },
+  "first_seen_utc": "2026-10-30T08:39:05.167Z",
+  "updated_utc": "2026-10-30T14:26:38.376Z"
+ },
+ {
+  "session_id": "20261029T112355Z_SM-G991B-F0D1_1e4e",
+  "state": "cleaned",
+  "metrics": {
+   "timings_s": {
+    "validate": 2.719,
+    "extract": 119.562,
+    "export": 15.047,
+    "classify": 628.688,
+    "import": 2.375,
+    "analyze": 0.735,
+    "collect": 0.015,
+    "store": 5.563,
+    "cleanup": 5.438
+   },
+   "segments": 108,
+   "route_m": 540.0,
+   "covered_m": 540.0,
+   "not_covered_m": 0.0,
+   "coverage_pct": 100.0,
+   "send": 94,
+   "audit": 1,
+   "skip": 13,
+   "not_covered": 0,
+   "low_light_share": 0.0,
+   "extract_report_timings": {
+    "setup": 0.6646106243133545,
+    "bank_total": 51.010568141937256,
+    "bank_decode": 8.543737342493841,
+    "bank_features": 15.101817200047662,
+    "bank_finalize": 27.365013599395752,
+    "decode_pass": 56.60710406303406,
+    "gate": 54.016988999967,
+    "gate_dinov2": 11.018200999940746,
+    "gate_wait": 8.729771299957065,
+    "png_wait": 0.669863224029541,
+    "outputs": 6.768721580505371,
+    "dinov2": 14.451766899917857,
+    "total": 115.06416749954224
+   },
+   "vlm_requests": 95,
+   "vlm_answered": 95,
+   "vlm_unanswered": 0,
+   "vlm_error_lines": 0,
+   "vlm_http_attempts": 95,
+   "vlm_retries": 0,
+   "vlm_s_median": 3.844,
+   "vlm_s_p95": 13.75,
+   "vlm_s_mean": 6.555,
+   "vlm_s_total": 622.737,
+   "store": {
+    "records": 108,
+    "sent": 95,
+    "answered": 95,
+    "photos": 95,
+    "assessments": 95,
+    "images_written": 95,
+    "images_reused": 0,
+    "photos_created": 95,
+    "assessments_created": 95
+   },
+   "verify": {
+    "ok": true,
+    "records": 108,
+    "rows": 108,
+    "answered_rows": 95,
+    "missing_images": 0,
+    "bad_checksums": 0,
+    "problems": 0
+   },
+   "storage": {
+    "before_gb": 2.926426,
+    "after_gb": 1.525027,
+    "freed_gb": 1.401399,
+    "before_bytes": {
+     "package": 821642055,
+     "run": 703385012,
+     "batch": 700905687,
+     "image_store": 700493569
+    },
+    "after_bytes": {
+     "package": 821642055,
+     "run": 2891443,
+     "batch": 0,
+     "image_store": 700493569
+    },
+    "unit": "GB = 1e9 bytes",
+    "deleted_files": 316
+   }
+  },
+  "first_seen_utc": "2026-10-30T08:39:05.167Z",
+  "updated_utc": "2026-10-30T14:06:40.512Z"
+ },
+ {
+  "session_id": "20261029T112225Z_SM-G991B-F0D1_f2ab",
+  "state": "cleaned",
+  "metrics": {
+   "timings_s": {
+    "validate": 1.688,
+    "extract": 83.906,
+    "export": 4.391,
+    "classify": 363.172,
+    "import": 1.734,
+    "analyze": 0.719,
+    "collect": 0.015,
+    "store": 3.562,
+    "cleanup": 3.5
+   },
+   "segments": 74,
+   "route_m": 370.0,
+   "covered_m": 370.0,
+   "not_covered_m": 0.0,
+   "coverage_pct": 100.0,
+   "send": 68,
+   "audit": 0,
+   "skip": 6,
+   "not_covered": 0,
+   "low_light_share": 0.0,
+   "extract_report_timings": {
+    "setup": 0.6255066394805908,
+    "bank_total": 35.654951333999634,
+    "bank_decode": 5.426911041984567,
+    "bank_features": 10.839334799995413,
+    "bank_finalize": 19.388705492019653,
+    "decode_pass": 36.9731330871582,
+    "gate": 35.14632829990296,
+    "gate_dinov2": 7.220317300030729,
+    "gate_wait": 9.126785599975847,
+    "png_wait": 0.49981236457824707,
+    "outputs": 6.46010422706604,
+    "dinov2": 9.39781740005128,
+    "total": 79.72544145584106
+   },
+   "vlm_requests": 68,
+   "vlm_answered": 68,
+   "vlm_unanswered": 0,
+   "vlm_error_lines": 0,
+   "vlm_http_attempts": 68,
+   "vlm_retries": 0,
+   "vlm_s_median": 3.821,
+   "vlm_s_p95": 13.165,
+   "vlm_s_mean": 5.285,
+   "vlm_s_total": 359.359,
+   "store": {
+    "records": 74,
+    "sent": 68,
+    "answered": 68,
+    "photos": 68,
+    "assessments": 68,
+    "images_written": 68,
+    "images_reused": 0,
+    "photos_created": 68,
+    "assessments_created": 68
+   },
+   "verify": {
+    "ok": true,
+    "records": 74,
+    "rows": 74,
+    "answered_rows": 68,
+    "missing_images": 0,
+    "bad_checksums": 0,
+    "problems": 0
+   },
+   "storage": {
+    "before_gb": 1.810046,
+    "after_gb": 0.940264,
+    "freed_gb": 0.869782,
+    "before_bytes": {
+     "package": 503739005,
+     "run": 436525363,
+     "batch": 435412118,
+     "image_store": 434369515
+    },
+    "after_bytes": {
+     "package": 503739005,
+     "run": 2155848,
+     "batch": 0,
+     "image_store": 434369515
+    },
+    "unit": "GB = 1e9 bytes",
+    "deleted_files": 228
+   }
+  },
+  "first_seen_utc": "2026-10-30T08:39:05.167Z",
+  "updated_utc": "2026-10-30T13:53:38.452Z"
+ },
+ {
+  "session_id": "20261029T111112Z_SM-G991B-F0D1_a25b",
+  "state": "failed",
+  "metrics": {
+   "timings_s": {
+    "validate": 13.719,
+    "extract": 3.89
+   }
+  },
+  "first_seen_utc": "2026-10-30T08:39:05.167Z",
+  "updated_utc": "2026-10-30T13:45:53.532Z"
+ },
+ {
+  "session_id": "20261029T103654Z_SM-G991B-F0D1_475b",
+  "state": "cleaned",
+  "metrics": {
+   "timings_s": {
+    "validate": 22.75,
+    "extract": 1028.047,
+    "export": 64.079,
+    "classify": 8685.546,
+    "import": 19.734,
+    "analyze": 1.656,
+    "collect": 0.016,
+    "store": 57.641,
+    "cleanup": 50.453
+   },
+   "segments": 1657,
+   "route_m": 8285.0,
+   "covered_m": 8240.0,
+   "not_covered_m": 45.0,
+   "coverage_pct": 99.46,
+   "send": 1041,
+   "audit": 71,
+   "skip": 536,
+   "not_covered": 9,
+   "low_light_share": 0.0024,
+   "extract_report_timings": {
+    "setup": 1.833571195602417,
+    "bank_total": 257.84623074531555,
+    "bank_decode": 81.47396430774825,
+    "bank_features": 111.45217910007341,
+    "bank_finalize": 64.9200873374939,
+    "decode_pass": 730.5252377986908,
+    "gate": 710.5652433999785,
+    "gate_dinov2": 176.8914255003183,
+    "gate_wait": 412.11653599997226,
+    "png_wait": 0.4830348491668701,
+    "outputs": 9.571972846984863,
+    "dinov2": 208.61745500046527,
+    "total": 999.8325583934784
+   },
+   "vlm_requests": 1112,
+   "vlm_answered": 1112,
+   "vlm_unanswered": 0,
+   "vlm_error_lines": 0,
+   "vlm_http_attempts": 1112,
+   "vlm_retries": 0,
+   "vlm_s_median": 3.937,
+   "vlm_s_p95": 13.954,
+   "vlm_s_mean": 6.737,
+   "vlm_s_total": 7491.578,
+   "store": {
+    "records": 1657,
+    "sent": 1112,
+    "answered": 1112,
+    "photos": 1112,
+    "assessments": 1112,
+    "images_written": 1112,
+    "images_reused": 0,
+    "photos_created": 1112,
+    "assessments_created": 1112
+   },
+   "verify": {
+    "ok": true,
+    "records": 1657,
+    "rows": 1657,
+    "answered_rows": 1112,
+    "missing_images": 0,
+    "bad_checksums": 0,
+    "problems": 0
+   },
+   "storage": {
+    "before_gb": 28.395051,
+    "after_gb": 14.572744,
+    "freed_gb": 13.822307,
+    "before_bytes": {
+     "package": 7642068402,
+     "run": 6930675375,
+     "batch": 6920953762,
+     "image_store": 6901353235
+    },
+    "after_bytes": {
+     "package": 7642068402,
+     "run": 29322140,
+     "batch": 0,
+     "image_store": 6901353235
+    },
+    "unit": "GB = 1e9 bytes",
+    "deleted_files": 3899
+   }
+  },
+  "first_seen_utc": "2026-10-30T08:39:05.167Z",
+  "updated_utc": "2026-10-30T13:45:34.958Z"
+ },
+ {
+  "session_id": "20261029T102453Z_SM-G991B-F0D1_389b",
+  "state": "cleaned",
+  "metrics": {
+   "timings_s": {
+    "validate": 8.344,
+    "extract": 425.86,
+    "export": 29.14,
+    "classify": 1593.547,
+    "import": 7.282,
+    "analyze": 1.0,
+    "collect": 0.016,
+    "store": 19.375,
+    "cleanup": 18.109
+   },
+   "segments": 581,
+   "route_m": 2905.0,
+   "covered_m": 2725.0,
+   "not_covered_m": 180.0,
+   "coverage_pct": 93.8,
+   "send": 339,
+   "audit": 22,
+   "skip": 184,
+   "not_covered": 36,
+   "low_light_share": 0.0587,
+   "extract_report_timings": {
+    "setup": 0.8200194835662842,
+    "bank_total": 155.71297597885132,
+    "bank_decode": 34.11175695511338,
+    "bank_features": 59.13200220016006,
+    "bank_finalize": 62.46921682357788,
+    "decode_pass": 254.62646770477295,
+    "gate": 244.43115050013876,
+    "gate_dinov2": 60.46886749990517,
+    "gate_wait": 129.11722030000237,
+    "png_wait": 0.6051778793334961,
+    "outputs": 7.5703444480896,
+    "dinov2": 76.55882499991276,
+    "total": 418.75784277915955
+   },
+   "vlm_requests": 361,
+   "vlm_answered": 361,
+   "vlm_unanswered": 0,
+   "vlm_error_lines": 0,
+   "vlm_http_attempts": 361,
+   "vlm_retries": 0,
+   "vlm_s_median": 3.844,
+   "vlm_s_p95": 4.063,
+   "vlm_s_mean": 4.243,
+   "vlm_s_total": 1531.669,
+   "store": {
+    "records": 581,
+    "sent": 361,
+    "answered": 361,
+    "photos": 361,
+    "assessments": 361,
+    "images_written": 361,
+    "images_reused": 0,
+    "photos_created": 361,
+    "assessments_created": 361
+   },
+   "verify": {
+    "ok": true,
+    "records": 581,
+    "rows": 581,
+    "answered_rows": 361,
+    "missing_images": 0,
+    "bad_checksums": 0,
+    "problems": 0
+   },
+   "storage": {
+    "before_gb": 10.316153,
+    "after_gb": 5.345597,
+    "freed_gb": 4.970556,
+    "before_bytes": {
+     "package": 2852890477,
+     "run": 2492706329,
+     "batch": 2488285787,
+     "image_store": 2482270393
+    },
+    "after_bytes": {
+     "package": 2852890477,
+     "run": 10435936,
+     "batch": 0,
+     "image_store": 2482270393
+    },
+    "unit": "GB = 1e9 bytes",
+    "deleted_files": 1321
+   }
+  },
+  "first_seen_utc": "2026-10-30T08:39:05.167Z",
+  "updated_utc": "2026-10-30T10:26:41.493Z"
+ },
+ {
+  "session_id": "20261029T101817Z_SM-G991B-F0D1_8130",
+  "state": "cleaned",
+  "metrics": {
+   "timings_s": {
+    "validate": 8.062,
+    "extract": 511.454,
+    "export": 22.875,
+    "classify": 1536.688,
+    "import": 11.094,
+    "analyze": 0.969,
+    "collect": 0.016,
+    "store": 20.219,
+    "cleanup": 18.657
+   },
+   "segments": 478,
+   "route_m": 2390.0,
+   "covered_m": 2260.0,
+   "not_covered_m": 130.0,
+   "coverage_pct": 94.56,
+   "send": 355,
+   "audit": 12,
+   "skip": 85,
+   "not_covered": 26,
+   "low_light_share": 0.0575,
+   "extract_report_timings": {
+    "setup": 0.7826299667358398,
+    "bank_total": 144.0276162624359,
+    "bank_decode": 29.591559510299703,
+    "bank_features": 52.59549870007322,
+    "bank_finalize": 61.84055805206299,
+    "decode_pass": 230.9131305217743,
+    "gate": 219.2237168001011,
+    "gate_dinov2": 47.61932070009061,
+    "gate_wait": 112.12249239998346,
+    "png_wait": 0.5790226459503174,
+    "outputs": 7.041025161743164,
+    "dinov2": 61.20715799997561,
+    "total": 382.7917025089264
+   },
+   "vlm_requests": 367,
+   "vlm_answered": 367,
+   "vlm_unanswered": 0,
+   "vlm_error_lines": 0,
+   "vlm_http_attempts": 367,
+   "vlm_retries": 0,
+   "vlm_s_median": 3.828,
+   "vlm_s_p95": 3.985,
+   "vlm_s_mean": 4.01,
+   "vlm_s_total": 1471.621,
+   "store": {
+    "records": 478,
+    "sent": 367,
+    "answered": 367,
+    "photos": 367,
+    "assessments": 367,
+    "images_written": 367,
+    "images_reused": 0,
+    "photos_created": 367,
+    "assessments_created": 367
+   },
+   "verify": {
+    "ok": true,
+    "records": 478,
+    "rows": 478,
+    "answered_rows": 367,
+    "missing_images": 0,
+    "bad_checksums": 0,
+    "problems": 0
+   },
+   "storage": {
+    "before_gb": 10.181496,
+    "after_gb": 5.086743,
+    "freed_gb": 5.094753,
+    "before_bytes": {
+     "package": 2533048903,
+     "run": 2553694548,
+     "batch": 2550309956,
+     "image_store": 2544442930
+    },
+    "after_bytes": {
+     "package": 2533048903,
+     "run": 9251618,
+     "batch": 0,
+     "image_store": 2544442930
+    },
+    "unit": "GB = 1e9 bytes",
+    "deleted_files": 1230
+   }
+  },
+  "first_seen_utc": "2026-10-30T08:39:05.167Z",
+  "updated_utc": "2026-10-30T11:00:03.337Z"
+ },
+ {
+  "session_id": "20261029T101646Z_SM-G991B-F0D1_8394",
+  "state": "cleaned",
+  "metrics": {
+   "timings_s": {
+    "validate": 0.75,
+    "extract": 28.047,
+    "export": 1.187,
+    "classify": 21.906,
+    "import": 0.797,
+    "analyze": 0.75,
+    "collect": 0.015,
+    "store": 0.39,
+    "cleanup": 0.344
+   },
+   "segments": 5,
+   "route_m": 23.79,
+   "covered_m": 23.79,
+   "not_covered_m": 0.0,
+   "coverage_pct": 100.0,
+   "send": 5,
+   "audit": 0,
+   "skip": 0,
+   "not_covered": 0,
+   "low_light_share": 0.0,
+   "extract_report_timings": {
+    "setup": 0.8273344039916992,
+    "bank_total": 16.240386486053467,
+    "bank_decode": 2.855645969262696,
+    "bank_features": 5.81447879994812,
+    "bank_finalize": 7.570261716842651,
+    "decode_pass": 4.609921932220459,
+    "gate": 2.5406866000121227,
+    "gate_dinov2": 0.5076157000148669,
+    "gate_wait": 0.1523464000201784,
+    "png_wait": 0.5300753116607666,
+    "outputs": 0.980060338973999,
+    "dinov2": 2.791819200021564,
+    "total": 22.66926598548889
+   },
+   "vlm_requests": 5,
+   "vlm_answered": 5,
+   "vlm_unanswered": 0,
+   "vlm_error_lines": 0,
+   "vlm_http_attempts": 5,
+   "vlm_retries": 0,
+   "vlm_s_median": 4.25,
+   "vlm_s_p95": 4.709,
+   "vlm_s_mean": 4.297,
+   "vlm_s_total": 21.484,
+   "store": {
+    "records": 5,
+    "sent": 5,
+    "answered": 5,
+    "photos": 5,
+    "assessments": 5,
+    "images_written": 5,
+    "images_reused": 0,
+    "photos_created": 5,
+    "assessments_created": 5
+   },
+   "verify": {
+    "ok": true,
+    "records": 5,
+    "rows": 5,
+    "answered_rows": 5,
+    "missing_images": 0,
+    "bad_checksums": 0,
+    "problems": 0
+   },
+   "storage": {
+    "before_gb": 0.160037,
+    "after_gb": 0.095766,
+    "freed_gb": 0.064272,
+    "before_bytes": {
+     "package": 63465891,
+     "run": 32299798,
+     "batch": 32205549,
+     "image_store": 32066176
+    },
+    "after_bytes": {
+     "package": 63465891,
+     "run": 233622,
+     "batch": 0,
+     "image_store": 32066176
+    },
+    "unit": "GB = 1e9 bytes",
+    "deleted_files": 33
+   }
+  },
+  "first_seen_utc": "2026-10-30T08:39:05.167Z",
+  "updated_utc": "2026-10-30T09:49:25.140Z"
+ },
+ {
+  "session_id": "20261029T101444Z_SM-G991B-F0D1_0517",
+  "state": "cleaned",
+  "metrics": {
+   "timings_s": {
+    "validate": 2.391,
+    "extract": 130.64,
+    "export": 4.062,
+    "classify": 383.828,
+    "import": 1.985,
+    "analyze": 0.969,
+    "collect": 0.016,
+    "store": 4.171,
+    "cleanup": 6.906
+   },
+   "segments": 104,
+   "route_m": 517.92,
+   "covered_m": 517.92,
+   "not_covered_m": 0.0,
+   "coverage_pct": 100.0,
+   "send": 52,
+   "audit": 6,
+   "skip": 46,
+   "not_covered": 0,
+   "low_light_share": 0.0,
+   "extract_report_timings": {
+    "setup": 0.643204927444458,
+    "bank_total": 55.526347160339355,
+    "bank_decode": 8.3364689838927,
+    "bank_features": 18.454091500039794,
+    "bank_finalize": 28.73578667640686,
+    "decode_pass": 60.34058094024658,
+    "gate": 58.144417000046815,
+    "gate_dinov2": 12.794642499982729,
+    "gate_wait": 18.019824800052447,
+    "png_wait": 0.18966317176818848,
+    "outputs": 9.070005655288696,
+    "dinov2": 16.9831960999727,
+    "total": 125.59435606002808
+   },
+   "vlm_requests": 58,
+   "vlm_answered": 58,
+   "vlm_unanswered": 0,
+   "vlm_error_lines": 0,
+   "vlm_http_attempts": 58,
+   "vlm_retries": 0,
+   "vlm_s_median": 4.539,
+   "vlm_s_p95": 17.038,
+   "vlm_s_mean": 6.55,
+   "vlm_s_total": 379.906,
+   "store": {
+    "records": 104,
+    "sent": 58,
+    "answered": 58,
+    "photos": 58,
+    "assessments": 58,
+    "images_written": 58,
+    "images_reused": 0,
+    "photos_created": 58,
+    "assessments_created": 58
+   },
+   "verify": {
+    "ok": true,
+    "records": 104,
+    "rows": 104,
+    "answered_rows": 58,
+    "missing_images": 0,
+    "bad_checksums": 0,
+    "problems": 0
+   },
+   "storage": {
+    "before_gb": 1.802393,
+    "after_gb": 1.023695,
+    "freed_gb": 0.778698,
+    "before_bytes": {
+     "package": 632469604,
+     "run": 391225288,
+     "batch": 389964027,
+     "image_store": 388733686
+    },
+    "after_bytes": {
+     "package": 632469604,
+     "run": 2491602,
+     "batch": 0,
+     "image_store": 388733686
+    },
+    "unit": "GB = 1e9 bytes",
+    "deleted_files": 238
+   }
+  },
+  "first_seen_utc": "2026-10-30T08:39:05.166Z",
+  "updated_utc": "2026-10-30T09:48:29.298Z"
+ },
+ {
+  "session_id": "20261029T101238Z_SM-G991B-F0D1_81d2",
+  "state": "cleaned",
+  "metrics": {
+   "timings_s": {
+    "validate": 2.453,
+    "extract": 119.844,
+    "export": 5.516,
+    "classify": 349.765,
+    "import": 2.188,
+    "analyze": 0.75,
+    "collect": 0.016,
+    "store": 5.782,
+    "cleanup": 4.937
+   },
+   "segments": 112,
+   "route_m": 560.0,
+   "covered_m": 555.0,
+   "not_covered_m": 5.0,
+   "coverage_pct": 99.11,
+   "send": 82,
+   "audit": 2,
+   "skip": 27,
+   "not_covered": 1,
+   "low_light_share": 0.1982,
+   "extract_report_timings": {
+    "setup": 0.6904647350311279,
+    "bank_total": 52.089699029922485,
+    "bank_decode": 9.10487461136654,
+    "bank_features": 14.833971499931067,
+    "bank_finalize": 28.150852918624878,
+    "decode_pass": 56.416526079177856,
+    "gate": 51.44110069994349,
+    "gate_dinov2": 11.482007000100566,
+    "gate_wait": 15.881080700011807,
+    "png_wait": 0.41327977180480957,
+    "outputs": 6.231952905654907,
+    "dinov2": 14.831506400048966,
+    "total": 115.44577169418335
+   },
+   "vlm_requests": 84,
+   "vlm_answered": 84,
+   "vlm_unanswered": 0,
+   "vlm_error_lines": 0,
+   "vlm_http_attempts": 84,
+   "vlm_retries": 0,
+   "vlm_s_median": 3.57,
+   "vlm_s_p95": 4.088,
+   "vlm_s_mean": 4.106,
+   "vlm_s_total": 344.936,
+   "store": {
+    "records": 112,
+    "sent": 84,
+    "answered": 84,
+    "photos": 84,
+    "assessments": 84,
+    "images_written": 84,
+    "images_reused": 0,
+    "photos_created": 84,
+    "assessments_created": 84
+   },
+   "verify": {
+    "ok": true,
+    "records": 112,
+    "rows": 112,
+    "answered_rows": 84,
+    "missing_images": 0,
+    "bad_checksums": 0,
+    "problems": 0
+   },
+   "storage": {
+    "before_gb": 2.483693,
+    "after_gb": 1.348275,
+    "freed_gb": 1.135418,
+    "before_bytes": {
+     "package": 778492654,
+     "run": 569782096,
+     "batch": 568425193,
+     "image_store": 566992674
+    },
+    "after_bytes": {
+     "package": 778492654,
+     "run": 2789422,
+     "batch": 0,
+     "image_store": 566992674
+    },
+    "unit": "GB = 1e9 bytes",
+    "deleted_files": 298
+   }
+  },
+  "first_seen_utc": "2026-10-30T08:39:05.166Z",
+  "updated_utc": "2026-10-30T09:39:32.902Z"
+ },
+ {
+  "session_id": "20261029T101123Z_SM-G991B-F0D1_774d",
+  "state": "failed",
+  "metrics": {
+   "timings_s": {
+    "validate": 0.344,
+    "extract": 3.5
+   }
+  },
+  "first_seen_utc": "2026-10-30T08:39:05.166Z",
+  "updated_utc": "2026-10-30T09:31:19.679Z"
+ },
+ {
+  "session_id": "20261029T100821Z_SM-G991B-F0D1_c57b",
+  "state": "cleaned",
+  "metrics": {
+   "timings_s": {
+    "validate": 1.063,
+    "extract": 39.079,
+    "export": 2.938,
+    "classify": 126.843,
+    "import": 1.296,
+    "analyze": 0.688,
+    "collect": 0.015,
+    "store": 2.094,
+    "cleanup": 2.062
+   },
+   "segments": 36,
+   "route_m": 180.0,
+   "covered_m": 180.0,
+   "not_covered_m": 0.0,
+   "coverage_pct": 100.0,
+   "send": 35,
+   "audit": 0,
+   "skip": 1,
+   "not_covered": 0,
+   "low_light_share": 0.0,
+   "extract_report_timings": {
+    "setup": 0.5647289752960205,
+    "bank_total": 10.911943197250366,
+    "bank_decode": 3.254650083137676,
+    "bank_features": 3.1187785000074655,
+    "bank_finalize": 4.538514614105225,
+    "decode_pass": 18.699724674224854,
+    "gate": 17.0048272999411,
+    "gate_dinov2": 3.694659999993746,
+    "gate_wait": 2.6214232000056654,
+    "png_wait": 0.6717915534973145,
+    "outputs": 4.825895071029663,
+    "dinov2": 4.856192799998098,
+    "total": 35.01545214653015
+   },
+   "vlm_requests": 35,
+   "vlm_answered": 35,
+   "vlm_unanswered": 0,
+   "vlm_error_lines": 0,
+   "vlm_http_attempts": 35,
+   "vlm_retries": 0,
+   "vlm_s_median": 3.562,
+   "vlm_s_p95": 3.64,
+   "vlm_s_mean": 3.57,
+   "vlm_s_total": 124.937,
+   "store": {
+    "records": 36,
+    "sent": 35,
+    "answered": 35,
+    "photos": 35,
+    "assessments": 35,
+    "images_written": 35,
+    "images_reused": 0,
+    "photos_created": 35,
+    "assessments_created": 35
+   },
+   "verify": {
+    "ok": true,
+    "records": 36,
+    "rows": 36,
+    "answered_rows": 35,
+    "missing_images": 0,
+    "bad_checksums": 0,
+    "problems": 0
+   },
+   "storage": {
+    "before_gb": 1.115835,
+    "after_gb": 0.553378,
+    "freed_gb": 0.562458,
+    "before_bytes": {
+     "package": 270953537,
+     "run": 282424182,
+     "batch": 281504541,
+     "image_store": 280953157
+    },
+    "after_bytes": {
+     "package": 270953537,
+     "run": 1471025,
+     "batch": 0,
+     "image_store": 280953157
+    },
+    "unit": "GB = 1e9 bytes",
+    "deleted_files": 124
+   }
+  },
+  "first_seen_utc": "2026-10-30T08:39:05.166Z",
+  "updated_utc": "2026-10-30T09:31:14.909Z"
+ },
+ {
+  "session_id": "20261029T100537Z_SM-G991B-F0D1_23ff",
+  "state": "cleaned",
+  "metrics": {
+   "timings_s": {
+    "validate": 2.937,
+    "extract": 145.828,
+    "export": 7.797,
+    "classify": 530.407,
+    "import": 2.86,
+    "analyze": 0.766,
+    "collect": 0.031,
+    "store": 6.468,
+    "cleanup": 5.953
+   },
+   "segments": 139,
+   "route_m": 692.93,
+   "covered_m": 692.93,
+   "not_covered_m": 0.0,
+   "coverage_pct": 100.0,
+   "send": 129,
+   "audit": 1,
+   "skip": 9,
+   "not_covered": 0,
+   "low_light_share": 0.1799,
+   "extract_report_timings": {
+    "setup": 0.6753582954406738,
+    "bank_total": 64.80495381355286,
+    "bank_decode": 12.165549279961851,
+    "bank_features": 18.134169100012514,
+    "bank_finalize": 34.50523543357849,
+    "decode_pass": 69.27074956893921,
+    "gate": 66.25949389999732,
+    "gate_dinov2": 13.881494599976577,
+    "gate_wait": 13.782033600014984,
+    "png_wait": 0.5730936527252197,
+    "outputs": 6.426317453384399,
+    "dinov2": 18.28604310004448,
+    "total": 141.19240927696228
+   },
+   "vlm_requests": 130,
+   "vlm_answered": 130,
+   "vlm_unanswered": 0,
+   "vlm_error_lines": 0,
+   "vlm_http_attempts": 130,
+   "vlm_retries": 0,
+   "vlm_s_median": 3.547,
+   "vlm_s_p95": 5.972,
+   "vlm_s_mean": 4.006,
+   "vlm_s_total": 520.782,
+   "store": {
+    "records": 139,
+    "sent": 130,
+    "answered": 130,
+    "photos": 130,
+    "assessments": 130,
+    "images_written": 130,
+    "images_reused": 0,
+    "photos_created": 130,
+    "assessments_created": 130
+   },
+   "verify": {
+    "ok": true,
+    "records": 139,
+    "rows": 139,
+    "answered_rows": 130,
+    "missing_images": 0,
+    "bad_checksums": 0,
+    "problems": 0
+   },
+   "storage": {
+    "before_gb": 3.547863,
+    "after_gb": 1.843954,
+    "freed_gb": 1.703909,
+    "before_bytes": {
+     "package": 989382147,
+     "run": 854571709,
+     "batch": 852904583,
+     "image_store": 851004106
+    },
+    "after_bytes": {
+     "package": 989382147,
+     "run": 3567603,
+     "batch": 0,
+     "image_store": 851004106
+    },
+    "unit": "GB = 1e9 bytes",
+    "deleted_files": 417
+   }
+  },
+  "first_seen_utc": "2026-10-30T08:39:05.166Z",
+  "updated_utc": "2026-10-30T09:28:17.566Z"
+ },
+ {
+  "session_id": "20261029T100237Z_SM-G991B-F0D1_11c4",
+  "state": "cleaned",
+  "metrics": {
+   "timings_s": {
+    "validate": 2.563,
+    "extract": 118.609,
+    "export": 6.438,
+    "classify": 394.234,
+    "import": 2.344,
+    "analyze": 0.734,
+    "collect": 0.016,
+    "store": 5.187,
+    "cleanup": 5.094
+   },
+   "segments": 116,
+   "route_m": 580.0,
+   "covered_m": 575.0,
+   "not_covered_m": 5.0,
+   "coverage_pct": 99.14,
+   "send": 101,
+   "audit": 1,
+   "skip": 13,
+   "not_covered": 1,
+   "low_light_share": 0.1913,
+   "extract_report_timings": {
+    "setup": 0.659456729888916,
+    "bank_total": 53.50305366516113,
+    "bank_decode": 9.562963645235868,
+    "bank_features": 15.43810899995151,
+    "bank_finalize": 28.501981019973755,
+    "decode_pass": 53.88331127166748,
+    "gate": 51.06087639986072,
+    "gate_dinov2": 10.456474100006744,
+    "gate_wait": 16.78961689992866,
+    "png_wait": 0.49965953826904297,
+    "outputs": 6.091681003570557,
+    "dinov2": 14.028554800039274,
+    "total": 114.15525245666504
+   },
+   "vlm_requests": 102,
+   "vlm_answered": 102,
+   "vlm_unanswered": 0,
+   "vlm_error_lines": 0,
+   "vlm_http_attempts": 102,
+   "vlm_retries": 0,
+   "vlm_s_median": 3.562,
+   "vlm_s_p95": 3.671,
+   "vlm_s_mean": 3.804,
+   "vlm_s_total": 387.968,
+   "store": {
+    "records": 116,
+    "sent": 102,
+    "answered": 102,
+    "photos": 102,
+    "assessments": 102,
+    "images_written": 102,
+    "images_reused": 0,
+    "photos_created": 102,
+    "assessments_created": 102
+   },
+   "verify": {
+    "ok": true,
+    "records": 116,
+    "rows": 116,
+    "answered_rows": 102,
+    "missing_images": 0,
+    "bad_checksums": 0,
+    "problems": 0
+   },
+   "storage": {
+    "before_gb": 2.87505,
+    "after_gb": 1.506328,
+    "freed_gb": 1.368722,
+    "before_bytes": {
+     "package": 819805000,
+     "run": 686522817,
+     "batch": 685143827,
+     "image_store": 683577910
+    },
+    "after_bytes": {
+     "package": 819805000,
+     "run": 2944907,
+     "batch": 0,
+     "image_store": 683577910
+    },
+    "unit": "GB = 1e9 bytes",
+    "deleted_files": 338
+   }
+  },
+  "first_seen_utc": "2026-10-30T08:39:05.166Z",
+  "updated_utc": "2026-10-30T09:16:33.138Z"
+ },
+ {
+  "session_id": "20261029T100119Z_SM-G991B-F0D1_5696",
+  "state": "cleaned",
+  "metrics": {
+   "timings_s": {
+    "validate": 1.438,
+    "extract": 53.109,
+    "export": 3.656,
+    "classify": 228.969,
+    "import": 1.532,
+    "analyze": 0.688,
+    "collect": 0.015,
+    "store": 3.031,
+    "cleanup": 2.735
+   },
+   "segments": 59,
+   "route_m": 295.0,
+   "covered_m": 295.0,
+   "not_covered_m": 0.0,
+   "coverage_pct": 100.0,
+   "send": 57,
+   "audit": 0,
+   "skip": 2,
+   "not_covered": 0,
+   "low_light_share": 0.0,
+   "extract_report_timings": {
+    "setup": 0.6096179485321045,
+    "bank_total": 16.233474016189575,
+    "bank_decode": 4.282729143247707,
+    "bank_features": 4.3906560000323225,
+    "bank_finalize": 7.560088872909546,
+    "decode_pass": 26.045988082885742,
+    "gate": 24.571830399989267,
+    "gate_dinov2": 5.384607399988454,
+    "gate_wait": 8.58266809998895,
+    "png_wait": 0.39968419075012207,
+    "outputs": 6.075417757034302,
+    "dinov2": 7.034079799996107,
+    "total": 48.97539138793945
+   },
+   "vlm_requests": 57,
+   "vlm_answered": 57,
+   "vlm_unanswered": 0,
+   "vlm_error_lines": 0,
+   "vlm_http_attempts": 57,
+   "vlm_retries": 0,
+   "vlm_s_median": 3.531,
+   "vlm_s_p95": 5.207,
+   "vlm_s_mean": 3.965,
+   "vlm_s_total": 226.017,
+   "store": {
+    "records": 59,
+    "sent": 57,
+    "answered": 57,
+    "photos": 57,
+    "assessments": 57,
+    "images_written": 57,
+    "images_reused": 0,
+    "photos_created": 57,
+    "assessments_created": 57
+   },
+   "verify": {
+    "ok": true,
+    "records": 59,
+    "rows": 59,
+    "answered_rows": 57,
+    "missing_images": 0,
+    "bad_checksums": 0,
+    "problems": 0
+   },
+   "storage": {
+    "before_gb": 1.531529,
+    "after_gb": 0.78289,
+    "freed_gb": 0.748639,
+    "before_bytes": {
+     "package": 406997909,
+     "run": 375892325,
+     "batch": 374749254,
+     "image_store": 373889332
+    },
+    "after_bytes": {
+     "package": 406997909,
+     "run": 2002993,
+     "batch": 0,
+     "image_store": 373889332
+    },
+    "unit": "GB = 1e9 bytes",
+    "deleted_files": 191
+   }
+  },
+  "first_seen_utc": "2026-10-30T08:39:05.166Z",
+  "updated_utc": "2026-10-30T09:07:35.669Z"
+ },
+ {
+  "session_id": "20261029T095610Z_SM-G991B-F0D1_8873",
+  "state": "cleaned",
+  "metrics": {
+   "timings_s": {
+    "validate": 4.938,
+    "export": 13.094,
+    "classify": 1083.656,
+    "import": 4.312,
+    "analyze": 0.781,
+    "collect": 0.016,
+    "store": 11.297,
+    "cleanup": 10.422
+   },
+   "segments": 242,
+   "route_m": 1210.0,
+   "covered_m": 1205.0,
+   "not_covered_m": 5.0,
+   "coverage_pct": 99.59,
+   "send": 220,
+   "audit": 1,
+   "skip": 20,
+   "not_covered": 1,
+   "low_light_share": 0.0249,
+   "extract_report_timings": {
+    "setup": 0.7997715473175049,
+    "bank_total": 102.3009762763977,
+    "bank_decode": 15.94866754951363,
+    "bank_features": 28.34080359993095,
+    "bank_finalize": 58.011505126953125,
+    "decode_pass": 109.51604890823364,
+    "gate": 105.81368740001926,
+    "gate_dinov2": 21.68520410002384,
+    "gate_wait": 40.315819100127555,
+    "png_wait": 0.49532055854797363,
+    "outputs": 6.842966794967651,
+    "dinov2": 28.824538300032145,
+    "total": 219.4745388031006
+   },
+   "vlm_requests": 221,
+   "vlm_answered": 221,
+   "vlm_unanswered": 0,
+   "vlm_error_lines": 0,
+   "vlm_http_attempts": 221,
+   "vlm_retries": 0,
+   "vlm_s_median": 3.765,
+   "vlm_s_p95": 12.75,
+   "vlm_s_mean": 4.803,
+   "vlm_s_total": 1061.419,
+   "store": {
+    "records": 242,
+    "sent": 221,
+    "answered": 221,
+    "photos": 221,
+    "assessments": 221,
+    "images_written": 221,
+    "images_reused": 0,
+    "photos_created": 221,
+    "assessments_created": 221
+   },
+   "verify": {
+    "ok": true,
+    "records": 242,
+    "rows": 242,
+    "answered_rows": 221,
+    "missing_images": 0,
+    "bad_checksums": 0,
+    "problems": 0
+   },
+   "storage": {
+    "before_gb": 6.165884,
+    "after_gb": 3.100973,
+    "freed_gb": 3.064911,
+    "before_bytes": {
+     "package": 1564508040,
+     "run": 1536465371,
+     "batch": 1534098506,
+     "image_store": 1530812508
+    },
+    "after_bytes": {
+     "package": 1564508040,
+     "run": 5652863,
+     "batch": 0,
+     "image_store": 1530812508
+    },
+    "unit": "GB = 1e9 bytes",
+    "deleted_files": 702
+   }
+  },
+  "first_seen_utc": "2026-10-30T08:39:05.166Z",
+  "updated_utc": "2026-10-30T09:02:38.613Z"
+ },
+ {
+  "session_id": "20261029T095033Z_SM-G991B-F0D1_fe0f",
+  "state": "cleaned",
+  "metrics": {
+   "timings_s": {
+    "validate": 3.64,
+    "extract": 143.375,
+    "export": 7.281,
+    "classify": 749.156,
+    "import": 2.5,
+    "analyze": 0.704,
+    "collect": 0.015,
+    "store": 6.125,
+    "cleanup": 5.515
+   },
+   "segments": 119,
+   "route_m": 594.32,
+   "covered_m": 594.32,
+   "not_covered_m": 0.0,
+   "coverage_pct": 100.0,
+   "send": 116,
+   "audit": 1,
+   "skip": 2,
+   "not_covered": 0,
+   "low_light_share": 0.0084,
+   "extract_report_timings": {
+    "setup": 0.7700438499450684,
+    "bank_total": 54.23494625091553,
+    "bank_decode": 9.251096549953218,
+    "bank_features": 15.079312500034575,
+    "bank_finalize": 29.904537200927734,
+    "decode_pass": 59.58301377296448,
+    "gate": 56.624762399937026,
+    "gate_dinov2": 11.921527099868399,
+    "gate_wait": 4.929442800115794,
+    "png_wait": 0.5709280967712402,
+    "outputs": 6.588978290557861,
+    "dinov2": 15.711333899831516,
+    "total": 121.20067524909973
+   },
+   "vlm_requests": 117,
+   "vlm_answered": 117,
+   "vlm_unanswered": 0,
+   "vlm_error_lines": 0,
+   "vlm_http_attempts": 117,
+   "vlm_retries": 0,
+   "vlm_s_median": 3.688,
+   "vlm_s_p95": 12.957,
+   "vlm_s_mean": 6.34,
+   "vlm_s_total": 741.812,
+   "store": {
+    "records": 119,
+    "sent": 117,
+    "answered": 117,
+    "photos": 117,
+    "assessments": 117,
+    "images_written": 117,
+    "images_reused": 0,
+    "photos_created": 117,
+    "assessments_created": 117
+   },
+   "verify": {
+    "ok": true,
+    "records": 119,
+    "rows": 119,
+    "answered_rows": 117,
+    "missing_images": 0,
+    "bad_checksums": 0,
+    "problems": 0
+   },
+   "storage": {
+    "before_gb": 3.37314,
+    "after_gb": 1.766266,
+    "freed_gb": 1.606874,
+    "before_bytes": {
+     "package": 960427089,
+     "run": 805838820,
+     "batch": 804281273,
+     "image_store": 802592911
+    },
+    "after_bytes": {
+     "package": 960427089,
+     "run": 3245909,
+     "batch": 0,
+     "image_store": 802592911
+    },
+    "unit": "GB = 1e9 bytes",
+    "deleted_files": 371
+   }
+  },
+  "first_seen_utc": "2026-10-30T08:23:13.789Z",
+  "updated_utc": "2026-10-30T08:39:05.061Z"
+ },
+ {
   "session_id": "20261027T122914Z_SM-G991B-F0D1_debe",
   "state": "cleaned",
   "metrics": {
