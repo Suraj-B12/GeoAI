@@ -36,6 +36,11 @@
 > drives (16.32 km, 3,266 segments) processed hands-off; 16.7 % of answered segments distressed; 20.6 min of
 > wall time per km. Figures 8.10–8.13 by `scripts/video_survey_metrics.py`. Limitations moved to §8.8.
 >
+> **Revision 2026-10-30 — reliability and validity.** New §8.8 (Figures 8.14–8.17, `scripts/video_survey_evals.py`):
+> repeatability is not yet measurable (too few revisits); distress share depends on driving speed even
+> within a drive; review reasons fully attributed (Stage 1 confidence 56 %, safety net 23 %); time
+> = 4.7 s per segment + 10.3 s per distress answer (R² 0.997). Limitations are now §8.9.
+>
 > **Reading guide.** Results were produced by four successive pipeline versions; every table
 > names the one it used:
 > | Version | Prompts / taxonomy | Adapter | Where reported |
@@ -1171,9 +1176,33 @@ What the scale run shows:
 
 ![Figure 8.13 — Wall time per km and model time per image](../eval_results/plots/paper/fig_v13_survey_throughput.png)
 
-### 8.8 Limitations
+### 8.8 Reliability and validity checks
 
-(1) The reference is the model, not engineers: the gate's recall and precision, and every "% of length", inherit the model's errors (on Attain its Stage 1 found about half of distressed frames). (2) 25 drives over 20.4 km, recorded on two days (26–27 Oct 2026) with one phone; per-drive differences mix road, light, speed and focus, and the 22 later drives were gated, so their shares are not directly comparable with the send-all first three. (3) Positions are phone GNSS (σ ≈ 6 m) without latency correction (no drive had enough braking events for the automatic estimate) and without map-matching; chainage is absent because no start chainage was entered. (4) The full frame shows road beyond the segment, so a label can come from outside it; positive segments cluster more than chance (P(positive | previous positive) 0.43–0.60 against base rates 0.18–0.38), which may inflate "% of length" (§8.6). (5) The model's labels are per segment, not measurements of extent; "% of length" counts a whole segment for any distress in it, as IRC:82 section ratings by length do, but it is not an area.
+Four checks on everything stored so far: 34 drives, 5,011 segments, 4,640 model answers. They include the first 8 of the 20 drives of 29 Oct; the rest were still processing. Source: `eval_results/video_evals.md` / `.json` (`scripts/video_survey_evals.py`, no inference); Figures 8.14–8.17. Test status when they were made: the VLM system's CPU suites 10/10 passed (18 static checks; classify profile 66, GIS API 160, video pipeline 161, local database 12, deletion 34, operator runtime 30 and others), and GeoAI_Video 250 passed with 12 GPU-only tests skipped. The two GPU and production-database suites were not run because the pipeline held the GPU.
+
+**(1) Repeatability: not yet measurable.** Where two drives passed the same spot (mutual nearest segment centres, different drives), the two answers agree on 91.9 % of 62 pairs within 5 m. But only 4 drive pairs overlap, only 5 of the 62 pairs contain any distress, and chance agreement at that prevalence is the same (97.1 % vs 97.1 % within 2 m). Kappa is therefore not interpretable, and the paper makes no repeatability claim. Measuring it needs planned repeat drives of the same roads, in both directions and on different days. This is the most useful next field run (§8.9).
+
+**(2) Capture conditions are associated with the answer, even within a drive.** Pooled, the distress share falls steadily with speed: 31.2 % [26.0, 36.8] below 3 m/s, 20.7 % at 3–6, 11.8 % at 6–9 and 6.5 % [3.6, 11.6] above 9 m/s. Because slow and fast stretches may be different roads, each segment was also compared with its own drive's median. Within drives, segments slower than the median are still distressed more often (20.8 % [19.2, 22.5] vs 11.7 % [10.5, 13.1], 31 drives), and sharper-than-median frames too (19.1 % vs 13.5 %). ISO shows almost no within-drive association (17.7 % vs 15.8 %), and the pooled ISO gradient (11.9 % to 19.3 %) is between roads. Two explanations fit and the data cannot separate them: drivers slow down on damaged roads, or slow, sharp frames let the model see damage it misses at speed. Either way the "% of length" of a road depends partly on how it was driven. A survey protocol should fix a target speed, and the model's sensitivity to blur needs a controlled test: the same road at two speeds.
+
+**(3) Why half the answers go to expert review.** 2,279 of 4,640 answers (49.1 %) are flagged: 42.5 % of Normal answers and 83.1 % of distress answers. Reasons: Stage 1 confidence below 0.80 (55.7 %), the Stage 1 safety net (23.1 %: the model said Normal, but the per-type probe saw a likely distress), both stages below 0.80 (15.9 %), and Stage 2 alone (5.4 %). Stage 1 is the main source: its median confidence is 0.88 on Normal answers and 0.72 on distress answers. So most distress answers are uncertain about whether there is distress at all, not about its type. Review rates by label range from 44.8 % (alligator cracking) to 99.3 % (bleeding) and 100 % (edge breaking), so experts should start with the labels the model is least sure of. Review load also rises with ISO, from 35.2 % to 61.1 %: low light makes the model unsure without changing how often it reports distress.
+
+**(4) Time from inbox to map.** Over 29 drives (18.8 km, 3,761 segments, 6.38 h), the whole chain costs 6.11 s per segment. It is explained almost exactly (R² 0.997) by **4.7 s per segment plus 10.3 s for each distress answer**, with no measurable fixed cost per drive. Per segment the time splits into model 4.94 s (80.8 %) and extraction 0.99 s (16.2 %); validation, export, import, storage, verification and clean-up take 0.19 s together. Two consequences:
+- Time per km is not a constant. It depends on how damaged the road is: about 16 min/km on a clean road and 28 min/km at 35 % distress (200 segments per km).
+- The only lever left is the model's Stage 2 on distress frames. The rest of the pipeline is 19 % of the time.
+
+A drive appears on the GIS map when it is stored: the GIS reads the database directly.
+
+![Figure 8.14 — Agreement between drives over the same spot](../eval_results/plots/paper/fig_v14_repeatability.png)
+
+![Figure 8.15 — Distress and review rate by ISO, speed and blur](../eval_results/plots/paper/fig_v15_capture_conditions.png)
+
+![Figure 8.16 — Stage 1 confidence and the reasons for review](../eval_results/plots/paper/fig_v16_review_reasons.png)
+
+![Figure 8.17 — Time from inbox to map per drive](../eval_results/plots/paper/fig_v17_latency_model.png)
+
+### 8.9 Limitations
+
+(1) The reference is the model, not engineers: the gate's recall and precision, and every "% of length", inherit the model's errors (on Attain its Stage 1 found about half of distressed frames). (2) 25 drives over 20.4 km, recorded on two days (26–27 Oct 2026) with one phone; per-drive differences mix road, light, speed and focus, and the 22 later drives were gated, so their shares are not directly comparable with the send-all first three. Driving speed is associated with the answer even within a drive (§8.8), and repeatability between drives is not yet measured. (3) Positions are phone GNSS (σ ≈ 6 m) without latency correction (no drive had enough braking events for the automatic estimate) and without map-matching; chainage is absent because no start chainage was entered. (4) The full frame shows road beyond the segment, so a label can come from outside it; positive segments cluster more than chance (P(positive | previous positive) 0.43–0.60 against base rates 0.18–0.38), which may inflate "% of length" (§8.6). (5) The model's labels are per segment, not measurements of extent; "% of length" counts a whole segment for any distress in it, as IRC:82 section ratings by length do, but it is not an area.
 
 ---
 

@@ -1,0 +1,502 @@
+{
+ "generated_by": "scripts/video_survey_evals.py",
+ "n_drives": 34,
+ "n_segments": 5011,
+ "n_answered": 4640,
+ "repeatability": {
+  "definition": "mutual nearest answered segment centres of two different drives",
+  "by_distance": [
+   {
+    "n_pairs": 34,
+    "agreement": 0.9706,
+    "chance_agreement": 0.9706,
+    "pairs_with_any_distress": 1,
+    "positive_agreement": 0.0,
+    "kappa": 0.0,
+    "positive_rate": 0.0147,
+    "from_m": 0,
+    "to_m": 2,
+    "kappa_ci95": null
+   },
+   {
+    "n_pairs": 28,
+    "agreement": 0.8571,
+    "chance_agreement": 0.8648,
+    "pairs_with_any_distress": 4,
+    "positive_agreement": 0.0,
+    "kappa": -0.0566,
+    "positive_rate": 0.0714,
+    "from_m": 2,
+    "to_m": 5,
+    "kappa_ci95": [
+     -0.6,
+     0.0
+    ]
+   },
+   {
+    "n_pairs": 7,
+    "agreement": 0.5714,
+    "chance_agreement": 0.449,
+    "pairs_with_any_distress": 4,
+    "positive_agreement": 0.25,
+    "kappa": 0.2222,
+    "positive_rate": 0.3571,
+    "from_m": 5,
+    "to_m": 10,
+    "kappa_ci95": [
+     -0.0,
+     1.0
+    ]
+   },
+   {
+    "n_pairs": 3,
+    "agreement": 1.0,
+    "chance_agreement": 1.0,
+    "pairs_with_any_distress": 0,
+    "positive_agreement": null,
+    "kappa": null,
+    "positive_rate": 0.0,
+    "from_m": 10,
+    "to_m": 20,
+    "kappa_ci95": null
+   }
+  ],
+  "same_direction_le5m": null,
+  "le5m_all": {
+   "n_pairs": 62,
+   "agreement": 0.9194,
+   "chance_agreement": 0.9214,
+   "pairs_with_any_distress": 5,
+   "positive_agreement": 0.0,
+   "kappa": -0.0265,
+   "positive_rate": 0.0403,
+   "kappa_ci95": [
+    -0.6,
+    0.0
+   ],
+   "drive_pairs": 4
+  },
+  "le5m_all_potholes": {
+   "n_pairs": 62,
+   "agreement": 0.9516,
+   "chance_agreement": 0.9516,
+   "pairs_with_any_distress": 3,
+   "positive_agreement": 0.0,
+   "kappa": 0.0,
+   "positive_rate": 0.0242,
+   "kappa_ci95": [
+    -0.0,
+    0.0
+   ]
+  },
+  "le5m_same_direction": {
+   "n_pairs": 59,
+   "agreement": 0.9492,
+   "chance_agreement": 0.9492,
+   "pairs_with_any_distress": 3,
+   "positive_agreement": 0.0,
+   "kappa": 0.0,
+   "positive_rate": 0.0254,
+   "kappa_ci95": null,
+   "drive_pairs": 2
+  },
+  "le5m_same_direction_potholes": {
+   "n_pairs": 59,
+   "agreement": 0.9661,
+   "chance_agreement": 0.9661,
+   "pairs_with_any_distress": 2,
+   "positive_agreement": 0.0,
+   "kappa": 0.0,
+   "positive_rate": 0.0169,
+   "kappa_ci95": null
+  },
+  "le5m_opposite_direction": {
+   "n_pairs": 1,
+   "agreement": 0.0,
+   "chance_agreement": 0.0,
+   "pairs_with_any_distress": 1,
+   "positive_agreement": 0.0,
+   "kappa": 0.0,
+   "positive_rate": 0.5,
+   "kappa_ci95": null,
+   "drive_pairs": 1
+  },
+  "le5m_opposite_direction_potholes": {
+   "n_pairs": 1,
+   "agreement": 0.0,
+   "chance_agreement": 0.0,
+   "pairs_with_any_distress": 1,
+   "positive_agreement": 0.0,
+   "kappa": 0.0,
+   "positive_rate": 0.5,
+   "kappa_ci95": null
+  },
+  "le5m_same_day": {
+   "n_pairs": 62,
+   "agreement": 0.9194,
+   "chance_agreement": 0.9214,
+   "pairs_with_any_distress": 5,
+   "positive_agreement": 0.0,
+   "kappa": -0.0265,
+   "positive_rate": 0.0403,
+   "kappa_ci95": [
+    -0.6,
+    0.0
+   ]
+  },
+  "le5m_different_day": {
+   "n_pairs": 0,
+   "agreement": null,
+   "chance_agreement": null,
+   "pairs_with_any_distress": 0,
+   "positive_agreement": null,
+   "kappa": null,
+   "positive_rate": null,
+   "kappa_ci95": null
+  },
+  "sufficient": false,
+  "note": "insufficient overlap: 62 revisit pairs from 4 drive pairs, 5 with any distress; kappa is not interpretable. Needs repeat drives of the same roads."
+ },
+ "confounds": {
+  "iso": [
+   {
+    "from": 0,
+    "to": 200,
+    "n": 1282,
+    "distress_rate": 0.1186,
+    "distress_ci95": [
+     0.102,
+     0.1374
+    ],
+    "review_rate": 0.3518
+   },
+   {
+    "from": 200,
+    "to": 800,
+    "n": 1902,
+    "distress_rate": 0.1819,
+    "distress_ci95": [
+     0.1652,
+     0.1999
+    ],
+    "review_rate": 0.5042
+   },
+   {
+    "from": 800,
+    "to": 1600,
+    "n": 621,
+    "distress_rate": 0.1932,
+    "distress_ci95": [
+     0.1641,
+     0.2261
+    ],
+    "review_rate": 0.5781
+   },
+   {
+    "from": 1600,
+    "to": null,
+    "n": 835,
+    "distress_rate": 0.1605,
+    "distress_ci95": [
+     0.1371,
+     0.1869
+    ],
+    "review_rate": 0.6108
+   }
+  ],
+  "speed_mps": [
+   {
+    "from": 0,
+    "to": 3,
+    "n": 279,
+    "distress_rate": 0.3118,
+    "distress_ci95": [
+     0.2603,
+     0.3684
+    ],
+    "review_rate": 0.5412
+   },
+   {
+    "from": 3,
+    "to": 6,
+    "n": 1790,
+    "distress_rate": 0.2073,
+    "distress_ci95": [
+     0.1891,
+     0.2267
+    ],
+    "review_rate": 0.5201
+   },
+   {
+    "from": 6,
+    "to": 9,
+    "n": 2418,
+    "distress_rate": 0.1175,
+    "distress_ci95": [
+     0.1052,
+     0.1309
+    ],
+    "review_rate": 0.4739
+   },
+   {
+    "from": 9,
+    "to": null,
+    "n": 153,
+    "distress_rate": 0.0654,
+    "distress_ci95": [
+     0.0359,
+     0.1161
+    ],
+    "review_rate": 0.3333
+   }
+  ],
+  "blur_px": [
+   {
+    "from": 0,
+    "to": 0.5,
+    "n": 123,
+    "distress_rate": 0.2033,
+    "distress_ci95": [
+     0.1416,
+     0.2828
+    ],
+    "review_rate": 0.4959
+   },
+   {
+    "from": 0.5,
+    "to": 1,
+    "n": 1674,
+    "distress_rate": 0.1487,
+    "distress_ci95": [
+     0.1325,
+     0.1666
+    ],
+    "review_rate": 0.4504
+   },
+   {
+    "from": 1,
+    "to": 2,
+    "n": 2195,
+    "distress_rate": 0.1622,
+    "distress_ci95": [
+     0.1474,
+     0.1782
+    ],
+    "review_rate": 0.4948
+   },
+   {
+    "from": 2,
+    "to": null,
+    "n": 648,
+    "distress_rate": 0.1883,
+    "distress_ci95": [
+     0.16,
+     0.2202
+    ],
+    "review_rate": 0.5833
+   }
+  ],
+  "sharpness_quartiles": [
+   {
+    "from": 0.000821,
+    "to": 0.039013,
+    "n": 1160,
+    "distress_rate": 0.1267,
+    "distress_ci95": [
+     0.1088,
+     0.1471
+    ],
+    "review_rate": 0.5853
+   },
+   {
+    "from": 0.039013,
+    "to": 0.085491,
+    "n": 1160,
+    "distress_rate": 0.1672,
+    "distress_ci95": [
+     0.1469,
+     0.1898
+    ],
+    "review_rate": 0.5043
+   },
+   {
+    "from": 0.085491,
+    "to": 0.168094,
+    "n": 1160,
+    "distress_rate": 0.1776,
+    "distress_ci95": [
+     0.1567,
+     0.2006
+    ],
+    "review_rate": 0.4707
+   },
+   {
+    "from": 0.168094,
+    "to": 5.926050001,
+    "n": 1160,
+    "distress_rate": 0.1767,
+    "distress_ci95": [
+     0.1559,
+     0.1997
+    ],
+    "review_rate": 0.4043
+   }
+  ],
+  "within_drive": {
+   "iso": {
+    "n_drives": 28,
+    "spearman_drive_weighted": -0.0151,
+    "below_median_rate": 0.1767,
+    "below_median_ci95": [
+     0.1611,
+     0.1935
+    ],
+    "above_median_rate": 0.1576,
+    "above_median_ci95": [
+     0.1428,
+     0.1738
+    ]
+   },
+   "speed_mps": {
+    "n_drives": 31,
+    "spearman_drive_weighted": -0.0933,
+    "below_median_rate": 0.2082,
+    "below_median_ci95": [
+     0.192,
+     0.2253
+    ],
+    "above_median_rate": 0.117,
+    "above_median_ci95": [
+     0.1045,
+     0.1309
+    ]
+   },
+   "blur_px": {
+    "n_drives": 31,
+    "spearman_drive_weighted": -0.0822,
+    "below_median_rate": 0.1707,
+    "below_median_ci95": [
+     0.1558,
+     0.1867
+    ],
+    "above_median_rate": 0.1544,
+    "above_median_ci95": [
+     0.1401,
+     0.1698
+    ]
+   },
+   "sharpness": {
+    "n_drives": 31,
+    "spearman_drive_weighted": 0.0563,
+    "below_median_rate": 0.135,
+    "below_median_ci95": [
+     0.1216,
+     0.1497
+    ],
+    "above_median_rate": 0.1911,
+    "above_median_ci95": [
+     0.1755,
+     0.2078
+    ]
+   }
+  }
+ },
+ "review": {
+  "n_answered": 4640,
+  "n_flagged": 2279,
+  "flagged_rate": 0.4912,
+  "reasons": {
+   "stage1 below 0.80": 1269,
+   "Stage 1 safety net (Normal, probe sees distress)": 526,
+   "stage1 and stage2 below 0.80": 362,
+   "stage2 below 0.80": 122
+  },
+  "safety_net_top_type": {
+   "Streaking": 123,
+   "Hairline Cracks": 121,
+   "Patching": 108,
+   "Potholes": 91,
+   "Hungry Surface": 29,
+   "Shallow Depression": 18
+  },
+  "safety_net_attributed": true,
+  "by_class": {
+   "normal": {
+    "n": 3888,
+    "flagged": 1654,
+    "rate": 0.4254
+   },
+   "distress": {
+    "n": 752,
+    "flagged": 625,
+    "rate": 0.8311
+   }
+  },
+  "by_label": {
+   "Potholes": {
+    "n": 521,
+    "rate": 0.8253
+   },
+   "Longitudinal Cracking": {
+    "n": 346,
+    "rate": 0.7601
+   },
+   "Bleeding": {
+    "n": 271,
+    "rate": 0.9926
+   },
+   "Transverse Cracking": {
+    "n": 89,
+    "rate": 0.9101
+   },
+   "Alligator Cracking": {
+    "n": 58,
+    "rate": 0.4483
+   },
+   "Edge Breaking": {
+    "n": 67,
+    "rate": 1.0
+   }
+  },
+  "stage1_conf_median": {
+   "normal": 0.8833,
+   "distress": 0.7216
+  }
+ },
+ "throughput": {
+  "n_drives": 29,
+  "km": 18.785,
+  "segments": 3761,
+  "wall_h": 6.384,
+  "s_per_segment": 6.111,
+  "fixed_overhead_s_per_drive": -18.4,
+  "s_per_km": 1251.9,
+  "min_per_km_marginal": 20.87,
+  "r2": 0.9974,
+  "s_per_segment_marginal": 4.72,
+  "s_per_distress_answer_extra": 10.34,
+  "model": "wall_s = fixed + s_per_segment * segments + extra * distress_answers",
+  "stage_share": {
+   "classify": 0.8077,
+   "extract": 0.1619,
+   "export": 0.0086,
+   "store": 0.0073,
+   "cleanup": 0.0067,
+   "validate": 0.0037,
+   "import": 0.0032,
+   "analyze": 0.0009,
+   "collect": 0.0
+  },
+  "stage_s_per_segment": {
+   "classify": 4.935,
+   "extract": 0.989,
+   "export": 0.052,
+   "store": 0.044,
+   "cleanup": 0.041,
+   "validate": 0.023,
+   "import": 0.019,
+   "analyze": 0.006,
+   "collect": 0.0
+  }
+ }
+}
