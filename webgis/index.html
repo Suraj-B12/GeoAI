@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#edeef0">
+  <title>GEOAI — Video surveys</title>
+  <link rel="icon" href="favicon.svg">
+  <link rel="stylesheet" href="vendor/leaflet.css">
+  <link rel="stylesheet" href="vendor/maplibre-gl.css">
+  <link rel="stylesheet" href="vendor/MarkerCluster.css">
+  <link rel="stylesheet" href="vendor/MarkerCluster.Default.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="video-dashboard">
+  <a class="skip-link" href="#workspace">Skip to survey map</a>
+  <header class="topbar">
+    <button type="button" class="brand" id="aboutButton" aria-label="About GEOAI" aria-controls="aboutDialog" title="About GEOAI"><span class="brand-geo">GEO</span><span class="brand-ai">AI</span></button>
+    <nav class="nav-pill" aria-label="Primary">
+      <span class="nav-slider" aria-hidden="true"></span>
+      <button type="button" id="videoNav" class="nav-item active" aria-label="Video surveys" aria-pressed="true"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="13" height="14" rx="3"></rect><path d="m16 10 5-3v10l-5-3"></path></svg><span class="nav-label">Video</span></button>
+      <button type="button" id="surveyNav" class="nav-item" aria-label="Survey overview" aria-pressed="false" aria-controls="overviewDialog" aria-expanded="false"><svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V5M4 19h16"></path><path d="M8 15v-4M12 15V7M16 15v-6"></path></svg><span class="nav-label">Survey</span></button>
+    </nav>
+    <div class="header-context"><span class="status-dot"></span><span>Drive surveys</span><span class="header-region">Bengaluru</span></div>
+  </header>
+  <div class="dashboard-overview">
+  <section class="dashboard-heading" aria-label="Video survey workspace">
+    <div><p class="eyebrow">CURRENT FILTERS · DRIVE VIDEO</p><h1>Video road surveys</h1></div>
+    <div class="dashboard-actions"><button type="button" id="filterButton" class="button filter-action" aria-label="Survey filters" aria-controls="filterDialog" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M7 12h10M10 17h4"></path></svg><span>Filters</span><span id="filterCount" class="count" hidden>0</span></button><details class="export-menu" id="exportControl"><summary class="button" id="exportButton" aria-controls="exportPanel" aria-expanded="false">Export <span aria-hidden="true">↗</span></summary><div class="menu flow-card" id="exportPanel" hidden><button id="exportVideo">Video segments · CSV</button><button id="printButton">Print survey report</button></div></details></div>
+  </section>
+  <section class="stats dashboard-stats" aria-label="Current filters · Drive video" aria-live="polite">
+    <div class="stat"><span class="stat-label">Matching road length <span aria-hidden="true">↗</span></span><strong id="surveyedStat">—</strong><small id="segmentsStat">Loading survey data</small></div>
+    <div class="stat"><span class="stat-label">Distress in selection <span class="tiny-dot distress"></span></span><strong id="distressStat">—</strong><small id="distressDetail">of surveyed length</small></div>
+    <div class="stat"><span class="stat-label">Awaiting expert review <span class="tiny-dot review"></span></span><strong id="reviewStat">—</strong><small>Video segments · model results</small></div>
+    <div class="stat"><span class="stat-label">Classified length <span aria-hidden="true">✓</span></span><strong id="classifiedStat">—</strong><small id="classifiedDetail">Video segments assessed by the model</small></div>
+  </section>
+  <div id="activeFilters" class="active-filters" hidden></div>
+  </div>
+  <div class="toolbar" aria-label="Map tools">
+    <details class="layers-control" id="settingsControl">
+      <summary class="tool-button" id="settingsButton" aria-controls="settingsPanel" aria-expanded="false" title="Map settings and layers" aria-label="Map settings and layers"><svg  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33A1.65 1.65 0 0 0 14 20.83V21a2 2 0 0 1-4 0v-.17A1.65 1.65 0 0 0 9 19.32a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15 1.65 1.65 0 0 0 3.17 14H3a2 2 0 0 1 0-4h.17A1.65 1.65 0 0 0 4.68 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68 1.65 1.65 0 0 0 10 3.17V3a2 2 0 0 1 4 0v.17A1.65 1.65 0 0 0 15 4.68a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.32 9 1.65 1.65 0 0 0 20.83 10H21a2 2 0 0 1 0 4h-.17A1.65 1.65 0 0 0 19.4 15Z"></path></svg></summary>
+      <div class="layer-options flow-card" id="settingsPanel" hidden>
+        <div class="settings-label">MAP LAYERS</div>
+        <label><input type="checkbox" data-layer="video" checked> Condition ribbon</label>
+        <label><input type="checkbox" data-layer="track" checked> Drive tracks</label>
+        <label><input type="checkbox" data-layer="coverage"> Coverage status</label>
+        <label><input type="checkbox" data-layer="heat"> Severity heatmap</label>
+        <label><input type="checkbox" data-layer="wards"> Historical BBMP wards</label>
+        <div class="settings-divider"></div>
+        <button class="theme-button" id="themeButton" aria-label="Switch to dark theme"><svg  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.9 13.1A9 9 0 0 1 10.9 3.1 9 9 0 1 0 20.9 13.1Z"></path></svg><span>Switch map theme</span></button>
+      </div>
+    </details>
+  </div>
+  <section class="drive-control glass" id="driveControl" aria-label="Drive selection">
+    <button type="button" class="distance-total drive-toggle" id="driveToggle" aria-label="Choose a drive" aria-controls="drivePanel" aria-expanded="false"><svg  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="6" r="2"></circle><circle cx="19" cy="18" r="2"></circle><path d="M7 6h8a4 4 0 0 1 0 8H9a2 2 0 0 0 0 4h8"></path></svg><strong id="totalDistance">Loading distance…</strong><span class="source-tag">VIDEO</span><svg class="drive-chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m6 8 4 4 4-4"/></svg></button>
+    <div id="drivePanel" class="drive-panel flow-card" hidden>
+    <label class="drive-label" for="driveSelect">Inspect a drive</label>
+    <select id="driveSelect" disabled><option value="">Loading drives…</option></select>
+    <p id="driveDetails" class="drive-details">All recorded routes are shown on the map.</p>
+    <div class="drive-actions"><button id="driveFocus" type="button">Show all routes</button><button id="driveReplay" type="button">Replay drive</button></div>
+    </div>
+  </section>
+  <div id="notice" class="notice" role="status" hidden><span id="noticeText"></span><button id="retryButton">Retry now</button></div>
+  <main id="workspace" class="workspace" tabindex="-1">
+    <section class="map-panel" aria-label="Survey map">
+      <div id="surveyMap" aria-label="Map of road surveys in Bengaluru"></div>
+      <div class="map-tools"><button id="fitButton" class="tool-button" title="Fit surveys" aria-label="Fit surveys to map"><svg  viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M21 16v5h-5M3 16v5h5"></path><circle cx="12" cy="12" r="3"></circle></svg></button></div>
+      <div class="map-caption"><span class="diamond"></span> Drive-video segment <span class="caption-note">Approximate GNSS position</span></div>
+      <div id="mapEmpty" class="map-empty" hidden>No segments match these filters.<button class="text-button" id="clearEmpty">Clear filters</button></div>
+    </section>
+  </main>
+      <details class="legend-control" id="legendControl"><summary class="map-button" id="legendButton" aria-controls="legend" aria-expanded="false">Map legend</summary><div id="legend" class="legend-content flow-card" hidden></div></details>
+
+    <svg id="cardConnector" class="card-connector" aria-hidden="true"><line></line></svg>
+    <aside id="detailPanel" class="detail-panel panel compact" aria-label="Selected observation"></aside>
+    <section id="stripPanel" class="strip-panel panel" aria-label="Drive frame strip" hidden>
+      <div class="strip-heading"><button id="closeStrip" class="icon-button strip-close" aria-label="Close route player">×</button><div class="strip-title"><p class="eyebrow">FRAME BY FRAME</p><h2 id="stripTitle">Along the route</h2></div><div class="playback"><button id="previousButton" class="icon-button" aria-label="Previous segment">‹</button><button id="playButton" class="play-button" aria-label="Play along route">▶ <span>Play route</span></button><button id="nextButton" class="icon-button" aria-label="Next segment">›</button><label class="speed-label">Speed <select id="speedSelect" aria-label="Playback speed"><option value="1">1×</option><option value="2" selected>2×</option><option value="3">3×</option><option value="5">5×</option></select></label><span id="stripPosition" class="mono">—</span></div></div>
+      <div id="stripViewport" class="strip-viewport" tabindex="0" role="listbox" aria-label="Survey frames; use left and right arrow keys"><div id="stripTrack" class="strip-track"></div></div>
+      <div class="strip-footer"><span>Distance from drive start</span><span>← → to step · click a frame to inspect</span></div>
+    </section>
+  <div class="map-status glass" role="status"><span class="status-dot"></span><span id="mapScope">All drive surveys</span><span class="status-divider"></span><span id="dataStatus">Connecting…</span></div>
+  <dialog id="overviewDialog" class="overview-dialog flow-card survey-flow" aria-labelledby="overviewTitle" aria-modal="false">
+    <div class="dialog-heading"><div><p class="eyebrow">DRIVE SURVEY REPORT</p><h2 id="overviewTitle">Survey analysis</h2></div><button class="icon-button" data-close="overviewDialog" aria-label="Close overview">×</button></div>
+
+
+    <aside class="sidebar panel" aria-label="Drive sessions">
+      <div class="panel-heading"><div><p class="eyebrow">EXPLORE</p><h2>Drive surveys <span id="sessionCount" class="subtle">—</span></h2></div><button id="allDrives" class="text-button">View all</button></div>
+      <div class="sidebar-scroll"><div id="sessions" class="sessions"><div class="empty">Loading your drives…</div></div><section class="condition-summary"><div class="section-heading"><h3>Condition by length</h3><span class="mini-label">BY LENGTH</span></div><p id="breakdownScope" class="muted small">All drives · current filters</p><div id="labelBars"></div><p class="muted footnote">A segment can have several distress labels. Percentages may overlap.</p><button id="insightsButton" class="button wide">Explore per-km report <span aria-hidden="true">↗</span></button></section></div>
+
+    </aside>
+
+    <div class="overview-footer"><button id="mobileInsights" class="button">Per-km report</button></div>
+  </dialog>
+  <dialog id="filterDialog" class="filter-dialog flow-card filter-flow" aria-label="Survey filters" aria-modal="false"><form id="filterForm"><div class="dialog-heading"><div><p class="eyebrow">REFINE THE VIEW</p><h2>Survey filters</h2></div><button type="button" class="icon-button" data-close="filterDialog" aria-label="Close filters">×</button></div><div class="filter-body">
+    <div class="filter-grid"><label>From date · IST<input name="date_from" type="date"></label><label>Through date · IST<input name="date_to" type="date"></label></div>
+    <fieldset><legend>Distress type</legend><div id="labelFilters" class="label-filters"></div></fieldset>
+    <fieldset><legend>Severity</legend><div id="severityFilters" class="chip-options"></div></fieldset>
+    <div class="filter-grid"><label>Review state<select name="review"><option value="all">All observations</option><option value="needs">Awaiting expert review</option><option value="reviewed">Expert-reviewed</option></select></label><label>Model result<select name="vlm_class" id="classFilter"><option value="">All results</option></select></label></div>
+    <label>Session / drive · video only<select name="session" id="sessionFilter"><option value="">All drives</option></select></label>
+    <label>Gate status · video only<select name="status" id="statusFilter"><option value="">All gate statuses</option></select></label>
+    <label class="check-row"><input name="highConfidence" type="checkbox"><span id="confidenceFilterLabel">High confidence only</span></label>
+  </div><div class="dialog-footer"><button type="button" id="resetFilters" class="text-button">Reset filters</button><button class="button primary" type="submit">Apply filters</button></div></form></dialog>
+  <dialog id="aboutDialog" class="flow-card about-flow" aria-label="About the survey data" aria-modal="false"><div class="dialog-heading"><div><p class="eyebrow">READING THE SURVEY</p><h2>Evidence, with context.</h2></div><button class="icon-button" data-close="aboutDialog" aria-label="Close about the data">×</button></div><div class="prose"><p>Each drive is divided into approximately 5 m road segments. The sharpest usable full frame is assessed against the IRC:82-2015 distress taxonomy. A coloured ribbon shows the condition along the route.</p><h3>Model results need human judgement</h3><p>The model is a reference, not ground truth. On a labelled benchmark, Stage 1 found about half of distressed frames. Results below <span id="aboutThreshold">the confidence threshold</span> await an expert. A reviewed badge marks human confirmation or correction.</p><h3>Coverage is not a diagnosis</h3><p><strong>Surveyed</strong> means a segment was covered, including frames the detector chose not to send. <strong>Classified</strong> means the model answered Normal or Distress. <strong>Not covered</strong> means no usable frame; it never means a healthy road.</p><h3>Location and time</h3><p>Positions are approximate phone GNSS fixes. The selection circle represents one standard deviation (typically ±6 m), not a precise survey boundary. Times are displayed in India Standard Time. MSL altitude is only shown when explicitly supplied.</p><h3>Reading totals</h3><p>All observations in this workspace come from drive-video surveys. Distress labels may overlap on one segment, so their percentages must not be added. Per-km coverage bars use mutually exclusive classes.</p><h3>Ward boundaries</h3><p>The optional overlay uses historical BBMP ward boundaries for context, not current administrative assignment. Source and attribution are provided with the boundary data.</p></div></dialog>
+  <dialog id="insightsDialog" class="insights-dialog"><div class="dialog-heading"><div><p class="eyebrow">SURVEY REPORT</p><h2 id="insightsTitle">Road condition by kilometre</h2></div><button class="icon-button" data-close="insightsDialog" aria-label="Close report">×</button></div><div id="insightsBody" class="prose"></div></dialog>
+  <noscript>This survey viewer needs JavaScript to load the map and road assessments.</noscript>
+  <script src="config.js"></script><script src="vendor/leaflet.js"></script><script src="vendor/maplibre-gl.js"></script><script src="vendor/leaflet-maplibre-gl.js"></script><script src="vendor/leaflet.markercluster.js"></script><script src="vendor/leaflet-heat.js"></script><script src="data.js"></script><script src="basemaps.js"></script><script src="map.js"></script><script src="app.js"></script>
+</body>
+</html>

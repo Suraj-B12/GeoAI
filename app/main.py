@@ -315,6 +315,14 @@ if _test_fixtures_enabled() and TEST_FIXTURES_DIR.exists():
 from app.gis_routes import install as install_gis  # noqa: E402
 install_gis(app)
 
+# The public test website (/try) and the expert review page (/expert), served so a demo needs only
+# the server's own address. Both are static; /classify still checks API_KEYS, and the expert page
+# talks to Supabase with its anon key under row-level security (migration 003).
+from fastapi.staticfiles import StaticFiles as _Static  # noqa: E402
+for _route, _folder in (("/try", PROJECT_ROOT / "test_website"), ("/expert", PROJECT_ROOT / "expert_ui")):
+    if (_folder / "index.html").exists():
+        app.mount(_route, _Static(directory=str(_folder), html=True), name=_route.strip("/"))
+
 # Drive-video pipeline: /operator/video/* router + its service inside the lifespan above.
 from app.video_routes import install as install_video_pipeline  # noqa: E402
 install_video_pipeline(app)

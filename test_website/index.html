@@ -501,6 +501,9 @@
             <input type="text" id="api-url" placeholder="https://your-tunnel.trycloudflare.com">
             <button class="btn" id="btn-connect" onclick="testConnection()">Connect</button>
         </div>
+        <div class="connection-row" style="margin-top:8px">
+            <input type="password" id="api-key" placeholder="API key (only if the server requires one)" autocomplete="off">
+        </div>
         <div class="connection-info" id="conn-info"></div>
     </div>
 
@@ -590,6 +593,9 @@
 // STATE
 // ============================================================
 let apiUrl = '';
+if (location.protocol.startsWith('http')) {
+    document.addEventListener('DOMContentLoaded', () => { if (!$('api-url').value) $('api-url').value = location.origin; });
+}
 let connected = false;
 let selectedFile = null;
 let selectedPreviewUrl = null;
@@ -731,8 +737,10 @@ async function analyzeImage() {
     form.append('file', selectedFile);
 
     try {
+        const key = $('api-key').value.trim();
         const response = await fetch(apiUrl + '/classify/stream', {
             method: 'POST',
+            headers: key ? { 'X-API-Key': key } : {},
             body: form,
         });
 

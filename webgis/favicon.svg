@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- GeoAI brand mark — outlined G on a soft surface, mirrors the
+       Rostex Outline + monochrome aesthetic used throughout the app. -->
+  <rect width="64" height="64" rx="14" fill="#EDEEF0"/>
+  <text x="32" y="46"
+        font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="44" font-weight="900"
+        fill="none" stroke="#1A1A1C" stroke-width="2"
+        text-anchor="middle"
+        paint-order="stroke fill">G</text>
+</svg>
