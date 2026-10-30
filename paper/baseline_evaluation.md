@@ -44,6 +44,12 @@
 > **Revision 2026-10-30 (evening) — all 29 Oct drives.** §8.7 and §8.8 recomputed on 40 toggle drives
 > (37.92 km; 27 Oct vs 29 Oct side by side) and 43 drives in all; two portrait-mounted drives refused;
 > reversing-detection defect found at scale and fixed (GeoAI_Video `9043515`).
+
+> **Revision 2026-10-31 — Grad-CAM.** New §6.10 and §7.11: Grad-CAM of the per-type probe on all 769
+> Attain frames with distress boxes (1,884 frame–class pairs), against a location prior, under a
+> pre-registered rule. It fails the rule (macro pointing hit 0.258 vs 0.226, Δ +0.032 [−0.042, +0.130]).
+> Its suggested boxes never match an annotated box. No heatmap is added to the expert UI. Figures 6.10a–b by
+> `scripts/gradcam_localization_report.py` (no inference).
 >
 > **Reading guide.** Results were produced by four successive pipeline versions; every table
 > names the one it used:
@@ -52,7 +58,7 @@
 > | P1 (2026-03) | v1 plain, RDD codes D00–D40 | none | §6.1 |
 > | P2 (2026-05) | v1 plain, RDD codes | QLoRA `v2-rdd-2epochs-20260507` | §6.2, §6.3 (config C) |
 > | P3 (2026-05-16) | v2 Improved Baseline, pre-IRC names | none | §6.3 (config B) |
-> | **P4 (2026-09, production)** | **v2, IRC:82-2015 names** | **none** | §6.5–6.9, T7 |
+> | **P4 (2026-09, production)** | **v2, IRC:82-2015 names** | **none** | §6.5–6.10, T7 |
 
 ---
 
@@ -978,6 +984,61 @@ A type's score combines the full-photo P(yes) with the views' P(yes). The hypoth
 
 **What production does.** The full photograph remains the decision view. Tiling is the stronger method, and Attain cannot settle whether it helps on Bengaluru close-ups, so production **records** per-tile scores on every upload (`views.record`) without using them. When experts label uploads, `scripts/calibrate_probe_from_expert_labels.py` fits thresholds for both score sources and picks the better on held-out labels. Run on Attain frames standing in for labelled uploads, it reproduces the cross-validated numbers through this separate code path (free-form list 0.125, full-photo probe 0.253, tiled probe 0.308) and selects tiling (`scripts/tests/test_calibrate_from_expert_labels.py`).
 
+### 6.10 Where the Model Looks: Grad-CAM Against Annotated Boxes
+
+Two uses were proposed for a heatmap of where the model looks. The first is a switch in the expert UI that highlights the damage so a reviewer finds it faster. The second is a source of draft bounding boxes for a public Bengaluru dataset. Both need the heatmap to point at the damage more often than a simple guess would. We tested that on Attain before building either.
+
+**What is explained.** For one photograph and one IRC type, the per-type probe (§3.4.1) gives a single number: the log-odds of "Yes" against "No" at the answer position. Grad-CAM traces that number back to the image (`scripts/stage2_gradcam.py`). Qwen2.5-VL represents the resized photograph as a grid of image tokens, one per 28 × 28 px block, so a 1920×1080 frame becomes a 27 × 48 grid. At a chosen layer we take the hidden states of those tokens (A) and the gradient of the log-odds with respect to them (G). Two maps are formed per layer: classic Grad-CAM, ReLU(Σ_c mean_t G·A), and gradient × activation, ReLU(Σ_c G·A). Six layers were tried: the vision encoder output and decoder layers 4, 8, 14, 20 and 27, giving 12 variants. The setup matches production: the 4-bit base model, the 1024² cap and the production probe question. Over all 2,571 explanations, the explained P(yes) matched the probe score stored in §6.8 within 0.037 (median 0.005), so the map explains the same answer production computes. Weights stay frozen. Gradient checkpointing on the decoder layers gives maps identical to the unchecked version (correlation 1.0000) at a peak of 11.6 GB instead of 16.4 GB. One explanation takes a median 1.93 s on the A5000.
+
+**Protocol.** The protocol was recorded before the GPU run (`eval_results/gradcam_localization_preregistration.json`, addendum 1 before scoring).
+- **Unit:** a (frame, Attain class) pair with at least one box of that class: 1,884 pairs on 769 frames, using the §6.8 block split (608 development, 1,276 test).
+- **Metric (pointing game):** a pair is a hit if the centre of the map's hottest cell lies inside an annotated box of that class, each box widened by half a cell.
+- **Variant choice:** the variant was chosen by development hit rate only.
+- **Baseline (location prior):** the bar any heatmap must clear is "where this damage usually is". For each class and frame size, the prior is the cell most often inside a box on development frames.
+- **Adoption rule:** the test macro hit rate over 7 classes must beat the prior with a 95% cluster-bootstrap interval (20-frame blocks) that excludes zero. Only then would the switch be built, and only for classes that individually beat the prior.
+
+**Table 6.10a — Test split (1,276 pairs)**
+
+| | Macro pointing hit rate [95% CI] |
+|---|---:|
+| Grad-CAM, gradient × activation at decoder layer 8 (development choice) | 0.258 [0.217, 0.302] |
+| Location prior (development) | 0.226 [0.150, 0.283] |
+| Uniform chance | 0.078 |
+| **Grad-CAM − prior** | **+0.032 [−0.042, +0.130]**, p = 0.42 |
+
+**The pre-registered rule is not met.** Source: `eval_results/gradcam_localization_report.json`.
+
+**Table 6.10b — Per class (test)**
+
+| Class | Pairs | Grad-CAM hit | Prior hit | Δ [95% CI] | Cell AUROC, Grad-CAM / prior | Suggested box IoU ≥ 0.5 |
+|---|---:|---:|---:|---:|---:|---:|
+| Linear crack | 459 | 0.27 | 0.12 | **+0.14 [+0.07, +0.23]** | 0.52 / 0.73 | 0.4% |
+| Alligator crack | 378 | 0.36 | 0.31 | +0.05 [−0.09, +0.17] | 0.55 / 0.80 | 0.3% |
+| Pothole | 101 | 0.38 | 0.07 | **+0.31 [+0.18, +0.44]** | 0.65 / 0.53 | 2.0% |
+| Raveling | 70 | 0.06 | 0.23 | −0.17 [−0.45, 0.00] | 0.51 / 0.64 | 0% |
+| Weathering | 144 | 0.31 | 0.39 | **−0.09 [−0.17, −0.01]** | 0.50 / 0.69 | 0% |
+| Patch and utility cut | 106 | 0.16 | 0.41 | −0.25 [−0.59, +0.21] | 0.53 / 0.75 | 0.9% |
+| Block crack | 18 | 0.28 | 0.05 | +0.23 [+0.13, +0.42] | 0.56 / 0.72 | 0% |
+
+*Cell AUROC ranks every map cell against "inside an annotated box"; 0.5 is chance. The suggested box surrounds the connected cells at ≥ 50% of the map's maximum around the hottest cell. The block-crack row rests on 18 pairs from a few blocks.*
+
+![Figure 6.10a — Pointing-game hit rate per class](../eval_results/plots/paper/fig_6_10a_gradcam_pointing.png)
+
+*Figure 6.10a — Test pointing-game hit rate per class with 95% block-bootstrap intervals: Grad-CAM (gradient × activation, decoder layer 8) against the development location prior; red ticks mark uniform chance.*
+
+![Figure 6.10b — Example maps](../eval_results/plots/paper/fig_6_10b_gradcam_examples.png)
+
+*Figure 6.10b — The first test frame of each class, not selected: annotated boxes in blue, the hottest cell circled in yellow, the map in red. Five of six are misses. The maps are scattered points rather than regions, and the hottest point often sits on a lane marking or kerb edge.*
+
+**Findings.**
+1. **The heatmap points at the damage only for objects with a clear outline.** For potholes it beats the prior by 31 points (0.38 vs 0.07). It is also ahead for linear cracks (+0.14) and block cracks (+0.23). For the texture classes it does not beat a fixed guess, and for weathering it is significantly worse.
+2. **Only the peak carries information; the rest of the map is noise.** Cell AUROC is 0.50–0.56 for every class except potholes (0.65), while the location prior ranks cells at 0.64–0.80. A reviewer looking at the whole overlay would see speckle spread across the road (Figure 6.10b).
+3. **It cannot draw boxes.** The suggested box overlaps an annotated box at IoU ≥ 0.5 on 0–2% of pairs and covers about 0.1% of the frame: one or two cells. Grad-CAM marks a point, not an extent, so it is not a source of draft boxes for a dataset release.
+4. **The map is better when the probe says Yes.** On test pairs with P(yes) > 0.5 (424, of which 354 are linear cracks), the hit rate is 0.355 against the prior's 0.060. On the others it is 0.243 against 0.231. This split was not part of the rule and is descriptive.
+5. **The decoder's middle layers localise best.** Gradient × activation beat classic Grad-CAM at every layer, and layer 8 (0.221 on development) beat the vision encoder output (0.106) and the last layer (0.087). Classic Grad-CAM averages the gradient over all image tokens, which discards the per-token signal that is the whole point here.
+
+**Decision.** No heatmap switch is added to the expert UI. The module stays in the repository for analysis and for a possible re-test on expert-labelled Bengaluru uploads.
+
 ---
 
 ## 7. Discussion
@@ -1083,6 +1144,14 @@ Production therefore keeps the whole-field gate at 0.80 and the unmodified promp
 **Looking closer did not fix it.** Tiles and zoom crops give the probe more pixels per crack. Tiling helped linear cracks, ravelling and weathering and cross-validated macro MCC rose from 0.248 to 0.308, but test macro AUROC did not rise significantly, and alligator cracking got worse. The model's own damage boxes were too unreliable for find-then-zoom to help, and even crops placed on the annotated damage added only +0.008 test AUROC (§6.9). On these frames the probe's remaining errors are mostly about recognising the distress, not about finding it. That points at the per-type classifiers on the model's internal features, trained once local labels exist, rather than at more elaborate cropping.
 
 **Limitations.** (1) All labelled evidence is from one dataset (Attain WS_V2.0), whose frames and annotation practice differ from production. (2) The 78 no-distress frames are the only all-negative examples, so specificity estimates are wide. (3) The development split (15 blocks) was too small to tune per-class choices; the cross-validated configuration is the one deployed. (4) Twelve of the eighteen IRC types have no labelled data at all, so the probe may only remove them; its removals (e.g. Bleeding on 45 of 52 uploads) are unvalidated. (5) Severity is unchanged and not evaluated here. Attain labels only High or Low and the image-level maximum is High on most frames, while the model mostly answers Medium, so exact-match severity accuracy on Attain (§6.3) measures the vocabulary mismatch more than the model. (6) The description sentence still comes from the free-form generation and can mention types the probe would remove.
+
+### 7.11 Why a Heatmap Is Not Shown to Experts
+
+A heatmap in the review screen is persuasive. When it is right it saves the reviewer a search; when it is wrong it draws the eye away from the damage, and a reviewer has no way to tell which case they are in. §6.10 shows that the wrong case is common. Averaged over the seven Attain classes, the hottest point of the probe's Grad-CAM lands on the annotated damage about as often as a fixed per-class guess (0.258 vs 0.226). For ravelling, weathering and patches it does worse than that guess, and the rest of the map is close to random. These are the texture-like classes, which cover large areas without a sharp edge. For them the model's "Yes" seems to come from the overall look of the surface, not from one place, so there is no single place for a gradient to point to. Potholes are the exception: a compact object with a dark edge, found three times in eight against one in fourteen for the guess.
+
+Two limits apply. First, Attain annotates damage incompletely. Some frames carry a single pothole box across a road covered in cracks (Figure 6.10b, third panel), so a "miss" can land on real, unannotated damage. This lowers Grad-CAM's hit rate and the prior's alike, and the comparison between them stands. Second, Attain's vehicle-mounted strips are not Bengaluru's handheld close-ups. On a close-up, the damage fills more of the frame and any map has an easier job. Whether a pothole-only highlight is worth showing is a question for expert-labelled uploads, tested the same way, not for a design choice made now.
+
+For a dataset release the answer is clearer. A box needs an extent, and the maps give a point: suggested boxes reached IoU ≥ 0.5 on at most 2% of pairs. Drafting boxes for a public dataset needs a detector trained on boxes, or experts drawing them, not attribution maps of a classifier.
 
 ---
 
@@ -1455,7 +1524,7 @@ All 341 processed rows were re-classified on 2026-09-26 under the configuration 
 
 ### T7.5 Reproducing the figures
 
-Figures 6.5–6.9 (including 6.8a–b) are drawn by `scripts/generate_paper_figures.py` from the stored result files, in one style. No figure requires inference.
+Figures 6.5–6.9 (including 6.8a–b) are drawn by `scripts/generate_paper_figures.py` from the stored result files, in one style. Figures 6.10a–b are drawn by `scripts/gradcam_localization_report.py` from the stored maps. No figure requires inference.
 
 ---
 

@@ -59,6 +59,7 @@ for everything below.
 | Tiles vs full photo (probe) | test AUROC +0.020 (CI incl. 0); CV MCC 0.248 → 0.308 | Attain | §6.9 |
 | Worker time per upload | ~11 s at 1024² (272 s uncapped), + ~1.5 s shadow probe, + ~6.5 s recorded tiles | A5000 | §6.6, T7 |
 | Production review load | 213 of 361 uploads in expert_review | Bengaluru | T7.2 |
+| Grad-CAM of the probe vs location prior | pointing hit 0.258 vs 0.226, Δ +0.032 [−0.042, +0.130] — FAIL; pothole +0.31, suggested boxes IoU≥0.5 on ≤2% | Attain, 1,884 pairs | §6.10 |
 
 **What is decided (with evidence — don't re-litigate without new data):**
 | Decision | Evidence | Paper |
@@ -70,6 +71,7 @@ for everything below.
 | NOT "most prominent first" prompt | first label unchanged, false positives up (p = 0.021) | §6.7 |
 | Probe in shadow, not live | doubles Attain macro MCC, but Attain thresholds add Ravelling to 98% of Bengaluru uploads | §6.8 |
 | Full photo, tiles recorded only | tiles +0.020 AUROC (CI incl. 0); find-then-zoom worse | §6.9, Fig 6.9 |
+| NO Grad-CAM heatmap in expert UI; not a box source | fails pre-registered rule vs location prior; maps are points, not regions | §6.10, §7.11 |
 
 **Next steps, in order:**
 1. Get expert labels: experts review uploads in `expert_ui/` (only 1 so far).

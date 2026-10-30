@@ -1,0 +1,3 @@
+# Grad-CAM maps (float16 npz, ~1 per Attain frame) - regenerate with scripts/gradcam_localization_experiment.py
+*
+!.gitignore

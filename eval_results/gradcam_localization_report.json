@@ -1,0 +1,358 @@
+{
+  "generated_by": "scripts/gradcam_localization_report.py",
+  "preregistration": "eval_results/gradcam_localization_preregistration.json",
+  "pass_rule": "difference > 0 AND its 95% cluster-bootstrap CI (20-frame blocks, B = 2000, seed 20260923) excludes 0",
+  "n": {
+    "pairs": 1884,
+    "dev": 608,
+    "test": 1276,
+    "frame_errors": 0,
+    "per_class": {
+      "dev": {
+        "Linear crack": 228,
+        "Alligator crack": 183,
+        "Pothole": 62,
+        "Raveling": 37,
+        "Weathering": 23,
+        "Patch and utility cut": 61,
+        "Block crack": 14
+      },
+      "test": {
+        "Linear crack": 459,
+        "Alligator crack": 378,
+        "Pothole": 101,
+        "Raveling": 70,
+        "Weathering": 144,
+        "Patch and utility cut": 106,
+        "Block crack": 18
+      }
+    },
+    "macro_classes": [
+      "Linear crack",
+      "Alligator crack",
+      "Pothole",
+      "Raveling",
+      "Weathering",
+      "Patch and utility cut",
+      "Block crack"
+    ],
+    "prior_fallbacks_test": 0
+  },
+  "dev_variant_hits": {
+    "gxa@8": 0.2209,
+    "gxa@14": 0.2075,
+    "gxa@4": 0.139,
+    "gxa@0": 0.1061,
+    "gradcam@0": 0.103,
+    "gxa@27": 0.0867,
+    "gxa@20": 0.0788,
+    "gradcam@14": 0.0739,
+    "gradcam@4": 0.0713,
+    "gradcam@20": 0.0614,
+    "gradcam@27": 0.0611,
+    "gradcam@8": 0.0545
+  },
+  "chosen_variant": "gxa@8",
+  "test_variant_hits_descriptive": {
+    "gradcam@0": 0.111,
+    "gxa@0": 0.164,
+    "gradcam@4": 0.099,
+    "gxa@4": 0.191,
+    "gradcam@8": 0.102,
+    "gxa@8": 0.258,
+    "gradcam@14": 0.056,
+    "gxa@14": 0.21,
+    "gradcam@20": 0.09,
+    "gxa@20": 0.081,
+    "gradcam@27": 0.058,
+    "gxa@27": 0.091
+  },
+  "test": {
+    "gradcam_macro_hit": {
+      "point": 0.258,
+      "lo": 0.217,
+      "hi": 0.302
+    },
+    "prior_macro_hit": {
+      "point": 0.226,
+      "lo": 0.15,
+      "hi": 0.283
+    },
+    "chance_macro_hit": 0.078,
+    "delta": {
+      "delta": 0.032,
+      "lo": -0.042,
+      "hi": 0.13,
+      "p": 0.415
+    },
+    "passed": false,
+    "classes_beating_prior": [
+      "Linear crack",
+      "Pothole",
+      "Block crack"
+    ]
+  },
+  "per_class_test": {
+    "Linear crack": {
+      "n_test": 459,
+      "n_dev": 228,
+      "box_area_share_mean": 0.059,
+      "gradcam": {
+        "hit": 0.266,
+        "lo": 0.204,
+        "hi": 0.33,
+        "cell_auroc": 0.523,
+        "energy_ratio": 2.575,
+        "box_iou50": 0.004,
+        "box_frame_share": 0.001
+      },
+      "prior": {
+        "hit": 0.122,
+        "lo": 0.071,
+        "hi": 0.178,
+        "cell_auroc": 0.727,
+        "energy_ratio": 1.851,
+        "box_iou50": 0.0,
+        "box_frame_share": 0.128
+      },
+      "delta": {
+        "delta": 0.144,
+        "lo": 0.065,
+        "hi": 0.225,
+        "p": 0.0
+      },
+      "chance": 0.059,
+      "tiles4": {
+        "n": 459,
+        "hit": 0.093,
+        "cell_auroc": 0.684
+      }
+    },
+    "Alligator crack": {
+      "n_test": 378,
+      "n_dev": 183,
+      "box_area_share_mean": 0.071,
+      "gradcam": {
+        "hit": 0.361,
+        "lo": 0.308,
+        "hi": 0.413,
+        "cell_auroc": 0.55,
+        "energy_ratio": 3.1,
+        "box_iou50": 0.003,
+        "box_frame_share": 0.001
+      },
+      "prior": {
+        "hit": 0.313,
+        "lo": 0.183,
+        "hi": 0.466,
+        "cell_auroc": 0.802,
+        "energy_ratio": 2.856,
+        "box_iou50": 0.0,
+        "box_frame_share": 0.251
+      },
+      "delta": {
+        "delta": 0.048,
+        "lo": -0.091,
+        "hi": 0.169,
+        "p": 0.464
+      },
+      "chance": 0.071,
+      "tiles4": {
+        "n": 378,
+        "hit": 0.145,
+        "cell_auroc": 0.737
+      }
+    },
+    "Pothole": {
+      "n_test": 101,
+      "n_dev": 62,
+      "box_area_share_mean": 0.017,
+      "gradcam": {
+        "hit": 0.376,
+        "lo": 0.237,
+        "hi": 0.511,
+        "cell_auroc": 0.648,
+        "energy_ratio": 8.58,
+        "box_iou50": 0.02,
+        "box_frame_share": 0.002
+      },
+      "prior": {
+        "hit": 0.067,
+        "lo": 0.009,
+        "hi": 0.132,
+        "cell_auroc": 0.529,
+        "energy_ratio": 1.999,
+        "box_iou50": 0.0,
+        "box_frame_share": 0.009
+      },
+      "delta": {
+        "delta": 0.309,
+        "lo": 0.177,
+        "hi": 0.441,
+        "p": 0.0
+      },
+      "chance": 0.017,
+      "tiles4": {
+        "n": 101,
+        "hit": 0.029,
+        "cell_auroc": 0.554
+      }
+    },
+    "Raveling": {
+      "n_test": 70,
+      "n_dev": 37,
+      "box_area_share_mean": 0.056,
+      "gradcam": {
+        "hit": 0.057,
+        "lo": 0.0,
+        "hi": 0.115,
+        "cell_auroc": 0.512,
+        "energy_ratio": 1.313,
+        "box_iou50": 0.0,
+        "box_frame_share": 0.001
+      },
+      "prior": {
+        "hit": 0.231,
+        "lo": 0.076,
+        "hi": 0.477,
+        "cell_auroc": 0.643,
+        "energy_ratio": 2.242,
+        "box_iou50": 0.0,
+        "box_frame_share": 0.093
+      },
+      "delta": {
+        "delta": -0.174,
+        "lo": -0.446,
+        "hi": 0.0,
+        "p": 0.051
+      },
+      "chance": 0.056,
+      "tiles4": {
+        "n": 70,
+        "hit": 0.079,
+        "cell_auroc": 0.627
+      }
+    },
+    "Weathering": {
+      "n_test": 144,
+      "n_dev": 23,
+      "box_area_share_mean": 0.221,
+      "gradcam": {
+        "hit": 0.306,
+        "lo": 0.115,
+        "hi": 0.446,
+        "cell_auroc": 0.502,
+        "energy_ratio": 1.201,
+        "box_iou50": 0.0,
+        "box_frame_share": 0.001
+      },
+      "prior": {
+        "hit": 0.392,
+        "lo": 0.188,
+        "hi": 0.551,
+        "cell_auroc": 0.688,
+        "energy_ratio": 2.371,
+        "box_iou50": 0.0,
+        "box_frame_share": 0.312
+      },
+      "delta": {
+        "delta": -0.087,
+        "lo": -0.168,
+        "hi": -0.013,
+        "p": 0.022
+      },
+      "chance": 0.221,
+      "tiles4": {
+        "n": 144,
+        "hit": 0.251,
+        "cell_auroc": 0.62
+      }
+    },
+    "Patch and utility cut": {
+      "n_test": 106,
+      "n_dev": 61,
+      "box_area_share_mean": 0.059,
+      "gradcam": {
+        "hit": 0.16,
+        "lo": 0.062,
+        "hi": 0.29,
+        "cell_auroc": 0.531,
+        "energy_ratio": 2.334,
+        "box_iou50": 0.009,
+        "box_frame_share": 0.001
+      },
+      "prior": {
+        "hit": 0.408,
+        "lo": 0.042,
+        "hi": 0.665,
+        "cell_auroc": 0.748,
+        "energy_ratio": 4.223,
+        "box_iou50": 0.0,
+        "box_frame_share": 0.066
+      },
+      "delta": {
+        "delta": -0.247,
+        "lo": -0.589,
+        "hi": 0.207,
+        "p": 0.287
+      },
+      "chance": 0.059,
+      "tiles4": {
+        "n": 106,
+        "hit": 0.078,
+        "cell_auroc": 0.614
+      }
+    },
+    "Block crack": {
+      "n_test": 18,
+      "n_dev": 14,
+      "box_area_share_mean": 0.062,
+      "gradcam": {
+        "hit": 0.278,
+        "lo": 0.167,
+        "hi": 0.417,
+        "cell_auroc": 0.559,
+        "energy_ratio": 2.28,
+        "box_iou50": 0.0,
+        "box_frame_share": 0.002
+      },
+      "prior": {
+        "hit": 0.051,
+        "lo": 0.0,
+        "hi": 0.098,
+        "cell_auroc": 0.725,
+        "energy_ratio": 2.005,
+        "box_iou50": 0.0,
+        "box_frame_share": 0.373
+      },
+      "delta": {
+        "delta": 0.227,
+        "lo": 0.13,
+        "hi": 0.417,
+        "p": 0.001
+      },
+      "chance": 0.062,
+      "tiles4": {
+        "n": 18,
+        "hit": 0.091,
+        "cell_auroc": 0.69
+      }
+    }
+  },
+  "by_probe_confidence_test": {
+    "p_yes 0-0.5": {
+      "n": 852,
+      "gradcam": 0.243,
+      "prior": 0.231
+    },
+    "p_yes 0.5-1": {
+      "n": 424,
+      "gradcam": 0.355,
+      "prior": 0.06
+    }
+  },
+  "seconds_per_explanation": {
+    "median": 1.93,
+    "p90": 2.53
+  }
+}

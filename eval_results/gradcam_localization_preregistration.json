@@ -1,0 +1,40 @@
+{
+  "study": "Does the per-type probe's Grad-CAM point at the annotated damage? (Attain WS_V2.0)",
+  "registered": "2026-10-30T22:49:04+05:30",
+  "registered_before": "the full GPU run and before any scoring; 3 smoke frames were looked at only to check memory, timing, P(yes) parity with the stored probe, and that maps are spatially aligned",
+  "code_sha": {
+    "scripts/stage2_gradcam.py": "90118eb41f50",
+    "scripts/gradcam_localization_experiment.py": "779304792b1b"
+  },
+  "model": "Qwen2.5-VL-7B-Instruct base, 4-bit NF4, 1024^2 cap, probe variant from configs/stage2_probe.json (min:name)",
+  "explained_quantity": "log-odds of Yes vs No at the answer position of the probe question for the class",
+  "unit": "(frame, Attain class) pair with >= 1 annotated box of that class; classes = stage2_probe_report.ALL_CLASSES (7); excluded classes (faded marking, drop-off, manhole) ignored",
+  "class_map": "Linear crack has two questions (Longitudinal, Transverse); its map is the one whose P(yes) is higher, matching stage2_probe_report.probe_score",
+  "split": "stage2_probe_report.split(): 20-frame blocks, seed 20260923, 35% of blocks DEV, rest TEST",
+  "variants": "2 methods (gradcam, gxa) x 6 layers (0 = vision output, 4, 8, 14, 20, 27) = 12",
+  "hit_rule": "pointing game: the centre of the map's hottest cell lies inside an annotated box of that class, each box widened by half a map cell on every side (grid quantisation); an all-zero map is a miss; the same rule for every method and baseline",
+  "variant_choice": "highest DEV macro hit rate (classes with >= 10 pairs in both DEV and TEST); ties -> lower layer, then gradcam",
+  "baseline": "location prior learned on DEV: for each (class, frame size) the share of DEV pairs whose boxes cover each map cell (cell centre inside a widened box); its hottest cell is the prior's point for every TEST pair of that class and size. 'Where this damage usually is', the bar any heatmap must clear",
+  "primary": "TEST macro hit rate of the chosen variant minus TEST macro hit rate of the prior, same classes",
+  "pass_rule": "difference > 0 AND its 95% cluster-bootstrap CI (20-frame blocks, B = 2000, seed 20260923) excludes 0",
+  "secondary_descriptive": [
+    "per-class TEST hit rate with block-bootstrap CI, Grad-CAM vs prior",
+    "uniform chance hit rate (share of cells whose centre is inside a widened box)",
+    "per-pair cell AUROC (cells inside boxes vs outside, ranked by the map)",
+    "energy ratio = map mass inside boxes / share of cells inside boxes",
+    "suggested-box usability: box around the connected region >= 0.5 x max containing the hottest cell; IoU >= 0.5 with any box of that class; vs the same for the prior",
+    "the stored 4-tile probe scores (stage2_views_attain_*) as the free coarse heatmap"
+  ],
+  "decision": {
+    "pass": "build the expert-UI heatmap switch (default off, use logged) for the classes whose TEST hit rate CI lies above the prior's; boxes only as suggestions an expert accepts or edits",
+    "fail": "no Grad-CAM overlay in the expert UI; report the negative result (paper)"
+  },
+  "not_allowed": "changing the variant, rule, layers or baseline after seeing TEST numbers",
+  "addendum_1": {
+    "when": "2026-10-30T22:51:31+05:30",
+    "what": "Scoring code written during the GPU run and checked by a blind dry run on the partial checkpoint (numbers suppressed, written to a scratch folder). Clarification of the hit rule for flat or tied maps: ties in the hottest value are split evenly (expected hit under a random tie-break), for every method; this matters for the location prior and the 4-tile map, not for Grad-CAM.",
+    "code_sha": {
+      "scripts/gradcam_localization_report.py": "790a276770ee"
+    }
+  }
+}
