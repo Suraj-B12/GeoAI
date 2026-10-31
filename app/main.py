@@ -315,6 +315,10 @@ if _test_fixtures_enabled() and TEST_FIXTURES_DIR.exists():
 from app.gis_routes import install as install_gis  # noqa: E402
 install_gis(app)
 
+# Expert UI API (/expert-api/*): Video tab, review log, model-vs-expert metrics, overlay.
+from app.expert_routes import install as install_expert_api  # noqa: E402
+install_expert_api(app)
+
 # The public test website (/try) and the expert review page (/expert), served so a demo needs only
 # the server's own address. Both are static; /classify still checks API_KEYS, and the expert page
 # talks to Supabase with its anon key under row-level security (migration 003).

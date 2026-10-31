@@ -4,10 +4,11 @@ local PostgreSQL (GeoAI_Video docs/HANDOFF_PLAN.md section 7).
 
 What must hold, and how it is checked:
   1. Same schema as Supabase. scripts/setup_local_db.py builds a scratch database
-     from db_schema.sql + migrations 000-005; every live table and view
+     from db_schema.sql + migrations 000-006; every live table and view
      (scripts/tests/supabase_schema_2026-10-27.json, read from the live PostgREST
      OpenAPI) must exist locally with the same columns, types and defaults, and
-     the only extra relations are migration 005's two tables. Setup is idempotent.
+     the only extra relations are migration 005's two tables (006 lives in schema
+     `research`, outside `public`). Setup is idempotent.
   2. store_session stores a run: one video_segments row per record (all four
      statuses), images on disk under <root>/<session>/<id>.png with the record's
      SHA-256, a photos + assessments pair per answered segment with the VLM result.
@@ -261,13 +262,18 @@ def _norm_default(v):
 
 
 def test_setup_is_idempotent(env):
-    assert [f["action"] for f in env.first_setup["files"]] == ["applied"] * 7
-    assert [f["action"] for f in env.second_setup["files"]] == ["already_applied"] * 7
+    n = len(setup_local_db.SCHEMA_FILES)          # 000, db_schema, 001-006
+    assert n == 8
+    assert [f["action"] for f in env.first_setup["files"]] == ["applied"] * n
+    assert [f["action"] for f in env.second_setup["files"]] == ["already_applied"] * n
     # 005 is also safe to run twice as a whole file (the owner runs it in the Supabase SQL editor)
     body = (PROJECT_ROOT / "migrations" / "005_video_pipeline.sql").read_text(encoding="utf-8")
     with psycopg.connect(env.dsn, autocommit=True) as c:
         c.execute(body)
+        # 006 (research.expert_review_log, outside `public`) too
+        c.execute((PROJECT_ROOT / "migrations" / "006_expert_review_log.sql").read_text(encoding="utf-8"))
     assert env.count("video_sessions") == 0
+    assert env.count("research.expert_review_log") == 0
 
 
 def test_schema_matches_live_supabase(env):

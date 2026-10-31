@@ -267,6 +267,7 @@ class PavementClassifier:
         # because it holds references to the model object.
         self._prober = None
         self._locator = None
+        self._gradcam = None      # built on first explain_type(); holds a model reference
         self._probe_cfg = None
         self._probe_labels: dict = {}
         self._probe_status: dict = {"requested_mode": STAGE2_MODE, "enabled": False}
@@ -352,6 +353,7 @@ class PavementClassifier:
             # freed and the reload would need two models' worth of VRAM.
             self._prober = None
             self._locator = None
+            self._gradcam = None
             self._probe_cfg = None
             self._model = None
             self._processor = None
@@ -493,6 +495,7 @@ class PavementClassifier:
         """
         self._prober = None
         self._locator = None
+        self._gradcam = None
         self._probe_cfg = None
         self._probe_labels = {}
         st = {"requested_mode": STAGE2_MODE, "enabled": False,
@@ -1042,6 +1045,57 @@ class PavementClassifier:
                 _release_cuda_cache()
             out["time_ms"] = round((time.time() - t0) * 1000, 1)
         return out
+
+    # Grad-CAM variant chosen on the Attain development split (paper §6.10):
+    # gradient x activation at decoder layer 8.
+    GRADCAM_METHOD = "gxa"
+    GRADCAM_LAYER = 8
+
+    def explain_type(self, image: Image.Image, type_key: str) -> dict:
+        """Where the model's evidence for one IRC:82 type is strongest: Grad-CAM of the
+        per-type probe's Yes/No log-odds (scripts/stage2_gradcam.py, variant gxa@8).
+
+        For the expert UI's reference overlay only. It explains the probe's direct
+        question "does this road show <type>?", not the free-form Stage 2 list that
+        produced the stored labels, and on Attain its hottest cell was on the
+        annotated damage no more often than a location prior (paper §6.10). Never
+        changes a label. Holds the classifier lock, so it never overlaps an
+        inference; the decoder layers are switched back to eval mode before the
+        lock is released.
+
+        Returns {type, p_yes, logodds, grid: [rows, cols], map: [[0..1]] row-major,
+        peak: [row, col], variant, time_ms}.
+        """
+        from scripts.stage2_gradcam import ProbeGradCAM
+        from scripts.stage2_probe import all_probe_types
+        if not self._loaded:
+            raise RuntimeError("model not loaded")
+        types = {t.key: t for t in all_probe_types()}
+        if type_key not in types:
+            raise KeyError(type_key)
+        image = image.convert("RGB")
+        variant = (self._probe_cfg or {}).get("variant") or {"system_style": "min", "question_style": "name"}
+        with self._lock:
+            t0 = time.time()
+            try:
+                if self._gradcam is None:
+                    self._gradcam = ProbeGradCAM(self._model, self._processor, list(types.values()),
+                                                 variant["system_style"], variant["question_style"],
+                                                 layers=(self.GRADCAM_LAYER,))
+                e = self._gradcam.explain(image, type_key)
+            finally:
+                _release_cuda_cache()
+            dt = round((time.time() - t0) * 1000, 1)
+        m = e["maps"].get(f"{self.GRADCAM_METHOD}@{self.GRADCAM_LAYER}")
+        if m is None:
+            raise RuntimeError("no map for the configured layer")
+        mx = float(m.max())
+        norm = (m / mx) if mx > 0 else m
+        peak = [int(x) for x in divmod(int(m.argmax()), m.shape[1])] if mx > 0 else None
+        return {"type": type_key, "p_yes": round(e["p_yes"], 5), "logodds": round(e["logodds"], 4),
+                "grid": list(e["grid"]), "map": [[round(float(v), 3) for v in row] for row in norm],
+                "peak": peak, "variant": f"{self.GRADCAM_METHOD}@{self.GRADCAM_LAYER}",
+                "probe_variant": variant, "time_ms": dt}
 
     def predict(self, image: Image.Image, *, profile: str | None = None) -> dict:
         """

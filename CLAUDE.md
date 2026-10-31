@@ -71,10 +71,14 @@ for everything below.
 | NOT "most prominent first" prompt | first label unchanged, false positives up (p = 0.021) | §6.7 |
 | Probe in shadow, not live | doubles Attain macro MCC, but Attain thresholds add Ravelling to 98% of Bengaluru uploads | §6.8 |
 | Full photo, tiles recorded only | tiles +0.020 AUROC (CI incl. 0); find-then-zoom worse | §6.9, Fig 6.9 |
-| NO Grad-CAM heatmap in expert UI; not a box source | fails pre-registered rule vs location prior; maps are points, not regions | §6.10, §7.11 |
+| Grad-CAM only as an opt-in reference overlay (owner's request), never a box source | fails pre-registered rule vs location prior; maps are points, not regions; UI shows its hit rate, experts rate it | §6.10, §7.11 |
 
 **Next steps, in order:**
-1. Get expert labels: experts review uploads in `expert_ui/` (only 1 so far).
+1. Get expert labels: experts review uploads in `expert_ui/` (only 1 so far). Since 2026-10-31 the UI also has a
+   **Video tab** (7,050 drive segments: needs-review / auto-classified / random-audit lists) and a **Metrics tab**;
+   every save is appended to `research.expert_review_log` (local PG, migration 006) with the model's answer.
+   Paper numbers: `scripts/expert_review_metrics.py` (headline = random-audit list). API: `app/expert_routes.py`
+   (`/expert-api/*`, open like the page; the overlay = `PavementClassifier.explain_type`, gxa@8, disk-cached).
 2. `scripts/calibrate_probe_from_expert_labels.py` (exits 2 until ≥15 positives per type) → promote its
    config to `configs/stage2_probe.json` and set `STAGE2_MODE=probe` only if it beats the free-form list
    on held-out expert labels.

@@ -264,7 +264,7 @@
             cursor: grab;
         }
         .lightbox-canvas.grabbing { cursor: grabbing; }
-        .lightbox-img {
+        .lightbox-stage {
             position: absolute;             /* JS controls full position */
             top: 0;
             left: 0;
@@ -272,9 +272,32 @@
             will-change: transform;
             box-shadow: 0 20px 60px rgba(0,0,0,0.5);
             pointer-events: none;            /* let canvas handle wheel/drag */
+        }
+        .lightbox-img {
+            display: block;
             user-select: none;
             -webkit-user-drag: none;
         }
+        /* "Where the model looked" overlay: drawn at map-grid resolution, scaled by the browser */
+        .lightbox-heat { position: absolute; inset: 0; width: 100%; height: 100%; display: none; }
+        .lightbox-peak {
+            position: absolute; display: none; border-radius: 50%;
+            border: 4px solid #facc15; box-shadow: 0 0 0 2px rgba(0,0,0,0.55);
+            transform: translate(-50%, -50%);
+        }
+        .overlay-panel {
+            position: absolute; left: 16px; top: 16px; z-index: 2;
+            width: 340px; max-width: calc(100vw - 32px);
+            background: var(--surface); color: var(--text);
+            border-radius: var(--radius); padding: 14px 16px;
+            font-size: 12px; line-height: 1.5; display: none;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        .overlay-panel.open { display: block; }
+        .overlay-panel h4 { font-size: 13px; margin-bottom: 4px; }
+        .overlay-panel .muted { color: var(--text-secondary); }
+        .overlay-panel .row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; align-items: center; }
+        .overlay-panel .btn.chosen { background: var(--text); color: var(--surface); border-color: var(--text); }
         .lightbox-close {
             position: absolute;
             top: 16px;
@@ -525,6 +548,57 @@
             pointer-events: none;
         }
         .toast.visible { opacity: 1; transform: translateY(0); }
+        /* ======== VIDEO TAB ======== */
+        .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 12px; }
+        .seg { display: inline-flex; background: var(--tag-bg); padding: 3px; border-radius: 10px; gap: 2px; flex-wrap: wrap; }
+        .seg button {
+            border: 0; background: transparent; padding: 6px 12px; border-radius: 8px;
+            font-family: inherit; font-size: 12px; font-weight: 600; color: var(--text-secondary); cursor: pointer;
+        }
+        .seg button.active { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
+        .seg button .n { color: var(--text-tertiary); font-weight: 500; margin-left: 4px; }
+        .toolbar select { width: auto; min-width: 150px; padding: 6px 10px; font-size: 12px; }
+        .pager { margin-left: auto; display: flex; gap: 6px; align-items: center; font-size: 12px; color: var(--text-secondary); }
+        .hint { font-size: 12px; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.5; max-width: 920px; }
+        .card-meta { font-size: 11px; color: var(--text-tertiary); margin: -8px 0 12px; }
+        .look-row { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+        .look-btn {
+            padding: 3px 9px; border: 1px dashed var(--border-strong); border-radius: 6px; background: transparent;
+            font-family: inherit; font-size: 11px; color: var(--text-secondary); cursor: pointer;
+        }
+        .look-btn:hover { border-color: var(--text); color: var(--text); }
+        .look-state { font-size: 11px; color: var(--text-tertiary); margin-top: 4px; }
+        .verdict { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
+        .verdict.right { background: var(--green-light); color: var(--green); }
+        .verdict.close { background: var(--amber-light); color: var(--amber); }
+        .verdict.wrong { background: var(--red-light); color: var(--red); }
+
+        /* ======== METRICS TAB ======== */
+        .m-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+        .m-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+        .m-card h3 { font-size: 13px; margin-bottom: 10px; }
+        .m-card p { font-size: 12px; color: var(--text-secondary); line-height: 1.5; }
+        table.m { width: 100%; border-collapse: collapse; font-size: 12px; }
+        table.m th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-tertiary); font-weight: 700; }
+        table.m th, table.m td { padding: 6px 4px; border-bottom: 1px solid var(--border); vertical-align: top; }
+        table.m td.num, table.m th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+        .ci { color: var(--text-tertiary); font-size: 11px; }
+        .stack { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--tag-bg); margin: 6px 0 2px; }
+        .stack span { display: block; height: 100%; }
+        .big { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
+        @media (max-width: 720px) {
+            .header-inner { height: auto; flex-wrap: wrap; gap: 8px; padding: 10px 16px; }
+            .header-left { gap: 12px; flex-wrap: wrap; }
+            .tabs { flex-wrap: wrap; }
+            .main { padding: 16px 16px 96px; }
+            .pager { margin-left: 0; }
+            /* overlay explanation as a bottom sheet, so the photo stays visible */
+            .overlay-panel { top: auto; bottom: 0; left: 0; width: 100%; max-width: none;
+                             border-radius: var(--radius) var(--radius) 0 0; max-height: 42vh; overflow-y: auto;
+                             padding: 10px 14px; font-size: 11px; }
+            .overlay-panel .row { margin-top: 6px; }
+            .lightbox-info { display: none; }
+        }
     </style>
 </head>
 <body>
@@ -540,6 +614,12 @@
                 </button>
                 <button class="tab" data-tab="reviewed" onclick="switchTab('reviewed')">
                     Reviewed <span class="tab-count" id="reviewedBadge">0</span>
+                </button>
+                <button class="tab" data-tab="video" onclick="switchTab('video')">
+                    Video <span class="tab-count" id="videoBadge">&ndash;</span>
+                </button>
+                <button class="tab" data-tab="metrics" onclick="switchTab('metrics')">
+                    Metrics
                 </button>
             </div>
         </div>
@@ -577,6 +657,36 @@
             <p>Assessments you review will appear here.</p>
         </div>
     </div>
+
+    <!-- Video Tab: drive-video segments (local PostgreSQL, through /expert-api) -->
+    <div id="panelVideo" style="display:none;">
+        <div class="toolbar">
+            <div class="seg" id="videoQueues"></div>
+            <select id="videoSession" onchange="videoFilterChanged()" aria-label="Drive"><option value="">All drives</option></select>
+            <select id="videoLabel" onchange="videoFilterChanged()" aria-label="Model label"><option value="">Any model label</option></select>
+            <div class="pager">
+                <span id="videoRange"></span>
+                <button class="btn btn-sm" id="videoPrev" onclick="videoPage(-1)">Prev</button>
+                <button class="btn btn-sm" id="videoNext" onclick="videoPage(1)">Next</button>
+            </div>
+        </div>
+        <div class="hint" id="videoHint"></div>
+        <div class="grid" id="videoGrid"></div>
+        <div class="empty" id="videoEmpty" style="display:none;">
+            <h3 id="videoEmptyTitle">Nothing here</h3>
+            <p id="videoEmptyText">No segments in this list.</p>
+        </div>
+    </div>
+
+    <!-- Metrics Tab: model vs expert, from the review log -->
+    <div id="panelMetrics" style="display:none;">
+        <div class="toolbar">
+            <select id="metricsScope" onchange="renderMetrics()" aria-label="Scope"></select>
+            <button class="btn btn-sm" onclick="loadMetrics()">Refresh</button>
+            <a class="btn btn-sm btn-ghost" id="metricsJson" target="_blank" rel="noopener">Raw JSON</a>
+        </div>
+        <div id="metricsBody"></div>
+    </div>
 </main>
 
 <!-- ======== RETRAIN BAR ======== -->
@@ -597,8 +707,13 @@
 <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Full image">
     <button class="lightbox-close" id="lightboxClose" aria-label="Close">&times;</button>
     <div class="lightbox-canvas" id="lightboxCanvas">
-        <img class="lightbox-img" id="lightboxImg" src="" alt="">
+        <div class="lightbox-stage" id="lightboxStage">
+            <img class="lightbox-img" id="lightboxImg" src="" alt="">
+            <canvas class="lightbox-heat" id="lightboxHeat"></canvas>
+            <div class="lightbox-peak" id="lightboxPeak"></div>
+        </div>
     </div>
+    <div class="overlay-panel" id="overlayPanel"></div>
     <div class="lightbox-info">
         <span id="lightboxZoom">100%</span>
         <span><kbd>scroll</kbd> zoom &nbsp; <kbd>drag</kbd> pan &nbsp; <kbd>esc</kbd>/<kbd>×</kbd> close</span>
@@ -611,7 +726,14 @@
 // ============================================================
 // CONFIG
 // ============================================================
-const API_BASE = 'http://localhost:8000';
+// Same server as the page (served at /expert); opened as a file, the local server.
+// ?api=https://host overrides (e.g. the page opened from another static server).
+const API_BASE = (() => {
+    const q = new URLSearchParams(location.search).get('api');
+    if (q && /^https?:\/\/[^\s]+$/.test(q)) return q.replace(/\/+$/, '');
+    return (location.protocol === 'http:' || location.protocol === 'https:') ? '' : 'http://localhost:8000';
+})();
+const api = (path) => API_BASE + path;
 const SUPABASE_URL = 'https://vtlkitpoffudiefuoijb.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ0bGtpdHBvZmZ1ZGllZnVvaWpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQyMDAzMjIsImV4cCI6MjA4OTc3NjMyMn0.wLrwTky4k8iAELOvFbNeo063Z1rjQKOzzq3QYFqR6CU';
 const API_KEY = '';
@@ -666,6 +788,10 @@ function switchTab(tab) {
     document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
     document.getElementById('panelPending').style.display = tab === 'pending' ? 'block' : 'none';
     document.getElementById('panelReviewed').style.display = tab === 'reviewed' ? 'block' : 'none';
+    document.getElementById('panelVideo').style.display = tab === 'video' ? 'block' : 'none';
+    document.getElementById('panelMetrics').style.display = tab === 'metrics' ? 'block' : 'none';
+    if (tab === 'video' && !V.loaded) loadVideo();
+    if (tab === 'metrics') loadMetrics();
 }
 
 // ============================================================
@@ -741,11 +867,20 @@ document.addEventListener('keydown', (e) => {
 // ============================================================
 // FALLBACK DISTRESS TYPES (used if custom_distress_types fetch fails)
 // ============================================================
-const TYPES_DEFAULT = [
-    'Longitudinal Crack (D00)', 'Transverse Crack (D10)', 'Alligator Crack (D20)',
-    'Pothole (D40)', 'Block Crack (D43)', 'Inlaid Patch (D44)',
-    'Open Joint (D50)', 'Rutting', 'Raveling', 'Bleeding', 'Edge Crack', 'Depression'
+// The model answers with the 18 IRC:82-2015 types; reviews use the same names so the
+// research log can compare them (the server maps older names, e.g. 'Pothole (D40)').
+const IRC_TYPES = [
+    'Bleeding', 'Streaking', 'Hungry Surface', 'Hairline Cracks', 'Alligator Cracking',
+    'Longitudinal Cracking', 'Transverse Cracking', 'Edge Cracking', 'Slippage', 'Rutting',
+    'Corrugation', 'Shoving', 'Shallow Depression', 'Settlement', 'Stripping', 'Ravelling',
+    'Potholes', 'Edge Breaking', 'Patching'
 ];
+const TYPES_DEFAULT = [...IRC_TYPES];
+const LEGACY_TYPE_NAMES = new Set([
+    'longitudinal crack (d00)', 'transverse crack (d10)', 'alligator crack (d20)', 'pothole (d40)',
+    'block crack (d43)', 'inlaid patch (d44)', 'raveling', 'edge crack', 'depression'
+]);
+let META = { types: [...IRC_TYPES], overlay_reliability: null };
 
 // ============================================================
 // CACHE LAYER (prevents re-fetching the same Supabase data + images)
@@ -821,7 +956,18 @@ function optimizedImageUrl(url, mode = 'thumb') {
 // ============================================================
 // DATA LOADING
 // ============================================================
-async function loadAll() { await Promise.all([loadPending(), loadReviewed()]); }
+async function loadAll() { await Promise.all([loadPending(), loadReviewed(), refreshVideoBadge()]); }
+
+// Video tab count (segments waiting for review) without loading the tab itself.
+async function refreshVideoBadge() {
+    try {
+        const d = await getJSON('/expert-api/video/list?queue=needs_review&limit=1');
+        if (!V.loaded) V.counts = d.counts;
+        document.getElementById('videoBadge').textContent = d.counts.needs_review;
+    } catch {
+        document.getElementById('videoBadge').textContent = '–';
+    }
+}
 
 async function loadPending() {
     try {
@@ -842,7 +988,10 @@ async function loadPending() {
                 `${SUPABASE_URL}/rest/v1/custom_distress_types?order=name.asc`,
                 { headers: sbHeaders() }
             );
-            distressTypes = types.map(d => d.name);
+            // IRC names first; keep custom types, drop the older names the server maps anyway
+            const extra = types.map(d => d.name).filter(n => n && !IRC_TYPES.includes(n)
+                && !LEGACY_TYPE_NAMES.has(String(n).toLowerCase()) && n !== 'Normal');
+            distressTypes = [...IRC_TYPES, ...extra];
         } catch {
             distressTypes = [...TYPES_DEFAULT];
         }
@@ -890,7 +1039,7 @@ function buildCardHTML(a, i, mode /* 'pending' | 'reviewed' */) {
     const thumbUrl = optimizedImageUrl(a.image_url, 'thumb');
 
     return `
-        <div class="card" id="card-${a.id}">
+        <div class="card" id="card-${a.id}" onpointerdown="touchCard('c:${escapeAttr(a.id)}')" onfocusin="touchCard('c:${escapeAttr(a.id)}')">
             <img class="card-img" src="${escapeAttr(thumbUrl)}" alt="" loading="lazy"
                  onclick="openLightbox('${escapeAttr(a.image_url)}', '${escapeAttr(a.id)}')"
                  onerror="this.src='https://placehold.co/420x280/e7e5e4/a8a29e?text=No+Image'">
@@ -910,6 +1059,7 @@ function buildCardHTML(a, i, mode /* 'pending' | 'reviewed' */) {
                     <div class="field-value">${escapeHtml(a.severity||'Unknown')}</div>
                 </div>
                 ${a.description ? `<div class="field"><div class="field-label">AI Description</div><div style="font-size:12px;color:var(--text-secondary);line-height:1.5;">${escapeHtml(a.description)}</div></div>` : ''}
+                ${lookRowHTML('citizen', a.id, a.distress_types)}
                 <hr class="card-divider">
                 <div class="form-group">
                     <label>Expert Classification</label>
@@ -920,6 +1070,7 @@ function buildCardHTML(a, i, mode /* 'pending' | 'reviewed' */) {
                 <div class="form-group">
                     <select onchange="addType(${i},this.value,'${mode}');this.value='';">
                         <option value="">+ Add distress type...</option>
+                        <option value="Normal">Normal (no distress)</option>
                         ${distressTypes.map(t=>`<option value="${escapeAttr(t)}">${escapeHtml(t)}</option>`).join('')}
                         <option value="__new__">+ Custom type...</option>
                     </select>
@@ -927,6 +1078,7 @@ function buildCardHTML(a, i, mode /* 'pending' | 'reviewed' */) {
                 <div class="form-group">
                     <label>Severity</label>
                     <select id="sev-${i}-${mode}">
+                        <option value="None"   ${reviewedSeverity==='None'  ?'selected':''}>None (no distress)</option>
                         <option value="Low"    ${reviewedSeverity==='Low'   ?'selected':''}>Low</option>
                         <option value="Medium" ${reviewedSeverity==='Medium'?'selected':''}>Medium</option>
                         <option value="High"   ${reviewedSeverity==='High'  ?'selected':''}>High</option>
@@ -1012,7 +1164,16 @@ function addType(i, type, mode) {
     }
     if (!type) return;
     const t = getTypes(i, mode);
-    if (!t.includes(type)) { t.push(type); renderPills(i, mode); }
+    if (type === 'Normal') {
+        t.splice(0, t.length, 'Normal');
+        const sev = document.getElementById(`sev-${i}-${mode}`);
+        if (sev) sev.value = 'None';
+    } else {
+        const n = t.indexOf('Normal');
+        if (n > -1) t.splice(n, 1);
+        if (!t.includes(type)) t.push(type);
+    }
+    renderPills(i, mode);
 }
 
 function removeType(i, type, mode) {
@@ -1034,13 +1195,15 @@ async function submitCorrection(i, id, mode) {
     const types = getTypes(i, mode);
     const severity = document.getElementById(`sev-${i}-${mode}`).value;
     const notes = document.getElementById(`note-${i}-${mode}`).value;
-    if (!types.length) { showToast('Select at least one distress type.'); return; }
+    if (!types.length) { showToast('Select at least one distress type, or Normal.'); return; }
+    const isNormal = types.length === 1 && types[0] === 'Normal';
+    if (!isNormal && severity === 'None') { showToast('Pick a severity for the distress.'); return; }
 
     const patch = {
         needs_expert_review: false,
         expert_reviewed: true,
         expert_corrected_types: types,
-        expert_corrected_severity: severity,
+        expert_corrected_severity: isNormal ? 'None' : severity,
         expert_notes: notes,
         reviewer_name: reviewerName,                 // attribution by name (no auth)
         reviewed_at: new Date().toISOString()
@@ -1061,6 +1224,10 @@ async function submitCorrection(i, id, mode) {
     // Invalidate the affected list caches — next reload pulls fresh.
     cacheInvalidate('pending');
     cacheInvalidate('reviewed');
+
+    // Research log (local PostgreSQL): the model's answer vs this review. Best effort: the
+    // review itself is already saved in Supabase.
+    logCitizenReview(id, types, patch.expert_corrected_severity, notes, mode);
 
     if (mode === 'pending') {
         // Move from Pending list into Reviewed list (top of feed).
@@ -1145,6 +1312,598 @@ async function pollRetrain() {
     } catch {}
 }
 
+
+// ============================================================
+// PER-CARD STATE (both sources): edited types, overlay use, time
+// ============================================================
+// key: 'v:<segment_id>' (video) or 'c:<assessment id>' (citizen)
+const cardState = {};
+function cs(key) {
+    return cardState[key] || (cardState[key] = { types: null, heatmap: { types: [], ratings: {} }, t0: null });
+}
+function touchCard(key) { const s = cs(key); if (!s.t0) s.t0 = Date.now(); }
+function uiFacts(key) {
+    const s = cs(key);
+    return s.t0 ? { ms_since_first_interaction: Date.now() - s.t0 } : {};
+}
+function heatPayload(key) {
+    const h = cs(key).heatmap;
+    return { viewed: h.types.length > 0, types: [...h.types], ratings: { ...h.ratings } };
+}
+
+async function postJSON(path, body) {
+    const r = await fetch(api(path), { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                       body: JSON.stringify(body) });
+    let data = null;
+    try { data = await r.json(); } catch {}
+    if (!r.ok) throw new Error((data && data.detail) || `HTTP ${r.status}`);
+    return data;
+}
+async function getJSON(path) {
+    const r = await fetch(api(path));
+    let data = null;
+    try { data = await r.json(); } catch {}
+    if (!r.ok) throw new Error((data && data.detail) || `HTTP ${r.status}`);
+    return data;
+}
+
+const VERDICT_TEXT = { right: 'model was right', close: 'model was close', wrong: 'model was wrong' };
+
+async function logCitizenReview(id, types, severity, notes, mode) {
+    const key = 'c:' + id;
+    try {
+        const out = await postJSON(`/expert-api/citizen/log/${encodeURIComponent(id)}`, {
+            reviewer_name: reviewerName, types, severity, notes,
+            queue: mode === 'reviewed' ? 'citizen_reviewed' : 'citizen_pending',
+            heatmap: heatPayload(key), ui: uiFacts(key)
+        });
+        delete cardState[key];
+        if (out && out.comparison) showToast(`Saved · ${VERDICT_TEXT[out.comparison.verdict]}`);
+    } catch (e) {
+        console.warn('research log failed:', e);
+        showToast('Saved in Supabase; research log failed: ' + e.message);
+    }
+}
+
+// ============================================================
+// "WHERE THE MODEL LOOKED" (Grad-CAM overlay, reference only)
+// ============================================================
+function explainable(t) { return META.types.includes(t); }
+
+function lookRowHTML(source, id, types) {
+    const key = (source === 'video' ? 'v:' : 'c:') + id;
+    const ts = (types || []).filter(explainable);
+    if (!ts.length) return '';
+    return `<div class="field">
+        <div class="field-label">Where the model looked (reference)</div>
+        <div class="look-row">${ts.map(t =>
+            `<button class="look-btn" title="Show where the model's evidence for ${escapeAttr(t)} is strongest"
+                onclick="openLook('${source}','${escapeAttr(id)}','${escapeAttr(t)}')">${escapeHtml(t)}</button>`).join('')}</div>
+        <div class="look-state" id="look-${escapeAttr(key)}">${lookStateText(key)}</div>
+    </div>`;
+}
+function lookStateText(key) {
+    const h = cs(key).heatmap;
+    if (!h.types.length) return '';
+    return 'Viewed: ' + h.types.map(t => escapeHtml(t) + (h.ratings[t] ? ` (${RATING_TEXT[h.ratings[t]]})` : '')).join(', ');
+}
+const RATING_TEXT = { on: 'on the damage', partly: 'partly', off: 'not on the damage' };
+function updateLookState(key) {
+    const el = document.getElementById('look-' + key);
+    if (el) el.innerHTML = lookStateText(key);
+}
+
+function imageUrlFor(source, id) {
+    if (source === 'video') return api(`/gis/image/${encodeURIComponent(id)}?w=1920`);
+    const a = assessments.find(x => x.id === id) || reviewedAssessments.find(x => x.id === id);
+    return a ? a.image_url : null;
+}
+
+async function openLook(source, id, type) {
+    const key = (source === 'video' ? 'v:' : 'c:') + id;
+    touchCard(key);
+    const req = { key, source, id, type, data: null, error: null, show: true, n: Date.now() };
+    openLightbox(imageUrlFor(source, id), req);
+    renderOverlayPanel();
+    try {
+        const data = await getJSON(`/expert-api/explain/${source}/${encodeURIComponent(id)}?type=${encodeURIComponent(type)}`);
+        if (LB.heat !== req) return;              // closed or another overlay opened meanwhile
+        req.data = data;
+        const h = cs(key).heatmap;
+        if (!h.types.includes(type)) h.types.push(type);
+        updateLookState(key);
+    } catch (e) {
+        if (LB.heat !== req) return;
+        req.error = e.message;
+    }
+    drawHeat();
+    renderOverlayPanel();
+}
+
+function renderOverlayPanel() {
+    const el = document.getElementById('overlayPanel');
+    const H = LB.heat;
+    if (!H) { el.classList.remove('open'); el.innerHTML = ''; return; }
+    el.classList.add('open');
+    const t = escapeHtml(H.type);
+    if (H.error) {
+        el.innerHTML = `<h4>Where the model looked: ${t}</h4><div class="muted">Not available: ${escapeHtml(H.error)}</div>
+            <div class="row"><button class="btn btn-sm" onclick="closeLightbox()">Close</button></div>`;
+        return;
+    }
+    if (!H.data) {
+        el.innerHTML = `<h4>Where the model looked: ${t}</h4><div class="muted">Computing on the server
+            (about 2&ndash;3 s; it waits while the model classifies an upload)&hellip;</div>`;
+        return;
+    }
+    const rel = (META.overlay_reliability || {}).per_type || {};
+    const r = rel[H.type];
+    const relText = r
+        ? `On annotated test roads (Attain, ${r.n} frames) the ring was on the damage <b>${Math.round(r.hit * 100)}%</b> of the time for this type; a fixed &ldquo;usual place&rdquo; guess managed ${Math.round(r.prior * 100)}%.`
+        : `Its accuracy for this type has not been measured on annotated roads.`;
+    const cur = cs(H.key).heatmap.ratings[H.type];
+    const b = (v, label) => `<button class="btn btn-sm ${cur === v ? 'chosen' : ''}" onclick="rateLook('${v}')">${label}</button>`;
+    el.innerHTML = `<h4>Where the model looked: ${t}</h4>
+        <div class="muted">Asked &ldquo;does this road show ${t}?&rdquo; the model said yes with P = ${(H.data.p_yes * 100).toFixed(0)}%.
+            Red marks where the evidence for that answer is strongest; the yellow ring is the strongest spot.</div>
+        <div class="muted" style="margin-top:6px"><b>Reference only</b>, not a damage box. ${relText}</div>
+        <div class="row"><span>Is the ring on the damage?</span>${b('on', 'Yes')}${b('partly', 'Partly')}${b('off', 'No')}</div>
+        <div class="row">
+            <button class="btn btn-sm" onclick="toggleHeat()">${H.show ? 'Hide' : 'Show'} overlay</button>
+            <button class="btn btn-sm btn-ghost" onclick="closeLightbox()">Close</button>
+        </div>`;
+}
+function rateLook(v) {
+    const H = LB.heat;
+    if (!H || !H.data) return;
+    cs(H.key).heatmap.ratings[H.type] = v;
+    updateLookState(H.key);
+    renderOverlayPanel();
+}
+function toggleHeat() {
+    if (!LB.heat) return;
+    LB.heat.show = !LB.heat.show;
+    drawHeat();
+    renderOverlayPanel();
+}
+
+function drawHeat() {
+    const cv = document.getElementById('lightboxHeat');
+    const pk = document.getElementById('lightboxPeak');
+    const H = LB.heat;
+    if (!H || !H.data || !H.show || !LB.natW) { cv.style.display = 'none'; pk.style.display = 'none'; return; }
+    const [rows, cols] = H.data.grid;
+    cv.width = cols; cv.height = rows;
+    const ctx = cv.getContext('2d');
+    const img = ctx.createImageData(cols, rows);
+    for (let i = 0; i < rows; i++) for (let j = 0; j < cols; j++) {
+        const v = Math.max(0, Math.min(1, H.data.map[i][j]));
+        const o = (i * cols + j) * 4;
+        img.data[o] = 239; img.data[o + 1] = 68; img.data[o + 2] = 68;
+        img.data[o + 3] = v < 0.03 ? 0 : Math.round(200 * Math.pow(v, 0.6));
+    }
+    ctx.putImageData(img, 0, 0);
+    cv.style.display = 'block';
+    if (H.data.peak) {
+        const cw = LB.natW / cols, ch = LB.natH / rows;
+        const d = Math.max(cw, ch) * 1.8;
+        pk.style.left = ((H.data.peak[1] + 0.5) * cw) + 'px';
+        pk.style.top = ((H.data.peak[0] + 0.5) * ch) + 'px';
+        pk.style.width = d + 'px'; pk.style.height = d + 'px';
+        pk.style.borderWidth = Math.max(3, LB.natW / 400) + 'px';
+        pk.style.display = 'block';
+    } else {
+        pk.style.display = 'none';
+    }
+}
+
+// ============================================================
+// VIDEO TAB (drive-video segments through /expert-api)
+// ============================================================
+const V = { queue: 'needs_review', session: '', label: '', offset: 0, limit: 24,
+            items: [], counts: {}, total: 0, loaded: false, metaLoaded: false, busy: false };
+const lastVerdict = {};   // segment_id -> comparison of the last save in this page
+const QUEUE_INFO = {
+    needs_review: ['Needs review', 'Segments the pipeline flagged for a person (low confidence, or the safety net saw distress the model called Normal). The model is unsure on these, so accuracy on this list is lower than its true accuracy.'],
+    auto: ['Auto-classified', 'Segments the model answered confidently; nobody has checked them. Reviewing some shows how often confident answers are wrong, which is how the review gate is judged.'],
+    random: ['Random audit', 'All answered segments in a fixed random order. Review them in the order shown, without picking by eye: reviews from this list are the unbiased estimate of the model\'s accuracy for the paper.'],
+    reviewed: ['Reviewed', 'Segments an expert has reviewed. Editing one adds a new log entry; the latest one counts, and the item keeps the list it was first reviewed from.'],
+};
+
+async function loadVideoMeta() {
+    if (V.metaLoaded) return;
+    try {
+        const s = await getJSON('/expert-api/video/sessions');
+        const sel = document.getElementById('videoSession');
+        sel.innerHTML = '<option value="">All drives</option>' + s.items.map(x =>
+            `<option value="${escapeAttr(x.session_id)}">${escapeHtml(driveLabel(x.session_id, x.start_utc))} &middot; ${x.answered} (${x.needs_review} to review)</option>`).join('');
+        const lab = document.getElementById('videoLabel');
+        lab.innerHTML = '<option value="">Any model label</option><option value="Normal">Model said Normal</option>'
+            + META.types.filter(t => t !== 'Patching').map(t => `<option value="${escapeAttr(t)}">Model said ${escapeHtml(t)}</option>`).join('');
+        V.metaLoaded = true;
+    } catch (e) {
+        console.warn('video sessions:', e);
+    }
+}
+function driveLabel(sid, utc) {
+    const d = utc ? new Date(utc) : null;
+    const when = d ? d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) + ' ' +
+        d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : sid.slice(0, 15);
+    return `Drive ${when}`;
+}
+
+function renderVideoQueues() {
+    const el = document.getElementById('videoQueues');
+    el.innerHTML = Object.keys(QUEUE_INFO).map(q =>
+        `<button class="${q === V.queue ? 'active' : ''}" onclick="setVideoQueue('${q}')">${QUEUE_INFO[q][0]}<span class="n">${V.counts[q] ?? ''}</span></button>`).join('');
+    document.getElementById('videoHint').textContent = QUEUE_INFO[V.queue][1];
+}
+function setVideoQueue(q) { V.queue = q; V.offset = 0; loadVideo(); }
+function videoFilterChanged() {
+    V.session = document.getElementById('videoSession').value;
+    V.label = document.getElementById('videoLabel').value;
+    V.offset = 0;
+    loadVideo();
+}
+function videoPage(d) {
+    const next = V.offset + d * V.limit;
+    if (next < 0 || next >= V.total) return;
+    V.offset = next;
+    loadVideo();
+    window.scrollTo({ top: 0 });
+}
+
+async function loadVideo() {
+    V.loaded = true;
+    renderVideoQueues();
+    loadVideoMeta();
+    const grid = document.getElementById('videoGrid');
+    grid.style.opacity = '0.5';
+    const qs = new URLSearchParams({ queue: V.queue, limit: V.limit, offset: V.offset });
+    if (V.session) qs.set('session', V.session);
+    if (V.label) qs.set('label', V.label);
+    try {
+        const d = await getJSON('/expert-api/video/list?' + qs.toString());
+        V.items = d.items; V.counts = d.counts; V.total = d.total;
+    } catch (e) {
+        V.items = []; V.total = 0;
+        document.getElementById('videoEmptyTitle').textContent = 'Video data not available';
+        document.getElementById('videoEmptyText').textContent =
+            `${e.message}. The Video tab needs the GeoAI server (it reads the drive-video database), e.g. open this page at /expert on the server.`;
+        grid.style.opacity = '1';
+        renderVideo(true);
+        return;
+    }
+    grid.style.opacity = '1';
+    document.getElementById('videoEmptyTitle').textContent = 'Nothing here';
+    document.getElementById('videoEmptyText').textContent = 'No segments in this list with these filters.';
+    renderVideo();
+}
+
+function renderVideo(keepEmptyText) {
+    renderVideoQueues();
+    document.getElementById('videoBadge').textContent = V.counts.needs_review ?? '–';
+    const grid = document.getElementById('videoGrid');
+    const empty = document.getElementById('videoEmpty');
+    const from = V.total ? V.offset + 1 : 0, to = Math.min(V.offset + V.items.length, V.total);
+    document.getElementById('videoRange').textContent = `${from}–${to} of ${V.total}`;
+    document.getElementById('videoPrev').disabled = V.offset <= 0;
+    document.getElementById('videoNext').disabled = V.offset + V.limit >= V.total;
+    if (!V.items.length) { grid.style.display = 'none'; empty.style.display = 'block'; return; }
+    grid.style.display = 'grid'; empty.style.display = 'none';
+    grid.innerHTML = V.items.map(videoCardHTML).join('');
+}
+
+function modelTypes(it) {
+    return it.stage1_label === 'Normal' ? ['Normal'] : (it.distress_types || []).filter(t => t !== 'Unknown');
+}
+function vTypes(it) {
+    const s = cs('v:' + it.segment_id);
+    if (s.types === null) {
+        s.types = (it.expert_reviewed && it.expert_corrected_types && it.expert_corrected_types.length)
+            ? [...it.expert_corrected_types] : modelTypes(it);
+        if (!s.types.length) s.types = ['Normal'];
+    }
+    return s.types;
+}
+
+function videoCardHTML(it) {
+    const id = it.segment_id, key = 'v:' + id, ida = escapeAttr(id);
+    const normal = it.stage1_label === 'Normal';
+    const conf = normal ? (it.stage1_confidence || 0) : (it.stage2_confidence ?? it.stage1_confidence ?? 0);
+    const sev = it.expert_reviewed ? (it.expert_corrected_severity || 'Low') : (normal ? 'None' : (it.severity || 'Low'));
+    const types = vTypes(it);
+    const where = it.chainage_start_km != null ? `km ${Number(it.chainage_start_km).toFixed(3)}`
+        : (it.s0_m != null ? `${Math.round(it.s0_m)} m into the drive` : '');
+    const gate = it.status === 'expert_review' ? `flagged: ${flagReasons(it).join('; ')}` : 'auto-classified';
+    const v = lastVerdict[id];
+    const mt = modelTypes(it);
+    return `
+    <div class="card" id="vcard-${ida}" onpointerdown="touchCard('${escapeAttr(key)}')" onfocusin="touchCard('${escapeAttr(key)}')">
+        <img class="card-img" src="${escapeAttr(api(`/gis/image/${encodeURIComponent(id)}?w=640`))}" alt="" loading="lazy"
+             onclick="openLightbox('${escapeAttr(imageUrlFor('video', id))}')"
+             onerror="this.src='https://placehold.co/420x280/e7e5e4/a8a29e?text=No+Image'">
+        <div class="card-body">
+            <div class="card-top">
+                <span class="card-id" title="${ida}">seg ${it.k} &middot; ${escapeHtml(driveLabel(it.session_id, it.utc))}</span>
+                <span class="badge ${badgeClass(conf)}" title="${normal ? 'Stage 1' : 'Stage 2'} confidence">${pct(conf)}</span>
+            </div>
+            <div class="card-meta">${[where, gate].filter(Boolean).map(escapeHtml).join(' &middot; ')}${v ? ` &middot; <span class="verdict ${v.verdict}">${VERDICT_TEXT[v.verdict]}</span>` : ''}</div>
+            <div class="field">
+                <div class="field-label">AI Classification</div>
+                <div class="tags">${mt.map((t, k) => k === 0
+                    ? `<span class="tag tag-primary">${escapeHtml(t)}</span>`
+                    : `<span class="tag tag-also">${escapeHtml(t)}</span>`).join('')}</div>
+            </div>
+            ${normal ? '' : `<div class="field"><div class="field-label">AI Severity</div><div class="field-value">${escapeHtml(it.severity || 'Unknown')}</div></div>`}
+            ${it.description && !normal ? `<div class="field"><div class="field-label">AI Description</div><div style="font-size:12px;color:var(--text-secondary);line-height:1.5;">${escapeHtml(it.description)}</div></div>` : ''}
+            ${normal ? (it.safety_net_flagged && it.safety_net_type ? lookRowHTML('video', id, [it.safety_net_type]) : '')
+                     : lookRowHTML('video', id, it.distress_types)}
+            <hr class="card-divider">
+            <div class="form-group">
+                <label>Expert Classification</label>
+                <div class="pill-select" id="vtypes-${ida}">${vPillsHTML(id, types)}</div>
+            </div>
+            <div class="form-group">
+                <select onchange="vAddType('${ida}', this.value); this.value='';" aria-label="Add type">
+                    <option value="">+ Add distress type...</option>
+                    <option value="Normal">Normal (no distress)</option>
+                    ${META.types.map(t => `<option value="${escapeAttr(t)}">${escapeHtml(t)}</option>`).join('')}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Severity</label>
+                <select id="vsev-${ida}">
+                    ${['None', 'Low', 'Medium', 'High'].map(x => `<option value="${x}" ${sev === x ? 'selected' : ''}>${x === 'None' ? 'None (no distress)' : x}</option>`).join('')}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Notes</label>
+                <textarea id="vnote-${ida}" rows="2" placeholder="Optional observations...">${escapeHtml(it.expert_notes || '')}</textarea>
+            </div>
+            ${it.expert_reviewed && it.reviewer_name ? `<div class="reviewed-stamp">Last reviewed by <strong>${escapeHtml(it.reviewer_name)}</strong> &middot; ${fmtDate(it.reviewed_at)}</div>` : ''}
+            <div class="card-actions">
+                <button class="btn btn-primary btn-sm" id="vsave-${ida}" onclick="saveVideo('${ida}')">${it.expert_reviewed ? 'Update Review' : 'Confirm'}</button>
+            </div>
+        </div>
+    </div>`;
+}
+
+// Why the pipeline sent this segment to review (the 0.80 gate and the Stage 1 safety net)
+function flagReasons(it) {
+    const r = [];
+    if (it.safety_net_flagged) r.push(`safety net saw ${it.safety_net_type || 'distress'}`);
+    if ((it.stage1_confidence ?? 1) < 0.8) r.push('Stage 1 unsure');
+    if (it.stage1_label === 'Distress' && (it.stage2_confidence ?? 1) < 0.8) r.push('type unsure');
+    return r.length ? r : ['low confidence'];
+}
+
+function vPillsHTML(id, types) {
+    return types.length
+        ? types.map(t => `<span class="pill">${escapeHtml(t)}<span class="pill-x" onclick="event.stopPropagation();vRemoveType('${escapeAttr(id)}','${escapeAttr(t)}')">&times;</span></span>`).join('')
+        : '<span class="pill-empty">No types selected</span>';
+}
+function vRender(id) {
+    const el = document.getElementById('vtypes-' + id);
+    if (el) el.innerHTML = vPillsHTML(id, cs('v:' + id).types || []);
+}
+function vAddType(id, t) {
+    if (!t) return;
+    const s = cs('v:' + id);
+    if (!s.types) s.types = [];
+    if (t === 'Normal') {
+        s.types = ['Normal'];
+        const sev = document.getElementById('vsev-' + id);
+        if (sev) sev.value = 'None';
+    } else {
+        s.types = s.types.filter(x => x !== 'Normal');
+        if (!s.types.includes(t)) s.types.push(t);
+        const sev = document.getElementById('vsev-' + id);
+        if (sev && sev.value === 'None') sev.value = 'Low';
+    }
+    vRender(id);
+}
+function vRemoveType(id, t) {
+    const s = cs('v:' + id);
+    s.types = (s.types || []).filter(x => x !== t);
+    vRender(id);
+}
+
+async function saveVideo(id) {
+    if (!reviewerName) { showNamePrompt(); return; }
+    const key = 'v:' + id, s = cs(key);
+    const types = s.types || [];
+    const severity = document.getElementById('vsev-' + id).value;
+    const notes = document.getElementById('vnote-' + id).value;
+    if (!types.length) { showToast('Select at least one distress type, or Normal.'); return; }
+    const isNormal = types.length === 1 && types[0] === 'Normal';
+    if (!isNormal && severity === 'None') { showToast('Pick a severity for the distress.'); return; }
+    const btn = document.getElementById('vsave-' + id);
+    if (btn) btn.disabled = true;
+    let out;
+    try {
+        out = await postJSON(`/expert-api/video/review/${encodeURIComponent(id)}`, {
+            reviewer_name: reviewerName, types, severity: isNormal ? 'None' : severity, notes,
+            queue: V.queue, heatmap: heatPayload(key), ui: uiFacts(key)
+        });
+    } catch (e) {
+        if (btn) btn.disabled = false;
+        showToast('Save failed: ' + e.message);
+        return;
+    }
+    lastVerdict[id] = out.comparison;
+    delete cardState[key];
+    showToast(`${out.action === 'update' ? 'Review updated' : 'Saved'} · ${VERDICT_TEXT[out.comparison.verdict]}`);
+    const it = V.items.find(x => x.segment_id === id);
+    if (it) Object.assign(it, { expert_reviewed: true, expert_corrected_types: out.expert_types,
+        expert_corrected_severity: out.expert_severity, expert_notes: notes, reviewer_name: reviewerName,
+        reviewed_at: new Date().toISOString() });
+    if (V.queue === 'reviewed') { renderVideo(); return; }
+    // Leaves this list: fade out, then re-render with the counts moved
+    const card = document.getElementById('vcard-' + id);
+    if (card) { card.style.transition = 'all 0.25s ease'; card.style.opacity = '0'; card.style.transform = 'scale(0.97)'; }
+    setTimeout(() => {
+        V.items = V.items.filter(x => x.segment_id !== id);
+        V.total = Math.max(0, V.total - 1);
+        if (out.action === 'confirm') {
+            for (const q of ['needs_review', 'auto', 'random']) {
+                if (q === V.queue || q === 'random' ||
+                    (q === 'needs_review' && it && it.status === 'expert_review') ||
+                    (q === 'auto' && it && it.status === 'classified')) {
+                    if (V.counts[q] > 0) V.counts[q] -= 1;
+                }
+            }
+            V.counts.reviewed = (V.counts.reviewed || 0) + 1;
+        }
+        renderVideo();
+        if (!V.items.length && V.total > 0) loadVideo();
+    }, 250);
+}
+
+// ============================================================
+// METRICS TAB (model vs expert, from the review log)
+// ============================================================
+let METRICS = null;
+const QUEUE_LABEL = { needs_review: 'Video: needs review', auto: 'Video: auto-classified', random: 'Video: random audit',
+                      reviewed: 'Video: reviewed list', citizen_pending: 'Citizen: pending', citizen_reviewed: 'Citizen: reviewed list' };
+
+async function loadMetrics() {
+    const body = document.getElementById('metricsBody');
+    document.getElementById('metricsJson').href = api('/expert-api/metrics');
+    try {
+        METRICS = await getJSON('/expert-api/metrics');
+    } catch (e) {
+        body.innerHTML = `<div class="empty"><h3>Metrics not available</h3><p>${escapeHtml(e.message)}. They are computed by the GeoAI server from its review log.</p></div>`;
+        return;
+    }
+    const sel = document.getElementById('metricsScope');
+    const prev = sel.value || 'all';
+    const opts = [['all', 'All reviews']];
+    for (const s of Object.keys(METRICS.by_source)) opts.push(['source:' + s, s === 'video' ? 'Video segments' : 'Citizen uploads']);
+    for (const q of Object.keys(METRICS.by_queue)) opts.push(['queue:' + q, 'Sampled from ' + (QUEUE_LABEL[q] || q)]);
+    sel.innerHTML = opts.map(([v, l]) => `<option value="${v}">${escapeHtml(l)}</option>`).join('');
+    sel.value = opts.some(o => o[0] === prev) ? prev : 'all';
+    renderMetrics();
+}
+
+function fmtShare(sh) {
+    if (!sh || !sh.n) return '<span class="ci">&ndash;</span>';
+    const ci = sh.ci95 ? ` [${(sh.ci95[0] * 100).toFixed(0)}&ndash;${(sh.ci95[1] * 100).toFixed(0)}%]` : '';
+    return `${(sh.rate * 100).toFixed(1)}% <span class="ci">${sh.k}/${sh.n}${ci}</span>`;
+}
+function stackBar(parts) {
+    return `<div class="stack">${parts.filter(p => p[0] > 0).map(([v, c]) => `<span style="width:${(v * 100).toFixed(2)}%;background:${c}"></span>`).join('')}</div>`;
+}
+
+function renderMetrics() {
+    const body = document.getElementById('metricsBody');
+    if (!METRICS) return;
+    const scope = document.getElementById('metricsScope').value || 'all';
+    let S = METRICS.all;
+    if (scope.startsWith('source:')) S = METRICS.by_source[scope.slice(7)];
+    if (scope.startsWith('queue:')) S = METRICS.by_queue[scope.slice(6)];
+    if (!S || !S.n) {
+        body.innerHTML = `<div class="empty"><h3>No reviews logged yet</h3><p>Every Confirm or Update in the Pending, Reviewed and Video tabs is logged with the model's answer. Start with the Video tab's Random audit list for numbers that describe the model as a whole.</p></div>`;
+        return;
+    }
+    const v = S.verdict, s1 = S.stage1, b = S.both_distress, g = S.gate, h = S.heatmap, t = S.time_ms;
+    const G = 'var(--green)', A = 'var(--amber)', R = 'var(--red)';
+    const sampleNote = scope === 'queue:random'
+        ? '<p>Random audit sample: an unbiased estimate of the model on all answered segments.</p>'
+        : (scope.startsWith('queue:') ? '' : '<p>Mixed sample: rows mostly come from the review lists, which hold the model\'s uncertain answers. Use &ldquo;Sampled from Video: random audit&rdquo; for the model\'s accuracy.</p>');
+    const typeRows = Object.entries(S.per_type).map(([k, x]) =>
+        `<tr><td>${escapeHtml(k)}</td><td class="num">${x.tp}</td><td class="num">${x.fp}</td><td class="num">${x.fn}</td><td class="num">${fmtShare(x.precision)}</td><td class="num">${fmtShare(x.recall)}</td></tr>`).join('');
+    const queueRows = scope === 'all' || scope.startsWith('source:')
+        ? Object.entries(METRICS.by_queue).map(([q, x]) => `<tr><td>${escapeHtml(QUEUE_LABEL[q] || q)}</td><td class="num">${x.n}</td><td class="num">${fmtShare(x.verdict.right)}</td><td class="num">${fmtShare(x.verdict.close)}</td><td class="num">${fmtShare(x.verdict.wrong)}</td></tr>`).join('')
+        : '';
+    const hmTypeRows = Object.entries(h.by_type).map(([k, x]) =>
+        `<tr><td>${escapeHtml(k)}</td><td class="num">${x.on}</td><td class="num">${x.partly}</td><td class="num">${x.off}</td><td class="num">${fmtShare(x.on_rate)}</td></tr>`).join('');
+    const sec = ms => ms == null ? '&ndash;' : (ms / 1000).toFixed(1) + ' s';
+    body.innerHTML = `
+    <div class="m-grid">
+        <div class="m-card">
+            <h3>Model vs expert</h3>
+            <div class="big">${(v.right.rate * 100).toFixed(0)}% right</div>
+            ${stackBar([[v.right.rate, G], [v.close.rate, A], [v.wrong.rate, R]])}
+            <table class="m">
+                <tr><td><span class="verdict right">right</span></td><td class="num">${fmtShare(v.right)}</td></tr>
+                <tr><td><span class="verdict close">close</span></td><td class="num">${fmtShare(v.close)}</td></tr>
+                <tr><td><span class="verdict wrong">wrong</span></td><td class="num">${fmtShare(v.wrong)}</td></tr>
+            </table>
+            ${sampleNote}
+            <p>${S.n} reviewed items (latest review each); ${METRICS.log_rows} log entries in all.</p>
+        </div>
+        <div class="m-card">
+            <h3>Is there distress at all? (Stage 1)</h3>
+            <table class="m">
+                <tr><th></th><th class="num">Expert: distress</th><th class="num">Expert: Normal</th></tr>
+                <tr><td>Model: distress</td><td class="num">${s1.tp}</td><td class="num">${s1.fp}</td></tr>
+                <tr><td>Model: Normal</td><td class="num">${s1.fn}</td><td class="num">${s1.tn}</td></tr>
+            </table>
+            <table class="m" style="margin-top:8px">
+                <tr><td>Agreement</td><td class="num">${fmtShare(s1.agree)}</td></tr>
+                <tr><td>Recall (distress found)</td><td class="num">${fmtShare(s1.recall)}</td></tr>
+                <tr><td>Precision (distress real)</td><td class="num">${fmtShare(s1.precision)}</td></tr>
+                <tr><td>Specificity (Normal kept)</td><td class="num">${fmtShare(s1.specificity)}</td></tr>
+            </table>
+        </div>
+        <div class="m-card">
+            <h3>When both see distress (${b.n})</h3>
+            <table class="m">
+                <tr><td>Model's main label is correct</td><td class="num">${fmtShare(b.first_label_right)}</td></tr>
+                <tr><td>Exact same types</td><td class="num">${fmtShare(b.types_exact)}</td></tr>
+                <tr><td>Mean overlap (Jaccard)</td><td class="num">${b.mean_jaccard == null ? '&ndash;' : b.mean_jaccard.toFixed(2)}</td></tr>
+                <tr><td>Severity exact</td><td class="num">${fmtShare(b.severity.exact)}</td></tr>
+                <tr><td>Severity one step off</td><td class="num">${fmtShare(b.severity.close)}</td></tr>
+                <tr><td>Severity two steps off</td><td class="num">${fmtShare(b.severity.wrong)}</td></tr>
+            </table>
+        </div>
+        <div class="m-card">
+            <h3>Did the review gate pick the right ones?</h3>
+            <table class="m">
+                <tr><th></th><th class="num">Items</th><th class="num">Model right</th><th class="num">Model wrong</th></tr>
+                <tr><td>Flagged for review</td><td class="num">${g.flagged.n}</td><td class="num">${fmtShare(g.flagged.right)}</td><td class="num">${fmtShare(g.flagged.wrong)}</td></tr>
+                <tr><td>Auto-classified</td><td class="num">${g.auto_classified.n}</td><td class="num">${fmtShare(g.auto_classified.right)}</td><td class="num">${fmtShare(g.auto_classified.wrong)}</td></tr>
+            </table>
+            <p style="margin-top:8px">A useful gate sends the model's wrong answers to review: &ldquo;wrong&rdquo; should be much higher on flagged items.</p>
+        </div>
+        <div class="m-card" style="grid-column: 1 / -1">
+            <h3>Per type (expert as truth)</h3>
+            <table class="m">
+                <tr><th>Type</th><th class="num">Both</th><th class="num">Model only</th><th class="num">Expert only</th><th class="num">Precision</th><th class="num">Recall</th></tr>
+                ${typeRows || '<tr><td colspan="6">No distress types yet.</td></tr>'}
+            </table>
+        </div>
+        ${queueRows ? `<div class="m-card"><h3>By how items were sampled</h3><table class="m">
+            <tr><th>List</th><th class="num">Items</th><th class="num">Right</th><th class="num">Close</th><th class="num">Wrong</th></tr>${queueRows}</table></div>` : ''}
+        <div class="m-card">
+            <h3>&ldquo;Where the model looked&rdquo; overlay</h3>
+            <table class="m">
+                <tr><td>Reviews that opened it</td><td class="num">${fmtShare(h.viewed)}</td></tr>
+                <tr><td>Ring on the damage</td><td class="num">${fmtShare(h.rating.on)}</td></tr>
+                <tr><td>Partly</td><td class="num">${fmtShare(h.rating.partly)}</td></tr>
+                <tr><td>Not on the damage</td><td class="num">${fmtShare(h.rating.off)}</td></tr>
+            </table>
+            ${hmTypeRows ? `<table class="m" style="margin-top:8px"><tr><th>Type</th><th class="num">On</th><th class="num">Partly</th><th class="num">Off</th><th class="num">On rate</th></tr>${hmTypeRows}</table>` : ''}
+            <p style="margin-top:8px">Median time per review: ${sec(t.median_with_heatmap)} with the overlay, ${sec(t.median_without_heatmap)} without (from the first click on a card to the save).</p>
+        </div>
+        <div class="m-card">
+            <h3>Definitions</h3>
+            ${Object.entries(METRICS.definitions).map(([k, d]) => `<p><b>${escapeHtml(k)}</b>: ${escapeHtml(d)}</p>`).join('')}
+            <p>Reviewers: ${Object.entries(METRICS.reviewers).map(([n, c]) => `${escapeHtml(n)} (${c})`).join(', ')}</p>
+        </div>
+    </div>`;
+}
+
+async function loadMeta() {
+    try {
+        const m = await getJSON('/expert-api/meta');
+        META = { ...META, ...m };
+    } catch (e) {
+        console.warn('meta:', e);   // file:// without a server: Pending / Reviewed still work
+    }
+}
+
 // ============================================================
 // LIGHTBOX (smooth scroll-zoom around cursor + drag-pan + close)
 // ============================================================
@@ -1169,7 +1928,8 @@ async function pollRetrain() {
 const DRAG_THRESHOLD_PX = 4;
 
 const LB = {
-    el: null, canvas: null, img: null, closeBtn: null, zoomLabel: null,
+    el: null, canvas: null, img: null, stage: null, closeBtn: null, zoomLabel: null,
+    heat: null,           // the "where the model looked" request shown over the image, or null
     scale: 1, tx: 0, ty: 0,
     minScale: 0.05, maxScale: 12,
     isDragging: false, dragStart: null, dragMoved: false,
@@ -1181,6 +1941,7 @@ function setupLightbox() {
     LB.el = document.getElementById('lightbox');
     LB.canvas = document.getElementById('lightboxCanvas');
     LB.img = document.getElementById('lightboxImg');
+    LB.stage = document.getElementById('lightboxStage');
     LB.closeBtn = document.getElementById('lightboxClose');
     LB.zoomLabel = document.getElementById('lightboxZoom');
 
@@ -1263,7 +2024,7 @@ function setupLightbox() {
 }
 
 function applyTransform() {
-    LB.img.style.transform = `translate(${LB.tx}px, ${LB.ty}px) scale(${LB.scale})`;
+    LB.stage.style.transform = `translate(${LB.tx}px, ${LB.ty}px) scale(${LB.scale})`;
     LB.zoomLabel.textContent = Math.round(LB.scale * 100) + '%';
 }
 
@@ -1288,9 +2049,11 @@ function fitAndCenter() {
     applyTransform();
 }
 
-function openLightbox(url) {
+function openLightbox(url, heat = null) {
     if (!url) return;
     const fullUrl = optimizedImageUrl(url, 'full');
+    LB.heat = heat;
+    renderOverlayPanel();
 
     // Show immediately (so the dark backdrop covers behind the loading image)
     LB.el.classList.add('open');
@@ -1307,8 +2070,12 @@ function openLightbox(url) {
     const onReady = () => {
         LB.natW = LB.img.naturalWidth;
         LB.natH = LB.img.naturalHeight;
+        LB.stage.style.width = LB.natW + 'px';
+        LB.stage.style.height = LB.natH + 'px';
         fitAndCenter();
+        drawHeat();
     };
+    drawHeat();
 
     if (LB.img.complete && LB.img.naturalWidth > 0) {
         onReady();
@@ -1324,6 +2091,9 @@ function openLightbox(url) {
 function closeLightbox() {
     LB.el.classList.remove('open');
     LB.open = false;
+    LB.heat = null;
+    renderOverlayPanel();
+    drawHeat();
     document.body.style.overflow = '';
     // Don't clear src — keeps it cached for the next open of the same image
 }
@@ -1332,7 +2102,7 @@ function closeLightbox() {
 // INIT
 // ============================================================
 setupLightbox();
-initReviewer();
+loadMeta().finally(initReviewer);
 </script>
 </body>
 </html>

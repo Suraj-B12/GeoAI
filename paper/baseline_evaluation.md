@@ -48,8 +48,15 @@
 > **Revision 2026-10-31 — Grad-CAM.** New §6.10 and §7.11: Grad-CAM of the per-type probe on all 769
 > Attain frames with distress boxes (1,884 frame–class pairs), against a location prior, under a
 > pre-registered rule. It fails the rule (macro pointing hit 0.258 vs 0.226, Δ +0.032 [−0.042, +0.130]).
-> Its suggested boxes never match an annotated box. No heatmap is added to the expert UI. Figures 6.10a–b by
+> Its suggested boxes never match an annotated box. Figures 6.10a–b by
 > `scripts/gradcam_localization_report.py` (no inference).
+
+> **Revision 2026-10-31 (b) — expert review of the drive survey.** §6.4: the expert UI gained a Video tab
+> (7,050 answered segments in three lists, including a fixed random audit order) and an append-only review
+> log in which every save stores the model's answer next to the expert's, with "model vs expert" metrics
+> (`scripts/expert_review_metrics.py`). §6.10 decision updated: at the owner's request the Grad-CAM overlay
+> is in the UI as an opt-in reference with its measured hit rate beside it, and experts rate it, which gives
+> a Bengaluru re-test. No result changed.
 >
 > **Reading guide.** Results were produced by four successive pipeline versions; every table
 > names the one it used:
@@ -695,6 +702,27 @@ These are pre-IRC results with pre-IRC label names; F1 on classes present in mos
 
 Planned measurements, once roughly 300–1,000 uploads are reviewed: free-form list against the calibrated probe on held-out Bengaluru labels (macro MCC, block/day bootstrap), the review load and error rate at the 0.80 gate, and only then few-shot injection and incremental retraining.
 
+**Review protocol and log (2026-10-31).** The expert UI now also reviews the drive-video survey (§8). Its Video tab lists the 7,050 answered segments in three ways:
+- **Needs review:** the 3,355 segments the gate or the safety net flagged.
+- **Auto-classified:** the 3,695 answers nobody has checked.
+- **Random audit:** every answered segment in a fixed pseudo-random order (SHA-256 of the segment id).
+
+The distinction matters. Accuracy measured on the flagged list describes the model's uncertain answers, not the model. Accuracy on the random-audit list, reviewed in the order shown, is the unbiased estimate. Comparing flagged with auto-classified items measures whether the 0.80 gate sends the model's errors to people.
+
+Every save, from either the citizen or the video tabs, appends a row to `research.expert_review_log` (local PostgreSQL, migration 006). Each row holds:
+- the model's answer, read by the server from the assessment at save time;
+- the expert's types, severity and notes;
+- the list the item was sampled from;
+- whether the reference overlay (§6.10) was opened, and the expert's rating of it;
+- the time from first touching the card to saving.
+
+Rows are never edited: an update is a new row, the latest review per item counts, and the item stays in the list it was first reviewed from. Each review gets one of three verdicts:
+- **right:** both say Normal, or both name the same set of types;
+- **close:** the types overlap;
+- **wrong:** Normal against distress, or no type in common.
+
+Severity is compared on Low < Medium < High when both see distress. The UI's Metrics tab and `scripts/expert_review_metrics.py` compute the same numbers with Wilson intervals: verdicts, Stage 1 confusion, per-type precision and recall, the gate comparison, and the overlay ratings. The script writes `eval_results/expert_review_metrics.{json,md}` with reviewers anonymised. Results will be reported here once reviews exist; as of this revision the log is empty.
+
 ### 6.5 Stage 2 Confidence Calibration
 
 We ran the production classifier (4-bit, IRC:82 prompts, no adapter) over 407 randomly sampled Attain images and recorded both confidence variants for each Stage 2 prediction. Multi-label correctness is ambiguous, so four definitions are reported. A confidence score's ranking quality is measured by AUC: the probability that a randomly chosen correct prediction scores above a randomly chosen incorrect one (0.5 means the score carries no information).
@@ -1037,7 +1065,12 @@ Two uses were proposed for a heatmap of where the model looks. The first is a sw
 4. **The map is better when the probe says Yes.** On test pairs with P(yes) > 0.5 (424, of which 354 are linear cracks), the hit rate is 0.355 against the prior's 0.060. On the others it is 0.243 against 0.231. This split was not part of the rule and is descriptive.
 5. **The decoder's middle layers localise best.** Gradient × activation beat classic Grad-CAM at every layer, and layer 8 (0.221 on development) beat the vision encoder output (0.106) and the last layer (0.087). Classic Grad-CAM averages the gradient over all image tokens, which discards the per-token signal that is the whole point here.
 
-**Decision.** No heatmap switch is added to the expert UI. The module stays in the repository for analysis and for a possible re-test on expert-labelled Bengaluru uploads.
+**Decision.** Under the pre-registered rule the overlay was not to be added. At the project owner's request it was added anyway, as an opt-in reference rather than a default view (§6.4):
+- A reviewer opens it per type with a button. It is never shown by default and never changes a label.
+- The overlay states its measured test hit rate for that type next to the location prior's, e.g. 38% against 7% for potholes.
+- It asks the reviewer whether the ring is on the damage. Those ratings, logged per type, are the re-test on Bengaluru photographs that the paragraph above calls for.
+
+It is not used to draw dataset boxes (§7.11).
 
 ---
 
@@ -1145,11 +1178,11 @@ Production therefore keeps the whole-field gate at 0.80 and the unmodified promp
 
 **Limitations.** (1) All labelled evidence is from one dataset (Attain WS_V2.0), whose frames and annotation practice differ from production. (2) The 78 no-distress frames are the only all-negative examples, so specificity estimates are wide. (3) The development split (15 blocks) was too small to tune per-class choices; the cross-validated configuration is the one deployed. (4) Twelve of the eighteen IRC types have no labelled data at all, so the probe may only remove them; its removals (e.g. Bleeding on 45 of 52 uploads) are unvalidated. (5) Severity is unchanged and not evaluated here. Attain labels only High or Low and the image-level maximum is High on most frames, while the model mostly answers Medium, so exact-match severity accuracy on Attain (§6.3) measures the vocabulary mismatch more than the model. (6) The description sentence still comes from the free-form generation and can mention types the probe would remove.
 
-### 7.11 Why a Heatmap Is Not Shown to Experts
+### 7.11 Why the Heatmap Is Only a Reference for Experts
 
-A heatmap in the review screen is persuasive. When it is right it saves the reviewer a search; when it is wrong it draws the eye away from the damage, and a reviewer has no way to tell which case they are in. §6.10 shows that the wrong case is common. Averaged over the seven Attain classes, the hottest point of the probe's Grad-CAM lands on the annotated damage about as often as a fixed per-class guess (0.258 vs 0.226). For ravelling, weathering and patches it does worse than that guess, and the rest of the map is close to random. These are the texture-like classes, which cover large areas without a sharp edge. For them the model's "Yes" seems to come from the overall look of the surface, not from one place, so there is no single place for a gradient to point to. Potholes are the exception: a compact object with a dark edge, found three times in eight against one in fourteen for the guess.
+A heatmap in the review screen is persuasive. When it is right it saves the reviewer a search; when it is wrong it draws the eye away from the damage, and a reviewer has no way to tell which case they are in. That is why the UI keeps it off until asked for, prints its measured hit rate beside it, and asks the reviewer to judge it rather than trust it. §6.10 shows that the wrong case is common. Averaged over the seven Attain classes, the hottest point of the probe's Grad-CAM lands on the annotated damage about as often as a fixed per-class guess (0.258 vs 0.226). For ravelling, weathering and patches it does worse than that guess, and the rest of the map is close to random. These are the texture-like classes, which cover large areas without a sharp edge. For them the model's "Yes" seems to come from the overall look of the surface, not from one place, so there is no single place for a gradient to point to. Potholes are the exception: a compact object with a dark edge, found three times in eight against one in fourteen for the guess.
 
-Two limits apply. First, Attain annotates damage incompletely. Some frames carry a single pothole box across a road covered in cracks (Figure 6.10b, third panel), so a "miss" can land on real, unannotated damage. This lowers Grad-CAM's hit rate and the prior's alike, and the comparison between them stands. Second, Attain's vehicle-mounted strips are not Bengaluru's handheld close-ups. On a close-up, the damage fills more of the frame and any map has an easier job. Whether a pothole-only highlight is worth showing is a question for expert-labelled uploads, tested the same way, not for a design choice made now.
+Two limits apply. First, Attain annotates damage incompletely. Some frames carry a single pothole box across a road covered in cracks (Figure 6.10b, third panel), so a "miss" can land on real, unannotated damage. This lowers Grad-CAM's hit rate and the prior's alike, and the comparison between them stands. Second, Attain's vehicle-mounted strips are not Bengaluru's handheld close-ups. On a close-up, the damage fills more of the frame and any map has an easier job. Whether a pothole-only highlight is worth showing by default is a question for expert-labelled uploads, and the reviewers' per-type ratings (§6.4) are collecting exactly that evidence.
 
 For a dataset release the answer is clearer. A box needs an extent, and the maps give a point: suggested boxes reached IoU ≥ 0.5 on at most 2% of pairs. Drafting boxes for a public dataset needs a detector trained on boxes, or experts drawing them, not attribution maps of a classifier.
 
