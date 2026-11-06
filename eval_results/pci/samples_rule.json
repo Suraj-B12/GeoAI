@@ -1,0 +1,145 @@
+{
+  "rule": "seed 20261107, Python random.Random):\n  (a) \"longest_drive\": the drive with the most segments, A = its first segment with a position, B = its last.\n  (b) \"random_1km_<date>_<i>\": for each survey day 2026-10-27 and 2026-10-29, the day's trip = its drives in\n      time order, segments in k order, cumulative distance along the trip (gaps as straight lines). Three\n      start segments drawn uniformly among those with >= 1000 m of trip after them; B = the first segment\n      >= 1000 m further along the trip. No via points (what a user clicking A and B would get). A draw the\n      router refuses is recorded with its reason and replaced by the next draw (at most 20 draws per day).\n  (c) \"two_gaps\": every run of three drives d1 -> d2 -> d3 joined by two time-adjacent gap edges (same device,\n      dt < 10 min) is a candidate; one is drawn at random; A = the segment 100 m before the end of d1 (or its\n      first), B = the segment 100 m after the start of d3 (or its last).\n  Category urban (Table 5.3), lane width 3.5 m (default), no road chainage calibration, no free text.",
+  "seed": 20261107,
+  "rule_sha256": "016ea93a59182f51567ff28a895adee0cd711bf9c3c0b3205197b05b627e1b08",
+  "selected_at": "2026-11-06T20:31:23+00:00",
+  "selected_on_database": "geoai_test",
+  "data_as_of": "2026-11-06T20:29:50.560387Z",
+  "note": "written BEFORE any rating was computed; reused unchanged on every later run",
+  "chosen": [
+    {
+      "a": {
+        "lat": 12.8586619,
+        "lon": 77.5281618
+      },
+      "b": {
+        "lat": 12.7926372,
+        "lon": 77.5051467
+      },
+      "category": "urban",
+      "_rule": "longest_drive",
+      "_a_segment": "20261029T103654Z_SM-G991B-F0D1_475b_seg00000",
+      "_b_segment": "20261029T103654Z_SM-G991B-F0D1_475b_seg01656"
+    },
+    {
+      "a": {
+        "lat": 12.9692813,
+        "lon": 77.6056155
+      },
+      "b": {
+        "lat": 12.9744316,
+        "lon": 77.6113661
+      },
+      "category": "urban",
+      "_rule": "random_1km_2026-10-27_1",
+      "_a_segment": "20261027T103852Z_SM-G991B-F0D1_e2c7_seg00003",
+      "_b_segment": "20261027T112443Z_SM-G991B-F0D1_2fb1_seg00112",
+      "_draw": 1
+    },
+    {
+      "a": {
+        "lat": 12.9702306,
+        "lon": 77.6173316
+      },
+      "b": {
+        "lat": 12.9654755,
+        "lon": 77.6189192
+      },
+      "category": "urban",
+      "_rule": "random_1km_2026-10-27_2",
+      "_a_segment": "20261027T112804Z_SM-G991B-F0D1_c561_seg00209",
+      "_b_segment": "20261027T113604Z_SM-G991B-F0D1_3fe3_seg00031",
+      "_draw": 2
+    },
+    {
+      "a": {
+        "lat": 12.9539098,
+        "lon": 77.5913734
+      },
+      "b": {
+        "lat": 12.9622837,
+        "lon": 77.5947227
+      },
+      "category": "urban",
+      "_rule": "random_1km_2026-10-27_3",
+      "_a_segment": "20261027T102007Z_SM-G991B-F0D1_22d5_seg00002",
+      "_b_segment": "20261027T102142Z_SM-G991B-F0D1_7bf4_seg00153",
+      "_draw": 3
+    },
+    {
+      "a": {
+        "lat": 12.9221599,
+        "lon": 77.5699073
+      },
+      "b": {
+        "lat": 12.9162605,
+        "lon": 77.5737604
+      },
+      "category": "urban",
+      "_rule": "random_1km_2026-10-29_1",
+      "_a_segment": "20261029T095610Z_SM-G991B-F0D1_8873_seg00161",
+      "_b_segment": "20261029T100237Z_SM-G991B-F0D1_11c4_seg00016",
+      "_draw": 2
+    },
+    {
+      "a": {
+        "lat": 12.8844462,
+        "lon": 77.552201
+      },
+      "b": {
+        "lat": 12.879161,
+        "lon": 77.5455437
+      },
+      "category": "urban",
+      "_rule": "random_1km_2026-10-29_2",
+      "_a_segment": "20261029T101817Z_SM-G991B-F0D1_8130_seg00295",
+      "_b_segment": "20261029T102453Z_SM-G991B-F0D1_389b_seg00000",
+      "_draw": 3
+    },
+    {
+      "a": {
+        "lat": 12.8367158,
+        "lon": 77.5160018
+      },
+      "b": {
+        "lat": 12.8285112,
+        "lon": 77.5127561
+      },
+      "category": "urban",
+      "_rule": "random_1km_2026-10-29_3",
+      "_a_segment": "20261029T103654Z_SM-G991B-F0D1_475b_seg00567",
+      "_b_segment": "20261029T103654Z_SM-G991B-F0D1_475b_seg00767",
+      "_draw": 4
+    },
+    {
+      "a": {
+        "lat": 12.967308,
+        "lon": 77.5994108
+      },
+      "b": {
+        "lat": 12.9711878,
+        "lon": 77.6055122
+      },
+      "category": "urban",
+      "_rule": "two_gaps",
+      "_a_segment": "20261027T102142Z_SM-G991B-F0D1_7bf4_seg00306",
+      "_b_segment": "20261027T103050Z_SM-G991B-F0D1_eaf1_seg00021",
+      "_drives": [
+        "20261027T102142Z_SM-G991B-F0D1_7bf4",
+        "20261027T102704Z_SM-G991B-F0D1_b63f",
+        "20261027T103050Z_SM-G991B-F0D1_eaf1"
+      ],
+      "_candidates": 30
+    }
+  ],
+  "refused_draws": [
+    {
+      "day": "2026-10-29",
+      "draw": 1,
+      "a_segment": "20261029T103654Z_SM-G991B-F0D1_475b_seg01625",
+      "b_segment": "20261029T112355Z_SM-G991B-F0D1_1e4e_seg00028",
+      "reason": "no surveyed path from A to B; add a via point where the vehicle drove to allow a flagged gap (at most 300 m, straight line)"
+    }
+  ],
+  "two_gap_candidates": 30
+}

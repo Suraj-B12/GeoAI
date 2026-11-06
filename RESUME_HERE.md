@@ -14,6 +14,23 @@ agents; tests; paper + metrics updated; honest, no made-up results.
 | C critic | critic agent | `eval_results/pci/REVIEW_*.md` (read-only otherwise) | its review files |
 | P paper/deploy | coordinator | paper §9, CLAUDE.md, memory, commit, production restart | this file |
 
+**Checkpoint rules (usage limits stop every agent at once):**
+- Every agent rewrites its STATUS file after each finished step: done / in progress / next, file list, test
+  results, open problems. A new session must be able to resume from the STATUS file alone.
+- Agents write code in small, complete steps (each file importable, tests runnable). No half-edited file
+  is left overnight.
+- Long computations (sample reports, validation) run as scripts that write their results atomically
+  (temp file + rename) and skip work already done.
+- The coordinator commits and pushes after each milestone (design, backend, frontend, reviews, paper),
+  so the work is in git and on GitHub, not only on disk.
+- After a reset: read this file + every `eval_results/pci/STATUS_*.md` + `REVIEW_*.md`, then resume the
+  same agents with SendMessage (or start new ones from the STATUS files).
+
+Committed so far: `b0b0b2d` (research, design v1, this file), `b46fc92` (design v2 after critic review).
+2026-11-07: backend agent and frontend agent started in parallel on DESIGN v2 (frontend works in
+`eval_results/pci/webgis_dev/`, harness port 8010; backend tests on port 8012 / TestClient, writes only to
+`geoai_test`). Next: critic agent on code + sample reports once both STATUS files say done.
+
 Steps left: critic on design → fix DESIGN → backend + frontend in parallel → critic on code + sample
 reports → fix rounds → sample reports in production DB → paper §9 → restart production → commit/push.
 Delete this file when done.

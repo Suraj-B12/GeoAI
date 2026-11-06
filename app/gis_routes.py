@@ -766,6 +766,7 @@ def webgis_dir() -> Path:
 def install(app: FastAPI) -> None:
     """Include the /gis router; serve the WebGIS folder at /gis/app/ when it exists."""
     app.include_router(router)
+    app.include_router(__import__("app.pci_routes", fromlist=["router"]).router)   # /gis/pci/* (A->B IRC:82 report)
     folder = webgis_dir()
     if (folder / "index.html").is_file():
         from fastapi.staticfiles import StaticFiles
