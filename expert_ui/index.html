@@ -275,9 +275,13 @@
         }
         .lightbox-img {
             display: block;
+            width: 100%;                     /* fills the stage: the card thumbnail shows at once, */
+            height: 100%;                    /* the full-size image replaces it in the same box     */
             user-select: none;
             -webkit-user-drag: none;
         }
+        /* The card's decoded thumbnail, drawn the moment the lightbox opens (until the full image is decoded) */
+        .lightbox-thumb { position: absolute; inset: 0; width: 100%; height: 100%; display: none; }
         /* "Where the model looked" overlay: drawn at map-grid resolution, scaled by the browser */
         .lightbox-heat { position: absolute; inset: 0; width: 100%; height: 100%; display: none; }
         .lightbox-peak {
@@ -572,6 +576,14 @@
         .verdict.right { background: var(--green-light); color: var(--green); }
         .verdict.close { background: var(--amber-light); color: var(--amber); }
         .verdict.wrong { background: var(--red-light); color: var(--red); }
+        /* Several experts at once */
+        .presence-bar { font-size: 12px; color: var(--text-secondary); margin: 0 0 14px; line-height: 1.5; }
+        .presence-bar strong { color: var(--text); }
+        .presence-bar.single { color: var(--amber); }
+        .claim-note { display: none; font-size: 12px; font-weight: 600; color: var(--amber); background: var(--amber-light);
+                      border-radius: 8px; padding: 7px 10px; margin: 0 0 12px; line-height: 1.45; }
+        .claim-note.show { display: block; }
+        .card.elsewhere { opacity: 0.72; }
 
         /* ======== METRICS TAB ======== */
         .m-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
@@ -640,8 +652,11 @@
 
 <!-- ======== CONTENT ======== -->
 <main class="main">
+    <!-- Who else is reviewing (several experts at once; leases held by the server) -->
+    <div class="presence-bar" id="presenceBar"></div>
     <!-- Pending Tab -->
     <div id="panelPending">
+        <div class="hint" id="pendingHint"></div>
         <div class="grid" id="pendingGrid"></div>
         <div class="empty" id="pendingEmpty" style="display:none;">
             <h3>All caught up</h3>
@@ -709,6 +724,7 @@
     <div class="lightbox-canvas" id="lightboxCanvas">
         <div class="lightbox-stage" id="lightboxStage">
             <img class="lightbox-img" id="lightboxImg" src="" alt="">
+            <canvas class="lightbox-thumb" id="lightboxThumb"></canvas>
             <canvas class="lightbox-heat" id="lightboxHeat"></canvas>
             <div class="lightbox-peak" id="lightboxPeak"></div>
         </div>
@@ -785,6 +801,7 @@ function fmtDate(iso) {
 // ============================================================
 function switchTab(tab) {
     activeTab = tab;
+    cancelPrefetch();
     document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
     document.getElementById('panelPending').style.display = tab === 'pending' ? 'block' : 'none';
     document.getElementById('panelReviewed').style.display = tab === 'reviewed' ? 'block' : 'none';
@@ -956,7 +973,10 @@ function optimizedImageUrl(url, mode = 'thumb') {
 // ============================================================
 // DATA LOADING
 // ============================================================
-async function loadAll() { await Promise.all([loadPending(), loadReviewed(), refreshVideoBadge()]); }
+async function loadAll() {
+    await Promise.all([loadPending(), loadReviewed(), refreshVideoBadge()]);
+    refreshPresence();
+}
 
 // Video tab count (segments waiting for review) without loading the tab itself.
 async function refreshVideoBadge() {
@@ -969,9 +989,13 @@ async function refreshVideoBadge() {
     }
 }
 
+let pendingAll = [];                   // every pending upload (Supabase), newest first
+let pendingInfo = null;                // the server's answer to the last claim (granted, held_by_others)
+
 async function loadPending() {
+    let rows = [];
     try {
-        assessments = await cachedFetch(
+        rows = await cachedFetch(
             'pending',
             `${SUPABASE_URL}/rest/v1/assessments` +
                 `?needs_expert_review=eq.true&expert_reviewed=eq.false` +
@@ -996,13 +1020,50 @@ async function loadPending() {
             distressTypes = [...TYPES_DEFAULT];
         }
     } catch (e) {
-        assessments = [];
+        rows = [];
         distressTypes = [...TYPES_DEFAULT];
         showToast('Load failed: ' + e.message);
         console.error('loadPending error:', e);
     }
+    pendingAll = rows;
+    assessments = await claimPending(rows);
     renderPending();
-    document.getElementById('pendingBadge').textContent = assessments.length;
+    document.getElementById('pendingBadge').textContent = rows.length;
+}
+
+// Several experts: show only the uploads the server holds for this tab (a batch of BATCH).
+async function claimPending(rows) {
+    pendingInfo = null;
+    if (!SERVER || !rows.length || !reviewerName) return rows;
+    try {
+        const out = await claimsPost('next', { source: 'citizen', queue: 'citizen_pending', n: BATCH,
+                                               candidates: rows.slice(0, 200).map(a => a.id) });
+        pendingInfo = out;
+        const got = new Set(out.granted);
+        // pending uploads this tab holds now; leases on Reviewed items being edited are kept
+        for (const a of rows.slice(0, 200)) { if (!got.has(a.id)) HELD.delete(keyOf('citizen', a.id)); }
+        holdItems('citizen', out.granted);
+        return rows.filter(a => got.has(a.id));
+    } catch (e) {
+        console.warn('citizen claims:', e);
+        showToast('Could not reserve uploads for you (' + e.message + '); showing all of them.');
+        return rows;
+    }
+}
+async function topUpPending() {
+    if (!SERVER) return;
+    const shown = new Set(assessments.map(a => a.id));
+    const got = await claimPending(pendingAll);
+    const add = got.filter(a => !shown.has(a.id));
+    assessments = assessments.filter(a => got.some(g => g.id === a.id)).concat(add);
+    const grid = document.getElementById('pendingGrid');
+    if (add.length && assessments.length > add.length) {
+        grid.insertAdjacentHTML('beforeend', add.map(a => buildCardHTML(a, 'pending')).join(''));
+        observeCardImages(grid);
+        renderPendingHint();
+    } else {
+        renderPending();
+    }
 }
 
 async function loadReviewed() {
@@ -1023,29 +1084,31 @@ async function loadReviewed() {
 }
 
 // ============================================================
-// RENDER — PENDING
+// RENDER — PENDING / REVIEWED (cards keyed by assessment id)
 // ============================================================
-// Build the editable card body (used by BOTH Pending and Reviewed tabs).
-// The only difference: Reviewed cards are pre-populated with the prior
-// expert correction, and the action button label changes from "Confirm"
-// to "Update". Saving from either tab persists the same patch shape.
-function buildCardHTML(a, i, mode /* 'pending' | 'reviewed' */) {
+// The editable card body is used by BOTH tabs. Reviewed cards are pre-populated with the prior
+// expert correction and the action button reads "Update Review". Element ids and edit state are
+// keyed by the assessment id, so saving or skipping one card never shifts another card's edits.
+function buildCardHTML(a, mode /* 'pending' | 'reviewed' */) {
     const conf = a.stage2_confidence || a.stage1_confidence || 0;
-    const reviewedTypes = (a.expert_corrected_types && a.expert_corrected_types.length)
-        ? a.expert_corrected_types
-        : (a.distress_types || []).filter(t => t !== 'Unknown');
+    const reviewedTypes = getTypes(a.id, mode);
     const reviewedSeverity = a.expert_corrected_severity || a.severity || 'Low';
     const reviewedNotes = a.expert_notes || '';
     const thumbUrl = optimizedImageUrl(a.image_url, 'thumb');
+    const fullUrl = optimizedImageUrl(a.image_url, 'full');
+    const id = escapeAttr(a.id);
+    const key = 'c:' + a.id;
+    const other = mode === 'reviewed' && ELSEWHERE.get(key);
 
     return `
-        <div class="card" id="card-${a.id}" onpointerdown="touchCard('c:${escapeAttr(a.id)}')" onfocusin="touchCard('c:${escapeAttr(a.id)}')">
-            <img class="card-img" src="${escapeAttr(thumbUrl)}" alt="" loading="lazy"
-                 onclick="openLightbox('${escapeAttr(a.image_url)}', '${escapeAttr(a.id)}')"
-                 onerror="this.src='https://placehold.co/420x280/e7e5e4/a8a29e?text=No+Image'">
+        <div class="card${other ? ' elsewhere' : ''}" id="card-${id}" onpointerdown="touchCard('c:${id}')" onfocusin="touchCard('c:${id}')">
+            <img class="card-img" src="${escapeAttr(thumbUrl)}" data-full="${escapeAttr(fullUrl)}" alt="" loading="lazy"
+                 onclick="openLightbox('${escapeAttr(a.image_url)}', null, this)"
+                 onerror="this.removeAttribute('data-full');this.src='https://placehold.co/420x280/e7e5e4/a8a29e?text=No+Image'">
             <div class="card-body">
+                <div class="claim-note${other ? ' show' : ''}" id="${noteId(key)}">${other ? escapeHtml(elsewhereText(other)) : ''}</div>
                 <div class="card-top">
-                    <span class="card-id">${a.id.substring(0,10)}</span>
+                    <span class="card-id">${escapeHtml(a.id.substring(0,10))}</span>
                     <span class="badge ${badgeClass(conf)}">${pct(conf)}</span>
                 </div>
                 <div class="field">
@@ -1063,12 +1126,10 @@ function buildCardHTML(a, i, mode /* 'pending' | 'reviewed' */) {
                 <hr class="card-divider">
                 <div class="form-group">
                     <label>Expert Classification</label>
-                    <div class="pill-select" id="types-${i}-${mode}">
-                        ${reviewedTypes.map(t=>`<span class="pill">${escapeHtml(t)}<span class="pill-x" onclick="event.stopPropagation();removeType(${i},'${escapeAttr(t)}','${mode}')">&times;</span></span>`).join('')}
-                    </div>
+                    <div class="pill-select" id="types-${id}-${mode}">${pillsHTML(a.id, mode)}</div>
                 </div>
                 <div class="form-group">
-                    <select onchange="addType(${i},this.value,'${mode}');this.value='';">
+                    <select onchange="addType('${id}',this.value,'${mode}');this.value='';">
                         <option value="">+ Add distress type...</option>
                         <option value="Normal">Normal (no distress)</option>
                         ${distressTypes.map(t=>`<option value="${escapeAttr(t)}">${escapeHtml(t)}</option>`).join('')}
@@ -1077,7 +1138,7 @@ function buildCardHTML(a, i, mode /* 'pending' | 'reviewed' */) {
                 </div>
                 <div class="form-group">
                     <label>Severity</label>
-                    <select id="sev-${i}-${mode}">
+                    <select id="sev-${id}-${mode}">
                         <option value="None"   ${reviewedSeverity==='None'  ?'selected':''}>None (no distress)</option>
                         <option value="Low"    ${reviewedSeverity==='Low'   ?'selected':''}>Low</option>
                         <option value="Medium" ${reviewedSeverity==='Medium'?'selected':''}>Medium</option>
@@ -1086,16 +1147,16 @@ function buildCardHTML(a, i, mode /* 'pending' | 'reviewed' */) {
                 </div>
                 <div class="form-group">
                     <label>Notes</label>
-                    <textarea id="note-${i}-${mode}" rows="2" placeholder="Optional observations...">${escapeHtml(reviewedNotes)}</textarea>
+                    <textarea id="note-${id}-${mode}" rows="2" placeholder="Optional observations...">${escapeHtml(reviewedNotes)}</textarea>
                 </div>
                 ${mode === 'reviewed' && a.reviewer_name
                     ? `<div class="reviewed-stamp">Last reviewed by <strong>${escapeHtml(a.reviewer_name)}</strong> · ${fmtDate(a.reviewed_at)}</div>`
                     : (mode === 'reviewed' ? `<div class="reviewed-stamp">${fmtDate(a.reviewed_at)}</div>` : '')}
                 <div class="card-actions">
                     ${mode === 'pending'
-                        ? `<button class="btn btn-sm" onclick="skipCard('${escapeAttr(a.id)}')">Skip</button>
-                           <button class="btn btn-primary btn-sm" onclick="submitCorrection(${i},'${escapeAttr(a.id)}','${mode}')">Confirm</button>`
-                        : `<button class="btn btn-primary btn-sm" onclick="submitCorrection(${i},'${escapeAttr(a.id)}','${mode}')">Update Review</button>`}
+                        ? `<button class="btn btn-sm" onclick="skipCard('${id}')">Skip</button>
+                           <button class="btn btn-primary btn-sm" onclick="submitCorrection('${id}','${mode}')">Confirm</button>`
+                        : `<button class="btn btn-primary btn-sm" ${other ? 'disabled' : ''} onclick="submitCorrection('${id}','${mode}')">Update Review</button>`}
                 </div>
             </div>
         </div>
@@ -1109,12 +1170,25 @@ function escapeAttr(s) {
     }[c]));
 }
 
+function renderPendingHint() {
+    const el = document.getElementById('pendingHint');
+    if (!SERVER) { el.textContent = ''; return; }
+    const total = pendingAll.length, mine = assessments.length;
+    const others = pendingInfo ? pendingInfo.held_by_others.length : 0;
+    el.textContent = total
+        ? `Showing the ${mine} upload${mine === 1 ? '' : 's'} held for you, of ${total} waiting`
+          + (others ? ` (${others} open with other experts)` : '')
+          + '. Each one you save or skip is replaced by the next; nobody else is shown these while you have them.'
+        : '';
+}
 function renderPending() {
     const grid = document.getElementById('pendingGrid');
     const empty = document.getElementById('pendingEmpty');
+    renderPendingHint();
     if (!assessments.length) { grid.style.display = 'none'; empty.style.display = 'block'; return; }
     grid.style.display = 'grid'; empty.style.display = 'none';
-    grid.innerHTML = assessments.map((a, i) => buildCardHTML(a, i, 'pending')).join('');
+    grid.innerHTML = assessments.map(a => buildCardHTML(a, 'pending')).join('');
+    observeCardImages(grid);
 }
 
 function renderReviewed() {
@@ -1122,21 +1196,23 @@ function renderReviewed() {
     const empty = document.getElementById('reviewedEmpty');
     if (!reviewedAssessments.length) { grid.style.display = 'none'; empty.style.display = 'block'; return; }
     grid.style.display = 'grid'; empty.style.display = 'none';
-    grid.innerHTML = reviewedAssessments.map((a, i) => buildCardHTML(a, i, 'reviewed')).join('');
+    grid.innerHTML = reviewedAssessments.map(a => buildCardHTML(a, 'reviewed')).join('');
+    observeCardImages(grid);
 }
 
 // ============================================================
 // INTERACTIONS
 // ============================================================
-// Per-card edit state is keyed by `mode:i` so Pending and Reviewed never
-// collide (they have independent index spaces).
+// Per-card edit state is keyed by `mode:id`, so Pending and Reviewed never collide and a card's
+// edits stay with that card when others leave the list.
 function srcArray(mode) { return mode === 'reviewed' ? reviewedAssessments : assessments; }
-function selKey(i, mode) { return `${mode}:${i}`; }
+function selKey(id, mode) { return `${mode}:${id}`; }
+function findItem(id, mode) { return srcArray(mode).find(a => a.id === id); }
 
-function getTypes(i, mode) {
-    const key = selKey(i, mode);
+function getTypes(id, mode) {
+    const key = selKey(id, mode);
     if (!selectedTypes[key]) {
-        const a = srcArray(mode)[i];
+        const a = findItem(id, mode);
         if (!a) return [];
         // Reviewed cards seed from the prior expert correction; Pending seeds from AI output.
         const seed = (mode === 'reviewed' && a.expert_corrected_types && a.expert_corrected_types.length)
@@ -1147,7 +1223,7 @@ function getTypes(i, mode) {
     return selectedTypes[key];
 }
 
-function addType(i, type, mode) {
+function addType(id, type, mode) {
     if (type === '__new__') {
         const name = prompt('Enter new distress type:');
         if (!name) return;
@@ -1163,113 +1239,188 @@ function addType(i, type, mode) {
           .catch(e => console.warn('Failed to persist new distress type:', e));
     }
     if (!type) return;
-    const t = getTypes(i, mode);
+    const t = getTypes(id, mode);
     if (type === 'Normal') {
         t.splice(0, t.length, 'Normal');
-        const sev = document.getElementById(`sev-${i}-${mode}`);
+        const sev = document.getElementById(`sev-${id}-${mode}`);
         if (sev) sev.value = 'None';
     } else {
         const n = t.indexOf('Normal');
         if (n > -1) t.splice(n, 1);
         if (!t.includes(type)) t.push(type);
     }
-    renderPills(i, mode);
+    renderPills(id, mode);
 }
 
-function removeType(i, type, mode) {
-    const t = getTypes(i, mode);
+function removeType(id, type, mode) {
+    const t = getTypes(id, mode);
     const x = t.indexOf(type);
-    if (x > -1) { t.splice(x, 1); renderPills(i, mode); }
+    if (x > -1) { t.splice(x, 1); renderPills(id, mode); }
 }
 
-function renderPills(i, mode) {
-    const el = document.getElementById(`types-${i}-${mode}`);
-    if (!el) return;
-    const t = getTypes(i, mode);
-    el.innerHTML = t.length
-        ? t.map(v => `<span class="pill">${escapeHtml(v)}<span class="pill-x" onclick="event.stopPropagation();removeType(${i},'${escapeAttr(v)}','${mode}')">&times;</span></span>`).join('')
+function pillsHTML(id, mode) {
+    const t = getTypes(id, mode);
+    const ida = escapeAttr(id);
+    return t.length
+        ? t.map(v => `<span class="pill">${escapeHtml(v)}<span class="pill-x" onclick="event.stopPropagation();removeType('${ida}','${escapeAttr(v)}','${mode}')">&times;</span></span>`).join('')
         : '<span class="pill-empty">No types selected</span>';
 }
+function renderPills(id, mode) {
+    const el = document.getElementById(`types-${id}-${mode}`);
+    if (el) el.innerHTML = pillsHTML(id, mode);
+}
 
-async function submitCorrection(i, id, mode) {
-    const types = getTypes(i, mode);
-    const severity = document.getElementById(`sev-${i}-${mode}`).value;
-    const notes = document.getElementById(`note-${i}-${mode}`).value;
+async function submitCorrection(id, mode) {
+    if (!reviewerName) { showNamePrompt(); return; }
+    const a = findItem(id, mode);
+    if (!a) return;
+    const key = 'c:' + id;
+    const types = getTypes(id, mode);
+    const severity = document.getElementById(`sev-${id}-${mode}`).value;
+    const notes = document.getElementById(`note-${id}-${mode}`).value;
     if (!types.length) { showToast('Select at least one distress type, or Normal.'); return; }
     const isNormal = types.length === 1 && types[0] === 'Normal';
     if (!isNormal && severity === 'None') { showToast('Pick a severity for the distress.'); return; }
+    const sev = isNormal ? 'None' : severity;
+    const card = document.getElementById(`card-${id}`);
+    const btn = card && card.querySelector('.btn-primary');
+    if (btn) btn.disabled = true;
 
     const patch = {
         needs_expert_review: false,
         expert_reviewed: true,
         expert_corrected_types: types,
-        expert_corrected_severity: isNormal ? 'None' : severity,
+        expert_corrected_severity: sev,
         expert_notes: notes,
         reviewer_name: reviewerName,                 // attribution by name (no auth)
         reviewed_at: new Date().toISOString()
     };
 
-    try {
-        const r = await fetch(
-            `${SUPABASE_URL}/rest/v1/assessments?id=eq.${id}`,
-            { method: 'PATCH', headers: sbHeaders(), body: JSON.stringify(patch) }
-        );
-        if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
-    } catch (e) {
-        showToast('Save failed: ' + e.message);
-        console.error('submitCorrection error:', e);
-        return;  // bail before mutating local state on a failed write
+    if (SERVER) {
+        // The server checks this tab's lease and saves only if the upload is still as this page saw
+        // it (unreviewed, or reviewed at a.reviewed_at); then it logs the review (research log).
+        let out;
+        try {
+            out = await postJSON(`/expert-api/citizen/review/${encodeURIComponent(id)}`, {
+                session: SESSION, reviewer_name: reviewerName, types, severity: sev, notes,
+                queue: mode === 'reviewed' ? 'citizen_reviewed' : 'citizen_pending',
+                seen_reviewed_at: a.reviewed_at || null, heatmap: heatPayload(key), ui: uiFacts(key)
+            });
+        } catch (e) {
+            if (btn) btn.disabled = false;
+            citizenSaveFailed(e, id, mode);
+            return;
+        }
+        patch.reviewed_at = out.reviewed_at || patch.reviewed_at;
+        HELD.delete(key);
+        delete cardState[key];
+        showToast(out.log_error ? 'Saved; research log failed: ' + (out.log_error.message || out.log_error)
+                  : `${mode === 'reviewed' ? 'Review updated' : 'Saved'} · ${VERDICT_TEXT[out.comparison.verdict]}`);
+    } else {
+        try {
+            const r = await fetch(
+                `${SUPABASE_URL}/rest/v1/assessments?id=eq.${id}`,
+                { method: 'PATCH', headers: sbHeaders(), body: JSON.stringify(patch) }
+            );
+            if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
+        } catch (e) {
+            if (btn) btn.disabled = false;
+            showToast('Save failed: ' + e.message);
+            console.error('submitCorrection error:', e);
+            return;  // bail before mutating local state on a failed write
+        }
+        // Research log (local PostgreSQL): the model's answer vs this review. Best effort: the
+        // review itself is already saved in Supabase.
+        logCitizenReview(id, types, sev, notes, mode);
     }
 
     // Invalidate the affected list caches — next reload pulls fresh.
     cacheInvalidate('pending');
     cacheInvalidate('reviewed');
-
-    // Research log (local PostgreSQL): the model's answer vs this review. Best effort: the
-    // review itself is already saved in Supabase.
-    logCitizenReview(id, types, patch.expert_corrected_severity, notes, mode);
+    delete selectedTypes[selKey(id, mode)];
 
     if (mode === 'pending') {
         // Move from Pending list into Reviewed list (top of feed).
-        const item = assessments.find(a => a.id === id);
-        if (item) { Object.assign(item, patch); reviewedAssessments.unshift(item); }
-        const card = document.getElementById(`card-${id}`);
+        Object.assign(a, patch);
+        reviewedAssessments = [a, ...reviewedAssessments.filter(r => r.id !== id)];
+        pendingAll = pendingAll.filter(r => r.id !== id);
         if (card) {
             card.style.opacity = '0';
             card.style.transform = 'scale(0.97)';
             card.style.transition = 'all 0.25s ease';
         }
         setTimeout(() => {
-            assessments = assessments.filter(a => a.id !== id);
-            delete selectedTypes[selKey(i, mode)];
-            renderPending(); renderReviewed();
-            document.getElementById('pendingBadge').textContent = assessments.length;
+            assessments = assessments.filter(r => r.id !== id);
+            card?.remove();
+            if (!assessments.length) renderPending(); else renderPendingHint();
+            renderReviewed();
+            document.getElementById('pendingBadge').textContent = pendingAll.length;
             document.getElementById('reviewedBadge').textContent = reviewedAssessments.length;
+            topUpPending();
         }, 250);
     } else {
-        // Reviewed → update in place. Stay on Reviewed tab; refresh the card.
-        const item = reviewedAssessments[i];
-        if (item) Object.assign(item, patch);
-        // Refresh just this card so the "Last reviewed by" stamp updates with new name/time.
-        const card = document.getElementById(`card-${id}`);
-        if (card) {
-            card.style.transition = 'background 0.4s ease';
-            card.style.background = 'var(--green-light)';
-            setTimeout(() => { card.style.background = ''; }, 600);
-        }
-        delete selectedTypes[selKey(i, mode)];
+        // Reviewed → update in place. Stay on Reviewed tab; refresh the list so the stamp updates.
+        Object.assign(a, patch);
         renderReviewed();
+        const c2 = document.getElementById(`card-${id}`);
+        if (c2) {
+            c2.style.transition = 'background 0.4s ease';
+            c2.style.background = 'var(--green-light)';
+            setTimeout(() => { c2.style.background = ''; }, 600);
+        }
     }
 
     correctionsMade++;
     document.getElementById('correctionCount').textContent = correctionsMade;
-    showToast(mode === 'reviewed' ? 'Review updated' : 'Correction saved');
+    if (!SERVER) showToast(mode === 'reviewed' ? 'Review updated' : 'Correction saved');
 }
 
-function skipCard(id) {
+// A 409 in words: who holds the item, or who saved it since this page loaded it.
+function conflictText(e) {
+    const d = e.detail || {};
+    if (d.held_by) return `${d.held_by} has this item open right now; it was not saved.`;
+    if (d.reviewed_by || d.reviewed_at) return `${d.reviewed_by || 'Another expert'} saved a review of this item`
+        + (d.reviewed_at ? ` at ${fmtDate(d.reviewed_at)}` : '') + '. Showing it now; your change was not saved.';
+    return e.message;
+}
+
+// 409: another expert holds the upload, or saved it after this page loaded it.
+function citizenSaveFailed(e, id, mode) {
+    showToast(e.status === 409 ? conflictText(e) : 'Save failed: ' + e.message);
+    if (e.status !== 409) return;
+    const key = 'c:' + id;
+    cacheInvalidate('pending');
+    cacheInvalidate('reviewed');
+    if (mode === 'pending') {
+        HELD.delete(key);
+        assessments = assessments.filter(a => a.id !== id);
+        pendingAll = pendingAll.filter(a => a.id !== id);
+        document.getElementById('card-' + id)?.remove();
+        if (!assessments.length) renderPending(); else renderPendingHint();
+        document.getElementById('pendingBadge').textContent = pendingAll.length;
+        topUpPending();
+        loadReviewed();
+    } else if (e.detail && e.detail.held_by) {
+        ELSEWHERE.set(key, e.detail.held_by);
+        setClaimNote(key, elsewhereText(e.detail.held_by));
+    } else {
+        delete selectedTypes[selKey(id, mode)];
+        loadReviewed();                    // shows the newer review; edit that one
+    }
+}
+
+async function skipCard(id) {
+    const key = 'c:' + id;
     assessments = assessments.filter(a => a.id !== id);
-    renderPending();
-    document.getElementById('pendingBadge').textContent = assessments.length;
+    document.getElementById('card-' + id)?.remove();
+    if (!assessments.length) renderPending(); else renderPendingHint();
+    if (SERVER && HELD.has(key)) {
+        HELD.delete(key);
+        try {
+            await claimsPost('release', { items: [{ source: 'citizen', item_id: id }], skip: true });
+        } catch (e) { console.warn('skip:', e); }
+        topUpPending();
+    }
 }
 
 // ============================================================
@@ -1321,7 +1472,11 @@ const cardState = {};
 function cs(key) {
     return cardState[key] || (cardState[key] = { types: null, heatmap: { types: [], ratings: {} }, t0: null });
 }
-function touchCard(key) { const s = cs(key); if (!s.t0) s.t0 = Date.now(); }
+function touchCard(key) {
+    const s = cs(key);
+    if (!s.t0) s.t0 = Date.now();
+    leaseOnEdit(key);               // Reviewed lists: hold the item while editing (several experts)
+}
 function uiFacts(key) {
     const s = cs(key);
     return s.t0 ? { ms_since_first_interaction: Date.now() - s.t0 } : {};
@@ -1331,20 +1486,204 @@ function heatPayload(key) {
     return { viewed: h.types.length > 0, types: [...h.types], ratings: { ...h.ratings } };
 }
 
+// Errors keep the HTTP status and the server's detail: a 409 detail is an object
+// {message, held_by | reviewed_by, reviewed_at} (another expert holds or changed the item).
+function apiError(r, data) {
+    const d = data && data.detail;
+    const msg = typeof d === 'string' ? d : (d && d.message) || `HTTP ${r.status}`;
+    const e = new Error(msg);
+    e.status = r.status;
+    e.detail = (d && typeof d === 'object') ? d : null;
+    return e;
+}
 async function postJSON(path, body) {
     const r = await fetch(api(path), { method: 'POST', headers: { 'Content-Type': 'application/json' },
                                        body: JSON.stringify(body) });
     let data = null;
     try { data = await r.json(); } catch {}
-    if (!r.ok) throw new Error((data && data.detail) || `HTTP ${r.status}`);
+    if (!r.ok) throw apiError(r, data);
     return data;
 }
 async function getJSON(path) {
     const r = await fetch(api(path));
     let data = null;
     try { data = await r.json(); } catch {}
-    if (!r.ok) throw new Error((data && data.detail) || `HTTP ${r.status}`);
+    if (!r.ok) throw apiError(r, data);
     return data;
+}
+
+
+// ============================================================
+// SEVERAL EXPERTS AT ONCE (leases held by the server, app/expert_review.py "Claims")
+// ============================================================
+// Each browser tab has a random session id (sessionStorage: it survives a reload, a new tab is a
+// new session). Review lists hand this session a batch of items (a lease of 10 minutes, renewed
+// every minute); nobody else is shown them until they are saved, skipped or the tab closes.
+// Saves send the reviewed_at they saw, so a review changed meanwhile is never overwritten (409).
+// Opened as a file there is no server to arbitrate: the page works as before, one reviewer.
+const SESSION = (() => {
+    const ok = (v) => typeof v === 'string' && /^[A-Za-z0-9_-]{16,64}$/.test(v);
+    const make = () => (window.crypto && crypto.randomUUID) ? crypto.randomUUID().replace(/-/g, '')
+        : Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+    try {
+        let v = sessionStorage.getItem('expert_review_session');
+        if (!ok(v)) { v = make(); sessionStorage.setItem('expert_review_session', v); }
+        return v;
+    } catch { return make(); }
+})();
+let SERVER = false;                  // set by loadMeta(): the page is served by the GeoAI server
+const HELD = new Map();              // 'v:<segment>' | 'c:<assessment>' -> {source, item_id}
+const ELSEWHERE = new Map();         // same keys -> name of the expert holding it in another session
+const BATCH = 12;                    // items per review list held at once
+const HEARTBEAT_MS = 60_000;
+let PRESENCE = null;
+
+function keyOf(source, id) { return (source === 'video' ? 'v:' : 'c:') + id; }
+function noteId(key) { return 'cn-' + key.replace(':', '-'); }
+async function claimsPost(path, body) {
+    return postJSON('/expert-api/claims/' + path, { session: SESSION, reviewer_name: reviewerName, ...body });
+}
+function holdItems(source, ids) { for (const i of ids) HELD.set(keyOf(source, i), { source, item_id: i }); }
+function forgetHeld(source) { for (const k of [...HELD.keys()]) if (HELD.get(k).source === source) HELD.delete(k); }
+
+function setClaimNote(key, text) {
+    const el = document.getElementById(noteId(key));
+    if (el) { el.textContent = text || ''; el.classList.toggle('show', !!text); }
+    const card = document.getElementById(key.startsWith('v:') ? 'vcard-' + key.slice(2) : 'card-' + key.slice(2));
+    if (card) card.classList.toggle('elsewhere', !!text);
+    const btn = card && card.querySelector('.btn-primary');
+    if (btn) btn.disabled = !!text;
+}
+function elsewhereText(name) {
+    return `${name} has this item open right now. You can look, but saving is blocked until they finish.`;
+}
+
+// Editing an already-reviewed item: hold it first, or show who has it.
+const LEASE_ASKED = new Set();
+async function leaseOnEdit(key) {
+    if (!SERVER || HELD.has(key) || LEASE_ASKED.has(key) || !reviewerName) return;
+    const source = key.startsWith('v:') ? 'video' : 'citizen';
+    const id = key.slice(2);
+    const queue = source === 'video' ? (V.queue === 'reviewed' ? 'reviewed' : null)
+        : (reviewedAssessments.some(a => a.id === id) && activeTab === 'reviewed' ? 'citizen_reviewed' : null);
+    if (!queue) return;                        // review lists already hold their items
+    LEASE_ASKED.add(key);
+    try {
+        const out = await claimsPost('grant', { source, queue, items: [id], n: 1 });
+        if (out.granted.includes(id)) { HELD.set(key, { source, item_id: id }); ELSEWHERE.delete(key); setClaimNote(key, ''); }
+        else {
+            const who = (out.held_by_others[0] || {}).reviewer_name || 'Another expert';
+            ELSEWHERE.set(key, who);
+            setClaimNote(key, elsewhereText(who));
+        }
+    } catch (e) {
+        console.warn('lease:', e);             // the save itself is checked again by the server
+    } finally {
+        LEASE_ASKED.delete(key);
+    }
+}
+
+async function heartbeat() {
+    if (!SERVER) return;
+    if (HELD.size) {
+        try {
+            const out = await claimsPost('heartbeat', { items: [...HELD.values()] });
+            for (const l of out.lost) lostItem(l.source, l.item_id);
+        } catch (e) { console.warn('heartbeat:', e); }
+    }
+    refreshPresence();
+}
+// A lease ran out while the page slept and another expert took the item.
+function lostItem(source, id) {
+    const key = keyOf(source, id);
+    HELD.delete(key);
+    if (source === 'video' && V.queue !== 'reviewed') { removeVideoCard(id); topUpVideo(); }
+    else if (source === 'citizen' && assessments.some(a => a.id === id)) {
+        assessments = assessments.filter(a => a.id !== id);
+        document.getElementById('card-' + id)?.remove();
+        topUpPending();
+    } else setClaimNote(key, 'Your hold on this item ran out and another expert took it.');
+    showToast('An item you had open was taken over by another expert (your hold had run out).');
+}
+
+async function refreshPresence() {
+    const bar = document.getElementById('presenceBar');
+    if (!SERVER) {
+        bar.className = 'presence-bar single';
+        bar.textContent = 'Single-reviewer mode: this page was opened as a file, so nothing stops two experts from '
+            + 'reviewing the same upload. Open it on the server (/expert/) when several experts work at once.';
+        return;
+    }
+    try {
+        const a = await getJSON(`/expert-api/claims/active?items=true&me=${encodeURIComponent(SESSION)}`);
+        PRESENCE = a;
+        const seen = new Set();
+        for (const it of a.items) {
+            const k = keyOf(it.source, it.item_id);
+            seen.add(k);
+            if (!HELD.has(k)) { ELSEWHERE.set(k, it.reviewer_name); setClaimNote(k, elsewhereText(it.reviewer_name)); }
+        }
+        for (const k of [...ELSEWHERE.keys()]) if (!seen.has(k)) { ELSEWHERE.delete(k); setClaimNote(k, ''); }
+        const others = a.experts.filter(e => !e.mine);
+        bar.className = 'presence-bar';
+        bar.innerHTML = others.length
+            ? `<strong>${others.length} other expert${others.length > 1 ? 's' : ''} reviewing now</strong>: `
+              + others.map(e => `${escapeHtml(e.reviewer_name)} (${e.video + e.citizen} open)`).join(', ')
+              + '. Items someone else has open are not shown in your review lists.'
+            : 'No other expert is reviewing right now.';
+    } catch (e) { console.warn('presence:', e); }
+}
+
+function releaseAllBeacon() {
+    if (!SERVER || !HELD.size) return;
+    try {
+        navigator.sendBeacon(api('/expert-api/claims/release'),
+                             new Blob([JSON.stringify({ session: SESSION })], { type: 'text/plain' }));
+    } catch {}
+    HELD.clear();
+}
+window.addEventListener('pagehide', releaseAllBeacon);
+window.addEventListener('pageshow', (e) => {         // back from the bfcache: leases were released
+    if (e.persisted && SERVER && reviewerName) { loadAll(); if (V.loaded) loadVideo(); }
+});
+setInterval(heartbeat, HEARTBEAT_MS);
+
+// ============================================================
+// FULL-SIZE PREFETCH (so the lightbox opens at full size)
+// ============================================================
+// The cards an expert holds are few; their full-size images are fetched and decoded in idle
+// time, two at a time, when the card scrolls near the viewport. Switching tabs drops the queue.
+const PF = { queue: [], active: 0, max: 2, cache: new Map(), limit: 40 };
+function prefetchFull(url) {
+    if (!url || PF.cache.has(url) || PF.queue.includes(url)) return;
+    PF.queue.push(url);
+    schedulePump();
+}
+function schedulePump() {
+    (window.requestIdleCallback || ((f) => setTimeout(f, 30)))(pumpPrefetch, { timeout: 400 });
+}
+function pumpPrefetch() {
+    while (PF.active < PF.max && PF.queue.length) {
+        const url = PF.queue.shift();
+        const im = new Image();
+        im.decoding = 'async';
+        PF.cache.set(url, im);
+        while (PF.cache.size > PF.limit) PF.cache.delete(PF.cache.keys().next().value);
+        PF.active++;
+        const done = () => { PF.active--; schedulePump(); };
+        im.onload = () => { (im.decode ? im.decode().catch(() => {}) : Promise.resolve()).then(done); };
+        im.onerror = () => { PF.cache.delete(url); done(); };
+        im.src = url;
+    }
+}
+function cancelPrefetch() { PF.queue.length = 0; }
+const PF_OBS = ('IntersectionObserver' in window) ? new IntersectionObserver((entries) => {
+    for (const e of entries) if (e.isIntersecting) { prefetchFull(e.target.dataset.full); PF_OBS.unobserve(e.target); }
+}, { rootMargin: '400px' }) : null;
+function observeCardImages(root) {
+    root.querySelectorAll('img.card-img[data-full]').forEach(img => {
+        if (PF_OBS) PF_OBS.observe(img); else prefetchFull(img.dataset.full);
+    });
 }
 
 const VERDICT_TEXT = { right: 'model was right', close: 'model was close', wrong: 'model was wrong' };
@@ -1393,8 +1732,19 @@ function updateLookState(key) {
     if (el) el.innerHTML = lookStateText(key);
 }
 
+// Video previews carry v = the image's SHA-256 prefix: the server then marks them immutable,
+// so the browser keeps them for good (a re-extracted frame gets a new v, hence a new URL).
+function videoImageUrl(id, w) {
+    const it = V.items.find(x => x.segment_id === id);
+    const v = it && it.image_v ? `&v=${encodeURIComponent(it.image_v)}` : '';
+    return api(`/gis/image/${encodeURIComponent(id)}?w=${w}${v}`);
+}
+function cardThumb(source, id) {
+    const card = document.getElementById((source === 'video' ? 'vcard-' : 'card-') + id);
+    return card ? card.querySelector('img.card-img') : null;
+}
 function imageUrlFor(source, id) {
-    if (source === 'video') return api(`/gis/image/${encodeURIComponent(id)}?w=1920`);
+    if (source === 'video') return videoImageUrl(id, 1920);
     const a = assessments.find(x => x.id === id) || reviewedAssessments.find(x => x.id === id);
     return a ? a.image_url : null;
 }
@@ -1403,7 +1753,7 @@ async function openLook(source, id, type) {
     const key = (source === 'video' ? 'v:' : 'c:') + id;
     touchCard(key);
     const req = { key, source, id, type, data: null, error: null, show: true, n: Date.now() };
-    openLightbox(imageUrlFor(source, id), req);
+    openLightbox(imageUrlFor(source, id), req, cardThumb(source, id));
     renderOverlayPanel();
     try {
         const data = await getJSON(`/expert-api/explain/${source}/${encodeURIComponent(id)}?type=${encodeURIComponent(type)}`);
@@ -1501,13 +1851,14 @@ function drawHeat() {
 // VIDEO TAB (drive-video segments through /expert-api)
 // ============================================================
 const V = { queue: 'needs_review', session: '', label: '', offset: 0, limit: 24,
-            items: [], counts: {}, total: 0, loaded: false, metaLoaded: false, busy: false };
+            items: [], counts: {}, total: 0, loaded: false, metaLoaded: false, busy: false, claim: null };
+const CLAIM_QUEUES = ['needs_review', 'auto', 'random'];      // handed out as leases (several experts)
 const lastVerdict = {};   // segment_id -> comparison of the last save in this page
 const QUEUE_INFO = {
     needs_review: ['Needs review', 'Segments the pipeline flagged for a person (low confidence, or the safety net saw distress the model called Normal). The model is unsure on these, so accuracy on this list is lower than its true accuracy.'],
     auto: ['Auto-classified', 'Segments the model answered confidently; nobody has checked them. Reviewing some shows how often confident answers are wrong, which is how the review gate is judged.'],
-    random: ['Random audit', 'All answered segments in a fixed random order. Review them in the order shown, without picking by eye: reviews from this list are the unbiased estimate of the model\'s accuracy for the paper.'],
-    reviewed: ['Reviewed', 'Segments an expert has reviewed. Editing one adds a new log entry; the latest one counts, and the item keeps the list it was first reviewed from.'],
+    random: ['Random audit', 'All answered segments in a fixed random order. Review them in the order shown, without picking or skipping by eye: reviews from this list are the unbiased estimate of the model\'s accuracy for the paper. Other experts get the next items in the same order.'],
+    reviewed: ['Reviewed', 'Segments an expert has reviewed. Editing one adds a new log entry; the latest one counts, and the item keeps the list it was first reviewed from. An item another expert has open cannot be saved until they finish.'],
 };
 
 async function loadVideoMeta() {
@@ -1538,11 +1889,18 @@ function renderVideoQueues() {
         `<button class="${q === V.queue ? 'active' : ''}" onclick="setVideoQueue('${q}')">${QUEUE_INFO[q][0]}<span class="n">${V.counts[q] ?? ''}</span></button>`).join('');
     document.getElementById('videoHint').textContent = QUEUE_INFO[V.queue][1];
 }
-function setVideoQueue(q) { V.queue = q; V.offset = 0; loadVideo(); }
-function videoFilterChanged() {
+// Leaving a list (other list, drive or label) hands its items back so other experts get them.
+async function releaseVideo() {
+    const had = [...HELD.values()].some(h => h.source === 'video');
+    forgetHeld('video');
+    if (SERVER && had) { try { await claimsPost('release', { source: 'video' }); } catch (e) { console.warn('release:', e); } }
+}
+async function setVideoQueue(q) { await releaseVideo(); V.queue = q; V.offset = 0; loadVideo(); }
+async function videoFilterChanged() {
     V.session = document.getElementById('videoSession').value;
     V.label = document.getElementById('videoLabel').value;
     V.offset = 0;
+    await releaseVideo();
     loadVideo();
 }
 function videoPage(d) {
@@ -1553,20 +1911,37 @@ function videoPage(d) {
     window.scrollTo({ top: 0 });
 }
 
+async function fetchVideoClaims() {
+    return claimsPost('next', { source: 'video', queue: V.queue, n: BATCH,
+                                filters: { drive: V.session || null, label: V.label || null } });
+}
+
 async function loadVideo() {
+    if (!reviewerName) { showNamePrompt(); return; }
     V.loaded = true;
     renderVideoQueues();
     loadVideoMeta();
     const grid = document.getElementById('videoGrid');
     grid.style.opacity = '0.5';
-    const qs = new URLSearchParams({ queue: V.queue, limit: V.limit, offset: V.offset });
-    if (V.session) qs.set('session', V.session);
-    if (V.label) qs.set('label', V.label);
     try {
-        const d = await getJSON('/expert-api/video/list?' + qs.toString());
-        V.items = d.items; V.counts = d.counts; V.total = d.total;
+        if (CLAIM_QUEUES.includes(V.queue)) {
+            const d = await fetchVideoClaims();
+            holdItems('video', d.items.map(i => i.segment_id));
+            V.items = d.items; V.counts = d.counts; V.total = d.total; V.claim = d;
+        } else {
+            const qs = new URLSearchParams({ queue: V.queue, limit: V.limit, offset: V.offset, me: SESSION });
+            if (V.session) qs.set('session', V.session);
+            if (V.label) qs.set('label', V.label);
+            const d = await getJSON('/expert-api/video/list?' + qs.toString());
+            V.items = d.items; V.counts = d.counts; V.total = d.total; V.claim = null;
+            for (const it of d.items) {
+                const k = 'v:' + it.segment_id;
+                if (it.claim_name && !it.claim_mine) ELSEWHERE.set(k, it.claim_name); else ELSEWHERE.delete(k);
+                if (it.claim_mine) holdItems('video', [it.segment_id]);
+            }
+        }
     } catch (e) {
-        V.items = []; V.total = 0;
+        V.items = []; V.total = 0; V.claim = null;
         document.getElementById('videoEmptyTitle').textContent = 'Video data not available';
         document.getElementById('videoEmptyText').textContent =
             `${e.message}. The Video tab needs the GeoAI server (it reads the drive-video database), e.g. open this page at /expert on the server.`;
@@ -1575,23 +1950,72 @@ async function loadVideo() {
         return;
     }
     grid.style.opacity = '1';
-    document.getElementById('videoEmptyTitle').textContent = 'Nothing here';
-    document.getElementById('videoEmptyText').textContent = 'No segments in this list with these filters.';
+    const busyElsewhere = V.claim && V.total > 0 && !V.items.length;
+    document.getElementById('videoEmptyTitle').textContent = busyElsewhere ? 'The rest is with other experts' : 'Nothing here';
+    document.getElementById('videoEmptyText').textContent = busyElsewhere
+        ? 'Every remaining segment in this list is open with another expert (or one you skipped). Try again in a few minutes, or pick another list.'
+        : 'No segments in this list with these filters.';
     renderVideo();
+}
+
+function renderVideoStatus() {
+    document.getElementById('videoBadge').textContent = V.counts.needs_review ?? '–';
+    const prev = document.getElementById('videoPrev'), next = document.getElementById('videoNext');
+    if (V.claim) {
+        prev.style.display = next.style.display = 'none';
+        const others = V.claim.in_progress_elsewhere || 0;
+        document.getElementById('videoRange').textContent =
+            `${V.items.length} held for you · ${V.total} in this list` + (others ? ` · ${others} open with other experts` : '');
+    } else {
+        prev.style.display = next.style.display = '';
+        const from = V.total ? V.offset + 1 : 0, to = Math.min(V.offset + V.items.length, V.total);
+        document.getElementById('videoRange').textContent = `${from}–${to} of ${V.total}`;
+        prev.disabled = V.offset <= 0;
+        next.disabled = V.offset + V.limit >= V.total;
+    }
 }
 
 function renderVideo(keepEmptyText) {
     renderVideoQueues();
-    document.getElementById('videoBadge').textContent = V.counts.needs_review ?? '–';
+    renderVideoStatus();
     const grid = document.getElementById('videoGrid');
     const empty = document.getElementById('videoEmpty');
-    const from = V.total ? V.offset + 1 : 0, to = Math.min(V.offset + V.items.length, V.total);
-    document.getElementById('videoRange').textContent = `${from}–${to} of ${V.total}`;
-    document.getElementById('videoPrev').disabled = V.offset <= 0;
-    document.getElementById('videoNext').disabled = V.offset + V.limit >= V.total;
     if (!V.items.length) { grid.style.display = 'none'; empty.style.display = 'block'; return; }
     grid.style.display = 'grid'; empty.style.display = 'none';
     grid.innerHTML = V.items.map(videoCardHTML).join('');
+    observeCardImages(grid);
+}
+
+// After a save or skip: take the card out without re-drawing the others (their unsaved edits stay).
+function removeVideoCard(id) {
+    V.items = V.items.filter(x => x.segment_id !== id);
+    document.getElementById('vcard-' + id)?.remove();
+    renderVideoStatus();
+    if (!V.items.length) renderVideo();
+}
+// Ask for the next items of the list (the server keeps the ones this tab still holds).
+async function topUpVideo() {
+    if (!V.claim || !SERVER) return;
+    const queue = V.queue;
+    let d;
+    try { d = await fetchVideoClaims(); } catch (e) { console.warn('top up:', e); return; }
+    if (queue !== V.queue) return;
+    const shown = new Set(V.items.map(i => i.segment_id));
+    const keep = new Set(d.items.map(i => i.segment_id));
+    for (const it of V.items) if (!keep.has(it.segment_id)) { document.getElementById('vcard-' + it.segment_id)?.remove(); HELD.delete('v:' + it.segment_id); }
+    const add = d.items.filter(i => !shown.has(i.segment_id));
+    holdItems('video', d.items.map(i => i.segment_id));
+    V.items = V.items.filter(i => keep.has(i.segment_id)).concat(add);
+    V.counts = d.counts; V.total = d.total; V.claim = d;
+    const grid = document.getElementById('videoGrid');
+    if (add.length && V.items.length > add.length) {
+        grid.insertAdjacentHTML('beforeend', add.map(videoCardHTML).join(''));
+        observeCardImages(grid);
+        renderVideoQueues();
+        renderVideoStatus();
+    } else {
+        loadVideo();
+    }
 }
 
 function modelTypes(it) {
@@ -1618,12 +2042,16 @@ function videoCardHTML(it) {
     const gate = it.status === 'expert_review' ? `flagged: ${flagReasons(it).join('; ')}` : 'auto-classified';
     const v = lastVerdict[id];
     const mt = modelTypes(it);
+    const thumb = videoImageUrl(id, 640), full = videoImageUrl(id, 1920);
+    const other = !HELD.has(key) && ELSEWHERE.get(key);
+    const claimQ = CLAIM_QUEUES.includes(V.queue);
     return `
-    <div class="card" id="vcard-${ida}" onpointerdown="touchCard('${escapeAttr(key)}')" onfocusin="touchCard('${escapeAttr(key)}')">
-        <img class="card-img" src="${escapeAttr(api(`/gis/image/${encodeURIComponent(id)}?w=640`))}" alt="" loading="lazy"
-             onclick="openLightbox('${escapeAttr(imageUrlFor('video', id))}')"
-             onerror="this.src='https://placehold.co/420x280/e7e5e4/a8a29e?text=No+Image'">
+    <div class="card${other ? ' elsewhere' : ''}" id="vcard-${ida}" onpointerdown="touchCard('${escapeAttr(key)}')" onfocusin="touchCard('${escapeAttr(key)}')">
+        <img class="card-img" src="${escapeAttr(thumb)}" data-full="${escapeAttr(full)}" alt="" loading="lazy"
+             onclick="openLightbox('${escapeAttr(full)}', null, this)"
+             onerror="this.removeAttribute('data-full');this.src='https://placehold.co/420x280/e7e5e4/a8a29e?text=No+Image'">
         <div class="card-body">
+            <div class="claim-note${other ? ' show' : ''}" id="${noteId(key)}">${other ? escapeHtml(elsewhereText(other)) : ''}</div>
             <div class="card-top">
                 <span class="card-id" title="${ida}">seg ${it.k} &middot; ${escapeHtml(driveLabel(it.session_id, it.utc))}</span>
                 <span class="badge ${badgeClass(conf)}" title="${normal ? 'Stage 1' : 'Stage 2'} confidence">${pct(conf)}</span>
@@ -1663,7 +2091,8 @@ function videoCardHTML(it) {
             </div>
             ${it.expert_reviewed && it.reviewer_name ? `<div class="reviewed-stamp">Last reviewed by <strong>${escapeHtml(it.reviewer_name)}</strong> &middot; ${fmtDate(it.reviewed_at)}</div>` : ''}
             <div class="card-actions">
-                <button class="btn btn-primary btn-sm" id="vsave-${ida}" onclick="saveVideo('${ida}')">${it.expert_reviewed ? 'Update Review' : 'Confirm'}</button>
+                ${claimQ ? `<button class="btn btn-sm" onclick="skipVideo('${ida}')" title="${V.queue === 'random' ? 'Skipping random-audit items biases the sample; skip only an unusable image' : 'Hand this segment to another expert'}">Skip</button>` : ''}
+                <button class="btn btn-primary btn-sm" id="vsave-${ida}" ${other ? 'disabled' : ''} onclick="saveVideo('${ida}')">${it.expert_reviewed ? 'Update Review' : 'Confirm'}</button>
             </div>
         </div>
     </div>`;
@@ -1718,32 +2147,37 @@ async function saveVideo(id) {
     if (!types.length) { showToast('Select at least one distress type, or Normal.'); return; }
     const isNormal = types.length === 1 && types[0] === 'Normal';
     if (!isNormal && severity === 'None') { showToast('Pick a severity for the distress.'); return; }
+    const it = V.items.find(x => x.segment_id === id);
     const btn = document.getElementById('vsave-' + id);
     if (btn) btn.disabled = true;
     let out;
     try {
         out = await postJSON(`/expert-api/video/review/${encodeURIComponent(id)}`, {
-            reviewer_name: reviewerName, types, severity: isNormal ? 'None' : severity, notes,
-            queue: V.queue, heatmap: heatPayload(key), ui: uiFacts(key)
+            session: SESSION, reviewer_name: reviewerName, types, severity: isNormal ? 'None' : severity, notes,
+            queue: V.queue, seen_reviewed_at: it ? (it.reviewed_at || null) : null,
+            heatmap: heatPayload(key), ui: uiFacts(key)
         });
     } catch (e) {
         if (btn) btn.disabled = false;
-        showToast('Save failed: ' + e.message);
+        videoSaveFailed(e, id);
         return;
     }
+    HELD.delete(key);                                  // the server released the lease with the save
     lastVerdict[id] = out.comparison;
     delete cardState[key];
     showToast(`${out.action === 'update' ? 'Review updated' : 'Saved'} · ${VERDICT_TEXT[out.comparison.verdict]}`);
-    const it = V.items.find(x => x.segment_id === id);
     if (it) Object.assign(it, { expert_reviewed: true, expert_corrected_types: out.expert_types,
         expert_corrected_severity: out.expert_severity, expert_notes: notes, reviewer_name: reviewerName,
-        reviewed_at: new Date().toISOString() });
-    if (V.queue === 'reviewed') { renderVideo(); return; }
-    // Leaves this list: fade out, then re-render with the counts moved
+        reviewed_at: out.reviewed_at });
+    if (V.queue === 'reviewed') {
+        const card = document.getElementById('vcard-' + id);
+        if (card && it) { card.outerHTML = videoCardHTML(it); observeCardImages(document.getElementById('videoGrid')); }
+        return;
+    }
+    // Leaves this list: fade out, then the next segment of the list takes its place
     const card = document.getElementById('vcard-' + id);
     if (card) { card.style.transition = 'all 0.25s ease'; card.style.opacity = '0'; card.style.transform = 'scale(0.97)'; }
     setTimeout(() => {
-        V.items = V.items.filter(x => x.segment_id !== id);
         V.total = Math.max(0, V.total - 1);
         if (out.action === 'confirm') {
             for (const q of ['needs_review', 'auto', 'random']) {
@@ -1755,9 +2189,39 @@ async function saveVideo(id) {
             }
             V.counts.reviewed = (V.counts.reviewed || 0) + 1;
         }
-        renderVideo();
-        if (!V.items.length && V.total > 0) loadVideo();
+        removeVideoCard(id);
+        renderVideoQueues();
+        topUpVideo();
     }, 250);
+}
+
+// 409: another expert holds the segment, or saved it after this page loaded it.
+function videoSaveFailed(e, id) {
+    showToast(e.status === 409 ? conflictText(e) : 'Save failed: ' + e.message);
+    if (e.status !== 409) return;
+    const key = 'v:' + id;
+    if (V.claim) {                                     // review list: it is someone else's now
+        HELD.delete(key);
+        removeVideoCard(id);
+        topUpVideo();
+    } else if (e.detail && e.detail.held_by) {
+        ELSEWHERE.set(key, e.detail.held_by);
+        setClaimNote(key, elsewhereText(e.detail.held_by));
+    } else {
+        delete cardState[key];
+        loadVideo();                                   // shows the newer review; edit that one
+    }
+}
+
+async function skipVideo(id) {
+    const key = 'v:' + id;
+    removeVideoCard(id);
+    if (SERVER && HELD.has(key)) {
+        HELD.delete(key);
+        try { await claimsPost('release', { items: [{ source: 'video', item_id: id }], skip: true }); }
+        catch (e) { console.warn('skip:', e); }
+        topUpVideo();
+    }
 }
 
 // ============================================================
@@ -1899,6 +2363,7 @@ async function loadMeta() {
     try {
         const m = await getJSON('/expert-api/meta');
         META = { ...META, ...m };
+        SERVER = true;                 // several experts: leases and server-side saves
     } catch (e) {
         console.warn('meta:', e);   // file:// without a server: Pending / Reviewed still work
     }
@@ -1941,6 +2406,7 @@ function setupLightbox() {
     LB.el = document.getElementById('lightbox');
     LB.canvas = document.getElementById('lightboxCanvas');
     LB.img = document.getElementById('lightboxImg');
+    LB.thumb = document.getElementById('lightboxThumb');
     LB.stage = document.getElementById('lightboxStage');
     LB.closeBtn = document.getElementById('lightboxClose');
     LB.zoomLabel = document.getElementById('lightboxZoom');
@@ -1961,6 +2427,7 @@ function setupLightbox() {
     LB.canvas.addEventListener('wheel', (e) => {
         e.preventDefault();
         if (!LB.open) return;
+        LB.userMoved = true;
         const cRect = LB.canvas.getBoundingClientRect();
         const mx = e.clientX - cRect.left;
         const my = e.clientY - cRect.top;
@@ -1990,6 +2457,7 @@ function setupLightbox() {
             LB.dragMoved = true;
         }
         if (LB.dragMoved) {
+            LB.userMoved = true;
             LB.tx = LB.dragStart.tx + dx;
             LB.ty = LB.dragStart.ty + dy;
             applyTransform();
@@ -2039,7 +2507,7 @@ function fitAndCenter() {
     const fitScale = Math.min(
         (cRect.width  * margin) / w,
         (cRect.height * margin) / h,
-        1  // don't upscale tiny images on first open
+        LB.capScale || 1  // don't upscale past the real image's own pixels on first open
     );
     LB.scale = fitScale;
     // Center: image rendered size = w*scale, h*scale. Place top-left so
@@ -2049,9 +2517,18 @@ function fitAndCenter() {
     applyTransform();
 }
 
-function openLightbox(url, heat = null) {
+// Instant open: the card's thumbnail is already decoded, so its bitmap is drawn onto a canvas in
+// the lightbox in the same frame as the click (drawImage is synchronous; setting <img>.src is
+// not, even from cache). The full-size image is decoded off-screen and then shown in the same box
+// (same size, zoom and pan kept). A prefetched full-size image is shown directly. The <img> stays
+// hidden until it holds the right picture, so the previous photo never flashes up.
+// The stage keeps the size of the first picture shown (LB.natW x LB.natH), so the overlay and
+// zoom stay aligned when the sharper image replaces the thumbnail.
+let LB_REQ = 0;
+function openLightbox(url, heat = null, thumbEl = null) {
     if (!url) return;
     const fullUrl = optimizedImageUrl(url, 'full');
+    const req = ++LB_REQ;
     LB.heat = heat;
     renderOverlayPanel();
 
@@ -2060,38 +2537,96 @@ function openLightbox(url, heat = null) {
     LB.open = true;
     document.body.style.overflow = 'hidden';
     LB.dragMoved = false;
+    LB.userMoved = false;
     LB.natW = 0; LB.natH = 0;
+    LB.fullUrl = fullUrl;
 
-    // If the new src is identical to the old one and image is already loaded,
-    // skip the load handler — just refit.
-    const sameSrc = (LB.img.src === fullUrl);
-    if (!sameSrc) LB.img.src = fullUrl;
-
-    const onReady = () => {
-        LB.natW = LB.img.naturalWidth;
-        LB.natH = LB.img.naturalHeight;
-        LB.stage.style.width = LB.natW + 'px';
-        LB.stage.style.height = LB.natH + 'px';
-        fitAndCenter();
-        drawHeat();
-    };
-    drawHeat();
-
-    if (LB.img.complete && LB.img.naturalWidth > 0) {
-        onReady();
-    } else {
-        LB.img.onload = onReady;
-        LB.img.onerror = () => {
-            LB.zoomLabel.textContent = 'failed';
-            console.warn('Lightbox image failed to load:', fullUrl);
-        };
+    const pre = PF.cache.get(fullUrl);
+    const fullReady = !!(pre && pre.complete && pre.naturalWidth > 0);
+    const thumbReady = !!(thumbEl && thumbEl.complete && thumbEl.naturalWidth > 0);
+    if (fullReady || !thumbReady || !lbDrawThumb(thumbEl)) {
+        lbShow(fullUrl, fullReady ? pre.naturalWidth : 0, fullReady ? pre.naturalHeight : 0, 1, req);
+        return;
     }
+    // 1. the thumbnail bitmap, this frame
+    lbLayout(thumbEl.naturalWidth, thumbEl.naturalHeight, 3);
+    // 2. the full-size image once decoded
+    const im = pre || new Image();
+    if (!pre) {
+        im.decoding = 'async';
+        im.src = fullUrl;
+        PF.cache.set(fullUrl, im);
+        while (PF.cache.size > PF.limit) PF.cache.delete(PF.cache.keys().next().value);
+    }
+    const swap = () => {
+        if (req !== LB_REQ || !LB.open || !im.naturalWidth) return;
+        const show = () => {
+            if (req !== LB_REQ) return;
+            LB.img.style.visibility = '';
+            LB.thumb.style.display = 'none';
+        };
+        LB.img.onload = null;
+        LB.img.src = fullUrl;
+        LB.capScale = im.naturalWidth / (LB.natW || im.naturalWidth);
+        if (!LB.userMoved) fitAndCenter();
+        if (LB.img.complete && LB.img.naturalWidth > 0) show(); else LB.img.onload = show;
+    };
+    const decoded = im.decode ? im.decode() : new Promise((res, rej) => { im.onload = res; im.onerror = rej; });
+    decoded.then(swap, () => { if (im.complete && im.naturalWidth) swap(); });
+}
+
+// Draw a decoded <img> onto the lightbox's thumbnail canvas; false if the browser refuses.
+function lbDrawThumb(img) {
+    const tc = LB.thumb;
+    try {
+        tc.width = img.naturalWidth;
+        tc.height = img.naturalHeight;
+        tc.getContext('2d').drawImage(img, 0, 0);
+    } catch (e) {
+        return false;
+    }
+    tc.style.display = 'block';
+    LB.img.style.visibility = 'hidden';
+    return true;
+}
+
+// Size the stage for a w x h picture and fit it. cap: how far the first fit may enlarge it
+// (1 for a full-size image, more for a thumbnail that stands in for a bigger one).
+function lbLayout(w, h, cap) {
+    LB.capScale = cap;
+    LB.natW = w;
+    LB.natH = h;
+    LB.stage.style.width = w + 'px';
+    LB.stage.style.height = h + 'px';
+    fitAndCenter();
+    drawHeat();
+}
+
+// Show src in the <img> (hidden until it has loaded, so no stale picture shows meanwhile).
+function lbShow(src, w, h, cap, req) {
+    LB.thumb.style.display = 'none';
+    LB.img.style.visibility = 'hidden';
+    const apply = () => {
+        if (req !== LB_REQ) return;
+        LB.img.style.visibility = '';
+        lbLayout(w || LB.img.naturalWidth, h || LB.img.naturalHeight, cap);
+    };
+    LB.img.onload = null;
+    LB.img.onerror = () => {
+        LB.zoomLabel.textContent = 'failed';
+        console.warn('Lightbox image failed to load:', src);
+    };
+    if (LB.img.getAttribute('src') !== src) LB.img.src = src;
+    drawHeat();
+    if (LB.img.complete && LB.img.naturalWidth > 0) apply();
+    else LB.img.onload = apply;
 }
 
 function closeLightbox() {
     LB.el.classList.remove('open');
     LB.open = false;
     LB.heat = null;
+    LB_REQ++;                       // a pending full-size swap is for a closed lightbox
     renderOverlayPanel();
     drawHeat();
     document.body.style.overflow = '';

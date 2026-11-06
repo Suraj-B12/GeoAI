@@ -723,6 +723,8 @@ Rows are never edited: an update is a new row, the latest review per item counts
 
 Severity is compared on Low < Medium < High when both see distress. The UI's Metrics tab and `scripts/expert_review_metrics.py` compute the same numbers with Wilson intervals: verdicts, Stage 1 confusion, per-type precision and recall, the gate comparison, and the overlay ratings. The script writes `eval_results/expert_review_metrics.{json,md}` with reviewers anonymised. Results will be reported here once reviews exist; as of this revision the log is empty.
 
+**Several experts at once (2026-11-06).** Review lists are handed out as ten-minute leases on items (`research.review_claims`, migration 007), renewed while the page is open, so no item is shown to two experts at the same time and the random-audit list is reviewed in its fixed order, skipping only items another expert holds. A save is refused if another expert holds the item, or if the item was reviewed after the expert opened it, so one expert's review is never silently overwritten; on 8 concurrent sessions making 400 requests, no item was handed to two experts (`scripts/tests/test_expert_concurrency.py`). Skips are recorded per expert (`research.review_skips`), so a reviewer who skips random-audit items can be reported.
+
 ### 6.5 Stage 2 Confidence Calibration
 
 We ran the production classifier (4-bit, IRC:82 prompts, no adapter) over 407 randomly sampled Attain images and recorded both confidence variants for each Stage 2 prediction. Multi-label correctness is ambiguous, so four definitions are reported. A confidence score's ranking quality is measured by AUC: the probability that a randomly chosen correct prediction scores above a randomly chosen incorrect one (0.5 means the score carries no information).

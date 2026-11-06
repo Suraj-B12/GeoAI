@@ -49,7 +49,9 @@ That starts local PostgreSQL, uvicorn under the watchdog, the worker (auto-start
 `API_KEYS` key and fires after every watchdog relaunch; result in `eval_results\autostart.log`) and a
 hidden Cloudflare quick tunnel whose new URL is written to `C:\GeoAI\tmp\tunnel_url.txt` (it changes on
 every cloudflared start; give the user the new link). The video-pipeline toggle persists in
-`C:\GeoAI\inbox\.video_pipeline\state.json`. `-Detach` refuses to start a second server. Stop: `.\stop.ps1`.
+`C:\GeoAI\inbox\.video_pipeline\state.json`. `-Detach` refuses to start a second server. Stop: `.\stop.ps1`
+(drains the worker with the key, stops the watchdog loop FIRST, then uvicorn; keeps the tunnel and its URL
+unless `-StopTunnel`). Verified 2026-11-06: stop → start -Detach → model in ~70 s, worker auto-started (200).
 Demo pages: `/gis/app/`, `/try/`, `/expert/`, `/operator`, `/dashboard` (operator pages need the API key,
 copy for the user in `C:\GeoAI\operator_api_key.txt` — never print it). Before restarting a RUNNING
 server read "Restarting production" below. No citizen upload has arrived since 2026-09-25.
@@ -173,7 +175,7 @@ expert_review rows → Expert UI corrections → calibrate_probe_from_expert_lab
 - **Condition indicator:** `Patching` (IRC:82 Tables 5.1–5.3) lives in `IRC82_CONDITION_INDICATORS`, never in `distress_types`.
 - **API:** FastAPI with rate limiting, API key auth, CORS, async inference, SSE streaming
 - **DB:** Supabase (PostgreSQL) — `photos` (written by the RoadSide app), `assessments` (pipeline; trigger-linked), `worker_state`, `custom_distress_types`, `retrain_jobs`; migrations 001–004 in `migrations/`
-- **Expert UI:** Single-page HTML/JS (`expert_ui/index.html`), anon-key + RLS scoped to review rows (migration 003), reviewer name instead of login; pending/reviewed tabs
+- **Expert UI:** Single-page HTML/JS (`expert_ui/index.html`), reviewer name instead of login; tabs Pending / Reviewed (citizen, Supabase) / Video (local PG) / Metrics. Served by the server (`/expert/`) it is **multi-expert safe** (2026-11-06): review lists are batches of 12 ten-minute leases per browser tab (`research.review_claims`, migration 007; `/expert-api/claims/*`), renewed every 60 s, released on save / Skip / leaving the page; hand-out = one guarded `INSERT … ON CONFLICT` under an advisory lock, saves 409 when another tab holds the item or it was reviewed since it was loaded; citizen saves go through the server (conditional Supabase PATCH, exactly one row). Photos enlarge in ~2–7 ms (thumbnail bitmap first, prefetched full image; `/gis/image?v=<sha>` cached immutable). Opened as a file it falls back to single-reviewer mode (anon key + RLS, migration 003). Tests: `scripts/tests/test_expert_concurrency.py` (8 sessions racing, 0 double grants).
 - **Operator UIs:** `/operator` (worker start/stop, live metrics, model precision) and `/dashboard` (image browser, delete-everywhere, re-classify)
 - **Test Website:** Standalone HTML file for uploading images and getting live AI analysis via SSE
 - **Confidence:** Real logit-based extraction (softmax over class token IDs), NOT heuristic strings

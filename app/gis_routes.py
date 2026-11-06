@@ -556,9 +556,11 @@ def resolve_segment_image(segment_id: str) -> Optional[tuple[Path, str, Optional
 
 
 @router.get("/image/{segment_id}")
-async def segment_image(segment_id: str, w: Optional[int] = None):
+async def segment_image(segment_id: str, w: Optional[int] = None, v: Optional[str] = None):
     """A segment's stored frame. No w: the full-resolution PNG (5-9 MB, for the detail view's
-    "open full image" only). w: a JPEG preview, width snapped up to PREVIEW_WIDTHS."""
+    "open full image" only). w: a JPEG preview, width snapped up to PREVIEW_WIDTHS.
+    v: the first 16+ hex digits of the image's SHA-256 (the expert UI's image_v). When it matches,
+    the URL names exactly these bytes, so the response may be cached for a year as immutable."""
     try:
         found = await asyncio.to_thread(resolve_segment_image, segment_id)
     except _Unavailable as e:
@@ -566,7 +568,8 @@ async def segment_image(segment_id: str, w: Optional[int] = None):
     if found is None:
         raise HTTPException(status_code=404, detail="no stored image for this segment")
     path, media, sha = found
-    cache = {"Cache-Control": "public, max-age=86400"}
+    versioned = bool(v and sha and len(v) >= 16 and sha.startswith(v.lower()))
+    cache = {"Cache-Control": "public, max-age=31536000, immutable" if versioned else "public, max-age=86400"}
     if w is None:
         if sha:
             cache["ETag"] = f'"{sha}"'

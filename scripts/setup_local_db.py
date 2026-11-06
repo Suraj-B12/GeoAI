@@ -12,6 +12,7 @@ PostgreSQL does not:
     migrations/001 ... 004                   worker queue, photos trigger, expert UI, pre-filter
     migrations/005_video_pipeline.sql        video_sessions, video_segments (also for Supabase)
     migrations/006_expert_review_log.sql     research.expert_review_log (local only, outside public)
+    migrations/007_review_claims.sql         research.review_claims / review_skips (local only)
 
 scripts/tests/test_local_db.py proves the result matches the live Supabase
 columns (PostgREST OpenAPI) table by table.
@@ -56,6 +57,7 @@ SCHEMA_FILES: tuple[Path, ...] = (
     MIGRATIONS_DIR / "004_pavement_filter_and_dashboard.sql",
     MIGRATIONS_DIR / "005_video_pipeline.sql",
     MIGRATIONS_DIR / "006_expert_review_log.sql",
+    MIGRATIONS_DIR / "007_review_claims.sql",
 )
 
 LEDGER_SCHEMA = "geoai_local"   # outside `public`, so it is not part of the compared schema

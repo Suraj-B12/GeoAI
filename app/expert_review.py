@@ -40,6 +40,7 @@ from __future__ import annotations
 
 import hashlib
 import math
+import re
 import threading
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -535,3 +536,481 @@ def metrics(conn) -> dict:
             out["by_queue"][q] = summarize(sub)
     out["all"] = summarize(rows) if rows else summarize([])
     return out
+
+
+# ============================================================
+# Claims: several experts at once (migration 007)
+# ============================================================
+# A claim is a lease on one item. While it is live only the browser session holding it is shown
+# the item in a review list and may save it. The page renews its leases every minute (heartbeat)
+# and releases them on save, skip and unload; an expired lease is free.
+#
+# Handing out is one INSERT ... ON CONFLICT (source, item_id) DO UPDATE ... WHERE the old lease
+# expired or is this session's, RETURNING the rows it got: whatever two sessions race for, each
+# item ends up with exactly one live holder. A transaction-scoped advisory lock per source also
+# serialises the hand-out queries, so they never deadlock or hand a session fewer items than
+# exist. Saves lock the assessment row and the claim row, and refuse (Conflict, HTTP 409) when
+# another live session holds the item or the review changed since the expert loaded it.
+
+MIGRATION_CLAIMS = PROJECT_ROOT / "migrations" / "007_review_claims.sql"
+CLAIM_TTL_S = 600                     # a lease lasts 10 minutes; the page renews it every minute
+MAX_BATCH = 30                        # items per hand-out
+MAX_CLAIMS_PER_SESSION = 60           # live leases one browser may hold
+MAX_CANDIDATES = 200
+CLAIM_QUEUES_VIDEO = ("needs_review", "auto", "random")
+REVIEW_QUEUES = CLAIM_QUEUES_VIDEO + ("citizen_pending",)    # skipped items are not handed back
+_ADVISORY = {"video": 0x6578_7065_7274_0001, "citizen": 0x6578_7065_7274_0002}
+_SESSION_RE = re.compile(r"^[A-Za-z0-9_-]{16,64}$")
+_SEGMENT_RE = re.compile(r"^[A-Za-z0-9._-]{1,200}$")
+_UUID_RE = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+_VIDEO_ORDER = {"needs_review": "v.session_id DESC, v.k", "auto": "v.session_id DESC, v.k",
+                "random": "md5('expert-review-random-v1:' || v.segment_id)",
+                "reviewed": "a.reviewed_at DESC NULLS LAST, v.segment_id"}
+_claims_schema_ready = False
+
+
+class Conflict(RuntimeError):
+    """Another expert holds the item, or the review changed since it was loaded (HTTP 409)."""
+
+    def __init__(self, message: str, **info):
+        super().__init__(message)
+        self.info = {"message": message, **{k: v for k, v in info.items() if v is not None}}
+
+
+def ensure_claims_schema(conn) -> None:
+    """Create research.review_claims / review_skips if missing (migration 007, idempotent)."""
+    global _claims_schema_ready
+    ensure_schema(conn)
+    if _claims_schema_ready:
+        return
+    with _schema_lock:
+        if _claims_schema_ready:
+            return
+        if conn.execute("SELECT to_regclass('research.review_claims')").fetchone()[0] is None:
+            from scripts.setup_local_db import statements_without_outer_transaction
+            body = statements_without_outer_transaction(MIGRATION_CLAIMS.read_text(encoding="utf-8-sig"))
+            with conn.transaction():
+                conn.execute(body)
+        _claims_schema_ready = True
+
+
+def clean_session(v) -> str:
+    """The browser's random reviewer-session id (it is the bearer of its leases)."""
+    s = str(v or "").strip()
+    if not _SESSION_RE.match(s):
+        raise ReviewError("session must be 16-64 letters, digits, '-' or '_'")
+    return s
+
+
+def _clean_source(source) -> str:
+    if source not in SOURCES:
+        raise ReviewError(f"source must be one of {SOURCES}")
+    return source
+
+
+def _clean_item(source: str, item_id) -> str:
+    s = str(item_id or "")
+    ok = _UUID_RE.match(s) if source == "citizen" else _SEGMENT_RE.match(s)
+    if not ok:
+        raise ReviewError(f"bad {source} item id")
+    return s
+
+
+def _clean_queue(source: str, queue) -> str:
+    allowed = VIDEO_QUEUES if source == "video" else CITIZEN_QUEUES
+    if queue not in allowed:
+        raise ReviewError(f"queue must be one of {sorted(allowed)}")
+    return queue
+
+
+def _video_where(queue: str, drive: Optional[str], label: Optional[str]) -> tuple[list, list]:
+    if queue not in VIDEO_QUEUES:
+        raise ReviewError(f"queue must be one of {list(VIDEO_QUEUES)}")
+    where, params = ["v.assessment_id IS NOT NULL", VIDEO_QUEUES[queue]], []
+    if drive:
+        if not _SEGMENT_RE.match(drive):
+            raise ReviewError("bad drive id")
+        where.append("v.session_id = %s")
+        params.append(drive)
+    if label:
+        if canonical(label) == NORMAL:
+            where.append("a.stage1_label = 'Normal'")
+        else:
+            where.append("a.distress_types ? %s")
+            params.append(canonical(label))
+    return where, params
+
+
+def _iso_rows(rows) -> list[dict]:
+    items = []
+    for r in rows:
+        r = dict(r)
+        r["assessment_id"] = str(r["assessment_id"])
+        for k in ("utc", "reviewed_at", "processed_at", "claim_expires_at"):
+            if k in r:
+                r[k] = r[k].isoformat() if r.get(k) is not None else None
+        r["image"] = f"/gis/image/{r['segment_id']}"
+        sha = r.pop("image_sha256", None)
+        r["image_v"] = sha[:16] if isinstance(sha, str) and len(sha) >= 16 else None
+        items.append(r)
+    return items
+
+
+def _video_counts(cur, drive: Optional[str]) -> dict:
+    base = ["v.assessment_id IS NOT NULL"] + (["v.session_id = %s"] if drive else [])
+    bparams = [drive] if drive else []
+    counts = {}
+    for q, cond in VIDEO_QUEUES.items():
+        counts[q] = cur.execute(f"SELECT COUNT(*) AS n FROM video_segments v JOIN assessments a "
+                                f"ON a.id = v.assessment_id WHERE {' AND '.join(base + [cond])}",
+                                bparams).fetchone()["n"]
+    return counts
+
+
+def _live_held_total(conn, session: str) -> int:
+    return conn.execute("SELECT COUNT(*) FROM research.review_claims WHERE reviewer_session = %s "
+                        "AND expires_at > now()", (session,)).fetchone()[0]
+
+
+_UPSERT_TAIL = """
+    ON CONFLICT (source, item_id) DO UPDATE SET
+        reviewer_session = EXCLUDED.reviewer_session, reviewer_name = EXCLUDED.reviewer_name,
+        queue = EXCLUDED.queue, claimed_at = EXCLUDED.claimed_at, last_seen_at = EXCLUDED.last_seen_at,
+        expires_at = EXCLUDED.expires_at
+    WHERE research.review_claims.expires_at < now()
+       OR research.review_claims.reviewer_session = EXCLUDED.reviewer_session
+    RETURNING item_id
+"""
+
+
+def claim_next_video(conn, *, session: str, reviewer_name: str, queue: str, n: int = 12,
+                     drive: Optional[str] = None, label: Optional[str] = None) -> dict:
+    """Up to n segments of a review list for this browser session: the ones it already holds that
+    still belong in the list (renewed), topped up with free ones in the list's order. Free = no
+    live lease by another session, not reviewed, not skipped by this session. The random list
+    keeps its fixed order, so skipping over items other experts hold does not bias the sample."""
+    ensure_claims_schema(conn)
+    session = clean_session(session)
+    name = _text(reviewer_name, "reviewer_name", 2, MAX_NAME)
+    if queue not in CLAIM_QUEUES_VIDEO:
+        raise ReviewError(f"queue must be one of {list(CLAIM_QUEUES_VIDEO)}")
+    n = max(1, min(MAX_BATCH, int(n)))
+    where, params = _video_where(queue, drive, label)
+    w, order = " AND ".join(where), _VIDEO_ORDER[queue]
+    new: list = []
+    with conn.transaction():
+        conn.execute("SELECT pg_advisory_xact_lock(%s)", (_ADVISORY["video"],))
+        mine = [r[0] for r in conn.execute(
+            f"SELECT v.segment_id FROM research.review_claims c JOIN video_segments v ON v.segment_id = c.item_id "
+            f"JOIN assessments a ON a.id = v.assessment_id "
+            f"WHERE c.source = 'video' AND c.reviewer_session = %s AND {w} ORDER BY {order}",
+            (session, *params)).fetchall()]
+        if mine:
+            conn.execute("UPDATE research.review_claims SET expires_at = now() + make_interval(secs => %s), "
+                         "last_seen_at = now(), queue = %s, reviewer_name = %s WHERE source = 'video' "
+                         "AND reviewer_session = %s AND item_id = ANY(%s)", (CLAIM_TTL_S, queue, name, session, mine))
+        want = min(n - len(mine), MAX_CLAIMS_PER_SESSION - _live_held_total(conn, session))
+        if want > 0:
+            new = [r[0] for r in conn.execute(
+                f"INSERT INTO research.review_claims (source, item_id, reviewer_session, reviewer_name, queue, "
+                f"claimed_at, last_seen_at, expires_at) "
+                f"SELECT 'video', v.segment_id, %s, %s, %s, now(), now(), now() + make_interval(secs => %s) "
+                f"FROM video_segments v JOIN assessments a ON a.id = v.assessment_id "
+                f"LEFT JOIN research.review_claims c ON c.source = 'video' AND c.item_id = v.segment_id "
+                f"WHERE {w} AND (c.item_id IS NULL OR (c.expires_at < now() AND c.reviewer_session <> %s)) "
+                f"AND NOT EXISTS (SELECT 1 FROM research.review_skips k WHERE k.source = 'video' "
+                f"AND k.item_id = v.segment_id AND k.reviewer_session = %s) "
+                f"ORDER BY {order} LIMIT %s" + _UPSERT_TAIL,
+                (session, name, queue, CLAIM_TTL_S, *params, session, session, want)).fetchall()]
+    ids = mine + [i for i in new if i not in mine]
+    cur = conn.cursor(row_factory=dict_row)
+    rows = cur.execute(
+        f"SELECT {_LIST_COLS}, v.image_sha256, c.expires_at AS claim_expires_at FROM video_segments v "
+        f"JOIN assessments a ON a.id = v.assessment_id "
+        f"JOIN research.review_claims c ON c.source = 'video' AND c.item_id = v.segment_id "
+        f"AND c.reviewer_session = %s WHERE v.segment_id = ANY(%s) ORDER BY {order}",
+        (session, ids)).fetchall() if ids else []
+    available = cur.execute(
+        f"SELECT COUNT(*) AS n FROM video_segments v JOIN assessments a ON a.id = v.assessment_id "
+        f"WHERE {w} AND NOT EXISTS (SELECT 1 FROM research.review_claims c WHERE c.source = 'video' "
+        f"AND c.item_id = v.segment_id AND c.expires_at > now() AND c.reviewer_session <> %s)",
+        (*params, session)).fetchone()["n"]
+    total = cur.execute(f"SELECT COUNT(*) AS n FROM video_segments v JOIN assessments a ON a.id = v.assessment_id "
+                        f"WHERE {w}", params).fetchone()["n"]
+    return {"queue": queue, "items": _iso_rows(rows), "new": len(new), "held": len(rows),
+            "available": available, "total": total, "in_progress_elsewhere": total - available,
+            "counts": _video_counts(cur, drive), "ttl_s": CLAIM_TTL_S}
+
+
+def claims_grant(conn, *, source: str, session: str, reviewer_name: str, queue: str, items: list,
+                 n: Optional[int] = None) -> dict:
+    """Lease specific items (in the given order) to this session, up to n of them: the ones it
+    already holds are renewed, free ones are taken, ones another live session holds are reported
+    in held_by_others. Used for citizen uploads (the page lists them from Supabase) and for editing
+    an already-reviewed item."""
+    ensure_claims_schema(conn)
+    source = _clean_source(source)
+    session = clean_session(session)
+    name = _text(reviewer_name, "reviewer_name", 2, MAX_NAME)
+    queue = _clean_queue(source, queue)
+    if not isinstance(items, list) or not 1 <= len(items) <= MAX_CANDIDATES:
+        raise ReviewError(f"items must be a list of 1-{MAX_CANDIDATES} ids")
+    ids: list[str] = []
+    for i in items:
+        i = _clean_item(source, i)
+        if i not in ids:
+            ids.append(i)
+    n = min(len(ids), MAX_BATCH) if n is None else max(1, min(MAX_BATCH, int(n)))
+    skip_cond = ("AND NOT EXISTS (SELECT 1 FROM research.review_skips k WHERE k.source = %s "
+                 "AND k.item_id = x.id AND k.reviewer_session = %s) ") if queue in REVIEW_QUEUES else ""
+    new: list = []
+    with conn.transaction():
+        conn.execute("SELECT pg_advisory_xact_lock(%s)", (_ADVISORY[source],))
+        mine = [r[0] for r in conn.execute(
+            "UPDATE research.review_claims SET expires_at = now() + make_interval(secs => %s), last_seen_at = now(), "
+            "queue = %s, reviewer_name = %s WHERE source = %s AND reviewer_session = %s AND item_id = ANY(%s) "
+            "RETURNING item_id", (CLAIM_TTL_S, queue, name, source, session, ids)).fetchall()]
+        want = min(n - len(mine), MAX_CLAIMS_PER_SESSION - _live_held_total(conn, session))
+        if want > 0:
+            rest = [i for i in ids if i not in mine]
+            p = [source, session, name, queue, CLAIM_TTL_S, rest, source, session]
+            if skip_cond:
+                p += [source, session]
+            p.append(want)
+            new = [r[0] for r in conn.execute(
+                "INSERT INTO research.review_claims (source, item_id, reviewer_session, reviewer_name, queue, "
+                "claimed_at, last_seen_at, expires_at) "
+                "SELECT %s, x.id, %s, %s, %s, now(), now(), now() + make_interval(secs => %s) "
+                "FROM unnest(%s::text[]) WITH ORDINALITY AS x(id, ord) "
+                "LEFT JOIN research.review_claims c ON c.source = %s AND c.item_id = x.id "
+                "WHERE (c.item_id IS NULL OR (c.expires_at < now() AND c.reviewer_session <> %s)) "
+                f"{skip_cond}ORDER BY x.ord LIMIT %s" + _UPSERT_TAIL, p).fetchall()]
+        others = {r[0]: r[1] for r in conn.execute(
+            "SELECT item_id, reviewer_name FROM research.review_claims WHERE source = %s AND item_id = ANY(%s) "
+            "AND reviewer_session <> %s AND expires_at > now()", (source, ids, session)).fetchall()}
+    got = set(mine) | set(new)
+    return {"source": source, "queue": queue, "granted": [i for i in ids if i in got], "new": len(new),
+            "held_by_others": [{"item_id": i, "reviewer_name": others[i]} for i in ids if i in others],
+            "ttl_s": CLAIM_TTL_S}
+
+
+def _item_keys(items) -> list[tuple[str, str]]:
+    if items is None:
+        return []
+    if not isinstance(items, list) or len(items) > MAX_CANDIDATES:
+        raise ReviewError(f"items must be a list of at most {MAX_CANDIDATES} {{source, item_id}} objects")
+    out = []
+    for it in items:
+        if not isinstance(it, Mapping):
+            raise ReviewError("each item must be {source, item_id}")
+        s = _clean_source(it.get("source"))
+        out.append((s, _clean_item(s, it.get("item_id"))))
+    return out
+
+
+def claims_heartbeat(conn, *, session: str, items=None) -> dict:
+    """Renew this session's leases (all of them, or the listed ones). A lease that expired but
+    nobody took is renewed too; one another session took is reported as lost."""
+    ensure_claims_schema(conn)
+    session = clean_session(session)
+    keys = _item_keys(items)
+    with conn.transaction():
+        if items is None:
+            rows = conn.execute("UPDATE research.review_claims SET expires_at = now() + make_interval(secs => %s), "
+                                "last_seen_at = now() WHERE reviewer_session = %s RETURNING source, item_id",
+                                (CLAIM_TTL_S, session)).fetchall()
+        else:
+            rows = []
+            for s in SOURCES:
+                ids = [i for (src, i) in keys if src == s]
+                if ids:
+                    rows += conn.execute(
+                        "UPDATE research.review_claims SET expires_at = now() + make_interval(secs => %s), "
+                        "last_seen_at = now() WHERE reviewer_session = %s AND source = %s AND item_id = ANY(%s) "
+                        "RETURNING source, item_id", (CLAIM_TTL_S, session, s, ids)).fetchall()
+    held = [{"source": s, "item_id": i} for s, i in rows]
+    have = {(s, i) for s, i in rows}
+    lost = [{"source": s, "item_id": i} for s, i in keys if (s, i) not in have]
+    return {"held": held, "lost": lost, "ttl_s": CLAIM_TTL_S}
+
+
+def claims_release(conn, *, session: str, items=None, source: Optional[str] = None, skip: bool = False,
+                   reviewer_name: Optional[str] = None) -> dict:
+    """Drop this session's leases: the listed items, or all of one source, or all. skip=True also
+    records the items as skipped by this session, so it is not handed them again."""
+    ensure_claims_schema(conn)
+    session = clean_session(session)
+    keys = _item_keys(items)
+    if source is not None:
+        _clean_source(source)
+    name = _text(reviewer_name, "reviewer_name", 2, MAX_NAME) if skip and keys else None
+    released = []
+    with conn.transaction():
+        if items is None:
+            q, p = "DELETE FROM research.review_claims WHERE reviewer_session = %s", [session]
+            if source:
+                q += " AND source = %s"
+                p.append(source)
+            released = conn.execute(q + " RETURNING source, item_id, queue", p).fetchall()
+        else:
+            for s in SOURCES:
+                ids = [i for (src, i) in keys if src == s]
+                if ids:
+                    released += conn.execute(
+                        "DELETE FROM research.review_claims WHERE reviewer_session = %s AND source = %s "
+                        "AND item_id = ANY(%s) RETURNING source, item_id, queue", (session, s, ids)).fetchall()
+        if name:
+            queues = {(s, i): q for s, i, q in released}
+            for s, i in keys:
+                conn.execute("INSERT INTO research.review_skips (source, item_id, reviewer_session, reviewer_name, "
+                             "queue) VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING",
+                             (s, i, session, name, queues.get((s, i))))
+    return {"released": [{"source": s, "item_id": i} for s, i, _q in released],
+            "skipped": len(keys) if name else 0}
+
+
+def claims_active(conn, *, me: Optional[str] = None, source: Optional[str] = None,
+                  with_items: bool = False) -> dict:
+    """Who is reviewing now: live leases per expert name (never the session ids of others), per
+    source/queue, and optionally the items held by other sessions (for "being edited by X")."""
+    ensure_claims_schema(conn)
+    if me is not None:
+        me = clean_session(me)
+    if source is not None:
+        _clean_source(source)
+    cur = conn.cursor(row_factory=dict_row)
+    rows = cur.execute("SELECT source, item_id, reviewer_session, reviewer_name, queue, expires_at "
+                       "FROM research.review_claims WHERE expires_at > now()"
+                       + (" AND source = %s" if source else ""), (source,) if source else ()).fetchall()
+    per_session: dict = {}
+    by_queue: Counter = Counter()
+    for r in rows:
+        k = r["reviewer_session"]
+        e = per_session.setdefault(k, {"reviewer_name": r["reviewer_name"], "video": 0, "citizen": 0,
+                                       "mine": k == me})
+        e[r["source"]] += 1
+        by_queue[f"{r['source']}:{r['queue']}"] += 1
+    out = {"experts": sorted(per_session.values(), key=lambda e: (not e["mine"], e["reviewer_name"])),
+           "experts_online": len(per_session), "by_queue": dict(by_queue), "ttl_s": CLAIM_TTL_S}
+    if with_items:
+        out["items"] = [{"source": r["source"], "item_id": r["item_id"], "reviewer_name": r["reviewer_name"],
+                         "expires_at": r["expires_at"].isoformat()}
+                        for r in rows if r["reviewer_session"] != me]
+    return out
+
+
+def take_claim(conn, *, source: str, item_id: str, session: str, reviewer_name: str, queue: str) -> None:
+    """Hold (or renew) the lease on one item for this session, or raise Conflict naming the
+    expert who holds it. Used right before a save."""
+    ensure_claims_schema(conn)
+    source = _clean_source(source)
+    item_id = _clean_item(source, item_id)
+    session = clean_session(session)
+    name = _text(reviewer_name, "reviewer_name", 2, MAX_NAME)
+    with conn.transaction():
+        got = conn.execute(
+            "INSERT INTO research.review_claims (source, item_id, reviewer_session, reviewer_name, queue, claimed_at, "
+            "last_seen_at, expires_at) VALUES (%s, %s, %s, %s, %s, now(), now(), now() + make_interval(secs => %s))"
+            + _UPSERT_TAIL, (source, item_id, session, name, queue, CLAIM_TTL_S)).fetchone()
+        if got is None:
+            holder = conn.execute("SELECT reviewer_name FROM research.review_claims WHERE source = %s AND item_id = %s",
+                                  (source, item_id)).fetchone()
+            raise Conflict(f"{holder[0] if holder else 'Another expert'} is reviewing this item right now",
+                           held_by=holder[0] if holder else None)
+
+
+def _parse_instant(v):
+    from datetime import datetime
+    if v is None or not isinstance(v, str):
+        return v
+    try:
+        return datetime.fromisoformat(v.replace("Z", "+00:00"))
+    except ValueError:
+        raise ReviewError("seen_reviewed_at must be an ISO timestamp or null") from None
+
+
+def same_instant(a, b) -> bool:
+    """reviewed_at as stored vs the value the page saw (datetime / ISO text / None)."""
+    a, b = _parse_instant(a), _parse_instant(b)
+    if a is None or b is None:
+        return a is None and b is None
+    return a == b
+
+
+def save_video_review_claimed(conn, segment_id: str, payload: Mapping) -> dict:
+    """save_video_review with the multi-expert checks, in one transaction:
+      - another session's live lease on the item -> Conflict (nothing is saved);
+      - the item was reviewed since the page loaded it (payload seen_reviewed_at; null or absent
+        when it was unreviewed) -> Conflict "X saved a review at T";
+      - otherwise write the expert_* columns, append the log row, and release the lease.
+    payload.session is the page's reviewer session; without one (an old page) the save is allowed
+    only when nobody holds a live lease on the item."""
+    ensure_claims_schema(conn)
+    review = clean_review(payload, source="video", strict_types=True)
+    session = clean_session(payload["session"]) if payload.get("session") else None
+    seen = payload.get("seen_reviewed_at")
+    if seen is not None and not isinstance(seen, str):
+        raise ReviewError("seen_reviewed_at must be an ISO timestamp or null")
+    _parse_instant(seen)
+    with conn.transaction():
+        cur = conn.cursor(row_factory=dict_row)
+        row = cur.execute(
+            "SELECT v.segment_id, v.session_id, a.* FROM video_segments v JOIN assessments a "
+            "ON a.id = v.assessment_id WHERE v.segment_id = %s FOR UPDATE OF a", (segment_id,)).fetchone()
+        if row is None:
+            raise NotFound(f"no answered segment {segment_id!r}")
+        claim = cur.execute(
+            "SELECT reviewer_session, reviewer_name, expires_at > now() AS live FROM research.review_claims "
+            "WHERE source = 'video' AND item_id = %s FOR UPDATE", (segment_id,)).fetchone()
+        if claim and claim["live"] and claim["reviewer_session"] != session:
+            raise Conflict(f"{claim['reviewer_name']} is reviewing this item right now",
+                           held_by=claim["reviewer_name"])
+        if not same_instant(row.get("reviewed_at"), seen):
+            when = row["reviewed_at"].isoformat() if row.get("reviewed_at") else None
+            raise Conflict(f"{row.get('reviewer_name') or 'Another expert'} saved a review of this item "
+                           f"({when}); reload to see it before changing it",
+                           reviewed_by=row.get("reviewer_name"), reviewed_at=when)
+        vlm = vlm_snapshot(row)
+        action = "update" if row.get("expert_reviewed") else "confirm"
+        done = cur.execute(
+            "UPDATE assessments SET expert_reviewed = true, expert_corrected_types = %s, "
+            "expert_corrected_severity = %s, expert_notes = %s, reviewer_name = %s, reviewed_at = NOW() "
+            "WHERE id = %s RETURNING reviewed_at", (Jsonb(review["types"]), review["severity"], review["notes"],
+                                                    review["reviewer_name"], row["id"])).fetchone()
+        out = _insert_log(conn, source="video", assessment_id=str(row["id"]), segment_id=row["segment_id"],
+                          session_id=row["session_id"], review=review, vlm=vlm, action=action)
+        conn.execute("DELETE FROM research.review_claims WHERE source = 'video' AND item_id = %s", (segment_id,))
+    return {"segment_id": segment_id, "action": action, "expert_types": review["types"],
+            "expert_severity": review["severity"], "reviewed_at": done["reviewed_at"].isoformat(), **out}
+
+
+def finish_citizen_review(conn, assessment_id: str, payload: Mapping, row: Mapping) -> dict:
+    """After the server's conditional Supabase save: log it and release the lease."""
+    out = log_citizen_review(conn, assessment_id, payload, row)
+    ensure_claims_schema(conn)
+    conn.execute("DELETE FROM research.review_claims WHERE source = 'citizen' AND item_id = %s", (assessment_id,))
+    return out
+
+
+def list_video_marked(conn, queue: str, *, me: Optional[str] = None, drive: Optional[str] = None,
+                      label: Optional[str] = None, limit: int = 24, offset: int = 0) -> dict:
+    """list_video plus, per item, who holds a live lease on it (claim_name, claim_mine) and the image
+    version (image_v) for cacheable image URLs."""
+    ensure_claims_schema(conn)
+    me = clean_session(me) if me else None
+    where, params = _video_where(queue, drive, label)
+    w = " AND ".join(where)
+    limit, offset = max(1, min(100, int(limit))), max(0, int(offset))
+    cur = conn.cursor(row_factory=dict_row)
+    rows = cur.execute(
+        f"SELECT {_LIST_COLS}, v.image_sha256, c.reviewer_name AS claim_name, "
+        f"(c.reviewer_session IS NOT NULL AND c.reviewer_session = %s) AS claim_mine, "
+        f"c.expires_at AS claim_expires_at "
+        f"FROM video_segments v JOIN assessments a ON a.id = v.assessment_id "
+        f"LEFT JOIN research.review_claims c ON c.source = 'video' AND c.item_id = v.segment_id "
+        f"AND c.expires_at > now() WHERE {w} ORDER BY {_VIDEO_ORDER[queue]} LIMIT %s OFFSET %s",
+        (me or "", *params, limit, offset)).fetchall()
+    total = cur.execute(f"SELECT COUNT(*) AS n FROM video_segments v JOIN assessments a ON a.id = v.assessment_id "
+                        f"WHERE {w}", params).fetchone()["n"]
+    return {"queue": queue, "total": total, "limit": limit, "offset": offset, "counts": _video_counts(cur, drive),
+            "items": _iso_rows(rows)}

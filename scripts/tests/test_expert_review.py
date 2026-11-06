@@ -258,8 +258,12 @@ def test_http_endpoints(xenv):
         assert d["total"] == 3
         assert cl.get("/expert-api/video/list", params={"queue": "nope"}).status_code == 400
         assert cl.get("/expert-api/video/sessions").json()["items"][0]["session_id"] == SESSION
-        r = cl.post(f"/expert-api/video/review/{seg(0)}", json={"reviewer_name": "Asha", "types": ["Rutting"],
-                                                                "severity": "Low", "queue": "reviewed"})
+        seen = {i["segment_id"]: i["reviewed_at"] for i in d["items"]}[seg(0)]
+        upd = {"reviewer_name": "Asha", "types": ["Rutting"], "severity": "Low", "queue": "reviewed"}
+        # an edit must say which review it saw (several experts): without it, 409 and nothing saved
+        r = cl.post(f"/expert-api/video/review/{seg(0)}", json=upd)
+        assert r.status_code == 409 and r.json()["detail"]["reviewed_by"] == "Asha", r.text
+        r = cl.post(f"/expert-api/video/review/{seg(0)}", json={**upd, "seen_reviewed_at": seen})
         assert r.status_code == 200 and r.json()["comparison"]["verdict"] == "wrong"
         assert cl.post(f"/expert-api/video/review/{seg(0)}", json={"types": ["Rutting"]}).status_code == 400
         assert cl.post(f"/expert-api/video/review/{seg(2)}", json={"reviewer_name": "Asha", "types": ["Normal"],

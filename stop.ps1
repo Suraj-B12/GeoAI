@@ -11,12 +11,17 @@
 # for the video pipeline: its store and the GIS outlive a server restart.
 #
 # Usage:
-#   .\stop.ps1            # graceful (drains worker first)
-#   .\stop.ps1 -Force     # immediate kill
-#   .\stop.ps1 -KeepDb    # leave the local PostgreSQL running
+#   .\stop.ps1              # graceful (drains worker first); the tunnel keeps running (same URL)
+#   .\stop.ps1 -Force       # immediate kill
+#   .\stop.ps1 -KeepDb      # leave the local PostgreSQL running
+#   .\stop.ps1 -StopTunnel  # also stop cloudflared (the next -Tunnel start gets a NEW URL)
+#
+# The start.ps1 watchdog loop is stopped FIRST (before 2026-11-06 it was left running and simply
+# relaunched the server this script had just killed). The drain request sends the first API_KEYS
+# key (it got a silent 401 once API_KEYS was set).
 # ============================================================
 
-param([switch]$Force, [switch]$KeepDb, [int]$Port = 8000)
+param([switch]$Force, [switch]$KeepDb, [switch]$StopTunnel, [int]$Port = 8000)
 
 $ErrorActionPreference = "Continue"
 $ProjectRoot = $PSScriptRoot
@@ -37,14 +42,28 @@ function Get-EnvSetting {
 
 if (-not $Force) {
     Write-Host "Asking worker to drain..."
+    $key = ((Get-EnvSetting 'API_KEYS' '') -split ',' | ForEach-Object { $_.Trim() } |
+            Where-Object { $_ } | Select-Object -First 1)
+    $headers = @{}; if ($key) { $headers['X-API-Key'] = $key }
     try {
-        Invoke-WebRequest -Uri "http://127.0.0.1:$Port/operator/stop" `
+        Invoke-WebRequest -Uri "http://127.0.0.1:$Port/operator/stop" -Headers $headers `
             -Method POST -UseBasicParsing -TimeoutSec 30 | Out-Null
         Write-Host "  Drain request sent." -ForegroundColor Green
     } catch {
-        Write-Host "  /operator/stop failed (server may already be down): $_" -ForegroundColor Yellow
+        Write-Host "  /operator/stop failed (server may already be down): $($_.Exception.Message)" -ForegroundColor Yellow
     }
     Start-Sleep -Seconds 2
+}
+
+# Stop the start.ps1 watchdog loop(s) first, or they relaunch the server killed below.
+# Matches PowerShell processes whose command line runs start.ps1; never this process.
+$watchdogs = Get-CimInstance Win32_Process |
+    Where-Object { $_.ProcessId -ne $PID -and $_.Name -match '^(powershell|pwsh)(\.exe)?$' -and
+                   $_.CommandLine -and $_.CommandLine -match 'start\.ps1' }
+foreach ($w in $watchdogs) {
+    Write-Host "Stopping start.ps1 runner PID $($w.ProcessId)..." -ForegroundColor Cyan
+    try { Stop-Process -Id $w.ProcessId -Force -ErrorAction Stop; Write-Host "  stopped." -ForegroundColor Green }
+    catch { Write-Host "  failed: $($_.Exception.Message)" -ForegroundColor Red }
 }
 
 # Kill any python process running uvicorn app.main
@@ -68,6 +87,17 @@ foreach ($p in $procs) {
 # Stop any auto-start-worker background jobs left in the shell
 Get-Job -Name "auto-start-worker" -ErrorAction SilentlyContinue |
     Remove-Job -Force -ErrorAction SilentlyContinue | Out-Null
+
+if ($StopTunnel) {
+    $cfs = Get-Process cloudflared -ErrorAction SilentlyContinue
+    foreach ($c in $cfs) {
+        Write-Host "Stopping cloudflared PID $($c.Id) (the next tunnel gets a new URL)..." -ForegroundColor Cyan
+        try { Stop-Process -Id $c.Id -Force -ErrorAction Stop; Write-Host "  stopped." -ForegroundColor Green }
+        catch { Write-Host "  failed: $($_.Exception.Message)" -ForegroundColor Red }
+    }
+} elseif (Get-Process cloudflared -ErrorAction SilentlyContinue) {
+    Write-Host "Tunnel left running (same URL); -StopTunnel stops it." -ForegroundColor DarkGray
+}
 
 # Local PostgreSQL (DB_BACKEND=postgres only), after the server that uses it
 if ((Get-EnvSetting 'DB_BACKEND' 'supabase').ToLower() -eq 'postgres' -and -not $KeepDb) {
