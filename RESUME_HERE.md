@@ -17,10 +17,15 @@ below is done and committed.
    - no clashes or race conditions;
    - the same item never shown to two experts;
    - photo enlarge must be instant.
-3. Research the paper on tuning open-weight model weights. This is PostTrainBench: Rank et al. 2026,
-   arXiv:2603.08640, where LLM agents post-train open models under a GPU budget with anti-cheating
-   rules. Do the same on our VLM in sandboxed tests, show a real held-out improvement, and update
-   results, figures and the paper.
+3. Implement the paper on tuning open-weight model weights, test it in a sandbox, and show results and
+   figures. The user later said the paper they meant is **"Sparks of Weight-Space Programming"**
+   (Takehi, Teoh, Zhang, Khattab, MIT CSAIL, 2 Nov 2026, https://rikiyat.github.io/blog/weight-space-programming/).
+   In it, a frontier LLM edits weights directly by reasoning: forward passes only, a fixed pass budget,
+   no gradients or optimizer, an explanation for every step, held-out tests. The QLoRA/PostTrainBench
+   plan was dropped at the user's request (2026-11-06) before any training; see
+   `eval_results/finetune/ABANDONED.md`.
+   Our target is the hidden ability: Stage 1 recall on distress frames is 51.8%, while the probe's max
+   score finds distress on 93.3% of them. Rules and controls are in `wsp_preregistration.json`.
 4. Update CLAUDE.md and the agent notes so restarts need no fiddling (done; see below).
 5. Make everything safe to continue after a usage limit (this file, plus each workstream's STATUS file).
 
@@ -29,7 +34,7 @@ below is done and committed.
 | Workstream | Files it owns | Its status file |
 |---|---|---|
 | A. Multi-expert claims + instant enlarge | `app/expert_review.py`, `app/expert_routes.py`, `expert_ui/index.html`, `migrations/007_review_claims.sql`, `scripts/setup_local_db.py`, `scripts/tests/test_expert_*.py`, `test_local_db.py`, paper §6.4 (one paragraph) | `eval_results/expert_claims_STATUS.md` |
-| B. PostTrainBench-style tuning study | `scripts/ft_*.py`, `scripts/tests/test_ft_data.py`, `eval_results/finetune/`, big artifacts in `C:\GeoAI\finetune\`, figures `fig_6_11*`, paper §6.11 / §7.12 | `eval_results/finetune/STATUS.md` |
+| B. Weight-space programming study (was PostTrainBench) | `scripts/ft_*.py`, `scripts/wsp_*.py`, `scripts/tests/test_ft_data.py`, `scripts/tests/test_wsp_*.py`, `eval_results/finetune/` (`wsp_*` files), edits and activations in `C:\GeoAI\wsp\`, figures `fig_6_11*`, paper §6.11 / §7.12 | `eval_results/finetune/STATUS.md` |
 | C. Leftover drive-video studies | `C:\GeoAI\analysis\fixes\...`, `eval_results/video_fixes/`, figures `fig_8_*`, paper §8.6, GeoAI_Video repo (`docs/research/METRICS.md` §9, code) | `eval_results/video_fixes/STATUS.md` |
 
 Rules for all of them:
