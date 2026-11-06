@@ -60,6 +60,14 @@ server read "Restarting production" below. No citizen upload has arrived since 2
   a `finally`. Wait if another owner holds it. A lock left by a dead job blocks everything (2026-10-28):
   remove it only after `nvidia-smi` shows no process but the idle server. Timing studies must hold the lock
   for their whole run; accuracy runs may share the card with the IDLE production server (~6.7–7.6 GB).
+  A long-lived helper (e.g. a forward-pass server) takes the lock **per request**, never for its lifetime
+  (2026-11-06: an idle server held it for 4 h while another job queued). Generic launcher that takes the
+  lock, records PID + child, releases in `finally` and takes over a dead owner's lock:
+  `C:\GeoAI\analysis\fixes\gpu_job.py` (copy in `eval_results/video_fixes/gpu_job.py`).
+- **Usage limits stop every agent at once.** Long jobs must run as detached OS processes with atomic
+  checkpoints, and each workstream keeps a STATUS file that a new session can resume from alone;
+  `RESUME_HERE.md` (repo root) names the workstreams. After a reset, resume the same agents with
+  SendMessage rather than starting new ones.
 - Keep the card under ~22 GB in total: Windows WDDM pages to RAM instead of failing (10–30x slower,
   silently). Watch step times.
 - **Never run `uvicorn app.main` next to production** (the watchdog's `Stop-StalePython` kills it, and it
