@@ -44,7 +44,9 @@ Rules for all of them:
 - Result files are written atomically.
 - B's pre-registration is never edited (addenda only), and every test-split evaluation is counted.
 
-## Coordinator steps still to do (after A, B and C report)
+**A is DONE and live** (commit 2acd2d4, deployed 2026-11-06 ~15:47 IST, checked with two tabs on production).
+
+## Coordinator steps still to do (after B and C report)
 1. Review each workstream's diff and results, and re-run its tests plus `scripts/validate_all.py`.
 2. Deploy A to production with the restart recipe in CLAUDE.md, using the new `start.ps1`:
    - `.\stop.ps1`, then `.\start.ps1 -AutoStart -Tunnel -Watchdog -Detach`;
