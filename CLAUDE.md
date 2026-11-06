@@ -1,6 +1,9 @@
 # Pavement Distress Classification — Capstone Project Context
 
-## START HERE — Current State (updated 2026-10-27)
+## START HERE — Current State (updated 2026-11-06)
+
+> **If `RESUME_HERE.md` exists in the repo root, a multi-part task was cut off mid-way — read it first.**
+> It lists the work in flight, which files each workstream owns, their STATUS files, and the steps left.
 
 **Pipeline version in production** (code: `main`, last pipeline-code commit `a59eec1`, 2026-09-26):
 
@@ -33,11 +36,43 @@ RoadSide app → Cloudinary image + Supabase `photos` row → trigger → `asses
 `stage2_probe.parity.ok=true`. If `stage2_mode_effective` is `generate`, the probe failed to load —
 `stage2_probe.reason` says why; the pipeline still works but stops collecting calibration data.
 
-**Is it running?** No. The server last ran on 2026-10-22 (log `eval_results/production_final.log`);
-the machine was restarted since. No upload has arrived since 2026-09-25. To start:
-`.\start.ps1 -AutoStart -Watchdog` (logs to console; redirect with `*> eval_results\production_final.log`),
-then check `GET /health` and `GET /operator/status`. Stop: `.\stop.ps1`. See "Restarting production"
-below before restarting a running server.
+**Is it running? Run `.\status.ps1` first** (read-only, one screen: model + P4 settings, worker, video
+pipeline, local PostgreSQL, GPU memory, GPU lock, tunnel URL and whether it answers; exit 1 = something
+needs attention). The PC is rebooted often and nothing starts by itself. After a reboot, ONE command
+brings the whole demo back:
+
+```powershell
+.\start.ps1 -AutoStart -Tunnel -Watchdog -Detach     # hidden; log eval_results\production_final.log
+.\status.ps1                                         # ~1 min later (model load)
+```
+That starts local PostgreSQL, uvicorn under the watchdog, the worker (auto-start sends the first
+`API_KEYS` key and fires after every watchdog relaunch; result in `eval_results\autostart.log`) and a
+hidden Cloudflare quick tunnel whose new URL is written to `C:\GeoAI\tmp\tunnel_url.txt` (it changes on
+every cloudflared start; give the user the new link). The video-pipeline toggle persists in
+`C:\GeoAI\inbox\.video_pipeline\state.json`. `-Detach` refuses to start a second server. Stop: `.\stop.ps1`.
+Demo pages: `/gis/app/`, `/try/`, `/expert/`, `/operator`, `/dashboard` (operator pages need the API key,
+copy for the user in `C:\GeoAI\operator_api_key.txt` — never print it). Before restarting a RUNNING
+server read "Restarting production" below. No citizen upload has arrived since 2026-09-25.
+
+**Working with several agents / GPU jobs at once (rules, learned 2026-10/11):**
+- **GPU lock:** any GPU job other than the production server (training, evaluation, timing studies) takes
+  `C:\GeoAI\gpu.lock` first (`mkdir` is atomic; write `owner.txt` = who, what, UTC start) and removes it in
+  a `finally`. Wait if another owner holds it. A lock left by a dead job blocks everything (2026-10-28):
+  remove it only after `nvidia-smi` shows no process but the idle server. Timing studies must hold the lock
+  for their whole run; accuracy runs may share the card with the IDLE production server (~6.7–7.6 GB).
+- Keep the card under ~22 GB in total: Windows WDDM pages to RAM instead of failing (10–30x slower,
+  silently). Watch step times.
+- **Never run `uvicorn app.main` next to production** (the watchdog's `Stop-StalePython` kills it, and it
+  fights for the port). For HTTP tests, build a harness app in the scratchpad that mounts only the routes
+  under test and run it with `uvicorn.run()` on another port (8010).
+- Tests that touch PostgreSQL use the scratch DB `geoai_test` (see `XEnv` in
+  `scripts/tests/test_expert_review.py`), never the production `geoai` DB.
+- CPU-only tests: `CUDA_VISIBLE_DEVICES=-1` and assert `torch.cuda.is_available()` is False
+  (an EMPTY value does not hide the GPU in Git Bash).
+- OpenCV is NOT in the Capstone venv; `C:\Users\PRO-LAB-3\Documents\GeoAI_Video\pipeline\.venv` has it
+  (run with `-I`, pass paths as arguments).
+- Parallel agents: give each its own files; only one agent edits CLAUDE.md / memory and commits (the
+  coordinating session). Paper edits from several agents go to separate sections with small Edit calls.
 
 **Production data (2026-10-27):** 361 uploads (`photos` = `assessments`, 2026-04-27 → 2026-09-25):
 131 classified, 213 expert_review, 17 rejected_non_pavement. All re-classified on 2026-09-26 under the
@@ -167,6 +202,7 @@ expert_review rows → Expert UI corrections → calibrate_probe_from_expert_lab
 - Classes (WS_V2.0): Alligator crack, Block crack, Linear crack (longitudinal and transverse are NOT split), Pothole, Patch and utility cut, Raveling, Weathering, plus Faded marking and Lane shoulder drop-off (excluded). Severity High / Low only.
 - **Class-name trap:** Attain spells one class `Patch and utility cut- Low` (no space before the dash). Before 2026-09-23 the parser split only on `" - "`, so every patch instance became an unmapped pseudo-class and silently left the zero-shot tally: the paper's Tier-2 figures were overstated (Improved Baseline 5.88% → 3.81%, plain 3.27% → 2.11%; ranking unchanged). Fixed in `parse_attain_class()`.
 - Collection: smartphones mounted on a vehicle's windshields. **Created by Amirkabir University of Technology, Tehran** (Mendeley record; the data YAML links attain.aut.ac.ir). The record does not name the collection site; the roads look Iranian. Earlier docs said "New Zealand" — that was never supported, do not repeat it.
+- **The other two subsets were never used in an evaluation** (checked 2026-11-06): `WS_V1.0` = 809 close-up 640×640 road crops (YOLO-seg polygon `.txt`, 16 class names incl. a lowercase duplicate "Alligator crack - low"; same distress classes as WS_V2.0 plus manhole) and `OS_V1.0` = 637 640×640 frames (Alligator + Linear crack only). Whole-image dHash: no near-duplicate of any WS_V2.0 frame (min Hamming 45/256 and 36/256); a 1/8-scale crop search found only similar-looking asphalt. They are the clean training pool for any tuning study; a keypoint/homography check and its drop list live in `eval_results/finetune/contamination.json`.
 - 78 of 847 WS_V2.0 images carry no distress annotation (only faded marking / drop-off, or nothing). Earlier evaluations dropped them; the probe study (`stage2_probe_experiment.py`) keeps them as the only all-class negatives.
 - **Purpose:** Zero-shot generalization testing. Model is trained on RDD (4 classes) and evaluated on Attain (10 classes). Classes not in RDD (block crack, raveling, weathering, faded marking, drop-off, manhole) are zero-shot evaluation targets — the model has never trained on them but can recognize them via taxonomy injection in the system prompt.
 - **Phase 3 role:** Misclassifications on Attain's unseen classes become expert correction candidates → few-shot injection → LoRA retrain → measure improvement trajectory
@@ -378,7 +414,7 @@ inflated by the same overflow; re-measure before relying on them.
 - **Production state:** shadow + safety net + field gate (unchanged review load). Probe adds ~1.4–2 s per Stage-2 image.
 - **Next step (Phase 3 link):** experts review uploads in `expert_ui/` → run `scripts/calibrate_probe_from_expert_labels.py` → only if its held-out per-type MCC beats the free-form list, copy its candidate to `configs/stage2_probe.json` and set `STAGE2_MODE=probe`.
 - **Views (2026-09-26, paper §6.9):** `scripts/stage2_views.py` lets the probe score tiles or model-located zoom crops. Test/CV vs full photo: tiles (upscaled, max) AUROC +0.020 [−0.016,+0.051], CV macro MCC 0.248→0.308 (p=0.047), ~6.5 s/upload; find-then-zoom −0.009 AUROC (its boxes miss ~56% of damage, none usable on 32% of uploads); oracle crops only +0.008. Not adopted under the pre-registered rule. `configs/stage2_probe.json` has `views: {mode: full, record: tile}` — decisions on the full photo, per-tile scores stored in `raw_response.stage2_probe.views.recorded` (+~6.5 s per image; delete `record` to save it). `calibrate_probe_from_expert_labels.py` compares full vs tiled on expert labels and picks the winner (verified end-to-end by `scripts/tests/test_calibrate_from_expert_labels.py`). Aggregation must not be naive max over many views for common texture classes — it inflates false positives (see `stage2_views.aggregate`).
-- **Restarting production:** it runs under `start.ps1 -Watchdog` (launched from an earlier background session; log = `eval_results/production_final.log`). Killing uvicorn makes the watchdog relaunch it with the current `.env` — do NOT start a second server (the watchdog's `Stop-StalePython` kills it). After any restart, `POST /operator/start`: auto-start fires only once per `start.ps1` run.
+- **Restarting production:** it runs under `start.ps1 -Watchdog` (started with `-Detach`; log = `eval_results/production_final.log`). To load new code or `.env`: check `.\status.ps1` shows the worker idle → `POST /operator/stop` → kill the uvicorn python process (not the watchdog's PowerShell) → the watchdog relaunches it with the current `.env` → with `-AutoStart` (since 2026-11-06) the worker restarts by itself after every relaunch; confirm with `.\status.ps1` (else `POST /operator/start` with the key). Do NOT start a second server (the watchdog's `Stop-StalePython` kills it). A full restart of the whole stack: `.\stop.ps1`, then the one-command start in START HERE (the tunnel URL changes only if cloudflared was stopped too).
 
 ## How to Run (Quick Reference)
 

@@ -9,6 +9,16 @@
 #   .\start.ps1 -Tunnel                   # also expose via Cloudflare tunnel
 #   .\start.ps1 -Watchdog                 # auto-restart on crash (infinite loop)
 #   .\start.ps1 -AutoStart -Tunnel -Watchdog  # full production runner
+#   .\start.ps1 -AutoStart -Tunnel -Watchdog -Detach
+#                                         # the same, hidden in the background, logging to
+#                                         # eval_results\production_final.log (use this after a reboot)
+#   .\status.ps1                          # one-screen check: model, worker, video, GPU, tunnel, GPU lock
+#
+# -AutoStart sends the first key in API_KEYS (.env) as X-API-Key and fires after
+# EVERY watchdog relaunch, not only the first; result lines go to eval_results\autostart.log.
+# -Tunnel starts cloudflared hidden (unless one is already running) and writes the
+# public URL to TUNNEL_URL_FILE (default C:\GeoAI\tmp\tunnel_url.txt); a quick tunnel's
+# URL changes every time cloudflared starts.
 #
 # DB_BACKEND=postgres, or a DATABASE_URL on this machine (the video pipeline's
 # store): the local PostgreSQL cluster (PG_BIN / PG_DATA, default
@@ -27,6 +37,8 @@ param(
     [switch]$Tunnel,            # spin up cloudflared in a separate window
     [switch]$Watchdog,          # auto-restart server on crash
     [switch]$SkipChecks,        # skip pre-flight (use only for fast iteration)
+    [switch]$Detach,            # relaunch this script hidden in the background, output to $LogFile
+    [string]$LogFile = '',      # with -Detach; default eval_results\production_final.log
     [int]$Port = 8000,          # uvicorn port
     [string]$BindHost = '0.0.0.0'   # uvicorn host. Not $Host: that is a read-only PowerShell automatic variable, and declaring it aborts the script before it runs.
 )
@@ -34,6 +46,31 @@ param(
 $ErrorActionPreference = "Stop"
 $ProjectRoot = $PSScriptRoot
 Set-Location $ProjectRoot
+
+if ($Detach) {
+    # Relaunch hidden with the same switches (minus -Detach) and all output in one log,
+    # so the server outlives the terminal or agent session that started it.
+    $running = Get-CimInstance Win32_Process |
+        Where-Object { $_.CommandLine -and $_.CommandLine -like '*uvicorn*app.main*' }
+    if ($running) {
+        Write-Host "A server is already running (PID $($running[0].ProcessId)). Not starting a second one." -ForegroundColor Yellow
+        Write-Host "Check it with .\status.ps1; restart recipe: CLAUDE.md 'Restarting production'." -ForegroundColor Yellow
+        exit 1
+    }
+    if (-not $LogFile) { $LogFile = Join-Path $ProjectRoot 'eval_results\production_final.log' }
+    $argList = @()
+    if ($AutoStart)  { $argList += '-AutoStart' }
+    if ($Tunnel)     { $argList += '-Tunnel' }
+    if ($Watchdog)   { $argList += '-Watchdog' }
+    if ($SkipChecks) { $argList += '-SkipChecks' }
+    $argList += @('-Port', $Port, '-BindHost', $BindHost)
+    $cmd = "Set-Location '$ProjectRoot'; & '.\start.ps1' $($argList -join ' ') *> '$LogFile'"
+    Start-Process -FilePath powershell.exe -WindowStyle Hidden `
+        -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', $cmd) | Out-Null
+    Write-Host "Started in the background; log: $LogFile" -ForegroundColor Green
+    Write-Host "The model takes about a minute to load. Then run .\status.ps1" -ForegroundColor Green
+    exit 0
+}
 
 # ============================================================
 # Helpers
@@ -239,40 +276,73 @@ if ($Tunnel) {
     if (-not (Test-Path $cf)) {
         Write-WARN "cloudflared.exe not found at $cf — skipping tunnel"
         Write-Host "    Download:  Invoke-WebRequest -OutFile cloudflared.exe https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe"
+    } elseif (Get-Process cloudflared -ErrorAction SilentlyContinue) {
+        Write-OK "cloudflared already running - keeping it (URL in $(Get-EnvSetting 'TUNNEL_URL_FILE' 'C:\GeoAI\tmp\tunnel_url.txt'))"
     } else {
-        Write-OK "Launching cloudflared in a new window"
-        Start-Process powershell -ArgumentList "-NoExit","-Command","Set-Location '$ProjectRoot'; .\cloudflared.exe tunnel --url http://localhost:$Port"
+        $urlFile = Get-EnvSetting 'TUNNEL_URL_FILE' 'C:\GeoAI\tmp\tunnel_url.txt'
+        $cfLog = Join-Path (Split-Path $urlFile) 'cloudflared.log'
+        New-Item -ItemType Directory -Force (Split-Path $urlFile) | Out-Null
+        Remove-Item $cfLog -ErrorAction SilentlyContinue
+        Start-Process -FilePath $cf -WindowStyle Hidden `
+            -ArgumentList @('tunnel', '--no-autoupdate', '--url', "http://localhost:$Port", '--logfile', $cfLog) | Out-Null
+        $url = $null
+        $deadline = (Get-Date).AddSeconds(60)
+        while (-not $url -and (Get-Date) -lt $deadline) {
+            Start-Sleep -Seconds 2
+            if (Test-Path $cfLog) {
+                $m = Select-String -Path $cfLog -Pattern 'https://[a-z0-9-]+\.trycloudflare\.com' | Select-Object -First 1
+                if ($m) { $url = $m.Matches[0].Value }
+            }
+        }
+        if ($url) {
+            Set-Content -Path $urlFile -Value $url -Encoding ascii
+            Write-OK "Tunnel: $url  (saved to $urlFile)"
+        } else {
+            Write-WARN "cloudflared started but no URL within 60 s - see $cfLog"
+        }
     }
 }
 
 # ============================================================
 # Optional: auto-start worker (background job, fires after server is healthy)
 # ============================================================
-if ($AutoStart) {
-    Write-Step "Worker auto-start scheduled"
-    Start-Job -Name "auto-start-worker" -ArgumentList $Port -ScriptBlock {
-        param($Port)
-        $deadline = (Get-Date).AddMinutes(5)
+function Start-AutoStartJob {
+    # Starts the worker once /health reports model_loaded. Called before every uvicorn launch
+    # (also watchdog relaunches), so a crash no longer leaves the pipeline stopped.
+    # Sends the first API_KEYS entry as X-API-Key (the operator endpoints need it once
+    # API_KEYS is set); the key is passed to the job, never printed or logged.
+    $key = ((Get-EnvSetting 'API_KEYS' '') -split ',' | ForEach-Object { $_.Trim() } |
+            Where-Object { $_ } | Select-Object -First 1)
+    $logPath = Join-Path $ProjectRoot 'eval_results\autostart.log'
+    Get-Job -Name "auto-start-worker" -ErrorAction SilentlyContinue | Remove-Job -Force -ErrorAction SilentlyContinue
+    Start-Job -Name "auto-start-worker" -ArgumentList $Port, $key, $logPath -ScriptBlock {
+        param($Port, $Key, $LogPath)
+        function Log($m) { Add-Content -Path $LogPath -Value "$(Get-Date -Format s) [auto-start] $m" }
+        $loaded = $false
+        $deadline = (Get-Date).AddMinutes(10)
         while ((Get-Date) -lt $deadline) {
             try {
-                $r = Invoke-WebRequest -Uri "http://127.0.0.1:$Port/health" `
-                    -UseBasicParsing -TimeoutSec 3
-                if ($r.StatusCode -eq 200) {
-                    $h = $r.Content | ConvertFrom-Json
-                    if ($h.model_loaded) { break }
-                }
+                $r = Invoke-WebRequest -Uri "http://127.0.0.1:$Port/health" -UseBasicParsing -TimeoutSec 3
+                if ($r.StatusCode -eq 200 -and ($r.Content | ConvertFrom-Json).model_loaded) { $loaded = $true; break }
             } catch { }
             Start-Sleep -Seconds 3
         }
+        if (-not $loaded) { Log "model not loaded within 10 min - worker NOT started"; return }
+        $headers = @{}
+        if ($Key) { $headers['X-API-Key'] = $Key }
         try {
-            $r = Invoke-WebRequest -Uri "http://127.0.0.1:$Port/operator/start" `
-                -Method POST -UseBasicParsing
-            Write-Host "[auto-start] worker started ($($r.StatusCode))" -ForegroundColor Green
+            $r = Invoke-WebRequest -Uri "http://127.0.0.1:$Port/operator/start" -Method POST `
+                -Headers $headers -UseBasicParsing -TimeoutSec 30
+            Log "worker started (HTTP $($r.StatusCode))"
         } catch {
-            Write-Host "[auto-start] FAILED: $_" -ForegroundColor Red
+            Log "FAILED to start worker: $($_.Exception.Message)"
         }
     } | Out-Null
-    Write-OK "worker will auto-start once /health reports model_loaded=true"
+}
+
+if ($AutoStart) {
+    Write-Step "Worker auto-start scheduled"
+    Write-OK "worker will auto-start once /health reports model_loaded=true (log: eval_results\autostart.log)"
 }
 
 # ============================================================
@@ -321,6 +391,7 @@ if ($Watchdog) {
     while ($true) {
         Write-Step "Starting uvicorn (attempt #$($crashCount + 1))"
         if ($LocalPg) { [void](Start-LocalPostgres) }
+        if ($AutoStart) { Start-AutoStartJob }
         & $venvPy @uvicornArgs
         $exitCode = $LASTEXITCODE
         if ($exitCode -eq 0 -or $exitCode -eq -1073741510) {
@@ -336,6 +407,7 @@ if ($Watchdog) {
         Start-Sleep -Seconds $backoff
     }
 } else {
+    if ($AutoStart) { Start-AutoStartJob }
     & $venvPy @uvicornArgs
 }
 
