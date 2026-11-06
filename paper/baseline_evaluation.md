@@ -65,6 +65,13 @@
 > - **Nearest-sharp frame:** it could not run on any real drive (camera roll); this is fixed in GeoAI_Video `8f18fa2`.
 > - **Nearest-sharp A/B on drive C:** 12 of 16 decided flips favour it. The pre-registered bar is met with no flip to spare, by a non-blind look, so the default is unchanged pending a blind expert check.
 
+> **Revision 2026-11-06 (b) — weight-space programming.** New §6.11 and §7.12: Claude edited the production
+> model's weights directly, with forward passes only, after Takehi et al. (MIT CSAIL, 2 Nov 2026). It used 32 of
+> 50 passes and found a constant "Normal prior" written by attention head 26.17. The final edit (¾ of that head's
+> readout write, baked into bf16) raises held-out Stage 1 recall 51.7% → 74.8% at unchanged specificity, but it is
+> not better than a recalibrated threshold (MCC −0.019 [−0.036, −0.006]). Production is unchanged.
+> Figures 6.11a–d by `scripts/wsp_figures.py`.
+
 > **Reading guide.** Results were produced by four successive pipeline versions; every table
 > names the one it used:
 > | Version | Prompts / taxonomy | Adapter | Where reported |
@@ -72,7 +79,7 @@
 > | P1 (2026-03) | v1 plain, RDD codes D00–D40 | none | §6.1 |
 > | P2 (2026-05) | v1 plain, RDD codes | QLoRA `v2-rdd-2epochs-20260507` | §6.2, §6.3 (config C) |
 > | P3 (2026-05-16) | v2 Improved Baseline, pre-IRC names | none | §6.3 (config B) |
-> | **P4 (2026-09, production)** | **v2, IRC:82-2015 names** | **none** | §6.5–6.10, T7 |
+> | **P4 (2026-09, production)** | **v2, IRC:82-2015 names** | **none** | §6.5–6.11, T7 |
 
 ---
 
@@ -1081,6 +1088,68 @@ Two uses were proposed for a heatmap of where the model looks. The first is a sw
 
 It is not used to draw dataset boxes (§7.11).
 
+### 6.11 Weight-Space Programming on Our Model
+
+**Question.** Takehi, Teoh, Zhang and Khattab ("Sparks of Weight-Space Programming: LLMs can natively read & write neural network weights", MIT CSAIL blog post, 2 November 2026) let a frontier LLM edit an open model's weights directly. The editor may only read weights, compute statistics on CPU, and spend a fixed budget of forward passes; it may not use gradients or fit weights to a loss. On Qwen3.5-0.8B the editor found the residual direction behind a repetition loop and removed it from 64 MLP output columns in each of two layers, and MATH-500 rose from 7.9 to 48.1. Their conclusion was that an edit can remove an obstacle that hides an ability, but cannot add an ability the model lacks. We ran the same procedure on our production model (Qwen2.5-VL-7B-Instruct, 4-bit NF4, production prompts), with Claude as the editor. (An earlier plan to post-train with QLoRA, after PostTrainBench (Rank et al., 2026, arXiv:2603.08640), was dropped at the owner's request before any training was evaluated; `eval_results/finetune/ABANDONED.md`.)
+
+**Target.** Stage 1 says "Normal" on about half the Attain frames that show distress (recall 51.7% on the test split) while its ranking is good (AUROC 0.957), and the per-type probe sees the distress (§6.8). That fits the post's "hidden ability" case.
+
+**Rules, enforced in code** (`scripts/wsp_core.py`, `wsp_server.py`; tests `scripts/tests/test_wsp_core.py`, 6 pass):
+- Passes: the model runs only in a forward-pass server, budget 50 passes of up to 256 images. Every pass is in `eval_results/finetune/wsp_ledger.jsonl`.
+- What may be edited: decoder projections only. Edits to the embedding, lm_head and norms, and whole-tensor rescaling, are refused.
+- Edit forms: rank-one output edits W′ = W − c·u uᵀW and column edits W′[:,S] = W[:,S] − D.
+- Data: directions were estimated on 426 external practice frames (Attain WS_V1.0/OS_V1.0 after an ORB+SIFT contamination check that dropped 1,026 of 1,446 frames, flagged ones and their ±5 neighbours) and checked on the WS_V2.0 dev split. The test split was refused by the server until the edit was frozen.
+- Choices: c was chosen by dose-response against norm-matched random directions.
+- Final evaluation: one run on the test split, with the edit baked into bf16 weight matrices (`scripts/wsp_apply_edit.py`). Every step was pre-registered (`wsp_preregistration.json`, three dated addenda) and is explained in `wsp_work_notes.md`.
+
+**Adoption rule (pre-registered).** The edit counts as better only if (a) its test AUROC gain has a 95% paired block-bootstrap CI above 0, or (b) it beats a recalibrated base on MCC with a CI above 0. The recalibrated base is the same model with a constant offset added to logit(Distress) − logit(Normal), chosen on dev (+1.56). The edit must also pass the specificity and regression checks.
+
+**What the editor found** (passes 1–3 and 13–16, direct logit attribution through the final RMSNorm; Figure 6.11c):
+1. **Bias.** On dev, distress frames sit on the decision boundary (mean logit gap −0.01) while clean frames sit at −3.1.
+2. **Evidence.** Layer-16 attention writes the distress evidence: its projection on a practice-derived direction separates dev frames at AUROC 0.971, against 0.913 for the final decision.
+3. **The source of the bias.** One attention head, **26.17**, adds a near-constant −6.80 to the decision score on every frame (sd 0.14, no class signal). It is a "Normal prior" that does not look at the image. Heads 27.1 (+4.6) and 26.5 (+3.7) push the other way almost constantly.
+
+**Edits tried** (24 dev passes on a fixed 256-frame dev subset; base MCC 0.436, recalibrated base 0.639; Figure 6.11b):
+
+| Edit | Best dev MCC | AUROC | Note |
+|---|---:|---:|---|
+| e1 amplify layer-16 attention's evidence write (c = −2) | 0.469 | 0.913 | direction-specific but weak; later layers ignore its size |
+| e2 remove readout write of bias MLPs 25/13/11 (c = 2) | 0.503 | 0.913 | measured shift +0.18 at c = 1 vs +0.93 predicted: later layers repair it |
+| e3 amplify layer-27 attention readout write (c = −1) | 0.523 | 0.913 | |
+| e4 remove layer-27 MLP readout write | 0.454 | 0.915 | the only edit that widened the class gap (3.84 vs 3.13) |
+| e3 + e4 | 0.605 | 0.914 | super-additive: MLP 27 had been absorbing e3 |
+| **e5 remove ¾ of head 26.17's readout write** | **0.627** | 0.912 | chosen; shift +1.62 |
+| e5 (c = 0.25) + e4 | 0.612 | 0.913 | lowest review share |
+| random directions at the same places and doses | 0.436–0.440 | 0.911–0.913 | no effect |
+
+Every edit behaved like a shift of the base logits by that edit's own mean shift, with the same or slightly better MCC for the plain shift. The edits are causal, and random directions do nothing, but what they buy is a threshold move.
+
+**Final edit.** The final edit removes three quarters of head 26.17's write along the readout direction g ⊙ (w_Distress − w_Normal). It changes 458,743 entries: 128 columns of `layers.26.self_attn.o_proj`, a rank-one change within that head's block, about 0.006% of the language model's weights. The baked bf16 matrix matched the hook version on 20 practice frames (same decision on 20/20, P(Distress) within 0.0075). It adds 24.5 MB of VRAM and no measurable time (1.008 s vs 1.02 s per frame).
+
+**Table 6.11. Held-out test (547 WS_V2.0 frames, 524 with distress, 23 without; one run).**
+
+| Model | AUROC | Recall | Specificity | MCC | Expert-review share |
+|---|---:|---:|---:|---:|---:|
+| Base (production) | 0.957 [0.910, 0.982] | 51.7% [37.7, 64.8] | 100% (23/23) | 0.208 [0.112, 0.285] | 48.6% |
+| Recalibrated base (+1.56) | 0.957 | 77.1% [66.1, 87.1] | 100% | 0.352 [0.202, 0.472] | 35.3% |
+| **Edited weights (baked bf16)** | 0.955 [0.907, 0.981] | 74.8% [63.1, 85.3] | 100% | 0.333 [0.193, 0.449] | 37.7% |
+| Random-direction control | 0.956 | 52.1% | 100% | 0.209 | 48.3% |
+
+Paired differences (20-frame block bootstrap, B = 2000):
+- Recall, edited − base: +23.1 pp [+16.3, +30.4].
+- MCC, edited − base: +0.126 [+0.072, +0.181].
+- AUROC, edited − base: −0.001 [−0.005, +0.001].
+- **MCC, edited − recalibrated base: −0.019 [−0.036, −0.006].**
+
+Regression checks:
+- Distress share on 300 Bengaluru drive segments: 19.7% → 36.7% (+17.0 pp, within the pre-registered 20 pp; random control 19.0%; Figure 6.11d).
+- Stage 2 on 30 dev frames: 25 of 30 type lists unchanged. One well-formed answer changed from cracks to "None".
+- Per-type probe: P(yes) moved by at most 0.0009 on average for every type.
+
+Figure 6.11a shows the score distributions and the ROC curves.
+
+**Verdict.** **Not better** under the pre-registered rule. The edit does what was intended: test recall rises by 23 points with no clean frame lost. But the recalibrated base does the same, slightly better, without touching a weight, and the ranking is unchanged. Production is unchanged. Figures 6.11a–d by `scripts/wsp_figures.py` (no inference); numbers from `eval_results/finetune/wsp_report.json`.
+
 ---
 
 ## 7. Discussion
@@ -1194,6 +1263,23 @@ A heatmap in the review screen is persuasive. When it is right it saves the revi
 Two limits apply. First, Attain annotates damage incompletely. Some frames carry a single pothole box across a road covered in cracks (Figure 6.10b, third panel), so a "miss" can land on real, unannotated damage. This lowers Grad-CAM's hit rate and the prior's alike, and the comparison between them stands. Second, Attain's vehicle-mounted strips are not Bengaluru's handheld close-ups. On a close-up, the damage fills more of the frame and any map has an easier job. Whether a pothole-only highlight is worth showing by default is a question for expert-labelled uploads, and the reviewers' per-type ratings (§6.4) are collecting exactly that evidence.
 
 For a dataset release the answer is clearer. A box needs an extent, and the maps give a point: suggested boxes reached IoU ≥ 0.5 on at most 2% of pairs. Drafting boxes for a public dataset needs a detector trained on boxes, or experts drawing them, not attribution maps of a classifier.
+
+### 7.12 What Editing the Weights Showed
+
+The post's own conclusion holds here, in a sharper form. Editing weights can remove an obstacle, but it cannot add an ability. Here the obstacle was a bias, and a bias can be removed without editing anything. The analysis was still worth doing, because it found where the bias is made. One attention head (26.17) adds the same large "Normal" push to every frame, whatever the image shows. Removing part of that head's write recovers the missing recall, and the edit is causal and specific: random directions at the same place do nothing. But the model's evidence is already ranked correctly (test AUROC 0.957, unchanged by every edit), so moving the threshold is all that any of these edits could buy. A constant offset on two logits does that more cheaply and slightly better.
+
+Three practical points follow:
+- **The model repairs edits.** The measured shifts were 20–40% of the predicted direct effects. That held for mid-network MLPs (e2: +0.18 vs +0.93), for the last attention layer (e3: +0.31 vs +0.8) and for head 26.17 (e5: +0.56 vs +1.7). Combined edits were super-additive, because layer-27's MLP had been absorbing the others. Offline "direct effect" estimates are not a substitute for passes.
+- **The budget was not the limit.** The study used 32 of 50 passes. More passes would have refined the dose, not changed the ranking.
+- **Bengaluru shifts more than Attain.** The Distress share on Bengaluru video roughly doubled (19.7% → 36.7%), more than the recall gain on Attain would suggest. Like the probe thresholds (§7.10), any Stage 1 threshold change should be set on expert-labelled Bengaluru frames.
+
+If the owner wants the recall gain now, the recalibrated threshold is the smaller change. Deploying the edited weights would instead mean replacing one `o_proj` with the baked bf16 matrix through `scripts/wsp_apply_edit.py` (+24.5 MB, no time cost) and re-checking the review load on Bengaluru photos.
+
+Limits:
+- One edit was evaluated once on the test split, with no seed variance.
+- There are only 23 clean test frames, so specificity is barely measured.
+- Practice data lost 71% of the external frames to the conservative contamination drop.
+- The editor and the scripted analysis are the same agent, so there is no comparison against a scripted, non-LLM editor.
 
 ---
 

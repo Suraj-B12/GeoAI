@@ -105,6 +105,7 @@ for everything below.
 | Worker time per upload | ~11 s at 1024² (272 s uncapped), + ~1.5 s shadow probe, + ~6.5 s recorded tiles | A5000 | §6.6, T7 |
 | Production review load | 213 of 361 uploads in expert_review | Bengaluru | T7.2 |
 | Grad-CAM of the probe vs location prior | pointing hit 0.258 vs 0.226, Δ +0.032 [−0.042, +0.130] — FAIL; pothole +0.31, suggested boxes IoU≥0.5 on ≤2% | Attain, 1,884 pairs | §6.10 |
+| Weight-space programming (Stage 1, head 26.17 edit) | test recall 51.7% → 74.8%, MCC 0.208 → 0.333; recalibrated base (+1.56 logit) 77.1% / 0.352 — edit − recal MCC −0.019 [−0.036, −0.006] — NOT better; AUROC unchanged 0.957 | Attain test, 547 (1 run, 32/50 passes) | §6.11 |
 
 **What is decided (with evidence — don't re-litigate without new data):**
 | Decision | Evidence | Paper |
@@ -117,6 +118,7 @@ for everything below.
 | Probe in shadow, not live | doubles Attain macro MCC, but Attain thresholds add Ravelling to 98% of Bengaluru uploads | §6.8 |
 | Full photo, tiles recorded only | tiles +0.020 AUROC (CI incl. 0); find-then-zoom worse | §6.9, Fig 6.9 |
 | Grad-CAM only as an opt-in reference overlay (owner's request), never a box source | fails pre-registered rule vs location prior; maps are points, not regions; UI shows its hit rate, experts rate it | §6.10, §7.11 |
+| No weight edit in production (and no LoRA/QLoRA/PEFT ever, user's rule) | the best forward-pass-only edit only moves the Stage 1 threshold (every edit ≈ a logit shift, AUROC flat); a constant offset does it slightly better; Bengaluru Distress share 19.7% → 36.7%. If more Stage 1 recall is wanted: set an offset on expert-labelled Bengaluru frames | §6.11, §7.12, `eval_results/finetune/` |
 
 **Next steps, in order:**
 1. Get expert labels: experts review uploads in `expert_ui/` (only 1 so far). Since 2026-10-31 the UI also has a
@@ -141,6 +143,13 @@ for everything below.
      - 8-bit luma sharpness (a different frame on 2 of 813 segments);
      - band crop (no better).
    - **Nearest-sharp frame:** it crashed on every drive because of the camera's 1–4° roll; fixed in GeoAI_Video `8f18fa2`. It met its pre-registered rule with zero margin on a non-blind look, so the default is unchanged. **Open:** a blind expert check of its 25 flips. Memory: project_geoai_video_repo.
+7. **Weight-space programming study (finished 2026-11-06, paper §6.11/§7.12):** after Takehi et al. (MIT CSAIL,
+   2 Nov 2026). Code `scripts/wsp_*.py` (forward-pass server port 8011, per-pass GPU lock, test split refused until
+   frozen), records `eval_results/finetune/` (pre-registration + 3 addenda, ledger, work notes, report), large files
+   in `C:\GeoAI\wsp\` (baked bf16 `o_proj` in `edits\final`, apply with `scripts/wsp_apply_edit.py`). Verdict not
+   better than a recalibrated threshold; production unchanged. Test split is now spent for this question — a new
+   edit study needs new held-out data. Not attempted: editing the Stage 2 free-form list. The abandoned QLoRA plan
+   (`scripts/ft_train.py`, `ft_eval.py`, `ABANDONED.md`) is kept unused. Memory: project_weight_space_programming.
 
 **Where things are:**
 - Research paper: `paper/baseline_evaluation.md` (§T7 = deployment record, test suites, incidents).

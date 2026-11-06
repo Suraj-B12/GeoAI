@@ -1,0 +1,82 @@
+{
+ "written_at_utc": "2026-11-06T05:50:13+00:00",
+ "status": "written before any forward pass of this study and before any edit; never edited afterwards (amendments go to dated addendum files)",
+ "study": "Weight-space programming on the production model (paper \u00a76.11)",
+ "method_source": "Takehi, Teoh, Zhang & Khattab, 'Sparks of Weight-Space Programming: LLMs can natively read & write neural network weights', MIT CSAIL blog post, 2 Nov 2026, https://rikiyat.github.io/blog/weight-space-programming/",
+ "editor": "Claude (Anthropic frontier model) working through scripts/wsp_client.py (CPU) and scripts/wsp_server.py (forward passes only)",
+ "model": "Qwen/Qwen2.5-VL-7B-Instruct base, 4-bit NF4 via scripts/model_loader.py, MAX_IMAGE_PIXELS 1048576, production v2 prompts - the production configuration",
+ "rules": [
+  "No backward pass, autograd, optimizer, or iterative fitting of weights to a loss; the model runs only inside the forward-pass server (inference_mode).",
+  "Editable: decoder-layer projections only (down/up/gate_proj, q/k/v/o_proj). Refused in code: embedding, lm_head/unembedding, final norm, any norm, vision tower, whole-tensor scalar multiples.",
+  "Edit forms: rank-one output removal/amplification W' = W - c u u^T W (|c| <= 3); column edits W'[:,S] = W[:,S] - D (e.g. zeroing one attention head's output columns).",
+  "Edits are applied for iteration as exact forward hooks on the untouched NF4 modules (tested equal to the dense edited weight); the DELIVERABLE is baked bf16 edited weight matrices (scripts/wsp_apply_edit.py), and the held-out numbers are those of the baked model.",
+  "Statistics used to choose directions are closed-form (means, differences of class means, projections, SVD of weights); choosing c is by dose-response passes, not optimisation.",
+  "Every analysis step gets a written explanation in eval_results/finetune/wsp_work_notes.md."
+ ],
+ "budget": {
+  "passes": 50,
+  "pass_definition": "one request to the forward-pass server: up to 256 images for Stage 1 first-token logits (optionally with captured residual/MLP/attention outputs at the decision position) or for per-type probe scores, or up to 64 Stage 2 generations; with or without edits",
+  "not_counted": [
+   "reading weights",
+   "the server's start-up hook self-test",
+   "the FINAL evaluation (one run, after the edit is frozen)"
+  ]
+ },
+ "data": {
+  "practice": "Attain WS_V1.0 + OS_V1.0 after the contamination drop list (426 frames: 312 with annotated distress, 42 WS_V1 frames with no distress annotation, 72 OS_V1 frames without crack annotation - OS_V1 annotates cracks only, so these are uncertain negatives) + the WS_V2.0 DEV split (300 frames, 55 without distress)",
+  "held_out_test": "WS_V2.0 TEST split (547 frames: 524 with distress, 23 without) - refused by the server outside the final evaluation; never in a pass",
+  "bengaluru": "300 drive-video segments (seeded sample of local PG video_segments, read-only) - no labels; used only in the final evaluation for the behaviour-shift check",
+  "split": "stage2_probe_report.split (20-frame blocks, seed 20260923, 35% of blocks dev)",
+  "note_on_known_numbers": "Base Stage 1 on the test split was published in \u00a76.8 before this study (recall 51.7%, specificity 23/23, MCC 0.208, AUROC 0.957). Those numbers are not used for any choice; all choices use practice + dev only."
+ },
+ "target": {
+  "primary": "Stage 1 Normal/Distress decision with the production prompt; score = P(Distress) = softmax over the first-token logits of 'Normal' and 'Distress' (PavementClassifier._compute_stage1_confidence); production rule: Distress iff logit(Distress) > logit(Normal); expert review iff max(P) < 0.80 (CONFIDENCE_THRESHOLD)",
+  "label": "distress = the frame has any annotated distress class (Linear, Alligator, Pothole, Raveling, Weathering, Patch and utility cut, Block crack); otherwise clean",
+  "optional_second": "the free-form Stage 2 list (macro MCC, \u00a76.8) only if budget remains; not part of the adoption rule"
+ },
+ "final_evaluation": {
+  "when": "once, after the final edit is frozen in eval_results/finetune/wsp_final_edit/",
+  "models": [
+   "base (production weights)",
+   "final edit (baked bf16 weights)",
+   "recalibrated base: base logits + the constant offset b* on logit(Distress)-logit(Normal) that maximises DEV MCC at the argmax rule (grid over midpoints of dev scores, ties -> smallest |b|)",
+   "random control: same modules, same c, same edit form, direction(s) replaced by seeded random unit vectors (norm-matched); baked the same way"
+  ],
+  "metrics": [
+   "(a) AUROC of P(Distress), base vs edited, paired cluster (20-frame block) bootstrap B=2000",
+   "(b) at the production rule: recall, specificity, MCC, expert-review share (max P < 0.80), each with block-bootstrap CI",
+   "(c) MCC(edited) - MCC(recalibrated base), paired block bootstrap",
+   "(d) the random control on (a)-(b)",
+   "(e) regression: (i) specificity on the 23 clean test frames; (ii) Distress share on 300 Bengaluru segments, base vs edited; (iii) Stage 2 still parses (DISTRESS_TYPES/SEVERITY/DESCRIPTION present, types parsed) on 30 dev frames; (iv) per-type probe P(yes) on dev frames moves little: mean |dP| <= 0.05 per type",
+   "baked vs hook Stage 1 logits on 20 practice frames: max abs difference reported",
+   "extra VRAM and time per image of the baked layers"
+  ]
+ },
+ "adoption_rule": {
+  "better_if": "test AUROC delta (edited - base) has a 95% paired CI above 0, OR test MCC(edited) - MCC(recalibrated base) has a 95% paired CI above 0",
+  "and": [
+   "test specificity drop vs base is not significant (paired 95% CI of the difference includes 0 or is positive)",
+   "no regression in (e): Bengaluru Distress share rises by at most 20 percentage points and stays <= 95%; Stage 2 parse failures on the 30 dev frames rise by at most 1; probe mean |dP| <= 0.05 for every type on dev"
+  ],
+  "otherwise": "reported as not better (a bias-only change that recalibration matches does not count)"
+ },
+ "production": "Production stays unchanged regardless of the result. Deployment is a separate decision for the owner after the held-out verdict.",
+ "sha256": {
+  "scripts/wsp_core.py": "2334de01ddcba95c38796eda38c5473748ce9223b094089d3224fdd84ebd8317",
+  "scripts/wsp_server.py": "c68609156e6f76b44d9046de012a9c75059ae547f8fed5582f9879839f2c7876",
+  "scripts/wsp_client.py": "67d0e7eb6839665f5c679a6ba86923fe8bda8b6cd05516c71053244aa7038063",
+  "scripts/ft_common.py": "99d9215e61271be1541c9f2cb3c3b0996e5d7df555ca1befe4e5c590f4521b00",
+  "scripts/ft_contamination_check.py": "e597fcfea4516168dba7d41ae502fcbfa1979cc059e0b9cea38582288b68b8ab",
+  "scripts/ft_prepare.py": "b44d4037f7d6ba8cb3b3187612521bcde9fd382701a4c29bb1999a353f5b101b",
+  "scripts/stage2_probe.py": "6b2f7f2a1e1fb89837a412acc656cec435fd0bc07cca9ddf880ae6cc1cf91ea7",
+  "scripts/stage2_probe_report.py": "41159ec87b7708bee5d729d653f60bb905ea5f1d92b6e5a3081929d87285f8fd",
+  "scripts/multilabel_metrics.py": "7d76264f73264717da6daefc815689a1e9e9891db651aaac6256e271cf6cf251",
+  "app/model.py": "f723c23cb87cab2cc3e7b79871c5f72bc3430c60ee96beb91ae57d5de6a5fac3",
+  "scripts/utils_v2_prompts.py": "26e9d453eacdf0f7a6ba1b7e2b5a4023029ebe74092761ffe1b1d384fa7b8c8d",
+  "scripts/model_loader.py": "e2e1c87fbecc23bb8b9f2578d40c912296d85beacf682b0549b948c8e8e4bc8d",
+  "scripts/tests/test_wsp_core.py": "ab5928f364bd51f75d4b83abb30fc819a7095bf624611b831939820750a70528",
+  "eval_results/finetune/contamination.json": "dcbf5c2ebc6be090bde73ea425b37cae6d27132fe357fb998a92fbeeb3e7a0ab",
+  "eval_results/finetune/splits.json": "30cce32fce0b7c6f0d2f63d58631171063647f6219fc4431882f6a11873b16c5",
+  "eval_results/finetune/wsp_bengaluru_items.json": "3490f521d3c3c1da360f382226a665139ffe36becd6748107f8bd896a5a62607"
+ }
+}

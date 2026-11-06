@@ -1,0 +1,1508 @@
+{
+ "source": "local PG video_segments (read-only), image_path NOT NULL and answered, seeded sample",
+ "seed": 20261106,
+ "n_population": 7050,
+ "made_at": "2026-11-06T05:48:00+00:00",
+ "items": [
+  {
+   "key": "20261026T114332Z_SM-G991B-F0D1_f428_seg00020",
+   "path": "C:\\GeoAI\\images\\20261026T114332Z_SM-G991B-F0D1_f428\\20261026T114332Z_SM-G991B-F0D1_f428_seg00020.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261026T114332Z_SM-G991B-F0D1_f428_seg00044",
+   "path": "C:\\GeoAI\\images\\20261026T114332Z_SM-G991B-F0D1_f428\\20261026T114332Z_SM-G991B-F0D1_f428_seg00044.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261026T114332Z_SM-G991B-F0D1_f428_seg00062",
+   "path": "C:\\GeoAI\\images\\20261026T114332Z_SM-G991B-F0D1_f428\\20261026T114332Z_SM-G991B-F0D1_f428_seg00062.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261026T114332Z_SM-G991B-F0D1_f428_seg00083",
+   "path": "C:\\GeoAI\\images\\20261026T114332Z_SM-G991B-F0D1_f428\\20261026T114332Z_SM-G991B-F0D1_f428_seg00083.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261026T114332Z_SM-G991B-F0D1_f428_seg00090",
+   "path": "C:\\GeoAI\\images\\20261026T114332Z_SM-G991B-F0D1_f428\\20261026T114332Z_SM-G991B-F0D1_f428_seg00090.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261026T114332Z_SM-G991B-F0D1_f428_seg00095",
+   "path": "C:\\GeoAI\\images\\20261026T114332Z_SM-G991B-F0D1_f428\\20261026T114332Z_SM-G991B-F0D1_f428_seg00095.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261026T114332Z_SM-G991B-F0D1_f428_seg00111",
+   "path": "C:\\GeoAI\\images\\20261026T114332Z_SM-G991B-F0D1_f428\\20261026T114332Z_SM-G991B-F0D1_f428_seg00111.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261026T114332Z_SM-G991B-F0D1_f428_seg00136",
+   "path": "C:\\GeoAI\\images\\20261026T114332Z_SM-G991B-F0D1_f428\\20261026T114332Z_SM-G991B-F0D1_f428_seg00136.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261026T114332Z_SM-G991B-F0D1_f428_seg00165",
+   "path": "C:\\GeoAI\\images\\20261026T114332Z_SM-G991B-F0D1_f428\\20261026T114332Z_SM-G991B-F0D1_f428_seg00165.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261026T114332Z_SM-G991B-F0D1_f428_seg00198",
+   "path": "C:\\GeoAI\\images\\20261026T114332Z_SM-G991B-F0D1_f428\\20261026T114332Z_SM-G991B-F0D1_f428_seg00198.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261026T114332Z_SM-G991B-F0D1_f428_seg00200",
+   "path": "C:\\GeoAI\\images\\20261026T114332Z_SM-G991B-F0D1_f428\\20261026T114332Z_SM-G991B-F0D1_f428_seg00200.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261026T114332Z_SM-G991B-F0D1_f428_seg00204",
+   "path": "C:\\GeoAI\\images\\20261026T114332Z_SM-G991B-F0D1_f428\\20261026T114332Z_SM-G991B-F0D1_f428_seg00204.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261026T114907Z_SM-G991B-F0D1_293d_seg00002",
+   "path": "C:\\GeoAI\\images\\20261026T114907Z_SM-G991B-F0D1_293d\\20261026T114907Z_SM-G991B-F0D1_293d_seg00002.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261026T114907Z_SM-G991B-F0D1_293d_seg00031",
+   "path": "C:\\GeoAI\\images\\20261026T114907Z_SM-G991B-F0D1_293d\\20261026T114907Z_SM-G991B-F0D1_293d_seg00031.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261026T114907Z_SM-G991B-F0D1_293d_seg00037",
+   "path": "C:\\GeoAI\\images\\20261026T114907Z_SM-G991B-F0D1_293d\\20261026T114907Z_SM-G991B-F0D1_293d_seg00037.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00073",
+   "path": "C:\\GeoAI\\images\\20261027T050257Z_SM-G991B-F0D1_d47c\\20261027T050257Z_SM-G991B-F0D1_d47c_seg00073.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00110",
+   "path": "C:\\GeoAI\\images\\20261027T050257Z_SM-G991B-F0D1_d47c\\20261027T050257Z_SM-G991B-F0D1_d47c_seg00110.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00121",
+   "path": "C:\\GeoAI\\images\\20261027T050257Z_SM-G991B-F0D1_d47c\\20261027T050257Z_SM-G991B-F0D1_d47c_seg00121.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00128",
+   "path": "C:\\GeoAI\\images\\20261027T050257Z_SM-G991B-F0D1_d47c\\20261027T050257Z_SM-G991B-F0D1_d47c_seg00128.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00165",
+   "path": "C:\\GeoAI\\images\\20261027T050257Z_SM-G991B-F0D1_d47c\\20261027T050257Z_SM-G991B-F0D1_d47c_seg00165.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00187",
+   "path": "C:\\GeoAI\\images\\20261027T050257Z_SM-G991B-F0D1_d47c\\20261027T050257Z_SM-G991B-F0D1_d47c_seg00187.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00203",
+   "path": "C:\\GeoAI\\images\\20261027T050257Z_SM-G991B-F0D1_d47c\\20261027T050257Z_SM-G991B-F0D1_d47c_seg00203.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00248",
+   "path": "C:\\GeoAI\\images\\20261027T050257Z_SM-G991B-F0D1_d47c\\20261027T050257Z_SM-G991B-F0D1_d47c_seg00248.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00284",
+   "path": "C:\\GeoAI\\images\\20261027T050257Z_SM-G991B-F0D1_d47c\\20261027T050257Z_SM-G991B-F0D1_d47c_seg00284.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00299",
+   "path": "C:\\GeoAI\\images\\20261027T050257Z_SM-G991B-F0D1_d47c\\20261027T050257Z_SM-G991B-F0D1_d47c_seg00299.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00330",
+   "path": "C:\\GeoAI\\images\\20261027T050257Z_SM-G991B-F0D1_d47c\\20261027T050257Z_SM-G991B-F0D1_d47c_seg00330.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00349",
+   "path": "C:\\GeoAI\\images\\20261027T050257Z_SM-G991B-F0D1_d47c\\20261027T050257Z_SM-G991B-F0D1_d47c_seg00349.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00350",
+   "path": "C:\\GeoAI\\images\\20261027T050257Z_SM-G991B-F0D1_d47c\\20261027T050257Z_SM-G991B-F0D1_d47c_seg00350.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00361",
+   "path": "C:\\GeoAI\\images\\20261027T050257Z_SM-G991B-F0D1_d47c\\20261027T050257Z_SM-G991B-F0D1_d47c_seg00361.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00387",
+   "path": "C:\\GeoAI\\images\\20261027T050257Z_SM-G991B-F0D1_d47c\\20261027T050257Z_SM-G991B-F0D1_d47c_seg00387.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00391",
+   "path": "C:\\GeoAI\\images\\20261027T050257Z_SM-G991B-F0D1_d47c\\20261027T050257Z_SM-G991B-F0D1_d47c_seg00391.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00399",
+   "path": "C:\\GeoAI\\images\\20261027T050257Z_SM-G991B-F0D1_d47c\\20261027T050257Z_SM-G991B-F0D1_d47c_seg00399.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00438",
+   "path": "C:\\GeoAI\\images\\20261027T050257Z_SM-G991B-F0D1_d47c\\20261027T050257Z_SM-G991B-F0D1_d47c_seg00438.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00448",
+   "path": "C:\\GeoAI\\images\\20261027T050257Z_SM-G991B-F0D1_d47c\\20261027T050257Z_SM-G991B-F0D1_d47c_seg00448.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00452",
+   "path": "C:\\GeoAI\\images\\20261027T050257Z_SM-G991B-F0D1_d47c\\20261027T050257Z_SM-G991B-F0D1_d47c_seg00452.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00507",
+   "path": "C:\\GeoAI\\images\\20261027T050257Z_SM-G991B-F0D1_d47c\\20261027T050257Z_SM-G991B-F0D1_d47c_seg00507.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T095431Z_SM-G991B-F0D1_b81d_seg00013",
+   "path": "C:\\GeoAI\\images\\20261027T095431Z_SM-G991B-F0D1_b81d\\20261027T095431Z_SM-G991B-F0D1_b81d_seg00013.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T095431Z_SM-G991B-F0D1_b81d_seg00026",
+   "path": "C:\\GeoAI\\images\\20261027T095431Z_SM-G991B-F0D1_b81d\\20261027T095431Z_SM-G991B-F0D1_b81d_seg00026.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T095431Z_SM-G991B-F0D1_b81d_seg00062",
+   "path": "C:\\GeoAI\\images\\20261027T095431Z_SM-G991B-F0D1_b81d\\20261027T095431Z_SM-G991B-F0D1_b81d_seg00062.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T095431Z_SM-G991B-F0D1_b81d_seg00086",
+   "path": "C:\\GeoAI\\images\\20261027T095431Z_SM-G991B-F0D1_b81d\\20261027T095431Z_SM-G991B-F0D1_b81d_seg00086.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T095650Z_SM-G991B-F0D1_5651_seg00013",
+   "path": "C:\\GeoAI\\images\\20261027T095650Z_SM-G991B-F0D1_5651\\20261027T095650Z_SM-G991B-F0D1_5651_seg00013.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T095650Z_SM-G991B-F0D1_5651_seg00031",
+   "path": "C:\\GeoAI\\images\\20261027T095650Z_SM-G991B-F0D1_5651\\20261027T095650Z_SM-G991B-F0D1_5651_seg00031.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T100550Z_SM-G991B-F0D1_9766_seg00008",
+   "path": "C:\\GeoAI\\images\\20261027T100550Z_SM-G991B-F0D1_9766\\20261027T100550Z_SM-G991B-F0D1_9766_seg00008.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T100809Z_SM-G991B-F0D1_19db_seg00031",
+   "path": "C:\\GeoAI\\images\\20261027T100809Z_SM-G991B-F0D1_19db\\20261027T100809Z_SM-G991B-F0D1_19db_seg00031.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T100809Z_SM-G991B-F0D1_19db_seg00047",
+   "path": "C:\\GeoAI\\images\\20261027T100809Z_SM-G991B-F0D1_19db\\20261027T100809Z_SM-G991B-F0D1_19db_seg00047.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T100809Z_SM-G991B-F0D1_19db_seg00050",
+   "path": "C:\\GeoAI\\images\\20261027T100809Z_SM-G991B-F0D1_19db\\20261027T100809Z_SM-G991B-F0D1_19db_seg00050.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T100809Z_SM-G991B-F0D1_19db_seg00064",
+   "path": "C:\\GeoAI\\images\\20261027T100809Z_SM-G991B-F0D1_19db\\20261027T100809Z_SM-G991B-F0D1_19db_seg00064.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T100809Z_SM-G991B-F0D1_19db_seg00085",
+   "path": "C:\\GeoAI\\images\\20261027T100809Z_SM-G991B-F0D1_19db\\20261027T100809Z_SM-G991B-F0D1_19db_seg00085.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T100809Z_SM-G991B-F0D1_19db_seg00092",
+   "path": "C:\\GeoAI\\images\\20261027T100809Z_SM-G991B-F0D1_19db\\20261027T100809Z_SM-G991B-F0D1_19db_seg00092.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T100809Z_SM-G991B-F0D1_19db_seg00099",
+   "path": "C:\\GeoAI\\images\\20261027T100809Z_SM-G991B-F0D1_19db\\20261027T100809Z_SM-G991B-F0D1_19db_seg00099.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T100809Z_SM-G991B-F0D1_19db_seg00122",
+   "path": "C:\\GeoAI\\images\\20261027T100809Z_SM-G991B-F0D1_19db\\20261027T100809Z_SM-G991B-F0D1_19db_seg00122.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T100809Z_SM-G991B-F0D1_19db_seg00128",
+   "path": "C:\\GeoAI\\images\\20261027T100809Z_SM-G991B-F0D1_19db\\20261027T100809Z_SM-G991B-F0D1_19db_seg00128.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T101057Z_SM-G991B-F0D1_3d9b_seg00005",
+   "path": "C:\\GeoAI\\images\\20261027T101057Z_SM-G991B-F0D1_3d9b\\20261027T101057Z_SM-G991B-F0D1_3d9b_seg00005.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T101057Z_SM-G991B-F0D1_3d9b_seg00035",
+   "path": "C:\\GeoAI\\images\\20261027T101057Z_SM-G991B-F0D1_3d9b\\20261027T101057Z_SM-G991B-F0D1_3d9b_seg00035.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T101057Z_SM-G991B-F0D1_3d9b_seg00049",
+   "path": "C:\\GeoAI\\images\\20261027T101057Z_SM-G991B-F0D1_3d9b\\20261027T101057Z_SM-G991B-F0D1_3d9b_seg00049.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T101057Z_SM-G991B-F0D1_3d9b_seg00065",
+   "path": "C:\\GeoAI\\images\\20261027T101057Z_SM-G991B-F0D1_3d9b\\20261027T101057Z_SM-G991B-F0D1_3d9b_seg00065.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T101057Z_SM-G991B-F0D1_3d9b_seg00085",
+   "path": "C:\\GeoAI\\images\\20261027T101057Z_SM-G991B-F0D1_3d9b\\20261027T101057Z_SM-G991B-F0D1_3d9b_seg00085.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T101057Z_SM-G991B-F0D1_3d9b_seg00138",
+   "path": "C:\\GeoAI\\images\\20261027T101057Z_SM-G991B-F0D1_3d9b\\20261027T101057Z_SM-G991B-F0D1_3d9b_seg00138.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T101057Z_SM-G991B-F0D1_3d9b_seg00177",
+   "path": "C:\\GeoAI\\images\\20261027T101057Z_SM-G991B-F0D1_3d9b\\20261027T101057Z_SM-G991B-F0D1_3d9b_seg00177.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T101057Z_SM-G991B-F0D1_3d9b_seg00188",
+   "path": "C:\\GeoAI\\images\\20261027T101057Z_SM-G991B-F0D1_3d9b\\20261027T101057Z_SM-G991B-F0D1_3d9b_seg00188.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T101057Z_SM-G991B-F0D1_3d9b_seg00220",
+   "path": "C:\\GeoAI\\images\\20261027T101057Z_SM-G991B-F0D1_3d9b\\20261027T101057Z_SM-G991B-F0D1_3d9b_seg00220.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T101057Z_SM-G991B-F0D1_3d9b_seg00233",
+   "path": "C:\\GeoAI\\images\\20261027T101057Z_SM-G991B-F0D1_3d9b\\20261027T101057Z_SM-G991B-F0D1_3d9b_seg00233.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T101057Z_SM-G991B-F0D1_3d9b_seg00333",
+   "path": "C:\\GeoAI\\images\\20261027T101057Z_SM-G991B-F0D1_3d9b\\20261027T101057Z_SM-G991B-F0D1_3d9b_seg00333.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T101057Z_SM-G991B-F0D1_3d9b_seg00359",
+   "path": "C:\\GeoAI\\images\\20261027T101057Z_SM-G991B-F0D1_3d9b\\20261027T101057Z_SM-G991B-F0D1_3d9b_seg00359.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T101057Z_SM-G991B-F0D1_3d9b_seg00381",
+   "path": "C:\\GeoAI\\images\\20261027T101057Z_SM-G991B-F0D1_3d9b\\20261027T101057Z_SM-G991B-F0D1_3d9b_seg00381.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T101057Z_SM-G991B-F0D1_3d9b_seg00440",
+   "path": "C:\\GeoAI\\images\\20261027T101057Z_SM-G991B-F0D1_3d9b\\20261027T101057Z_SM-G991B-F0D1_3d9b_seg00440.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T101057Z_SM-G991B-F0D1_3d9b_seg00459",
+   "path": "C:\\GeoAI\\images\\20261027T101057Z_SM-G991B-F0D1_3d9b\\20261027T101057Z_SM-G991B-F0D1_3d9b_seg00459.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T101057Z_SM-G991B-F0D1_3d9b_seg00470",
+   "path": "C:\\GeoAI\\images\\20261027T101057Z_SM-G991B-F0D1_3d9b\\20261027T101057Z_SM-G991B-F0D1_3d9b_seg00470.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T101057Z_SM-G991B-F0D1_3d9b_seg00508",
+   "path": "C:\\GeoAI\\images\\20261027T101057Z_SM-G991B-F0D1_3d9b\\20261027T101057Z_SM-G991B-F0D1_3d9b_seg00508.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T101057Z_SM-G991B-F0D1_3d9b_seg00509",
+   "path": "C:\\GeoAI\\images\\20261027T101057Z_SM-G991B-F0D1_3d9b\\20261027T101057Z_SM-G991B-F0D1_3d9b_seg00509.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T101057Z_SM-G991B-F0D1_3d9b_seg00528",
+   "path": "C:\\GeoAI\\images\\20261027T101057Z_SM-G991B-F0D1_3d9b\\20261027T101057Z_SM-G991B-F0D1_3d9b_seg00528.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T101057Z_SM-G991B-F0D1_3d9b_seg00539",
+   "path": "C:\\GeoAI\\images\\20261027T101057Z_SM-G991B-F0D1_3d9b\\20261027T101057Z_SM-G991B-F0D1_3d9b_seg00539.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T101057Z_SM-G991B-F0D1_3d9b_seg00558",
+   "path": "C:\\GeoAI\\images\\20261027T101057Z_SM-G991B-F0D1_3d9b\\20261027T101057Z_SM-G991B-F0D1_3d9b_seg00558.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T102007Z_SM-G991B-F0D1_22d5_seg00033",
+   "path": "C:\\GeoAI\\images\\20261027T102007Z_SM-G991B-F0D1_22d5\\20261027T102007Z_SM-G991B-F0D1_22d5_seg00033.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T102142Z_SM-G991B-F0D1_7bf4_seg00010",
+   "path": "C:\\GeoAI\\images\\20261027T102142Z_SM-G991B-F0D1_7bf4\\20261027T102142Z_SM-G991B-F0D1_7bf4_seg00010.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T102142Z_SM-G991B-F0D1_7bf4_seg00055",
+   "path": "C:\\GeoAI\\images\\20261027T102142Z_SM-G991B-F0D1_7bf4\\20261027T102142Z_SM-G991B-F0D1_7bf4_seg00055.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T102142Z_SM-G991B-F0D1_7bf4_seg00081",
+   "path": "C:\\GeoAI\\images\\20261027T102142Z_SM-G991B-F0D1_7bf4\\20261027T102142Z_SM-G991B-F0D1_7bf4_seg00081.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T102142Z_SM-G991B-F0D1_7bf4_seg00094",
+   "path": "C:\\GeoAI\\images\\20261027T102142Z_SM-G991B-F0D1_7bf4\\20261027T102142Z_SM-G991B-F0D1_7bf4_seg00094.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T102142Z_SM-G991B-F0D1_7bf4_seg00097",
+   "path": "C:\\GeoAI\\images\\20261027T102142Z_SM-G991B-F0D1_7bf4\\20261027T102142Z_SM-G991B-F0D1_7bf4_seg00097.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T102142Z_SM-G991B-F0D1_7bf4_seg00124",
+   "path": "C:\\GeoAI\\images\\20261027T102142Z_SM-G991B-F0D1_7bf4\\20261027T102142Z_SM-G991B-F0D1_7bf4_seg00124.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T102142Z_SM-G991B-F0D1_7bf4_seg00135",
+   "path": "C:\\GeoAI\\images\\20261027T102142Z_SM-G991B-F0D1_7bf4\\20261027T102142Z_SM-G991B-F0D1_7bf4_seg00135.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T102142Z_SM-G991B-F0D1_7bf4_seg00153",
+   "path": "C:\\GeoAI\\images\\20261027T102142Z_SM-G991B-F0D1_7bf4\\20261027T102142Z_SM-G991B-F0D1_7bf4_seg00153.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T102142Z_SM-G991B-F0D1_7bf4_seg00189",
+   "path": "C:\\GeoAI\\images\\20261027T102142Z_SM-G991B-F0D1_7bf4\\20261027T102142Z_SM-G991B-F0D1_7bf4_seg00189.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T102142Z_SM-G991B-F0D1_7bf4_seg00260",
+   "path": "C:\\GeoAI\\images\\20261027T102142Z_SM-G991B-F0D1_7bf4\\20261027T102142Z_SM-G991B-F0D1_7bf4_seg00260.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T102142Z_SM-G991B-F0D1_7bf4_seg00300",
+   "path": "C:\\GeoAI\\images\\20261027T102142Z_SM-G991B-F0D1_7bf4\\20261027T102142Z_SM-G991B-F0D1_7bf4_seg00300.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T102704Z_SM-G991B-F0D1_b63f_seg00012",
+   "path": "C:\\GeoAI\\images\\20261027T102704Z_SM-G991B-F0D1_b63f\\20261027T102704Z_SM-G991B-F0D1_b63f_seg00012.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T102704Z_SM-G991B-F0D1_b63f_seg00054",
+   "path": "C:\\GeoAI\\images\\20261027T102704Z_SM-G991B-F0D1_b63f\\20261027T102704Z_SM-G991B-F0D1_b63f_seg00054.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T103050Z_SM-G991B-F0D1_eaf1_seg00054",
+   "path": "C:\\GeoAI\\images\\20261027T103050Z_SM-G991B-F0D1_eaf1\\20261027T103050Z_SM-G991B-F0D1_eaf1_seg00054.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T103050Z_SM-G991B-F0D1_eaf1_seg00104",
+   "path": "C:\\GeoAI\\images\\20261027T103050Z_SM-G991B-F0D1_eaf1\\20261027T103050Z_SM-G991B-F0D1_eaf1_seg00104.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T103315Z_SM-G991B-F0D1_2b50_seg00004",
+   "path": "C:\\GeoAI\\images\\20261027T103315Z_SM-G991B-F0D1_2b50\\20261027T103315Z_SM-G991B-F0D1_2b50_seg00004.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T103315Z_SM-G991B-F0D1_2b50_seg00011",
+   "path": "C:\\GeoAI\\images\\20261027T103315Z_SM-G991B-F0D1_2b50\\20261027T103315Z_SM-G991B-F0D1_2b50_seg00011.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T103315Z_SM-G991B-F0D1_2b50_seg00017",
+   "path": "C:\\GeoAI\\images\\20261027T103315Z_SM-G991B-F0D1_2b50\\20261027T103315Z_SM-G991B-F0D1_2b50_seg00017.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T103315Z_SM-G991B-F0D1_2b50_seg00026",
+   "path": "C:\\GeoAI\\images\\20261027T103315Z_SM-G991B-F0D1_2b50\\20261027T103315Z_SM-G991B-F0D1_2b50_seg00026.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T103315Z_SM-G991B-F0D1_2b50_seg00036",
+   "path": "C:\\GeoAI\\images\\20261027T103315Z_SM-G991B-F0D1_2b50\\20261027T103315Z_SM-G991B-F0D1_2b50_seg00036.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T103525Z_SM-G991B-F0D1_35fd_seg00010",
+   "path": "C:\\GeoAI\\images\\20261027T103525Z_SM-G991B-F0D1_35fd\\20261027T103525Z_SM-G991B-F0D1_35fd_seg00010.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T103525Z_SM-G991B-F0D1_35fd_seg00019",
+   "path": "C:\\GeoAI\\images\\20261027T103525Z_SM-G991B-F0D1_35fd\\20261027T103525Z_SM-G991B-F0D1_35fd_seg00019.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T103525Z_SM-G991B-F0D1_35fd_seg00031",
+   "path": "C:\\GeoAI\\images\\20261027T103525Z_SM-G991B-F0D1_35fd\\20261027T103525Z_SM-G991B-F0D1_35fd_seg00031.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T103525Z_SM-G991B-F0D1_35fd_seg00042",
+   "path": "C:\\GeoAI\\images\\20261027T103525Z_SM-G991B-F0D1_35fd\\20261027T103525Z_SM-G991B-F0D1_35fd_seg00042.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T103525Z_SM-G991B-F0D1_35fd_seg00044",
+   "path": "C:\\GeoAI\\images\\20261027T103525Z_SM-G991B-F0D1_35fd\\20261027T103525Z_SM-G991B-F0D1_35fd_seg00044.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T103525Z_SM-G991B-F0D1_35fd_seg00045",
+   "path": "C:\\GeoAI\\images\\20261027T103525Z_SM-G991B-F0D1_35fd\\20261027T103525Z_SM-G991B-F0D1_35fd_seg00045.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T103525Z_SM-G991B-F0D1_35fd_seg00093",
+   "path": "C:\\GeoAI\\images\\20261027T103525Z_SM-G991B-F0D1_35fd\\20261027T103525Z_SM-G991B-F0D1_35fd_seg00093.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T103525Z_SM-G991B-F0D1_35fd_seg00143",
+   "path": "C:\\GeoAI\\images\\20261027T103525Z_SM-G991B-F0D1_35fd\\20261027T103525Z_SM-G991B-F0D1_35fd_seg00143.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T103852Z_SM-G991B-F0D1_e2c7_seg00018",
+   "path": "C:\\GeoAI\\images\\20261027T103852Z_SM-G991B-F0D1_e2c7\\20261027T103852Z_SM-G991B-F0D1_e2c7_seg00018.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T112443Z_SM-G991B-F0D1_2fb1_seg00044",
+   "path": "C:\\GeoAI\\images\\20261027T112443Z_SM-G991B-F0D1_2fb1\\20261027T112443Z_SM-G991B-F0D1_2fb1_seg00044.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T112443Z_SM-G991B-F0D1_2fb1_seg00063",
+   "path": "C:\\GeoAI\\images\\20261027T112443Z_SM-G991B-F0D1_2fb1\\20261027T112443Z_SM-G991B-F0D1_2fb1_seg00063.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T112443Z_SM-G991B-F0D1_2fb1_seg00075",
+   "path": "C:\\GeoAI\\images\\20261027T112443Z_SM-G991B-F0D1_2fb1\\20261027T112443Z_SM-G991B-F0D1_2fb1_seg00075.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T112443Z_SM-G991B-F0D1_2fb1_seg00081",
+   "path": "C:\\GeoAI\\images\\20261027T112443Z_SM-G991B-F0D1_2fb1\\20261027T112443Z_SM-G991B-F0D1_2fb1_seg00081.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T112443Z_SM-G991B-F0D1_2fb1_seg00090",
+   "path": "C:\\GeoAI\\images\\20261027T112443Z_SM-G991B-F0D1_2fb1\\20261027T112443Z_SM-G991B-F0D1_2fb1_seg00090.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T112443Z_SM-G991B-F0D1_2fb1_seg00129",
+   "path": "C:\\GeoAI\\images\\20261027T112443Z_SM-G991B-F0D1_2fb1\\20261027T112443Z_SM-G991B-F0D1_2fb1_seg00129.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T112443Z_SM-G991B-F0D1_2fb1_seg00135",
+   "path": "C:\\GeoAI\\images\\20261027T112443Z_SM-G991B-F0D1_2fb1\\20261027T112443Z_SM-G991B-F0D1_2fb1_seg00135.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T112443Z_SM-G991B-F0D1_2fb1_seg00141",
+   "path": "C:\\GeoAI\\images\\20261027T112443Z_SM-G991B-F0D1_2fb1\\20261027T112443Z_SM-G991B-F0D1_2fb1_seg00141.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T112804Z_SM-G991B-F0D1_c561_seg00007",
+   "path": "C:\\GeoAI\\images\\20261027T112804Z_SM-G991B-F0D1_c561\\20261027T112804Z_SM-G991B-F0D1_c561_seg00007.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T112804Z_SM-G991B-F0D1_c561_seg00048",
+   "path": "C:\\GeoAI\\images\\20261027T112804Z_SM-G991B-F0D1_c561\\20261027T112804Z_SM-G991B-F0D1_c561_seg00048.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T112804Z_SM-G991B-F0D1_c561_seg00050",
+   "path": "C:\\GeoAI\\images\\20261027T112804Z_SM-G991B-F0D1_c561\\20261027T112804Z_SM-G991B-F0D1_c561_seg00050.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T112804Z_SM-G991B-F0D1_c561_seg00142",
+   "path": "C:\\GeoAI\\images\\20261027T112804Z_SM-G991B-F0D1_c561\\20261027T112804Z_SM-G991B-F0D1_c561_seg00142.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T112804Z_SM-G991B-F0D1_c561_seg00166",
+   "path": "C:\\GeoAI\\images\\20261027T112804Z_SM-G991B-F0D1_c561\\20261027T112804Z_SM-G991B-F0D1_c561_seg00166.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T112804Z_SM-G991B-F0D1_c561_seg00212",
+   "path": "C:\\GeoAI\\images\\20261027T112804Z_SM-G991B-F0D1_c561\\20261027T112804Z_SM-G991B-F0D1_c561_seg00212.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T112804Z_SM-G991B-F0D1_c561_seg00215",
+   "path": "C:\\GeoAI\\images\\20261027T112804Z_SM-G991B-F0D1_c561\\20261027T112804Z_SM-G991B-F0D1_c561_seg00215.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T112804Z_SM-G991B-F0D1_c561_seg00221",
+   "path": "C:\\GeoAI\\images\\20261027T112804Z_SM-G991B-F0D1_c561\\20261027T112804Z_SM-G991B-F0D1_c561_seg00221.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T112804Z_SM-G991B-F0D1_c561_seg00311",
+   "path": "C:\\GeoAI\\images\\20261027T112804Z_SM-G991B-F0D1_c561\\20261027T112804Z_SM-G991B-F0D1_c561_seg00311.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T112804Z_SM-G991B-F0D1_c561_seg00321",
+   "path": "C:\\GeoAI\\images\\20261027T112804Z_SM-G991B-F0D1_c561\\20261027T112804Z_SM-G991B-F0D1_c561_seg00321.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T112804Z_SM-G991B-F0D1_c561_seg00335",
+   "path": "C:\\GeoAI\\images\\20261027T112804Z_SM-G991B-F0D1_c561\\20261027T112804Z_SM-G991B-F0D1_c561_seg00335.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T112804Z_SM-G991B-F0D1_c561_seg00343",
+   "path": "C:\\GeoAI\\images\\20261027T112804Z_SM-G991B-F0D1_c561\\20261027T112804Z_SM-G991B-F0D1_c561_seg00343.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T112804Z_SM-G991B-F0D1_c561_seg00344",
+   "path": "C:\\GeoAI\\images\\20261027T112804Z_SM-G991B-F0D1_c561\\20261027T112804Z_SM-G991B-F0D1_c561_seg00344.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T112804Z_SM-G991B-F0D1_c561_seg00348",
+   "path": "C:\\GeoAI\\images\\20261027T112804Z_SM-G991B-F0D1_c561\\20261027T112804Z_SM-G991B-F0D1_c561_seg00348.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T112804Z_SM-G991B-F0D1_c561_seg00368",
+   "path": "C:\\GeoAI\\images\\20261027T112804Z_SM-G991B-F0D1_c561\\20261027T112804Z_SM-G991B-F0D1_c561_seg00368.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T113604Z_SM-G991B-F0D1_3fe3_seg00000",
+   "path": "C:\\GeoAI\\images\\20261027T113604Z_SM-G991B-F0D1_3fe3\\20261027T113604Z_SM-G991B-F0D1_3fe3_seg00000.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T113604Z_SM-G991B-F0D1_3fe3_seg00001",
+   "path": "C:\\GeoAI\\images\\20261027T113604Z_SM-G991B-F0D1_3fe3\\20261027T113604Z_SM-G991B-F0D1_3fe3_seg00001.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T113604Z_SM-G991B-F0D1_3fe3_seg00039",
+   "path": "C:\\GeoAI\\images\\20261027T113604Z_SM-G991B-F0D1_3fe3\\20261027T113604Z_SM-G991B-F0D1_3fe3_seg00039.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T113604Z_SM-G991B-F0D1_3fe3_seg00050",
+   "path": "C:\\GeoAI\\images\\20261027T113604Z_SM-G991B-F0D1_3fe3\\20261027T113604Z_SM-G991B-F0D1_3fe3_seg00050.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T113604Z_SM-G991B-F0D1_3fe3_seg00052",
+   "path": "C:\\GeoAI\\images\\20261027T113604Z_SM-G991B-F0D1_3fe3\\20261027T113604Z_SM-G991B-F0D1_3fe3_seg00052.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T113604Z_SM-G991B-F0D1_3fe3_seg00063",
+   "path": "C:\\GeoAI\\images\\20261027T113604Z_SM-G991B-F0D1_3fe3\\20261027T113604Z_SM-G991B-F0D1_3fe3_seg00063.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T113840Z_SM-G991B-F0D1_d278_seg00005",
+   "path": "C:\\GeoAI\\images\\20261027T113840Z_SM-G991B-F0D1_d278\\20261027T113840Z_SM-G991B-F0D1_d278_seg00005.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T113840Z_SM-G991B-F0D1_d278_seg00011",
+   "path": "C:\\GeoAI\\images\\20261027T113840Z_SM-G991B-F0D1_d278\\20261027T113840Z_SM-G991B-F0D1_d278_seg00011.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T113840Z_SM-G991B-F0D1_d278_seg00037",
+   "path": "C:\\GeoAI\\images\\20261027T113840Z_SM-G991B-F0D1_d278\\20261027T113840Z_SM-G991B-F0D1_d278_seg00037.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T113840Z_SM-G991B-F0D1_d278_seg00131",
+   "path": "C:\\GeoAI\\images\\20261027T113840Z_SM-G991B-F0D1_d278\\20261027T113840Z_SM-G991B-F0D1_d278_seg00131.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T113840Z_SM-G991B-F0D1_d278_seg00139",
+   "path": "C:\\GeoAI\\images\\20261027T113840Z_SM-G991B-F0D1_d278\\20261027T113840Z_SM-G991B-F0D1_d278_seg00139.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T113840Z_SM-G991B-F0D1_d278_seg00178",
+   "path": "C:\\GeoAI\\images\\20261027T113840Z_SM-G991B-F0D1_d278\\20261027T113840Z_SM-G991B-F0D1_d278_seg00178.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T113840Z_SM-G991B-F0D1_d278_seg00215",
+   "path": "C:\\GeoAI\\images\\20261027T113840Z_SM-G991B-F0D1_d278\\20261027T113840Z_SM-G991B-F0D1_d278_seg00215.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T113840Z_SM-G991B-F0D1_d278_seg00250",
+   "path": "C:\\GeoAI\\images\\20261027T113840Z_SM-G991B-F0D1_d278\\20261027T113840Z_SM-G991B-F0D1_d278_seg00250.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T113840Z_SM-G991B-F0D1_d278_seg00285",
+   "path": "C:\\GeoAI\\images\\20261027T113840Z_SM-G991B-F0D1_d278\\20261027T113840Z_SM-G991B-F0D1_d278_seg00285.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T113840Z_SM-G991B-F0D1_d278_seg00295",
+   "path": "C:\\GeoAI\\images\\20261027T113840Z_SM-G991B-F0D1_d278\\20261027T113840Z_SM-G991B-F0D1_d278_seg00295.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T113840Z_SM-G991B-F0D1_d278_seg00298",
+   "path": "C:\\GeoAI\\images\\20261027T113840Z_SM-G991B-F0D1_d278\\20261027T113840Z_SM-G991B-F0D1_d278_seg00298.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T113840Z_SM-G991B-F0D1_d278_seg00318",
+   "path": "C:\\GeoAI\\images\\20261027T113840Z_SM-G991B-F0D1_d278\\20261027T113840Z_SM-G991B-F0D1_d278_seg00318.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T113840Z_SM-G991B-F0D1_d278_seg00360",
+   "path": "C:\\GeoAI\\images\\20261027T113840Z_SM-G991B-F0D1_d278\\20261027T113840Z_SM-G991B-F0D1_d278_seg00360.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T113840Z_SM-G991B-F0D1_d278_seg00365",
+   "path": "C:\\GeoAI\\images\\20261027T113840Z_SM-G991B-F0D1_d278\\20261027T113840Z_SM-G991B-F0D1_d278_seg00365.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T113840Z_SM-G991B-F0D1_d278_seg00378",
+   "path": "C:\\GeoAI\\images\\20261027T113840Z_SM-G991B-F0D1_d278\\20261027T113840Z_SM-G991B-F0D1_d278_seg00378.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T113840Z_SM-G991B-F0D1_d278_seg00393",
+   "path": "C:\\GeoAI\\images\\20261027T113840Z_SM-G991B-F0D1_d278\\20261027T113840Z_SM-G991B-F0D1_d278_seg00393.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T113840Z_SM-G991B-F0D1_d278_seg00406",
+   "path": "C:\\GeoAI\\images\\20261027T113840Z_SM-G991B-F0D1_d278\\20261027T113840Z_SM-G991B-F0D1_d278_seg00406.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T113840Z_SM-G991B-F0D1_d278_seg00425",
+   "path": "C:\\GeoAI\\images\\20261027T113840Z_SM-G991B-F0D1_d278\\20261027T113840Z_SM-G991B-F0D1_d278_seg00425.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T114902Z_SM-G991B-F0D1_9fb5_seg00035",
+   "path": "C:\\GeoAI\\images\\20261027T114902Z_SM-G991B-F0D1_9fb5\\20261027T114902Z_SM-G991B-F0D1_9fb5_seg00035.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T122128Z_SM-G991B-F0D1_2d59_seg00022",
+   "path": "C:\\GeoAI\\images\\20261027T122128Z_SM-G991B-F0D1_2d59\\20261027T122128Z_SM-G991B-F0D1_2d59_seg00022.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T122128Z_SM-G991B-F0D1_2d59_seg00042",
+   "path": "C:\\GeoAI\\images\\20261027T122128Z_SM-G991B-F0D1_2d59\\20261027T122128Z_SM-G991B-F0D1_2d59_seg00042.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T122128Z_SM-G991B-F0D1_2d59_seg00059",
+   "path": "C:\\GeoAI\\images\\20261027T122128Z_SM-G991B-F0D1_2d59\\20261027T122128Z_SM-G991B-F0D1_2d59_seg00059.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T122128Z_SM-G991B-F0D1_2d59_seg00099",
+   "path": "C:\\GeoAI\\images\\20261027T122128Z_SM-G991B-F0D1_2d59\\20261027T122128Z_SM-G991B-F0D1_2d59_seg00099.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T122128Z_SM-G991B-F0D1_2d59_seg00113",
+   "path": "C:\\GeoAI\\images\\20261027T122128Z_SM-G991B-F0D1_2d59\\20261027T122128Z_SM-G991B-F0D1_2d59_seg00113.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T122128Z_SM-G991B-F0D1_2d59_seg00141",
+   "path": "C:\\GeoAI\\images\\20261027T122128Z_SM-G991B-F0D1_2d59\\20261027T122128Z_SM-G991B-F0D1_2d59_seg00141.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T122454Z_SM-G991B-F0D1_f668_seg00022",
+   "path": "C:\\GeoAI\\images\\20261027T122454Z_SM-G991B-F0D1_f668\\20261027T122454Z_SM-G991B-F0D1_f668_seg00022.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T122454Z_SM-G991B-F0D1_f668_seg00046",
+   "path": "C:\\GeoAI\\images\\20261027T122454Z_SM-G991B-F0D1_f668\\20261027T122454Z_SM-G991B-F0D1_f668_seg00046.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T122454Z_SM-G991B-F0D1_f668_seg00051",
+   "path": "C:\\GeoAI\\images\\20261027T122454Z_SM-G991B-F0D1_f668\\20261027T122454Z_SM-G991B-F0D1_f668_seg00051.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T122454Z_SM-G991B-F0D1_f668_seg00059",
+   "path": "C:\\GeoAI\\images\\20261027T122454Z_SM-G991B-F0D1_f668\\20261027T122454Z_SM-G991B-F0D1_f668_seg00059.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T122814Z_SM-G991B-F0D1_8902_seg00000",
+   "path": "C:\\GeoAI\\images\\20261027T122814Z_SM-G991B-F0D1_8902\\20261027T122814Z_SM-G991B-F0D1_8902_seg00000.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T122814Z_SM-G991B-F0D1_8902_seg00005",
+   "path": "C:\\GeoAI\\images\\20261027T122814Z_SM-G991B-F0D1_8902\\20261027T122814Z_SM-G991B-F0D1_8902_seg00005.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T122914Z_SM-G991B-F0D1_debe_seg00035",
+   "path": "C:\\GeoAI\\images\\20261027T122914Z_SM-G991B-F0D1_debe\\20261027T122914Z_SM-G991B-F0D1_debe_seg00035.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261027T122914Z_SM-G991B-F0D1_debe_seg00047",
+   "path": "C:\\GeoAI\\images\\20261027T122914Z_SM-G991B-F0D1_debe\\20261027T122914Z_SM-G991B-F0D1_debe_seg00047.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T095033Z_SM-G991B-F0D1_fe0f_seg00003",
+   "path": "C:\\GeoAI\\images\\20261029T095033Z_SM-G991B-F0D1_fe0f\\20261029T095033Z_SM-G991B-F0D1_fe0f_seg00003.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T095033Z_SM-G991B-F0D1_fe0f_seg00008",
+   "path": "C:\\GeoAI\\images\\20261029T095033Z_SM-G991B-F0D1_fe0f\\20261029T095033Z_SM-G991B-F0D1_fe0f_seg00008.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T095033Z_SM-G991B-F0D1_fe0f_seg00025",
+   "path": "C:\\GeoAI\\images\\20261029T095033Z_SM-G991B-F0D1_fe0f\\20261029T095033Z_SM-G991B-F0D1_fe0f_seg00025.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T095033Z_SM-G991B-F0D1_fe0f_seg00035",
+   "path": "C:\\GeoAI\\images\\20261029T095033Z_SM-G991B-F0D1_fe0f\\20261029T095033Z_SM-G991B-F0D1_fe0f_seg00035.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T095033Z_SM-G991B-F0D1_fe0f_seg00036",
+   "path": "C:\\GeoAI\\images\\20261029T095033Z_SM-G991B-F0D1_fe0f\\20261029T095033Z_SM-G991B-F0D1_fe0f_seg00036.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T095033Z_SM-G991B-F0D1_fe0f_seg00046",
+   "path": "C:\\GeoAI\\images\\20261029T095033Z_SM-G991B-F0D1_fe0f\\20261029T095033Z_SM-G991B-F0D1_fe0f_seg00046.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T095033Z_SM-G991B-F0D1_fe0f_seg00055",
+   "path": "C:\\GeoAI\\images\\20261029T095033Z_SM-G991B-F0D1_fe0f\\20261029T095033Z_SM-G991B-F0D1_fe0f_seg00055.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T095033Z_SM-G991B-F0D1_fe0f_seg00068",
+   "path": "C:\\GeoAI\\images\\20261029T095033Z_SM-G991B-F0D1_fe0f\\20261029T095033Z_SM-G991B-F0D1_fe0f_seg00068.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T095033Z_SM-G991B-F0D1_fe0f_seg00085",
+   "path": "C:\\GeoAI\\images\\20261029T095033Z_SM-G991B-F0D1_fe0f\\20261029T095033Z_SM-G991B-F0D1_fe0f_seg00085.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T095033Z_SM-G991B-F0D1_fe0f_seg00096",
+   "path": "C:\\GeoAI\\images\\20261029T095033Z_SM-G991B-F0D1_fe0f\\20261029T095033Z_SM-G991B-F0D1_fe0f_seg00096.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T095033Z_SM-G991B-F0D1_fe0f_seg00111",
+   "path": "C:\\GeoAI\\images\\20261029T095033Z_SM-G991B-F0D1_fe0f\\20261029T095033Z_SM-G991B-F0D1_fe0f_seg00111.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T095033Z_SM-G991B-F0D1_fe0f_seg00116",
+   "path": "C:\\GeoAI\\images\\20261029T095033Z_SM-G991B-F0D1_fe0f\\20261029T095033Z_SM-G991B-F0D1_fe0f_seg00116.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T095610Z_SM-G991B-F0D1_8873_seg00073",
+   "path": "C:\\GeoAI\\images\\20261029T095610Z_SM-G991B-F0D1_8873\\20261029T095610Z_SM-G991B-F0D1_8873_seg00073.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T095610Z_SM-G991B-F0D1_8873_seg00162",
+   "path": "C:\\GeoAI\\images\\20261029T095610Z_SM-G991B-F0D1_8873\\20261029T095610Z_SM-G991B-F0D1_8873_seg00162.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T095610Z_SM-G991B-F0D1_8873_seg00188",
+   "path": "C:\\GeoAI\\images\\20261029T095610Z_SM-G991B-F0D1_8873\\20261029T095610Z_SM-G991B-F0D1_8873_seg00188.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T095610Z_SM-G991B-F0D1_8873_seg00219",
+   "path": "C:\\GeoAI\\images\\20261029T095610Z_SM-G991B-F0D1_8873\\20261029T095610Z_SM-G991B-F0D1_8873_seg00219.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T095610Z_SM-G991B-F0D1_8873_seg00225",
+   "path": "C:\\GeoAI\\images\\20261029T095610Z_SM-G991B-F0D1_8873\\20261029T095610Z_SM-G991B-F0D1_8873_seg00225.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T095610Z_SM-G991B-F0D1_8873_seg00226",
+   "path": "C:\\GeoAI\\images\\20261029T095610Z_SM-G991B-F0D1_8873\\20261029T095610Z_SM-G991B-F0D1_8873_seg00226.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T100237Z_SM-G991B-F0D1_11c4_seg00001",
+   "path": "C:\\GeoAI\\images\\20261029T100237Z_SM-G991B-F0D1_11c4\\20261029T100237Z_SM-G991B-F0D1_11c4_seg00001.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T100237Z_SM-G991B-F0D1_11c4_seg00064",
+   "path": "C:\\GeoAI\\images\\20261029T100237Z_SM-G991B-F0D1_11c4\\20261029T100237Z_SM-G991B-F0D1_11c4_seg00064.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T100237Z_SM-G991B-F0D1_11c4_seg00068",
+   "path": "C:\\GeoAI\\images\\20261029T100237Z_SM-G991B-F0D1_11c4\\20261029T100237Z_SM-G991B-F0D1_11c4_seg00068.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T100237Z_SM-G991B-F0D1_11c4_seg00099",
+   "path": "C:\\GeoAI\\images\\20261029T100237Z_SM-G991B-F0D1_11c4\\20261029T100237Z_SM-G991B-F0D1_11c4_seg00099.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T100237Z_SM-G991B-F0D1_11c4_seg00109",
+   "path": "C:\\GeoAI\\images\\20261029T100237Z_SM-G991B-F0D1_11c4\\20261029T100237Z_SM-G991B-F0D1_11c4_seg00109.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T100537Z_SM-G991B-F0D1_23ff_seg00037",
+   "path": "C:\\GeoAI\\images\\20261029T100537Z_SM-G991B-F0D1_23ff\\20261029T100537Z_SM-G991B-F0D1_23ff_seg00037.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T100537Z_SM-G991B-F0D1_23ff_seg00051",
+   "path": "C:\\GeoAI\\images\\20261029T100537Z_SM-G991B-F0D1_23ff\\20261029T100537Z_SM-G991B-F0D1_23ff_seg00051.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T100537Z_SM-G991B-F0D1_23ff_seg00066",
+   "path": "C:\\GeoAI\\images\\20261029T100537Z_SM-G991B-F0D1_23ff\\20261029T100537Z_SM-G991B-F0D1_23ff_seg00066.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T100537Z_SM-G991B-F0D1_23ff_seg00103",
+   "path": "C:\\GeoAI\\images\\20261029T100537Z_SM-G991B-F0D1_23ff\\20261029T100537Z_SM-G991B-F0D1_23ff_seg00103.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T100821Z_SM-G991B-F0D1_c57b_seg00008",
+   "path": "C:\\GeoAI\\images\\20261029T100821Z_SM-G991B-F0D1_c57b\\20261029T100821Z_SM-G991B-F0D1_c57b_seg00008.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T101238Z_SM-G991B-F0D1_81d2_seg00010",
+   "path": "C:\\GeoAI\\images\\20261029T101238Z_SM-G991B-F0D1_81d2\\20261029T101238Z_SM-G991B-F0D1_81d2_seg00010.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T101238Z_SM-G991B-F0D1_81d2_seg00025",
+   "path": "C:\\GeoAI\\images\\20261029T101238Z_SM-G991B-F0D1_81d2\\20261029T101238Z_SM-G991B-F0D1_81d2_seg00025.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T101238Z_SM-G991B-F0D1_81d2_seg00070",
+   "path": "C:\\GeoAI\\images\\20261029T101238Z_SM-G991B-F0D1_81d2\\20261029T101238Z_SM-G991B-F0D1_81d2_seg00070.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T101444Z_SM-G991B-F0D1_0517_seg00008",
+   "path": "C:\\GeoAI\\images\\20261029T101444Z_SM-G991B-F0D1_0517\\20261029T101444Z_SM-G991B-F0D1_0517_seg00008.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T101444Z_SM-G991B-F0D1_0517_seg00043",
+   "path": "C:\\GeoAI\\images\\20261029T101444Z_SM-G991B-F0D1_0517\\20261029T101444Z_SM-G991B-F0D1_0517_seg00043.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T101444Z_SM-G991B-F0D1_0517_seg00081",
+   "path": "C:\\GeoAI\\images\\20261029T101444Z_SM-G991B-F0D1_0517\\20261029T101444Z_SM-G991B-F0D1_0517_seg00081.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T101817Z_SM-G991B-F0D1_8130_seg00000",
+   "path": "C:\\GeoAI\\images\\20261029T101817Z_SM-G991B-F0D1_8130\\20261029T101817Z_SM-G991B-F0D1_8130_seg00000.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T101817Z_SM-G991B-F0D1_8130_seg00062",
+   "path": "C:\\GeoAI\\images\\20261029T101817Z_SM-G991B-F0D1_8130\\20261029T101817Z_SM-G991B-F0D1_8130_seg00062.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T101817Z_SM-G991B-F0D1_8130_seg00087",
+   "path": "C:\\GeoAI\\images\\20261029T101817Z_SM-G991B-F0D1_8130\\20261029T101817Z_SM-G991B-F0D1_8130_seg00087.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T101817Z_SM-G991B-F0D1_8130_seg00098",
+   "path": "C:\\GeoAI\\images\\20261029T101817Z_SM-G991B-F0D1_8130\\20261029T101817Z_SM-G991B-F0D1_8130_seg00098.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T101817Z_SM-G991B-F0D1_8130_seg00135",
+   "path": "C:\\GeoAI\\images\\20261029T101817Z_SM-G991B-F0D1_8130\\20261029T101817Z_SM-G991B-F0D1_8130_seg00135.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T101817Z_SM-G991B-F0D1_8130_seg00139",
+   "path": "C:\\GeoAI\\images\\20261029T101817Z_SM-G991B-F0D1_8130\\20261029T101817Z_SM-G991B-F0D1_8130_seg00139.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T101817Z_SM-G991B-F0D1_8130_seg00163",
+   "path": "C:\\GeoAI\\images\\20261029T101817Z_SM-G991B-F0D1_8130\\20261029T101817Z_SM-G991B-F0D1_8130_seg00163.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T101817Z_SM-G991B-F0D1_8130_seg00358",
+   "path": "C:\\GeoAI\\images\\20261029T101817Z_SM-G991B-F0D1_8130\\20261029T101817Z_SM-G991B-F0D1_8130_seg00358.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T101817Z_SM-G991B-F0D1_8130_seg00373",
+   "path": "C:\\GeoAI\\images\\20261029T101817Z_SM-G991B-F0D1_8130\\20261029T101817Z_SM-G991B-F0D1_8130_seg00373.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T101817Z_SM-G991B-F0D1_8130_seg00420",
+   "path": "C:\\GeoAI\\images\\20261029T101817Z_SM-G991B-F0D1_8130\\20261029T101817Z_SM-G991B-F0D1_8130_seg00420.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T101817Z_SM-G991B-F0D1_8130_seg00472",
+   "path": "C:\\GeoAI\\images\\20261029T101817Z_SM-G991B-F0D1_8130\\20261029T101817Z_SM-G991B-F0D1_8130_seg00472.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T102453Z_SM-G991B-F0D1_389b_seg00084",
+   "path": "C:\\GeoAI\\images\\20261029T102453Z_SM-G991B-F0D1_389b\\20261029T102453Z_SM-G991B-F0D1_389b_seg00084.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T102453Z_SM-G991B-F0D1_389b_seg00118",
+   "path": "C:\\GeoAI\\images\\20261029T102453Z_SM-G991B-F0D1_389b\\20261029T102453Z_SM-G991B-F0D1_389b_seg00118.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T102453Z_SM-G991B-F0D1_389b_seg00138",
+   "path": "C:\\GeoAI\\images\\20261029T102453Z_SM-G991B-F0D1_389b\\20261029T102453Z_SM-G991B-F0D1_389b_seg00138.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T102453Z_SM-G991B-F0D1_389b_seg00139",
+   "path": "C:\\GeoAI\\images\\20261029T102453Z_SM-G991B-F0D1_389b\\20261029T102453Z_SM-G991B-F0D1_389b_seg00139.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T102453Z_SM-G991B-F0D1_389b_seg00180",
+   "path": "C:\\GeoAI\\images\\20261029T102453Z_SM-G991B-F0D1_389b\\20261029T102453Z_SM-G991B-F0D1_389b_seg00180.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T102453Z_SM-G991B-F0D1_389b_seg00222",
+   "path": "C:\\GeoAI\\images\\20261029T102453Z_SM-G991B-F0D1_389b\\20261029T102453Z_SM-G991B-F0D1_389b_seg00222.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T102453Z_SM-G991B-F0D1_389b_seg00263",
+   "path": "C:\\GeoAI\\images\\20261029T102453Z_SM-G991B-F0D1_389b\\20261029T102453Z_SM-G991B-F0D1_389b_seg00263.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T102453Z_SM-G991B-F0D1_389b_seg00354",
+   "path": "C:\\GeoAI\\images\\20261029T102453Z_SM-G991B-F0D1_389b\\20261029T102453Z_SM-G991B-F0D1_389b_seg00354.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T102453Z_SM-G991B-F0D1_389b_seg00378",
+   "path": "C:\\GeoAI\\images\\20261029T102453Z_SM-G991B-F0D1_389b\\20261029T102453Z_SM-G991B-F0D1_389b_seg00378.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T102453Z_SM-G991B-F0D1_389b_seg00381",
+   "path": "C:\\GeoAI\\images\\20261029T102453Z_SM-G991B-F0D1_389b\\20261029T102453Z_SM-G991B-F0D1_389b_seg00381.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T102453Z_SM-G991B-F0D1_389b_seg00428",
+   "path": "C:\\GeoAI\\images\\20261029T102453Z_SM-G991B-F0D1_389b\\20261029T102453Z_SM-G991B-F0D1_389b_seg00428.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T102453Z_SM-G991B-F0D1_389b_seg00499",
+   "path": "C:\\GeoAI\\images\\20261029T102453Z_SM-G991B-F0D1_389b\\20261029T102453Z_SM-G991B-F0D1_389b_seg00499.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T102453Z_SM-G991B-F0D1_389b_seg00500",
+   "path": "C:\\GeoAI\\images\\20261029T102453Z_SM-G991B-F0D1_389b\\20261029T102453Z_SM-G991B-F0D1_389b_seg00500.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T102453Z_SM-G991B-F0D1_389b_seg00501",
+   "path": "C:\\GeoAI\\images\\20261029T102453Z_SM-G991B-F0D1_389b\\20261029T102453Z_SM-G991B-F0D1_389b_seg00501.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T102453Z_SM-G991B-F0D1_389b_seg00517",
+   "path": "C:\\GeoAI\\images\\20261029T102453Z_SM-G991B-F0D1_389b\\20261029T102453Z_SM-G991B-F0D1_389b_seg00517.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T102453Z_SM-G991B-F0D1_389b_seg00565",
+   "path": "C:\\GeoAI\\images\\20261029T102453Z_SM-G991B-F0D1_389b\\20261029T102453Z_SM-G991B-F0D1_389b_seg00565.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T102453Z_SM-G991B-F0D1_389b_seg00572",
+   "path": "C:\\GeoAI\\images\\20261029T102453Z_SM-G991B-F0D1_389b\\20261029T102453Z_SM-G991B-F0D1_389b_seg00572.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T102453Z_SM-G991B-F0D1_389b_seg00577",
+   "path": "C:\\GeoAI\\images\\20261029T102453Z_SM-G991B-F0D1_389b\\20261029T102453Z_SM-G991B-F0D1_389b_seg00577.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg00007",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg00007.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg00085",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg00085.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg00110",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg00110.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg00113",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg00113.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg00206",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg00206.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg00293",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg00293.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg00296",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg00296.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg00345",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg00345.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg00379",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg00379.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg00407",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg00407.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg00411",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg00411.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg00453",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg00453.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg00480",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg00480.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg00490",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg00490.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg00502",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg00502.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg00527",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg00527.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg00558",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg00558.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg00641",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg00641.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg00643",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg00643.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg00666",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg00666.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg00731",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg00731.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg00764",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg00764.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg00781",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg00781.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg00821",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg00821.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg00845",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg00845.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg00896",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg00896.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg00931",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg00931.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg00946",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg00946.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg00958",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg00958.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg00976",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg00976.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg01033",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg01033.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg01041",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg01041.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg01057",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg01057.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg01144",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg01144.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg01231",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg01231.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg01260",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg01260.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg01263",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg01263.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg01294",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg01294.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg01320",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg01320.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg01355",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg01355.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg01384",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg01384.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg01393",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg01393.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg01419",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg01419.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg01426",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg01426.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg01431",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg01431.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg01437",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg01437.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg01440",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg01440.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg01444",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg01444.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg01482",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg01482.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg01496",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg01496.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg01518",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg01518.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg01545",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg01545.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg01552",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg01552.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T103654Z_SM-G991B-F0D1_475b_seg01606",
+   "path": "C:\\GeoAI\\images\\20261029T103654Z_SM-G991B-F0D1_475b\\20261029T103654Z_SM-G991B-F0D1_475b_seg01606.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T112225Z_SM-G991B-F0D1_f2ab_seg00039",
+   "path": "C:\\GeoAI\\images\\20261029T112225Z_SM-G991B-F0D1_f2ab\\20261029T112225Z_SM-G991B-F0D1_f2ab_seg00039.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T112225Z_SM-G991B-F0D1_f2ab_seg00058",
+   "path": "C:\\GeoAI\\images\\20261029T112225Z_SM-G991B-F0D1_f2ab\\20261029T112225Z_SM-G991B-F0D1_f2ab_seg00058.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T112355Z_SM-G991B-F0D1_1e4e_seg00047",
+   "path": "C:\\GeoAI\\images\\20261029T112355Z_SM-G991B-F0D1_1e4e\\20261029T112355Z_SM-G991B-F0D1_1e4e_seg00047.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T112355Z_SM-G991B-F0D1_1e4e_seg00048",
+   "path": "C:\\GeoAI\\images\\20261029T112355Z_SM-G991B-F0D1_1e4e\\20261029T112355Z_SM-G991B-F0D1_1e4e_seg00048.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T112355Z_SM-G991B-F0D1_1e4e_seg00059",
+   "path": "C:\\GeoAI\\images\\20261029T112355Z_SM-G991B-F0D1_1e4e\\20261029T112355Z_SM-G991B-F0D1_1e4e_seg00059.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T112355Z_SM-G991B-F0D1_1e4e_seg00060",
+   "path": "C:\\GeoAI\\images\\20261029T112355Z_SM-G991B-F0D1_1e4e\\20261029T112355Z_SM-G991B-F0D1_1e4e_seg00060.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T112355Z_SM-G991B-F0D1_1e4e_seg00099",
+   "path": "C:\\GeoAI\\images\\20261029T112355Z_SM-G991B-F0D1_1e4e\\20261029T112355Z_SM-G991B-F0D1_1e4e_seg00099.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T113256Z_SM-G991B-F0D1_4128_seg00030",
+   "path": "C:\\GeoAI\\images\\20261029T113256Z_SM-G991B-F0D1_4128\\20261029T113256Z_SM-G991B-F0D1_4128_seg00030.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T113256Z_SM-G991B-F0D1_4128_seg00034",
+   "path": "C:\\GeoAI\\images\\20261029T113256Z_SM-G991B-F0D1_4128\\20261029T113256Z_SM-G991B-F0D1_4128_seg00034.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T113256Z_SM-G991B-F0D1_4128_seg00049",
+   "path": "C:\\GeoAI\\images\\20261029T113256Z_SM-G991B-F0D1_4128\\20261029T113256Z_SM-G991B-F0D1_4128_seg00049.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T113256Z_SM-G991B-F0D1_4128_seg00065",
+   "path": "C:\\GeoAI\\images\\20261029T113256Z_SM-G991B-F0D1_4128\\20261029T113256Z_SM-G991B-F0D1_4128_seg00065.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T113256Z_SM-G991B-F0D1_4128_seg00074",
+   "path": "C:\\GeoAI\\images\\20261029T113256Z_SM-G991B-F0D1_4128\\20261029T113256Z_SM-G991B-F0D1_4128_seg00074.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T113256Z_SM-G991B-F0D1_4128_seg00130",
+   "path": "C:\\GeoAI\\images\\20261029T113256Z_SM-G991B-F0D1_4128\\20261029T113256Z_SM-G991B-F0D1_4128_seg00130.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T114722Z_SM-G991B-F0D1_3726_seg00003",
+   "path": "C:\\GeoAI\\images\\20261029T114722Z_SM-G991B-F0D1_3726\\20261029T114722Z_SM-G991B-F0D1_3726_seg00003.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T114722Z_SM-G991B-F0D1_3726_seg00032",
+   "path": "C:\\GeoAI\\images\\20261029T114722Z_SM-G991B-F0D1_3726\\20261029T114722Z_SM-G991B-F0D1_3726_seg00032.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T114722Z_SM-G991B-F0D1_3726_seg00037",
+   "path": "C:\\GeoAI\\images\\20261029T114722Z_SM-G991B-F0D1_3726\\20261029T114722Z_SM-G991B-F0D1_3726_seg00037.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T114942Z_SM-G991B-F0D1_d94c_seg00051",
+   "path": "C:\\GeoAI\\images\\20261029T114942Z_SM-G991B-F0D1_d94c\\20261029T114942Z_SM-G991B-F0D1_d94c_seg00051.png",
+   "kind": "video_segment"
+  },
+  {
+   "key": "20261029T114942Z_SM-G991B-F0D1_d94c_seg00089",
+   "path": "C:\\GeoAI\\images\\20261029T114942Z_SM-G991B-F0D1_d94c\\20261029T114942Z_SM-G991B-F0D1_d94c_seg00089.png",
+   "kind": "video_segment"
+  }
+ ]
+}

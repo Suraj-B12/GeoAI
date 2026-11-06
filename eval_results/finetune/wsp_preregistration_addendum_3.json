@@ -1,0 +1,16 @@
+{
+ "written_at_utc": "2026-11-06T11:46:41+00:00",
+ "passes_used_before": 12,
+ "changes": [
+  "Server capture sites extended with 'attn_in' (input of o_proj = per-head outputs) and 'mlp_in' (input of down_proj = MLP neuron activations) at the decision position, for unit-level localisation (heads, neurons) as in the method's post. Nothing a pass computes changed.",
+  "scripts/wsp_analysis.py: units-capture / units steps; scripts/wsp_queue.py (queue of dev runs); scripts/wsp_freeze.py; CPU test test_bake_equals_hook (6 tests pass)."
+ ],
+ "sha256": {
+  "scripts/wsp_server.py": "63f556f589e33e8a786b81f8c2a8e4196457ed65b59bee01c8bd276984a9191b",
+  "scripts/wsp_analysis.py": "99fea892a999e5d3369d0440ec044a41f6b5ba2f46845d4d469c2901dd929b28",
+  "scripts/wsp_queue.py": "c3c438ed5d6edc353efcb49cbba4d18cf271df0bef6a6d52b831b92fa5f88720",
+  "scripts/wsp_freeze.py": "73309150699943fcf3fb9e8dcb8d0e3d63349743d9add271c1c03b9ab1cc198d",
+  "scripts/wsp_edits.py": "f1874f5ca48d61fd2c5bbe404117f699470f9a077387ec2f1f94ced568a5d19d",
+  "scripts/tests/test_wsp_core.py": "639d5a794e6f0f4fb3b66c9b7223d174ca7690a115cdd3471a160cfc0af08bce"
+ }
+}

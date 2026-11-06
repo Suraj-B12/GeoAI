@@ -1,0 +1,20 @@
+{
+ "written_at_utc": "2026-11-06T10:16:07+00:00",
+ "passes_used_before": 3,
+ "changes": [
+  "GPU sharing: the forward-pass server now takes C:\\GeoAI\\gpu.lock only while it loads/self-tests and while each pass or weight read computes, and releases it right after (owner.txt 'pid: N / purpose / start'; a dead owner's lock is taken over as C:\\GeoAI\u0007nalysis\fixes\\gpu_job.py does). Requested by the coordinator after the first server held the lock idle for ~4 h after the 3 diagnosis passes. No change in what a pass computes.",
+  "ft_common.GpuLock rewritten to that convention; CPU test test_gpu_lock_convention added (5 tests pass).",
+  "Added scripts/wsp_report.py (scoring), scripts/wsp_final_eval.py (the one held-out run), scripts/wsp_figures.py, and the devrun step of scripts/wsp_analysis.py - all written before any edit and before any test number."
+ ],
+ "sha256": {
+  "scripts/ft_common.py": "d2e0fc59631d61940234ea05c0333059693984fefbcc17aca2af74af02e05630",
+  "scripts/wsp_server.py": "4f038aa715f020f12c82593b346e136a860b65286f82d50d1a1bf96c8d79c0f8",
+  "scripts/wsp_core.py": "b721c9f410a0971d836cd74e37f33534d8d16aec037c8b81b40af63de5602c74",
+  "scripts/wsp_analysis.py": "23b7bdbecdf73e7a00e955679823e1a171107ea9160375d52b60a2b4c098e51e",
+  "scripts/wsp_report.py": "e6236292041bc84ae7ca9c59f26b8cd6ee8fa94fc90729e5084a90bc655275e4",
+  "scripts/wsp_final_eval.py": "18e7deaa6b9036a743a57cc003a1496609b6da994199ecd855aee6c59b8818ea",
+  "scripts/wsp_figures.py": "947ee2a7602ac1b605319aada02ecebc88a98be1aa549445b8d43c9db88449f1",
+  "scripts/wsp_apply_edit.py": "2dfc22e096ff1def224efcf9917c349841336c8e114658ce31e55b4f8d3b41b2",
+  "scripts/tests/test_wsp_core.py": "1deb5c2e1644d0bd74d4c4f65933124b372839c9ce961fe48a84bb2d6df91361"
+ }
+}

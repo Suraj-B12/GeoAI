@@ -1,0 +1,17 @@
+{
+ "written_at_utc": "2026-11-06T05:54:18+00:00",
+ "before_any_pass": true,
+ "changes": [
+  "Refactor: the Stage 1 teacher-forced read moved into wsp_core.stage1_read so the forward-pass server and the final evaluation run the identical function (no change in what is computed).",
+  "Added scripts/wsp_analysis.py (editor analysis steps) and scripts/wsp_apply_edit.py (baking edits into bf16 weight matrices, as the owner requested: the deliverable is edited weights; hooks only for iteration).",
+  "The first server process was stopped while still loading (before serving any pass) and restarted on this code."
+ ],
+ "changed_files_new_sha256": {
+  "scripts/wsp_core.py": "b721c9f410a0971d836cd74e37f33534d8d16aec037c8b81b40af63de5602c74",
+  "scripts/wsp_server.py": "fb815398ccb430fef82e5176a337ba0e1fa05376b7be11d9643c7415c324e836"
+ },
+ "new_files_sha256": {
+  "scripts/wsp_analysis.py": "d9b921800d16514931cba49a964d0c40aa5f15a6b5063c90ac9d66c03b7086bd",
+  "scripts/wsp_apply_edit.py": "2dfc22e096ff1def224efcf9917c349841336c8e114658ce31e55b4f8d3b41b2"
+ }
+}
