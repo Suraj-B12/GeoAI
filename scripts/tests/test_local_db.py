@@ -262,8 +262,8 @@ def _norm_default(v):
 
 
 def test_setup_is_idempotent(env):
-    n = len(setup_local_db.SCHEMA_FILES)          # 000, db_schema, 001-007
-    assert n == 9
+    n = len(setup_local_db.SCHEMA_FILES)          # 000, db_schema, 001-008
+    assert n == 10
     assert [f["action"] for f in env.first_setup["files"]] == ["applied"] * n
     assert [f["action"] for f in env.second_setup["files"]] == ["already_applied"] * n
     # 005 is also safe to run twice as a whole file (the owner runs it in the Supabase SQL editor)
@@ -274,9 +274,12 @@ def test_setup_is_idempotent(env):
         c.execute((PROJECT_ROOT / "migrations" / "006_expert_review_log.sql").read_text(encoding="utf-8"))
         # 007 (research.review_claims / review_skips) too
         c.execute((PROJECT_ROOT / "migrations" / "007_review_claims.sql").read_text(encoding="utf-8"))
+        # 008 (op_id on the review log, research.expert_events) too
+        c.execute((PROJECT_ROOT / "migrations" / "008_review_idempotency_events.sql").read_text(encoding="utf-8"))
     assert env.count("video_sessions") == 0
     assert env.count("research.expert_review_log") == 0
     assert env.count("research.review_claims") == 0
+    assert env.count("research.expert_events") == 0
 
 
 def test_schema_matches_live_supabase(env):

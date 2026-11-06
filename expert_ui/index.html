@@ -727,6 +727,80 @@
             .tour-spot, .tour-pop, .tour-bar > div, .tour-shade { transition: none; }
             .tour-spot::after, .tour-pop.enter .tour-body, .tour-demo .pill.tour-in, .tour-pop.nudge { animation: none; }
         }
+
+        /* ======== LAYOUT GUARDS: nothing overlaps at any width ======== */
+        [hidden] { display: none !important; }
+        .header-inner { flex-wrap: wrap; height: auto; min-height: 64px; row-gap: 8px; padding-top: 8px; padding-bottom: 8px; }
+        .header-left { flex-wrap: wrap; row-gap: 8px; min-width: 0; }
+        .header-right { flex-wrap: wrap; justify-content: flex-end; row-gap: 6px; }
+        .tags, .pill-select, .tour-text, .claim-note, .hint, .presence-bar { overflow-wrap: anywhere; }
+        .tag, .pill { max-width: 100%; }
+        .main { padding-bottom: calc(var(--bar-h, 64px) + 32px); }
+        .retrain-inner { flex-wrap: wrap; gap: 8px 16px; }
+        /* messages appear above the bottom bar, centred: never over the header's buttons */
+        .toast { top: auto; right: auto; left: 50%; bottom: calc(var(--bar-h, 64px) + 14px);
+                 transform: translate(-50%, 8px); max-width: min(560px, calc(100vw - 32px)); text-align: center; line-height: 1.45; }
+        .toast.visible { transform: translate(-50%, 0); }
+        .bar-msg { flex: 1 0 100%; font-size: 13px; font-weight: 600; color: var(--text); background: var(--tag-bg);
+                   border-radius: 8px; padding: 8px 12px; line-height: 1.45; overflow-wrap: anywhere; }
+        .bar-msg.flash { animation: barFlash .6s ease; }
+        @keyframes barFlash { 0% { background: var(--amber-light); } 100% { background: var(--tag-bg); } }
+
+        /* ======== SAVE STATUS (bottom bar) ======== */
+        .save-status { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-secondary);
+                       flex-wrap: wrap; min-width: 0; flex: 1 1 320px; }
+        .save-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+        .save-status.waiting .save-dot { background: var(--amber); animation: savePulse 1.2s ease-in-out infinite; }
+        .save-status.failed .save-dot { background: var(--red); animation: none; }
+        .save-status.failed { color: var(--red); }
+        .save-status strong { color: var(--text); }
+        @keyframes savePulse { 50% { opacity: .3; } }
+        .retrain-btn-off, .retrain-btn-off:hover { opacity: .55; cursor: not-allowed; }
+
+        /* ======== REAL-NAME SCREEN ======== */
+        .login-card { max-width: 460px; padding: 32px 30px 24px; text-align: left; max-height: calc(100vh - 32px); overflow-y: auto; }
+        .login-card .subtitle { margin-bottom: 14px; }
+        .name-warn { display: flex; gap: 10px; align-items: flex-start; background: var(--amber-light); border: 1px solid #fcd34d;
+                     color: #92400e; border-radius: 10px; padding: 10px 12px; font-size: 12.5px; line-height: 1.5; margin: 0 0 16px; }
+        .name-warn .ico { flex-shrink: 0; width: 18px; height: 18px; border-radius: 50%; background: var(--amber); color: #fff;
+                          font-weight: 700; font-size: 12px; display: flex; align-items: center; justify-content: center; margin-top: 1px; }
+        .name-warn b { color: #78350f; }
+        .name-label { display: block; font-size: 11px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase;
+                      color: var(--text-tertiary); margin-bottom: 6px; }
+        .name-consent { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; color: var(--text-secondary);
+                        line-height: 1.45; margin: 2px 0 16px; cursor: pointer; }
+        .name-consent input { margin-top: 2px; width: 15px; height: 15px; flex-shrink: 0; accent-color: var(--text); }
+        .login-status.err { color: var(--red); font-weight: 600; }
+        .name-actions { display: flex; justify-content: center; margin-top: 4px; }
+
+        /* ======== TEAM PROGRESS (leaderboard) ======== */
+        .team-board { display: grid; grid-template-columns: minmax(200px, 270px) minmax(0, 1fr); gap: 14px 28px;
+                      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+                      padding: 14px 18px; margin: 0 0 16px; }
+        .team-board[hidden] { display: none; }
+        .tb-label { font-size: 10px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 4px; }
+        .tb-big { font-size: 26px; font-weight: 700; letter-spacing: -.5px; line-height: 1.15; }
+        .tb-big small { font-size: 13px; font-weight: 600; color: var(--text-secondary); letter-spacing: 0; }
+        .tb-sub { font-size: 12px; color: var(--text-secondary); margin-top: 4px; line-height: 1.5; }
+        .tb-goal { height: 6px; background: var(--tag-bg); border-radius: 3px; margin-top: 8px; overflow: hidden; }
+        .tb-goal > div { height: 100%; background: var(--green); border-radius: 3px; transition: width .4s ease; }
+        .tb-list { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+        .tb-row { display: grid; grid-template-columns: 20px minmax(60px, 180px) minmax(40px, 1fr) auto; align-items: center;
+                  gap: 10px; font-size: 12.5px; }
+        .tb-row .rk { color: var(--text-tertiary); font-weight: 700; text-align: right; }
+        .tb-row .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+        .tb-row .nm .you { font-weight: 500; color: var(--text-tertiary); }
+        .tb-row .bar { height: 8px; background: var(--tag-bg); border-radius: 4px; overflow: hidden; }
+        .tb-row .bar > div { height: 100%; background: var(--text); border-radius: 4px; transition: width .4s ease; }
+        .tb-row.me .bar > div { background: var(--green); }
+        .tb-row .ct { font-variant-numeric: tabular-nums; color: var(--text-secondary); white-space: nowrap; }
+        .tb-row .ct b { color: var(--text); }
+        .tb-team { font-size: 11.5px; color: var(--text-tertiary); margin-top: 2px; }
+        .tb-empty { font-size: 12.5px; color: var(--text-secondary); }
+        @media (max-width: 720px) {
+            .team-board { grid-template-columns: minmax(0, 1fr); padding: 12px 14px; }
+            .tb-row { grid-template-columns: 18px minmax(0, 1fr) 56px auto; gap: 8px; }
+        }
     </style>
 </head>
 <body>
@@ -759,19 +833,29 @@
 </header>
 
 <!-- ======== REVIEWER NAME PROMPT ======== -->
-<div class="login-overlay" id="nameOverlay" style="display:none;">
+<div class="login-overlay" id="nameOverlay" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="nameTitle">
     <div class="login-card">
-        <h2>Welcome, Reviewer</h2>
-        <p class="subtitle">Enter your name so we know who reviewed each assessment. Saved on this device only.</p>
-        <input type="text" id="reviewerInput" placeholder="Your name" autocomplete="name" maxlength="60">
-        <button class="btn btn-primary" style="width:100%;padding:11px;" id="reviewerBtn" onclick="setReviewer()">Continue</button>
-        <div class="login-status" id="loginStatus"></div>
+        <h2 id="nameTitle">Your real name</h2>
+        <p class="subtitle">Every review you save is stored with this name, and the experts who review are
+            <b>named in the acknowledgements of the research paper</b>.</p>
+        <div class="name-warn" role="note"><span class="ico">!</span><span><b>Enter your real full name.</b> Do not use a fake
+            name, a nickname or a test name: reviews under a fake name cannot be credited or trusted, and may be removed
+            from the study.</span></div>
+        <label class="name-label" for="reviewerInput">Full name</label>
+        <input type="text" id="reviewerInput" placeholder="e.g. Asha Rao" autocomplete="name" maxlength="60" spellcheck="false">
+        <label class="name-consent"><input type="checkbox" id="nameConsent">
+            <span>This is my real name, and I agree to it appearing in the paper&rsquo;s acknowledgements.</span></label>
+        <button class="btn btn-primary" style="width:100%;padding:11px;" id="reviewerBtn" onclick="setReviewer()">Start reviewing</button>
+        <div class="login-status" id="loginStatus" aria-live="polite"></div>
+        <div class="name-actions"><button class="btn btn-ghost btn-sm" onclick="replayTourFromName()">Watch the tour again</button></div>
     </div>
 </div>
 
 <!-- ======== CONTENT ======== -->
 <main class="main">
     <!-- Who else is reviewing (several experts at once; leases held by the server) -->
+    <!-- Team progress: photos reviewed by each expert (GET /expert-api/leaderboard) -->
+    <div class="team-board" id="teamBoard" hidden></div>
     <div class="presence-bar" id="presenceBar"></div>
     <!-- Pending Tab -->
     <div id="panelPending">
@@ -824,16 +908,22 @@
 </main>
 
 <!-- ======== RETRAIN BAR ======== -->
-<div class="retrain-bar">
+<div class="retrain-bar" id="bottomBar">
     <div class="retrain-inner">
+        <div class="bar-msg" id="barMsg" role="status" aria-live="polite" hidden></div>
+        <div class="save-status" id="saveStatus" role="status" aria-live="polite">
+            <span class="save-dot"></span><span id="saveStatusText">All your reviews are saved.</span>
+            <button class="btn btn-sm" id="saveRetry" hidden onclick="Outbox.flush(true)">Retry now</button>
+        </div>
         <div class="retrain-info">
-            <strong id="correctionCount">0</strong> corrections ready
+            <strong id="correctionCount">0</strong> saved this visit
         </div>
         <div class="progress-wrap" id="progressWrap">
             <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
             <div class="progress-label" id="progressLabel">Preparing...</div>
         </div>
-        <button class="btn btn-primary btn-sm" id="retrainBtn" onclick="startRetrain()">Retrain Model</button>
+        <button class="btn btn-sm retrain-btn-off" id="retrainBtn" disabled aria-disabled="true"
+                title="Retraining is switched off for now">Retrain model (off for now)</button>
     </div>
 </div>
 
@@ -893,11 +983,19 @@ const sbHeaders = () => ({
     'Content-Type': 'application/json'
 });
 
+// Messages are shown as a line in the bottom bar, not as a box over the page: the bar grows by a
+// line for a few seconds and the page keeps room for it, so a message never covers a card or a button.
+let toastTimer = null;
 function showToast(msg) {
-    const t = document.getElementById('toast');
+    const t = document.getElementById('barMsg');
+    if (!t) return;
     t.textContent = msg;
-    t.classList.add('visible');
-    setTimeout(() => t.classList.remove('visible'), 2500);
+    t.hidden = false;
+    t.classList.remove('flash');
+    void t.offsetWidth;
+    t.classList.add('flash');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.hidden = true; }, Math.min(9000, 3500 + msg.length * 40));
 }
 
 function badgeClass(v) {
@@ -935,35 +1033,54 @@ function switchTab(tab) {
 // ============================================================
 const REVIEWER_KEY = 'expert_reviewer_name';
 
+// First visit on a device: the tour, then the real-name screen, then the work. Later visits go
+// straight to work with the saved name (a saved placeholder name must be entered again).
 function initReviewer() {
-    reviewerName = (localStorage.getItem(REVIEWER_KEY) || '').trim();
-    if (!reviewerName) {
-        showNamePrompt();
-    } else {
-        document.getElementById('reviewerInput').value = reviewerName;
-        renderReviewerPill();
-        loadAll().finally(() => Tour.maybeAutoStart());
-    }
+    let stored = '';
+    try { stored = localStorage.getItem(REVIEWER_KEY) || ''; } catch {}
+    reviewerName = cleanName(stored);
+    if (reviewerName && realNameProblem(reviewerName)) reviewerName = '';
+    document.getElementById('reviewerInput').value = reviewerName;
+    Outbox.init();
+    renderReviewerPill();
+    if (!Tour.seen()) { previewLoad(); Tour.start(); return; }       // Tour.end() opens the name screen
+    if (!reviewerName) { previewLoad(); showNamePrompt(); return; }
+    loadAll();
 }
 
 function showNamePrompt() {
+    const input = document.getElementById('reviewerInput');
+    input.value = reviewerName || input.value || '';
+    document.getElementById('nameConsent').checked = false;
+    const st = document.getElementById('loginStatus');
+    st.textContent = '';
+    st.classList.remove('err');
     document.getElementById('nameOverlay').style.display = 'flex';
-    document.getElementById('loginStatus').textContent = '';
-    setTimeout(() => document.getElementById('reviewerInput').focus(), 50);
+    setTimeout(() => input.focus(), 50);
+}
+
+function replayTourFromName() {
+    document.getElementById('nameOverlay').style.display = 'none';
+    Tour.start();
 }
 
 function setReviewer() {
-    const v = document.getElementById('reviewerInput').value.trim();
+    const input = document.getElementById('reviewerInput');
+    const v = cleanName(input.value);
     const status = document.getElementById('loginStatus');
-    if (v.length < 2) {
-        status.textContent = 'Please enter at least 2 characters.';
-        return;
-    }
+    const fail = (msg, el) => { status.textContent = msg; status.classList.add('err'); (el || input).focus(); };
+    const problem = realNameProblem(v);
+    if (problem) return fail(problem);
+    if (!document.getElementById('nameConsent').checked)
+        return fail('Please tick the box to confirm that this is your real name.', document.getElementById('nameConsent'));
+    status.textContent = '';
+    status.classList.remove('err');
     reviewerName = v;
-    localStorage.setItem(REVIEWER_KEY, v);
+    input.value = v;
+    try { localStorage.setItem(REVIEWER_KEY, v); } catch {}
     document.getElementById('nameOverlay').style.display = 'none';
     renderReviewerPill();
-    loadAll().finally(() => Tour.maybeAutoStart());
+    loadAll();
 }
 
 function changeReviewer() {
@@ -1093,7 +1210,8 @@ function optimizedImageUrl(url, mode = 'thumb') {
 // DATA LOADING
 // ============================================================
 async function loadAll() {
-    await Promise.all([loadPending(), loadReviewed(), refreshVideoBadge()]);
+    if (!reviewerName) { showNamePrompt(); return; }
+    await Promise.all([loadPending(), loadReviewed(), refreshVideoBadge(), loadLeaderboard()]);
     refreshPresence();
 }
 
@@ -1151,6 +1269,7 @@ async function loadPending() {
 }
 
 // Several experts: show only the uploads the server holds for this tab (a batch of BATCH).
+let claimRetryTimer = null, claimFailShown = false;
 async function claimPending(rows) {
     pendingInfo = null;
     if (!SERVER || !rows.length || !reviewerName) return rows;
@@ -1162,11 +1281,17 @@ async function claimPending(rows) {
         // pending uploads this tab holds now; leases on Reviewed items being edited are kept
         for (const a of rows.slice(0, 200)) { if (!got.has(a.id)) HELD.delete(keyOf('citizen', a.id)); }
         holdItems('citizen', out.granted);
+        claimFailShown = false;
         return rows.filter(a => got.has(a.id));
     } catch (e) {
+        // Never show uploads that are not held for this tab: another expert could be shown the
+        // same one. Keep the ones already held and try again shortly.
         console.warn('citizen claims:', e);
-        showToast('Could not reserve uploads for you (' + e.message + '); showing all of them.');
-        return rows;
+        pendingInfo = null;
+        clearTimeout(claimRetryTimer);
+        claimRetryTimer = setTimeout(() => { if (reviewerName && SERVER) topUpPending(); }, 10_000);
+        if (!claimFailShown) { showToast('Could not reach the server to get more photos; trying again automatically.'); claimFailShown = true; }
+        return rows.filter(a => HELD.has(keyOf('citizen', a.id)));
     }
 }
 async function topUpPending() {
@@ -1418,23 +1543,33 @@ async function submitCorrection(id, mode) {
     if (SERVER) {
         // The server checks this tab's lease and saves only if the upload is still as this page saw
         // it (unreviewed, or reviewed at a.reviewed_at); then it logs the review (research log).
-        let out;
-        try {
-            out = await postJSON(`/expert-api/citizen/review/${encodeURIComponent(id)}`, {
-                session: SESSION, reviewer_name: reviewerName, types, severity: sev, notes,
-                queue: mode === 'reviewed' ? 'citizen_reviewed' : 'citizen_pending',
-                seen_reviewed_at: a.reviewed_at || null, heatmap: heatPayload(key), ui: uiFacts(key)
-            });
-        } catch (e) {
+        // The save goes through the browser's queue (Outbox): kept until the server confirms it.
+        if (Outbox.pendingFor('citizen', id)) {
             if (btn) btn.disabled = false;
-            citizenSaveFailed(e, id, mode);
+            showToast('Your earlier save of this photo is still being sent; it retries automatically.');
             return;
         }
-        patch.reviewed_at = out.reviewed_at || patch.reviewed_at;
-        HELD.delete(key);
+        const entry = Outbox.make('citizen', id, `/expert-api/citizen/review/${encodeURIComponent(id)}`, {
+            session: SESSION, reviewer_name: reviewerName, types, severity: sev, notes,
+            queue: mode === 'reviewed' ? 'citizen_reviewed' : 'citizen_pending',
+            seen_reviewed_at: a.reviewed_at || null, heatmap: heatPayload(key), ui: uiFacts(key)
+        });
+        const res = await Outbox.submit(entry);
+        if (res.conflict || res.rejected) {
+            if (btn) btn.disabled = false;
+            citizenSaveFailed(res.conflict || res.rejected, id, mode);
+            return;
+        }
         delete cardState[key];
-        showToast(out.log_error ? 'Saved; research log failed: ' + (out.log_error.message || out.log_error)
-                  : `${mode === 'reviewed' ? 'Review updated' : 'Saved'} · ${VERDICT_TEXT[out.comparison.verdict]}`);
+        if (res.ok) {
+            const out = res.data || {};
+            patch.reviewed_at = out.reviewed_at || patch.reviewed_at;
+            if (!res.keep) HELD.delete(key);
+            showToast(`${mode === 'reviewed' ? 'Review updated' : 'Saved'}`
+                      + (out.comparison ? ` · ${VERDICT_TEXT[out.comparison.verdict]}` : ''));
+        } else {
+            showToast('Saved in this browser. The server did not answer, so it is sent again automatically.');
+        }
     } else {
         try {
             const r = await fetch(
@@ -1547,7 +1682,9 @@ async function skipCard(id) {
 // ============================================================
 let retrainInterval = null;
 
+const RETRAIN_ENABLED = false;          // switched off for now (owner, 2026-11-06); the button is disabled
 async function startRetrain() {
+    if (!RETRAIN_ENABLED) { showToast('Retraining is switched off for now.'); return; }
     if (!correctionsMade) { showToast('No corrections to retrain on.'); return; }
     const btn = document.getElementById('retrainBtn');
     btn.disabled = true; btn.textContent = 'Retraining...';
@@ -1711,6 +1848,8 @@ async function heartbeat() {
         } catch (e) { console.warn('heartbeat:', e); }
     }
     refreshPresence();
+    Outbox.flush(false);
+    if (reviewerName) loadLeaderboard();
 }
 // A lease ran out while the page slept and another expert took the item.
 function lostItem(source, id) {
@@ -1754,10 +1893,18 @@ async function refreshPresence() {
 }
 
 function releaseAllBeacon() {
-    if (!SERVER || !HELD.size) return;
+    if (!SERVER) return;
+    Outbox.sendKeepalive();                            // waiting saves: the browser delivers them
+    if (!HELD.size) return;
+    // Items whose save is still waiting keep their lease (it runs out by itself in 10 minutes),
+    // so nobody else is handed them before the save arrives.
+    const keep = Outbox.keysForSession(SESSION);
+    const items = [...HELD.entries()].filter(([k]) => !keep.has(k)).map(([, v]) => v);
+    const body = keep.size ? { session: SESSION, items: items.slice(0, 200) } : { session: SESSION };
     try {
-        navigator.sendBeacon(api('/expert-api/claims/release'),
-                             new Blob([JSON.stringify({ session: SESSION })], { type: 'text/plain' }));
+        if (!keep.size || items.length)
+            navigator.sendBeacon(api('/expert-api/claims/release'),
+                                 new Blob([JSON.stringify(body)], { type: 'text/plain' }));
     } catch {}
     HELD.clear();
 }
@@ -2269,25 +2416,35 @@ async function saveVideo(id) {
     const it = V.items.find(x => x.segment_id === id);
     const btn = document.getElementById('vsave-' + id);
     if (btn) btn.disabled = true;
-    let out;
-    try {
-        out = await postJSON(`/expert-api/video/review/${encodeURIComponent(id)}`, {
-            session: SESSION, reviewer_name: reviewerName, types, severity: isNormal ? 'None' : severity, notes,
-            queue: V.queue, seen_reviewed_at: it ? (it.reviewed_at || null) : null,
-            heatmap: heatPayload(key), ui: uiFacts(key)
-        });
-    } catch (e) {
+    if (Outbox.pendingFor('video', id)) {
         if (btn) btn.disabled = false;
-        videoSaveFailed(e, id);
+        showToast('Your earlier save of this segment is still being sent; it retries automatically.');
         return;
     }
-    HELD.delete(key);                                  // the server released the lease with the save
-    lastVerdict[id] = out.comparison;
+    const sevSent = isNormal ? 'None' : severity;
+    const entry = Outbox.make('video', id, `/expert-api/video/review/${encodeURIComponent(id)}`, {
+        session: SESSION, reviewer_name: reviewerName, types, severity: sevSent, notes,
+        queue: V.queue, seen_reviewed_at: it ? (it.reviewed_at || null) : null,
+        heatmap: heatPayload(key), ui: uiFacts(key)
+    });
+    const res = await Outbox.submit(entry);
+    if (res.conflict || res.rejected) {
+        if (btn) btn.disabled = false;
+        videoSaveFailed(res.conflict || res.rejected, id);
+        return;
+    }
+    const queued = !res.ok;
+    const out = res.ok ? (res.data || {}) : { action: it && it.expert_reviewed ? 'update' : 'confirm',
+                                              expert_types: types, expert_severity: sevSent, reviewed_at: null };
+    if (!queued) HELD.delete(key);                     // the server released the lease with the save
+    if (out.comparison) lastVerdict[id] = out.comparison;
     delete cardState[key];
-    showToast(`${out.action === 'update' ? 'Review updated' : 'Saved'} · ${VERDICT_TEXT[out.comparison.verdict]}`);
+    showToast(queued ? 'Saved in this browser. The server did not answer, so it is sent again automatically.'
+              : `${out.action === 'update' ? 'Review updated' : 'Saved'}`
+                + (out.comparison ? ` · ${VERDICT_TEXT[out.comparison.verdict]}` : ''));
     if (it) Object.assign(it, { expert_reviewed: true, expert_corrected_types: out.expert_types,
         expert_corrected_severity: out.expert_severity, expert_notes: notes, reviewer_name: reviewerName,
-        reviewed_at: out.reviewed_at });
+        reviewed_at: out.reviewed_at || it.reviewed_at });
     if (V.queue === 'reviewed') {
         const card = document.getElementById('vcard-' + id);
         if (card && it) { card.outerHTML = videoCardHTML(it); observeCardImages(document.getElementById('videoGrid')); }
@@ -2478,13 +2635,27 @@ function renderMetrics() {
     </div>`;
 }
 
+// Served by the GeoAI server (http/https, or ?api=): always server mode, even when the server is
+// briefly unreachable at load (it is retried in the background; leases and queued saves wait for
+// it). Only a page opened as a file with no server answering works alone (single-reviewer mode).
+const SERVED_BY_SERVER = location.protocol === 'http:' || location.protocol === 'https:'
+    || new URLSearchParams(location.search).has('api');
+let metaRetry = null;
 async function loadMeta() {
     try {
         const m = await getJSON('/expert-api/meta');
         META = { ...META, ...m };
         SERVER = true;                 // several experts: leases and server-side saves
+        return true;
     } catch (e) {
-        console.warn('meta:', e);   // file:// without a server: Pending / Reviewed still work
+        console.warn('meta:', e);
+        if (!SERVED_BY_SERVER) return false;   // file:// without a server: Pending / Reviewed still work
+        SERVER = true;
+        clearTimeout(metaRetry);
+        metaRetry = setTimeout(async () => {
+            if (await loadMeta() && reviewerName) { loadAll(); Outbox.flush(true); }
+        }, 5000);
+        return false;
     }
 }
 
@@ -2760,7 +2931,7 @@ function closeLightbox() {
 // open the Video tab (opening it would hold drive segments for this browser tab).
 // ============================================================
 const Tour = (() => {
-    const SEEN_KEY = 'expert_tour_v1:';
+    const SEEN_KEY = 'expert_tour_v2';
     const seenHere = new Set();          // fallback when localStorage is blocked
     let STEPS = [];
     let i = 0, active = false, trying = false, prevTab = 'pending', raf = 0, timers = [];
@@ -2793,15 +2964,14 @@ const Tour = (() => {
                  data: { grid: [rows, cols], map, peak: [pr, pc], p_yes: 0.71 }, error: null, show: true, n: Date.now() };
     }
 
-    // ---- seen state, per reviewer name on this device ----
-    const nameKey = n => SEEN_KEY + String(n || '').trim().toLowerCase();
-    function seen(n) {
-        if (seenHere.has(nameKey(n))) return true;
-        try { return localStorage.getItem(nameKey(n)) === '1'; } catch { return false; }
+    // ---- seen state: once per device (the real-name screen follows the tour) ----
+    function seen() {
+        if (seenHere.has(SEEN_KEY)) return true;
+        try { return localStorage.getItem(SEEN_KEY) === '1'; } catch { return false; }
     }
     function markSeen() {
-        seenHere.add(nameKey(reviewerName));
-        try { localStorage.setItem(nameKey(reviewerName), '1'); } catch {}
+        seenHere.add(SEEN_KEY);
+        try { localStorage.setItem(SEEN_KEY, '1'); } catch {}
     }
 
     // ---- the example card ----
@@ -2899,8 +3069,9 @@ const Tour = (() => {
               html: `<p>An AI looks at photos of Bengaluru roads and names the damage it sees. On this page you check its answers. Your reviews show how often the AI is right and are used to improve it.</p>
                      <p>This short tour shows every part of the page. It takes about two minutes, and you can replay it any time.</p>`,
               next: 'Start the tour' },
-            { target: () => $('#authArea'), title: 'Your name',
-              html: `<p>Every review you save is stored with this name.</p><p>If someone else uses this computer, they press <b>Change name</b> first.</p>` },
+            { target: () => reviewerName ? $('#authArea') : null, title: 'Your real name',
+              html: `<p>Right after this tour you enter your <b>real full name</b>. Every review you save is stored with it, and the experts are <b>named in the acknowledgements of the research paper</b>, so please never use a fake name.</p>
+                     <p>It then shows at the top right. If someone else uses this computer, they press <b>Change name</b> first.</p>` },
             { target: () => $('#tabs'), title: 'Four tabs',
               html: `<ul><li><b>Pending</b>: citizen photos waiting for a review</li><li><b>Reviewed</b>: photos already reviewed, which you can still correct</li>
                      <li><b>Video</b>: frames from the survey car&rsquo;s drives</li><li><b>Metrics</b>: how often the AI agreed with the experts</li></ul>
@@ -2913,6 +3084,9 @@ const Tour = (() => {
                    <p>When you confirm or skip one, the next photo takes its place. This line shows who else is reviewing right now.</p>`
                 : `<p>This page was opened as a file, so it <b>cannot keep experts apart</b>: two people could review the same photo.</p>
                    <p>When several experts work at once, open the page from the server link (<b>/expert/</b>) instead.</p>` },
+            { target: () => $('#teamBoard'), before: onPending(AI_TYPES), title: 'Your progress and the team&rsquo;s',
+              html: `<p>How many photos <b>you</b> have reviewed today and in all, your next milestone, and how many each expert has reviewed. Every confirmed review counts once.</p>
+                     <p>Every expert is credited by name in the research paper.</p>` },
             { target: () => $('#tourCard'), before: onPending(AI_TYPES), title: 'Each card is one photo', block: 'start',
               html: `<p>This is an <b>example card</b>, so nothing you see here is saved.</p>
                      <ul><li>At the top is the <b>photo</b></li><li>In the middle is <b>what the AI said</b></li><li>At the bottom is <b>your answer</b></li></ul>` },
@@ -2941,7 +3115,7 @@ const Tour = (() => {
             { target: () => $('#tourCard .card-actions'), before: onPending(EXPERT_TYPES), title: 'Confirm or Skip',
               html: `<p><b>Confirm</b> saves your review under your name. A short message then tells you whether the AI was <b>right</b>, <b>close</b> or <b>wrong</b>.</p>
                      <p><b>Skip</b> passes the photo to another expert. Use it only when you can&rsquo;t judge the photo.</p>
-                     <p>Either way the card leaves your list and a new photo takes its place.</p>` },
+                     <p>Either way the card leaves your list and a new photo takes its place. If the internet drops, your review waits safely in this browser and is sent automatically.</p>` },
             { target: () => tab('reviewed'), before: () => switchTab('reviewed'), title: 'Reviewed: correct earlier reviews',
               html: `<p>Every saved review is here, with who reviewed it and when. To change one, edit the card and press <b>Update Review</b>.</p>
                      <p>If another expert has the same item open, the card says so and saving waits until they have finished.</p>` },
@@ -2955,12 +3129,13 @@ const Tour = (() => {
             { target: () => [tab('metrics'), $('#panelMetrics .toolbar')], before: () => switchTab('metrics'), title: 'Metrics: how the AI is doing',
               html: `<p>Your reviews compared with the AI&rsquo;s answers: how often it was right, close or wrong, by distress type, and for each list.</p>
                      <p>Pick what to include from the drop-down. <b>Sampled from Video: random audit</b> is the fair measure of the AI overall.</p>` },
-            { target: () => $('.retrain-bar'), before: () => switchTab('pending'), title: 'The bar at the bottom',
-              html: `<p>It counts the corrections you made during this visit.</p><p>The <b>project team</b> starts retraining, so you don&rsquo;t need to press <b>Retrain Model</b>.</p>` },
+            { target: () => $('#bottomBar'), before: () => switchTab('pending'), title: 'The bar at the bottom: is everything saved?',
+              html: `<p>A <b style="color:var(--green)">green</b> dot means all your reviews are saved. If the internet or the server drops, the dot turns <b style="color:var(--amber)">amber</b>: your reviews wait here and are sent automatically. Keep the page open until it is green again.</p>
+                     <p>It also counts the reviews you saved during this visit. Retraining the model is <b>switched off</b> for now.</p>` },
             { target: () => $('#tourHelp'), before: () => switchTab('pending'), title: 'You&rsquo;re ready',
               art: `<div class="tour-flow"><div><span>1</span>Open the photo</div><div><span>2</span>Fix the types and severity</div><div><span>3</span>Confirm</div></div>`,
-              html: `<p>That is everything. Start with the <b>Pending</b> tab.</p><p>You can replay this tour at any time with <b>? Tour</b> at the top right.</p>`,
-              next: 'Start reviewing' },
+              html: `<p>That is everything. Next, enter your <b>real full name</b>, then start with the <b>Pending</b> tab.</p><p>You can replay this tour at any time with <b>? Tour</b> at the top right.</p>`,
+              next: 'Enter my name' },
         ];
     }
 
@@ -3143,7 +3318,6 @@ const Tour = (() => {
 
     function start() {
         if (active) return;
-        if (!reviewerName) { showNamePrompt(); return; }        // the name prompt comes first
         build();
         if (LB.open) closeLightbox();
         prevTab = activeTab;
@@ -3170,16 +3344,381 @@ const Tour = (() => {
         markSeen();
         if (activeTab !== prevTab) switchTab(prevTab);
         window.scrollTo({ top: 0 });
-        showToast(how === 'skip' ? 'Tour skipped. Replay it any time with "? Tour" at the top right.'
-                                 : 'Happy reviewing! "? Tour" at the top right replays the tour.');
+        showNamePrompt();                              // finished or skipped: the real name comes next
     }
-    function maybeAutoStart() {
-        if (active || !reviewerName || seen(reviewerName)) return;
-        if (document.getElementById('nameOverlay').style.display === 'flex') return;
-        start();
-    }
-    return { start, end, maybeAutoStart, onLightboxClosed, get active() { return active; }, get step() { return i; } };
+    return { start, end, seen, onLightboxClosed, get active() { return active; }, get step() { return i; } };
 })();
+
+// ============================================================
+// SAVES THAT CANNOT GET LOST (server mode)
+// ============================================================
+// Every save is first written to this browser's queue (localStorage) with a random op_id and
+// only then sent. It leaves the queue when the server confirms it, or refuses it for a reason a
+// retry cannot fix (another expert's newer review, bad input). A save that fails on the way (no
+// network, the server restarting, Supabase or the database down) is retried automatically with
+// back-off, also after a reload or in another tab, and the server answers a save that arrives
+// twice with the first result (op_id, migration 008), so nothing is saved twice or lost.
+// While a save waits, this tab keeps the item's lease, so no other expert is handed it.
+// Anything that did not go to plan is reported to /expert-api/events (research.expert_events).
+const Outbox = (() => {
+    const KEY = 'expert_outbox_v1', EV_KEY = 'expert_events_v1';
+    const BACKOFF_S = [2, 4, 8, 15, 30, 60];
+    const IN_FLIGHT_MS = 30_000;                 // a save being sent now: the background flush waits
+    const MAX_AGE_MS = 7 * 24 * 3600 * 1000;
+    const TIMEOUT_MS = 20_000;
+    let mem = [], evMem = [], timer = null, running = false, evBusy = false, failTimer = null;
+
+    const read = (k, fallback) => {
+        try { const v = JSON.parse(localStorage.getItem(k) || '[]'); return Array.isArray(v) ? v : []; }
+        catch { return fallback; }
+    };
+    const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } };
+    const list = () => read(KEY, mem);
+    function store(l) { mem = l; write(KEY, l); render(); }
+    // one writer at a time across this browser's tabs (Web Locks), so no tab overwrites another's queue
+    const withLock = (name, fn, opts) => (navigator.locks && navigator.locks.request)
+        ? (opts ? navigator.locks.request(name, opts, fn) : navigator.locks.request(name, fn)) : fn(true);
+    const upsert = (e) => withLock('expert-outbox', () => store(list().filter(x => x.op_id !== e.op_id).concat([e])));
+    const drop = (id) => withLock('expert-outbox', () => store(list().filter(x => x.op_id !== id)));
+    const newId = () => (window.crypto && crypto.randomUUID) ? crypto.randomUUID().replace(/-/g, '')
+        : Array.from({ length: 32 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+
+    function make(kind, itemId, path, body) {
+        const op_id = newId();
+        return { op_id, kind, item_id: itemId, path, body: { ...body, op_id }, created: Date.now(),
+                 attempts: 0, next_at: 0, last: '', last_status: null };
+    }
+    const pendingFor = (kind, itemId) => list().find(e => e.kind === kind && e.item_id === itemId) || null;
+    const count = () => list().length;
+    function keysForSession(s) {
+        return new Set(list().filter(e => e.body && e.body.session === s).map(e => keyOf(e.kind, e.item_id)));
+    }
+
+    // One HTTP try. ok | ok+keep (saved, research log still to do) | retry | conflict | rejected
+    async function attempt(e) {
+        const ctl = ('AbortController' in window) ? new AbortController() : null;
+        const t = ctl ? setTimeout(() => ctl.abort(), TIMEOUT_MS) : null;
+        try {
+            const r = await fetch(api(e.path), { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                                 body: JSON.stringify(e.body), signal: ctl ? ctl.signal : undefined });
+            let data = null;
+            try { data = await r.json(); } catch {}
+            if (r.ok) {
+                if (data && data.log_error) return { ok: true, keep: true, data, status: r.status,
+                    message: 'saved in Supabase; research log still to write' };
+                return { ok: true, data };
+            }
+            const err = apiError(r, data);
+            if (r.status === 409) return { conflict: err };
+            if (r.status === 408 || r.status === 429 || r.status >= 500) return { retry: true, status: r.status, message: err.message };
+            return { rejected: err };
+        } catch (x) {
+            return { retry: true, status: 0, message: x && x.name === 'AbortError' ? 'no answer within 20 s' : 'network error' };
+        } finally { if (t) clearTimeout(t); }
+    }
+
+    async function settle(e, res, foreground) {
+        const key = keyOf(e.kind, e.item_id);
+        const mine = e.body && e.body.session === SESSION;
+        if (res.ok && !res.keep) {
+            await drop(e.op_id);
+            if (e.attempts > 0) event('save_recovered', e, { level: 'info', attempts: e.attempts + 1 });
+            if (mine) HELD.delete(key);
+            if (!foreground) onBackgroundSaved(e, res.data || {});
+            refreshBoardSoon();
+            return res;
+        }
+        if (res.retry || res.keep) {
+            e.attempts += 1;
+            e.last = res.message || '';
+            e.last_status = res.status ?? null;
+            e.next_at = Date.now() + 1000 * BACKOFF_S[Math.min(e.attempts - 1, BACKOFF_S.length - 1)];
+            await upsert(e);
+            if (e.attempts === 1) event('save_retry', e, { http_status: res.status, message: res.message });
+            if (mine) HELD.set(key, { source: e.kind, item_id: e.item_id });   // keep the lease while it waits
+            schedule();
+            return res;
+        }
+        await drop(e.op_id);                                   // a retry cannot fix these
+        if (mine) HELD.delete(key);
+        const err = res.conflict || res.rejected;
+        event(res.conflict ? 'save_conflict' : 'save_rejected', e,
+              { level: res.conflict ? 'warn' : 'error', http_status: err.status, message: err.message });
+        if (!foreground) onBackgroundFailed(e, res);
+        return res;
+    }
+
+    async function submit(e) {
+        e.next_at = Date.now() + IN_FLIGHT_MS;
+        await upsert(e);
+        const res = await attempt(e);
+        return settle(e, res, true);
+    }
+
+    async function flush(force) {
+        if (!SERVER || running) return;
+        running = true;
+        try {
+            await withLock('expert-outbox-flush', async (lock) => {
+                if (!lock) return;                             // another tab is flushing
+                const now = Date.now();
+                for (const e of list()) {
+                    if (now - e.created > MAX_AGE_MS) {
+                        await drop(e.op_id);
+                        event('save_dropped', e, { level: 'error', message: 'gave up after 7 days' });
+                        failure(`A review saved ${new Date(e.created).toLocaleDateString('en-IN')} could not be sent for 7 days and was dropped.`);
+                        continue;
+                    }
+                    if (!force && e.next_at > now) continue;
+                    if (force && e.next_at > now && e.attempts === 0 && now - e.created < IN_FLIGHT_MS) continue;
+                    const res = await attempt(e);
+                    await settle(e, res, false);
+                    if (res.retry && res.status === 0) break;  // offline: try the rest later
+                }
+            }, { ifAvailable: true });
+        } finally {
+            running = false;
+            schedule();
+            render();
+        }
+        flushEvents();
+    }
+    function schedule() {
+        clearTimeout(timer);
+        const l = list();
+        if (!l.length) return;
+        const next = Math.min(...l.map(e => e.next_at || 0));
+        timer = setTimeout(() => flush(false), Math.max(500, next - Date.now()));
+    }
+
+    // ---- what the expert sees (bottom bar) ----
+    function render() {
+        const el = document.getElementById('saveStatus'), tx = document.getElementById('saveStatusText');
+        const btn = document.getElementById('saveRetry');
+        if (!el || !tx || el.classList.contains('failed')) return;
+        const l = list();
+        el.classList.toggle('waiting', l.length > 0);
+        if (btn) btn.hidden = !l.length;
+        if (!SERVER) { tx.textContent = 'Saving straight to Supabase (single-reviewer mode).'; return; }
+        if (!l.length) { tx.textContent = 'All your reviews are saved.'; return; }
+        const soon = Math.round((Math.min(...l.map(e => e.next_at || 0)) - Date.now()) / 1000);
+        const offline = navigator.onLine === false;
+        tx.innerHTML = `<strong>${l.length} review${l.length > 1 ? 's' : ''} waiting to save</strong> &middot; `
+            + (offline ? 'you are offline; ' : '') + 'sent automatically'
+            + (soon > 1 && !running ? ` in ${soon} s` : '') + '. Keep this page open.';
+    }
+    function failure(msg) {
+        const el = document.getElementById('saveStatus'), tx = document.getElementById('saveStatusText');
+        if (!el || !tx) return;
+        el.classList.add('failed');
+        el.classList.remove('waiting');
+        tx.textContent = msg;
+        clearTimeout(failTimer);
+        failTimer = setTimeout(() => { el.classList.remove('failed'); render(); }, 15_000);
+    }
+
+    // ---- events ----
+    function event(kind, e, extra = {}) {
+        const ev = { kind, level: extra.level || 'warn', op_id: e ? e.op_id : null, source: e ? e.kind : null,
+                     item_id: e ? e.item_id : null,
+                     reviewer_name: (e && e.body && e.body.reviewer_name) || reviewerName || null, session: SESSION,
+                     attempts: extra.attempts ?? (e ? e.attempts : null), http_status: extra.http_status ?? null,
+                     message: extra.message ? String(extra.message).slice(0, 400) : null };
+        const q = read(EV_KEY, evMem).concat([ev]).slice(-50);
+        evMem = q;
+        write(EV_KEY, q);
+        flushEvents();
+    }
+    async function flushEvents() {
+        if (evBusy || !SERVER) return;
+        const q = read(EV_KEY, evMem);
+        if (!q.length) return;
+        evBusy = true;
+        try {
+            const batch = q.slice(0, 20);
+            const r = await fetch(api('/expert-api/events'), { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                                               body: JSON.stringify({ events: batch }) });
+            if (r.ok || r.status === 400) {                    // 400: malformed, never accepted, so drop it
+                const ids = new Set(batch.map(b => JSON.stringify(b)));
+                const rest = read(EV_KEY, evMem).filter(b => !ids.has(JSON.stringify(b)));
+                evMem = rest;
+                write(EV_KEY, rest);
+            }
+        } catch {} finally { evBusy = false; }
+    }
+
+    // On unload: hand every waiting save to the browser to deliver (keepalive); the queue keeps it
+    // until a later load hears the server confirm it.
+    function sendKeepalive() {
+        if (!SERVER) return;
+        for (const e of list()) {
+            try { fetch(api(e.path), { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                       body: JSON.stringify(e.body), keepalive: true }).catch(() => {}); } catch {}
+        }
+    }
+
+    function init() {
+        render();
+        if (!SERVER) return;
+        const l = list();
+        for (const e of l) if (e.body && e.body.session === SESSION) HELD.set(keyOf(e.kind, e.item_id), { source: e.kind, item_id: e.item_id });
+        if (l.length) {
+            event('save_queued_on_load', null, { level: 'info', message: `${l.length} save(s) waiting from an earlier visit` });
+            setTimeout(() => flush(true), 300);
+        }
+        flushEvents();
+        setInterval(() => { if (list().length) render(); }, 1000);
+        window.addEventListener('online', () => flush(true));
+        document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') flush(false); });
+        window.addEventListener('storage', (ev) => { if (ev.key === KEY) { render(); schedule(); } });
+    }
+
+    return { make, submit, flush, pendingFor, count, keysForSession, sendKeepalive, init, event, render, failure };
+})();
+
+// A save that was waiting has now reached the server: keep this page's copies in step (an edit
+// after this one must send the new reviewed_at).
+function onBackgroundSaved(e, data) {
+    if (e.kind === 'citizen') {
+        const a = reviewedAssessments.find(x => x.id === e.item_id);
+        if (a && data.reviewed_at) a.reviewed_at = data.reviewed_at;
+        cacheInvalidate('reviewed');
+    } else {
+        const it = V.items.find(x => x.segment_id === e.item_id);
+        if (it && data.reviewed_at) it.reviewed_at = data.reviewed_at;
+        if (data.comparison) lastVerdict[e.item_id] = data.comparison;
+    }
+    showToast('A review that was waiting is now saved'
+              + (data.comparison ? ` · ${VERDICT_TEXT[data.comparison.verdict]}` : '') + '.');
+}
+// A waiting save was refused (another expert's newer review, or bad input): say so and reload.
+function onBackgroundFailed(e, res) {
+    const err = res.conflict || res.rejected;
+    const msg = res.conflict ? 'A waiting review was not saved: ' + conflictText(err)
+                             : 'A waiting review was refused by the server: ' + err.message;
+    showToast(msg);
+    Outbox.failure(msg);
+    cacheInvalidate('pending');
+    cacheInvalidate('reviewed');
+    if (e.kind === 'citizen') { if (reviewerName) loadPending(); loadReviewed(); }
+    else if (V.loaded) loadVideo();
+}
+
+// Page errors are reported too (at most 5 per visit), so a broken button does not go unnoticed.
+let CLIENT_ERRORS = 0;
+window.addEventListener('error', (ev) => {
+    if (CLIENT_ERRORS++ < 5) Outbox.event('client_error', null, { level: 'error',
+        message: `${ev.message || 'error'} @ ${(ev.filename || '').split('/').pop()}:${ev.lineno || 0}` });
+});
+window.addEventListener('unhandledrejection', (ev) => {
+    if (CLIENT_ERRORS++ < 5) Outbox.event('client_error', null, { level: 'error',
+        message: 'unhandled: ' + String((ev.reason && ev.reason.message) || ev.reason) });
+});
+window.addEventListener('beforeunload', (ev) => {
+    if (SERVER && Outbox.count()) { ev.preventDefault(); ev.returnValue = ''; }   // "Leave site?" while saves wait
+});
+
+// The fixed bottom bar can grow to two lines; the page leaves room for it (nothing hides under it).
+(function watchBottomBar() {
+    const bar = document.getElementById('bottomBar');
+    if (!bar) return;
+    const set = () => document.documentElement.style.setProperty('--bar-h', bar.offsetHeight + 'px');
+    set();
+    if ('ResizeObserver' in window) new ResizeObserver(set).observe(bar); else window.addEventListener('resize', set);
+})();
+
+// ============================================================
+// REAL NAMES (stored with every review; credited in the paper's acknowledgements)
+// ============================================================
+const PLACEHOLDER_NAMES = new Set(['test', 'tester', 'testing', 'test user', 'testuser', 'user', 'expert', 'admin',
+    'administrator', 'reviewer', 'name', 'my name', 'your name', 'full name', 'first last', 'abc', 'abcd', 'abcde', 'asdf',
+    'qwerty', 'xyz', 'anonymous', 'anon', 'guest', 'none', 'na', 'nil', 'null', 'demo', 'sample', 'example', 'unknown',
+    'someone', 'somebody', 'me', 'myself', 'no name', 'nobody', 'fake', 'fake name', 'john doe', 'jane doe', 'foo', 'bar',
+    'foo bar', 'hello', 'hi', 'ok', 'temp', 'student', 'engineer', 'tour tester', 'harness a', 'harness b']);
+function cleanName(raw) { return String(raw || '').normalize('NFC').replace(/\s+/g, ' ').trim(); }
+// '' if it can be a real name, else what is wrong with it (a name cannot be proven real; this
+// stops slips and placeholders, and the expert confirms the rest).
+function realNameProblem(raw) {
+    const v = cleanName(raw);
+    const letters = v.replace(/[^\p{L}]/gu, '');
+    if (letters.length < 3) return 'Please enter your full name (at least 3 letters).';
+    if (v.length > 60) return 'That name is too long (60 characters at most).';
+    if (/\d/.test(v)) return 'A name cannot contain digits.';
+    if (!/^[\p{L}\p{M}][\p{L}\p{M} .'’-]*$/u.test(v)) return 'Use letters only (spaces, dots, hyphens and apostrophes are fine).';
+    if (/^(.)\1+$/u.test(letters.toLowerCase())) return 'Please enter your real name.';
+    const key = v.toLowerCase().replace(/[.'’-]/g, ' ').replace(/\s+/g, ' ').trim();
+    if (PLACEHOLDER_NAMES.has(key) || PLACEHOLDER_NAMES.has(key.replace(/ /g, '')))
+        return 'That looks like a placeholder, not a real name. Please enter your real full name.';
+    return '';
+}
+
+// Before a name is entered (during the tour): counts only, no items are held for anyone.
+const PENDING_URL = `${SUPABASE_URL}/rest/v1/assessments`
+    + `?needs_expert_review=eq.true&expert_reviewed=eq.false&order=created_at.desc`
+    + `&select=id,image_url,status,created_at,processed_at,stage1_confidence,distress_types,severity,description,stage2_confidence,needs_expert_review,expert_reviewed,expert_corrected_types,expert_corrected_severity,expert_notes,reviewed_at,reviewer_name`;
+async function previewLoad() {
+    try {
+        const rows = await cachedFetch('pending', PENDING_URL, { headers: sbHeaders() });
+        document.getElementById('pendingBadge').textContent = rows.length;
+    } catch {}
+    document.getElementById('pendingHint').textContent = 'Your photos appear here once you have entered your name.';
+    loadReviewed();
+    refreshVideoBadge();
+    loadLeaderboard();
+    refreshPresence();
+}
+
+// ============================================================
+// TEAM PROGRESS: photos reviewed by each expert (GET /expert-api/leaderboard)
+// ============================================================
+let BOARD = null, boardTimer = null;
+const MILESTONES = [10, 25, 50, 100, 200, 300, 500, 750, 1000, 1500, 2000, 3000, 5000, 7500, 10000];
+const boardKey = (n) => cleanName(n).toLowerCase();
+async function loadLeaderboard() {
+    const el = document.getElementById('teamBoard');
+    if (!SERVER) { el.hidden = true; return; }
+    try { BOARD = await getJSON('/expert-api/leaderboard'); }
+    catch (e) { console.warn('leaderboard:', e); return; }
+    renderLeaderboard();
+}
+function refreshBoardSoon() { clearTimeout(boardTimer); boardTimer = setTimeout(loadLeaderboard, 600); }
+function renderLeaderboard() {
+    const el = document.getElementById('teamBoard');
+    if (!BOARD) return;
+    const ex = BOARD.experts || [];
+    const me = reviewerName ? ex.find(x => x.key === boardKey(reviewerName)) : null;
+    const total = me ? me.total : 0, today = me ? me.today : 0;
+    const rank = me ? ex.indexOf(me) + 1 : 0;
+    const goal = MILESTONES.find(m => m > total) || (Math.floor(total / 5000) + 1) * 5000;
+    const prev = [0, ...MILESTONES].filter(m => m <= total).pop() || 0;
+    const pctGoal = Math.max(0, Math.min(100, Math.round((total - prev) / Math.max(1, goal - prev) * 100)));
+    const max = Math.max(1, ...ex.map(x => x.total));
+    const top = ex.slice(0, 5);
+    if (me && !top.includes(me)) top.push(me);
+    const cheer = !reviewerName ? 'Enter your name to start counting.'
+        : total === 0 ? 'Your first review starts your count.'
+        : today === 0 ? 'Welcome back! Let’s add some today.'
+        : rank === 1 && ex.length > 1 ? 'You are leading the team. Keep it up!' : 'Nice work. Every review makes the model better.';
+    el.innerHTML = `
+        <div class="tb-me">
+            <div class="tb-label">Your reviews</div>
+            <div class="tb-big">${today} <small>today</small></div>
+            <div class="tb-sub">${total} in all${rank ? ` &middot; #${rank} of ${ex.length}` : ''} &middot; ${goal - total} more to reach ${goal}</div>
+            <div class="tb-goal" title="${total} of ${goal}"><div style="width:${pctGoal}%"></div></div>
+            <div class="tb-sub">${cheer}</div>
+        </div>
+        <div class="tb-list">
+            <div class="tb-label">Photos reviewed by each expert</div>
+            ${top.length ? top.map(x => `<div class="tb-row${x === me ? ' me' : ''}">
+                <span class="rk">${ex.indexOf(x) + 1}</span>
+                <span class="nm" title="${escapeAttr(x.name)}">${escapeHtml(x.name)}${x === me ? ' <span class="you">(you)</span>' : ''}</span>
+                <span class="bar"><div style="width:${Math.max(3, Math.round(x.total / max * 100))}%"></div></span>
+                <span class="ct"><b>${x.total}</b> &middot; ${x.today} today</span></div>`).join('')
+              : '<div class="tb-empty">No reviews yet. Yours will be the first!</div>'}
+            <div class="tb-team">Team: ${BOARD.team_total} reviewed in all, ${BOARD.team_today} today. Every expert is credited by name in the research paper.</div>
+        </div>`;
+    el.hidden = false;
+}
 
 // ============================================================
 // INIT

@@ -74,6 +74,19 @@ if ($h) {
     if (-not $v) { INFO "video pipeline status unavailable" }
     elseif ($v.enabled) { OK "video pipeline enabled (running=$($v.running), busy=$($v.busy)); counts: $(($v.counts | ConvertTo-Json -Compress))" }
     else { BAD "video pipeline disabled - POST /operator/video/enable with the API key" }
+
+    # Expert saves (migration 008): problems the expert page or the server recorded in the last 24 h
+    $ev = Get-Json '/expert-api/events/summary?hours=24&recent=3'
+    if (-not $ev) { INFO "expert save events unavailable (server older than migration 008?)" }
+    else {
+        $c = $ev.counts
+        $bad = @('save_conflict', 'save_rejected', 'save_dropped', 'server_save_error', 'supabase_error', 'db_unavailable', 'client_error') |
+               Where-Object { $c.$_ } | ForEach-Object { "$_=$($c.$_)" }
+        $note = "retried=$([int]$c.save_retry), recovered=$([int]$c.save_recovered), still retrying=$($ev.retrying_not_yet_saved)"
+        if ($ev.retrying_not_yet_saved -gt 0) { BAD "expert saves waiting in a browser: $note - see GET /expert-api/events/summary" }
+        elseif ($bad) { INFO "expert save events (24 h): $($bad -join ', '); $note - details: GET /expert-api/events/summary, eval_results\expert_events.log" }
+        else { OK "expert saves: no problems in 24 h ($note)" }
+    }
 }
 
 Write-Host ""

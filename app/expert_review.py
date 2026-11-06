@@ -53,6 +53,18 @@ from app.gis_core import DISTRESS_LABELS
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 MIGRATION = PROJECT_ROOT / "migrations" / "006_expert_review_log.sql"
+MIGRATION_EVENTS = PROJECT_ROOT / "migrations" / "008_review_idempotency_events.sql"
+_OP_RE = re.compile(r"^[A-Za-z0-9_-]{16,64}$")
+
+
+def clean_op_id(v) -> Optional[str]:
+    """The page's id for one save (None from pages older than migration 008)."""
+    if v is None or v == "":
+        return None
+    s = str(v).strip()
+    if not _OP_RE.match(s):
+        raise ReviewError("op_id must be 16-64 letters, digits, '-' or '_'")
+    return s
 
 NORMAL = "Normal"
 IRC_TYPES: tuple[str, ...] = DISTRESS_LABELS            # the 18 vision-only IRC:82 types
@@ -252,9 +264,14 @@ def ensure_schema(conn) -> None:
     with _schema_lock:
         if _schema_ready:
             return
+        from scripts.setup_local_db import statements_without_outer_transaction
         if conn.execute("SELECT to_regclass('research.expert_review_log')").fetchone()[0] is None:
-            from scripts.setup_local_db import statements_without_outer_transaction
             body = statements_without_outer_transaction(MIGRATION.read_text(encoding="utf-8-sig"))
+            with conn.transaction():
+                conn.execute(body)
+        # migration 008 (op_id + research.expert_events); its statements are all IF NOT EXISTS
+        if conn.execute("SELECT to_regclass('research.expert_events')").fetchone()[0] is None:
+            body = statements_without_outer_transaction(MIGRATION_EVENTS.read_text(encoding="utf-8-sig"))
             with conn.transaction():
                 conn.execute(body)
         _schema_ready = True
@@ -335,15 +352,35 @@ def video_sessions(conn) -> list[dict]:
     return [{**r, "start_utc": r["start_utc"].isoformat() if r["start_utc"] else None} for r in rows]
 
 
-def _insert_log(conn, *, source, assessment_id, segment_id, session_id, review, vlm, action) -> dict:
+def _logged(conn, op_id: Optional[str]) -> Optional[dict]:
+    """The log row an earlier arrival of the same save wrote, or None."""
+    if not op_id:
+        return None
+    return conn.cursor(row_factory=dict_row).execute(
+        "SELECT id, created_at, source, assessment_id, segment_id, action, expert_types, expert_severity, "
+        "comparison FROM research.expert_review_log WHERE op_id = %s", (op_id,)).fetchone()
+
+
+def _replay(prev: Mapping) -> dict:
+    return {"log_id": prev["id"], "logged_at": prev["created_at"].isoformat(), "comparison": prev["comparison"],
+            "replayed": True}
+
+
+def _insert_log(conn, *, source, assessment_id, segment_id, session_id, review, vlm, action,
+                op_id: Optional[str] = None) -> dict:
+    """Append one log row. With an op_id the insert is idempotent: a second arrival of the same
+    save returns the first one's row (replayed=True) instead of logging the review twice."""
     cmp = compare(vlm, review["types"], review["severity"])
     row = conn.cursor(row_factory=dict_row).execute(
         "INSERT INTO research.expert_review_log (source, assessment_id, segment_id, session_id, queue, action, "
-        "reviewer_name, vlm, expert_types, expert_severity, expert_notes, comparison, heatmap, ui) "
-        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING id, created_at",
+        "reviewer_name, vlm, expert_types, expert_severity, expert_notes, comparison, heatmap, ui, op_id) "
+        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+        "ON CONFLICT (op_id) WHERE op_id IS NOT NULL DO NOTHING RETURNING id, created_at",
         (source, assessment_id, segment_id, session_id, review["queue"], action, review["reviewer_name"],
          Jsonb(vlm), Jsonb(review["types"]), review["severity"], review["notes"], Jsonb(cmp),
-         Jsonb(review["heatmap"]), Jsonb(review["ui"]))).fetchone()
+         Jsonb(review["heatmap"]), Jsonb(review["ui"]), op_id)).fetchone()
+    if row is None:                                   # same op_id already logged
+        return _replay(_logged(conn, op_id))
     return {"log_id": row["id"], "logged_at": row["created_at"].isoformat(), "comparison": cmp}
 
 
@@ -380,14 +417,19 @@ def log_citizen_review(conn, assessment_id: str, payload: Mapping, row: Mapping)
     the model's fields are never changed by a review)."""
     ensure_schema(conn)
     review = clean_review(payload, source="citizen", strict_types=False)
+    op_id = clean_op_id(payload.get("op_id"))
     vlm = vlm_snapshot(row)
     vlm["needs_expert_review"] = row.get("status") == "expert_review"   # the page clears the flag on save
-    prior = conn.execute("SELECT 1 FROM research.expert_review_log WHERE source = 'citizen' AND assessment_id = %s "
-                         "LIMIT 1", (assessment_id,)).fetchone()
     with conn.transaction():
+        prev = _logged(conn, op_id)
+        if prev is not None:
+            return {"assessment_id": assessment_id, "action": prev["action"], **_replay(prev)}
+        prior = conn.execute("SELECT 1 FROM research.expert_review_log WHERE source = 'citizen' "
+                             "AND assessment_id = %s LIMIT 1", (assessment_id,)).fetchone()
+        action = "update" if prior else "confirm"
         out = _insert_log(conn, source="citizen", assessment_id=assessment_id, segment_id=None, session_id=None,
-                          review=review, vlm=vlm, action="update" if prior else "confirm")
-    return {"assessment_id": assessment_id, **out}
+                          review=review, vlm=vlm, action=action, op_id=op_id)
+    return {"assessment_id": assessment_id, "action": action, **out}
 
 
 # ============================================================
@@ -948,6 +990,7 @@ def save_video_review_claimed(conn, segment_id: str, payload: Mapping) -> dict:
     ensure_claims_schema(conn)
     review = clean_review(payload, source="video", strict_types=True)
     session = clean_session(payload["session"]) if payload.get("session") else None
+    op_id = clean_op_id(payload.get("op_id"))
     seen = payload.get("seen_reviewed_at")
     if seen is not None and not isinstance(seen, str):
         raise ReviewError("seen_reviewed_at must be an ISO timestamp or null")
@@ -959,6 +1002,19 @@ def save_video_review_claimed(conn, segment_id: str, payload: Mapping) -> dict:
             "ON a.id = v.assessment_id WHERE v.segment_id = %s FOR UPDATE OF a", (segment_id,)).fetchone()
         if row is None:
             raise NotFound(f"no answered segment {segment_id!r}")
+        # The same save arriving again (its answer was lost, or two tabs flushed the queue): the
+        # row lock above orders it after the first arrival, so the first one's log row is visible.
+        prev = _logged(conn, op_id)
+        if prev is not None:
+            if prev["segment_id"] != segment_id:
+                raise ReviewError("op_id was already used for another item")
+            if session:
+                conn.execute("DELETE FROM research.review_claims WHERE source = 'video' AND item_id = %s "
+                             "AND reviewer_session = %s", (segment_id, session))
+            return {"segment_id": segment_id, "action": prev["action"], "expert_types": prev["expert_types"],
+                    "expert_severity": prev["expert_severity"],
+                    "reviewed_at": row["reviewed_at"].isoformat() if row.get("reviewed_at") else None,
+                    **_replay(prev)}
         claim = cur.execute(
             "SELECT reviewer_session, reviewer_name, expires_at > now() AS live FROM research.review_claims "
             "WHERE source = 'video' AND item_id = %s FOR UPDATE", (segment_id,)).fetchone()
@@ -978,7 +1034,7 @@ def save_video_review_claimed(conn, segment_id: str, payload: Mapping) -> dict:
             "WHERE id = %s RETURNING reviewed_at", (Jsonb(review["types"]), review["severity"], review["notes"],
                                                     review["reviewer_name"], row["id"])).fetchone()
         out = _insert_log(conn, source="video", assessment_id=str(row["id"]), segment_id=row["segment_id"],
-                          session_id=row["session_id"], review=review, vlm=vlm, action=action)
+                          session_id=row["session_id"], review=review, vlm=vlm, action=action, op_id=op_id)
         conn.execute("DELETE FROM research.review_claims WHERE source = 'video' AND item_id = %s", (segment_id,))
     return {"segment_id": segment_id, "action": action, "expert_types": review["types"],
             "expert_severity": review["severity"], "reviewed_at": done["reviewed_at"].isoformat(), **out}
@@ -1014,3 +1070,135 @@ def list_video_marked(conn, queue: str, *, me: Optional[str] = None, drive: Opti
                         f"WHERE {w}", params).fetchone()["n"]
     return {"queue": queue, "total": total, "limit": limit, "offset": offset, "counts": _video_counts(cur, drive),
             "items": _iso_rows(rows)}
+
+
+# ============================================================
+# Save events (migration 008): what did not go to plan, from the page and the server
+# ============================================================
+# Every event is also appended to eval_results/expert_events.log (git-ignored), so a problem with
+# the database itself is still recorded. Recording an event never raises.
+
+EVENT_KINDS = {
+    # page (client)
+    "save_retry", "save_recovered", "save_conflict", "save_rejected", "save_dropped", "save_queued_on_load",
+    "client_error",
+    # server
+    "server_save_error", "supabase_error", "db_unavailable", "db_retry",
+}
+EVENT_LEVELS = ("info", "warn", "error")
+EVENTS_LOG = PROJECT_ROOT / "eval_results" / "expert_events.log"
+_events_file_lock = threading.Lock()
+MAX_EVENT_MESSAGE = 500
+
+
+def _event_row(origin: str, e: Mapping) -> dict:
+    kind = str(e.get("kind") or "")
+    if kind not in EVENT_KINDS:
+        raise ReviewError(f"unknown event kind {kind!r}")
+    level = str(e.get("level") or "warn")
+    if level not in EVENT_LEVELS:
+        level = "warn"
+
+    def short(v, n):
+        return None if v is None else str(v)[:n]
+
+    status = e.get("http_status")
+    attempts = e.get("attempts")
+    detail = e.get("detail")
+    if detail is not None and (not isinstance(detail, Mapping) or len(str(detail)) > 2000):
+        detail = {"note": "detail dropped (not an object or over 2000 characters)"}
+    return {"origin": origin, "kind": kind, "level": level, "op_id": short(e.get("op_id"), 64),
+            "source": short(e.get("source"), 10), "item_id": short(e.get("item_id"), 200),
+            "reviewer_name": short(e.get("reviewer_name"), MAX_NAME),
+            "reviewer_session": short(e.get("reviewer_session") or e.get("session"), 64),
+            "http_status": int(status) if isinstance(status, (int, float)) and 0 <= status < 1000 else None,
+            "attempts": int(attempts) if isinstance(attempts, (int, float)) and 0 <= attempts < 10**6 else None,
+            "message": short(e.get("message"), MAX_EVENT_MESSAGE), "detail": detail}
+
+
+def append_event_file(row: Mapping) -> None:
+    """One JSON line per event in eval_results/expert_events.log. Never raises."""
+    import json
+    from datetime import datetime, timezone
+    try:
+        line = json.dumps({"at": datetime.now(timezone.utc).isoformat(), **row}, default=str)
+        with _events_file_lock:
+            EVENTS_LOG.parent.mkdir(parents=True, exist_ok=True)
+            with open(EVENTS_LOG, "a", encoding="utf-8") as f:
+                f.write(line + "\n")
+    except Exception:                                    # noqa: BLE001 - logging must never fail a request
+        pass
+
+
+def record_events(conn, origin: str, events: Iterable[Mapping]) -> int:
+    """Store events (validated, truncated) in the file and the database; returns how many."""
+    rows = [_event_row(origin, e) for e in events]
+    for r in rows:
+        append_event_file(r)
+    return insert_event_rows(conn, rows)
+
+
+def insert_event_rows(conn, rows: list) -> int:
+    """Insert already-validated event rows (from _event_row) into research.expert_events."""
+    if not rows:
+        return 0
+    ensure_schema(conn)
+    with conn.transaction():
+        for r in rows:
+            conn.execute(
+                "INSERT INTO research.expert_events (origin, kind, level, op_id, source, item_id, reviewer_name, "
+                "reviewer_session, http_status, attempts, message, detail) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                (r["origin"], r["kind"], r["level"], r["op_id"], r["source"], r["item_id"], r["reviewer_name"],
+                 r["reviewer_session"], r["http_status"], r["attempts"], r["message"],
+                 Jsonb(r["detail"]) if r["detail"] is not None else None))
+    return len(rows)
+
+
+def events_summary(conn, hours: int = 24, recent: int = 10) -> dict:
+    """Counts per kind over the last `hours`, and the latest events (no review content)."""
+    ensure_schema(conn)
+    hours = max(1, min(24 * 30, int(hours)))
+    cur = conn.cursor(row_factory=dict_row)
+    counts = {r["kind"]: r["n"] for r in cur.execute(
+        "SELECT kind, COUNT(*) AS n FROM research.expert_events "
+        "WHERE created_at > now() - make_interval(hours => %s) GROUP BY kind", (hours,)).fetchall()}
+    last = cur.execute(
+        "SELECT created_at, origin, kind, level, source, item_id, reviewer_name, http_status, attempts, message "
+        "FROM research.expert_events ORDER BY id DESC LIMIT %s", (max(0, min(100, int(recent))),)).fetchall()
+    unresolved = cur.execute(
+        "SELECT COUNT(DISTINCT e.op_id) AS n FROM research.expert_events e WHERE e.kind = 'save_retry' "
+        "AND e.created_at > now() - make_interval(hours => %s) AND e.op_id IS NOT NULL "
+        "AND NOT EXISTS (SELECT 1 FROM research.expert_review_log l WHERE l.op_id = e.op_id) "
+        "AND NOT EXISTS (SELECT 1 FROM research.expert_events f WHERE f.op_id = e.op_id "
+        "AND f.kind IN ('save_conflict', 'save_rejected', 'save_dropped'))", (hours,)).fetchone()["n"]
+    return {"hours": hours, "counts": counts, "retrying_not_yet_saved": unresolved,
+            "problems": sum(n for k, n in counts.items() if k not in ("save_recovered",)),
+            "recent": [{**r, "created_at": r["created_at"].isoformat()} for r in last]}
+
+
+# ============================================================
+# Leaderboard: items each expert has reviewed (from the review log)
+# ============================================================
+
+def leaderboard(conn, tz: str = "Asia/Kolkata") -> dict:
+    """Per expert (names compared ignoring case and repeated spaces): distinct items reviewed, in all
+    and today (by the day of their first review of the item), split by source. An item two experts
+    reviewed counts for both; an update of one's own review does not count again."""
+    ensure_schema(conn)
+    cur = conn.cursor(row_factory=dict_row)
+    rows = cur.execute(
+        "WITH items AS (SELECT lower(regexp_replace(btrim(reviewer_name), '[[:space:]]+', ' ', 'g')) AS who, source, "
+        "COALESCE(segment_id, assessment_id::text) AS item, MIN(created_at) AS first_at, MAX(created_at) AS last_at "
+        "FROM research.expert_review_log GROUP BY 1, 2, 3), "
+        "names AS (SELECT DISTINCT ON (lower(regexp_replace(btrim(reviewer_name), '[[:space:]]+', ' ', 'g'))) lower(regexp_replace(btrim(reviewer_name), '[[:space:]]+', ' ', 'g')) AS who, "
+        "regexp_replace(btrim(reviewer_name), '[[:space:]]+', ' ', 'g') AS name FROM research.expert_review_log ORDER BY lower(regexp_replace(btrim(reviewer_name), '[[:space:]]+', ' ', 'g')), created_at DESC) "
+        "SELECT n.name, i.who, COUNT(*) AS total, COUNT(*) FILTER (WHERE i.source = 'video') AS video, "
+        "COUNT(*) FILTER (WHERE i.source = 'citizen') AS citizen, "
+        "COUNT(*) FILTER (WHERE (i.first_at AT TIME ZONE %s)::date = (now() AT TIME ZONE %s)::date) AS today, "
+        "MAX(i.last_at) AS last_at FROM items i JOIN names n USING (who) GROUP BY n.name, i.who "
+        "ORDER BY total DESC, last_at DESC", (tz, tz)).fetchall()
+    experts = [{"name": r["name"], "key": r["who"], "total": r["total"], "today": r["today"],
+                "video": r["video"], "citizen": r["citizen"], "last_at": r["last_at"].isoformat()} for r in rows]
+    return {"experts": experts, "team_total": sum(e["total"] for e in experts),
+            "team_today": sum(e["today"] for e in experts), "timezone": tz}

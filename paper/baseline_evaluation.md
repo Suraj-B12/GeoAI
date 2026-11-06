@@ -737,7 +737,7 @@ Rows are never edited: an update is a new row, the latest review per item counts
 
 Severity is compared on Low < Medium < High when both see distress. The UI's Metrics tab and `scripts/expert_review_metrics.py` compute the same numbers with Wilson intervals: verdicts, Stage 1 confusion, per-type precision and recall, the gate comparison, and the overlay ratings. The script writes `eval_results/expert_review_metrics.{json,md}` with reviewers anonymised. Results will be reported here once reviews exist; as of this revision the log is empty.
 
-**Several experts at once (2026-11-06).** Review lists are handed out as ten-minute leases on items (`research.review_claims`, migration 007), renewed while the page is open, so no item is shown to two experts at the same time and the random-audit list is reviewed in its fixed order, skipping only items another expert holds. A save is refused if another expert holds the item, or if the item was reviewed after the expert opened it, so one expert's review is never silently overwritten; on 8 concurrent sessions making 400 requests, no item was handed to two experts (`scripts/tests/test_expert_concurrency.py`). Skips are recorded per expert (`research.review_skips`), so a reviewer who skips random-audit items can be reported.
+**Several experts at once (2026-11-06).** Review lists are handed out as ten-minute leases on items (`research.review_claims`, migration 007), renewed while the page is open, so no item is shown to two experts at the same time and the random-audit list is reviewed in its fixed order, skipping only items another expert holds. A save is refused if another expert holds the item, or if the item was reviewed after the expert opened it, so one expert's review is never silently overwritten; on 8 concurrent sessions making 400 requests, no item was handed to two experts (`scripts/tests/test_expert_concurrency.py`). Skips are recorded per expert (`research.review_skips`), so a reviewer who skips random-audit items can be reported. Every save also carries a random id and waits in the browser until the server confirms it; a save that arrives twice (a lost answer, a retry after an outage) is answered with the first result, so a review is never lost or counted twice (`scripts/tests/test_expert_save_robustness.py`: eight simultaneous copies of one save, Supabase unreachable, a lost answer and a real database deadlock each leave exactly one logged review). Experts enter their real names, which are listed in the Acknowledgements.
 
 ### 6.5 Stage 2 Confidence Calibration
 
@@ -1420,6 +1420,18 @@ A drive appears on the GIS map when it is stored: the GIS reads the database dir
 ### 8.9 Limitations
 
 (1) The reference is the model, not engineers: the gate's recall and precision, and every "% of length", inherit the model's errors (on Attain its Stage 1 found about half of distressed frames). (2) 43 drives over 42.0 km, recorded on three days (26, 27 and 29 Oct 2026) with one phone; per-drive differences mix road, light, speed and focus, and the 40 later drives were gated, so their shares are not directly comparable with the send-all first three; two drives were lost to a portrait mount. Driving speed is associated with the answer even within a drive (§8.8), and repeatability between drives is not yet measured. (3) Positions are phone GNSS (σ ≈ 6 m) without latency correction (no drive had enough braking events for the automatic estimate) and without map-matching; chainage is absent because no start chainage was entered. (4) The full frame shows road beyond the segment, so a label can come from outside it; positive segments cluster more than chance (P(positive | previous positive) 0.43–0.60 against base rates 0.18–0.38), which may inflate "% of length" (§8.6). (5) The model's labels are per segment, not measurements of extent; "% of length" counts a whole segment for any distress in it, as IRC:82 section ratings by length do, but it is not an area.
+
+---
+
+## Acknowledgements
+
+The experts below reviewed the model's answers on the expert page. Each entered their real full name there and
+agreed to be named here; the list is generated from the review log by `scripts/expert_acknowledgements.py --write`
+(alphabetical; names in `paper/acknowledgement_exclude.txt` are left out). Re-run it before submission.
+
+<!-- EXPERT-ACK:START -->
+*(No expert reviews are logged yet. Run `scripts/expert_acknowledgements.py --write` once experts have reviewed.)*
+<!-- EXPERT-ACK:END -->
 
 ---
 

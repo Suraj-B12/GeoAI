@@ -23,11 +23,16 @@ API for the expert UI's Video and Metrics tabs and its review log (/expert-api/*
                                                   "where the model looked": Grad-CAM of the
                                                   per-type probe (app/model.explain_type)
     GET  /expert-api/metrics                      model vs expert (app/expert_review.metrics)
+    POST /expert-api/events                       the page reports save problems (retries, conflicts, ...)
+    GET  /expert-api/events/summary               save problems over the last hours (status.ps1)
+    GET  /expert-api/leaderboard                  items each expert has reviewed (all / today)
 
 Several experts at once: the review lists are handed out as leases (research.review_claims,
 migration 007; see app/expert_review.py "Claims"), so no item is shown to two experts at the same
 time, and every save is refused with 409 when another expert holds the item or saved it since the
-page loaded it.
+page loaded it. Saves carry an op_id (migration 008): the page queues each save in the browser
+until the server confirms it, and a save that arrives twice is answered with the first result.
+Deadlocks and lock timeouts are retried (_db); every 5xx on a save is recorded as an event.
 
 Open like the rest of the expert page (which writes citizen reviews to Supabase with the anon
 key): no X-API-Key, because the page is static and holds no secret. Writes are therefore
@@ -81,8 +86,12 @@ class _Unavailable(Exception):
     pass
 
 
-def _db(fn: Callable) -> Any:
-    """fn(conn) on a fresh local-PostgreSQL connection; _Unavailable when it can't connect."""
+DB_ATTEMPTS = 4                        # a deadlock / lock timeout is retried on a fresh connection
+LOCK_TIMEOUT = "5s"                    # waiting for a row lock longer than this is an error, not a hang
+STATEMENT_TIMEOUT = "30s"
+
+
+def _db_once(fn: Callable) -> Any:
     import psycopg
 
     from app import video_store
@@ -93,13 +102,63 @@ def _db(fn: Callable) -> Any:
     except psycopg.OperationalError:
         raise _Unavailable("local PostgreSQL is unreachable") from None
     try:
+        conn.execute(f"SET lock_timeout = '{LOCK_TIMEOUT}'")
+        conn.execute(f"SET statement_timeout = '{STATEMENT_TIMEOUT}'")
         return fn(conn)
-    except psycopg.errors.UndefinedTable:
-        raise _Unavailable("tables missing: run scripts/setup_local_db.py") from None
-    except psycopg.OperationalError:
-        raise _Unavailable("local PostgreSQL connection failed") from None
     finally:
         conn.close()
+
+
+def _db(fn: Callable) -> Any:
+    """fn(conn) on a fresh local-PostgreSQL connection; _Unavailable when it can't connect.
+
+    Every fn here runs its writes in one transaction, so a transaction PostgreSQL aborted (a
+    deadlock between two experts' requests, a serialization failure, a lock wait over
+    LOCK_TIMEOUT) left nothing behind and is simply run again, up to DB_ATTEMPTS times. The
+    saves are idempotent by op_id, so even a retried multi-step fn cannot log a review twice."""
+    import random
+
+    import psycopg
+    retryable = (psycopg.errors.DeadlockDetected, psycopg.errors.SerializationFailure,
+                 psycopg.errors.LockNotAvailable)
+    last = None
+    for attempt in range(DB_ATTEMPTS):
+        try:
+            return _db_once(fn)
+        except retryable as e:
+            last = e
+            ER.append_event_file(ER._event_row("server", {
+                "kind": "db_retry", "level": "warn", "attempts": attempt + 1,
+                "message": f"{type(e).__name__}: {str(e).splitlines()[0][:200] if str(e) else ''}"}))
+            time.sleep(0.05 * (2 ** attempt) + random.random() * 0.05)
+        except psycopg.errors.UndefinedTable:
+            raise _Unavailable("tables missing: run scripts/setup_local_db.py") from None
+        except psycopg.errors.QueryCanceled:
+            raise _Unavailable("the database took too long; try again") from None
+        except psycopg.OperationalError:
+            raise _Unavailable("local PostgreSQL connection failed") from None
+    raise _Unavailable(f"the database stayed busy ({type(last).__name__}) after {DB_ATTEMPTS} tries")
+
+
+def _server_event_sync(ev: dict) -> None:
+    """Record a server-side event: always in the log file, and in the database when it is up."""
+    try:
+        row = ER._event_row("server", ev)
+    except Exception:                                    # noqa: BLE001
+        return
+    ER.append_event_file(row)
+    try:
+        _db_once(lambda c: ER.insert_event_rows(c, [row]))
+    except Exception:                                    # noqa: BLE001 - the file has it
+        pass
+
+
+def _server_event(**ev) -> None:
+    """Fire-and-forget _server_event_sync (never slows or fails the request)."""
+    try:
+        asyncio.get_running_loop().run_in_executor(None, _server_event_sync, ev)
+    except RuntimeError:
+        _server_event_sync(ev)
 
 
 async def _run(fn: Callable) -> Any:
@@ -188,7 +247,14 @@ async def video_review(segment_id: str, request: Request):
     if not _ID.match(segment_id):
         raise HTTPException(status_code=400, detail="bad segment id")
     body = await _json_body(request)
-    return await _run_claims(lambda c: ER.save_video_review_claimed(c, segment_id, body))
+    try:
+        return await _run_claims(lambda c: ER.save_video_review_claimed(c, segment_id, body))
+    except HTTPException as e:
+        if e.status_code >= 500:
+            _server_event(kind="server_save_error", level="error", source="video", item_id=segment_id,
+                          op_id=body.get("op_id"), reviewer_name=body.get("reviewer_name"),
+                          session=body.get("session"), http_status=e.status_code, message=str(e.detail))
+        raise
 
 
 # ============================================================
@@ -200,7 +266,7 @@ _CITIZEN_COLS = ("id,image_url,status,stage1_label,stage1_confidence,distress_ty
                  "expert_corrected_severity,reviewer_name")
 
 
-async def _citizen_row(request: Request, assessment_id: str) -> dict:
+async def _citizen_row(request: Request, assessment_id: str, cols: str = _CITIZEN_COLS) -> dict:
     if not _UUID.match(assessment_id):
         raise HTTPException(status_code=400, detail="bad assessment id")
     client = getattr(request.app.state, "supabase_client", None)
@@ -210,7 +276,11 @@ async def _citizen_row(request: Request, assessment_id: str) -> dict:
     if is_local_db(client):
         row = await client.get_assessment_by_id(assessment_id)
     else:
-        resp = await client.get(f"/rest/v1/assessments?id=eq.{assessment_id}&select={_CITIZEN_COLS}&limit=1")
+        import httpx
+        try:
+            resp = await client.get(f"/rest/v1/assessments?id=eq.{assessment_id}&select={cols}&limit=1")
+        except httpx.HTTPError as e:
+            raise HTTPException(status_code=502, detail=f"Supabase unreachable ({type(e).__name__})")
         if not resp.is_success:
             raise HTTPException(status_code=502, detail=f"Supabase answered {resp.status_code}")
         rows = resp.json() or []
@@ -488,21 +558,50 @@ def _local_citizen_update(conn, assessment_id: str, review: dict, seen: Optional
              seen, seen)).fetchall()
 
 
+def _same_review(cur: dict, review: dict) -> bool:
+    """Supabase already holds exactly this reviewer's review (an earlier arrival of the same save
+    wrote it, then its answer or its log row was lost)."""
+    def norm(s):
+        return " ".join(str(s or "").split()).lower()
+    return (bool(cur.get("expert_reviewed")) and norm(cur.get("reviewer_name")) == norm(review["reviewer_name"])
+            and sorted(ER.canonical(t) for t in (cur.get("expert_corrected_types") or []))
+            == sorted(ER.canonical(t) for t in review["types"])
+            and str(cur.get("expert_corrected_severity") or "") == review["severity"]
+            and str(cur.get("expert_notes") or "").strip() == review["notes"].strip())
+
+
 @router.post("/citizen/review/{assessment_id}")
 async def citizen_review(assessment_id: str, request: Request):
     """Save a citizen review on the server, the arbiter for several experts:
+      0. the same save arriving again (body.op_id already in the research log) is answered with
+         the stored result, before any other check;
       1. take (or renew) this session's lease on the item, else 409 naming who holds it;
       2. write it to the assessment only if it is still as the page saw it: unreviewed
          (seen_reviewed_at null) or reviewed at exactly seen_reviewed_at. Exactly one row must
-         change, else 409 (someone saved in between) and nothing is written;
-      3. append the research log row and release the lease.
-    Body: {session, reviewer_name, types, severity, notes, queue, seen_reviewed_at, heatmap, ui}."""
+         change, else 409 (someone saved in between) and nothing is written - unless the row
+         already holds exactly this review by this reviewer (a retry whose first try was saved);
+      3. append the research log row (idempotent by op_id) and release the lease.
+    Body: {session, reviewer_name, types, severity, notes, queue, seen_reviewed_at, heatmap, ui, op_id}.
+    Any 5xx is recorded in research.expert_events; the page keeps the save queued and retries."""
     if not _UUID.match(assessment_id):
         raise HTTPException(status_code=400, detail="bad assessment id")
     body = await _json_body(request)
     try:
+        return await _citizen_review(assessment_id, request, body)
+    except HTTPException as e:
+        if e.status_code >= 500:
+            _server_event(kind="supabase_error" if "Supabase" in str(e.detail) else "server_save_error",
+                          level="error", source="citizen", item_id=assessment_id, op_id=body.get("op_id"),
+                          reviewer_name=body.get("reviewer_name"), session=body.get("session"),
+                          http_status=e.status_code, message=str(e.detail))
+        raise
+
+
+async def _citizen_review(assessment_id: str, request: Request, body: dict) -> dict:
+    try:
         review = ER.clean_review(body, source="citizen", strict_types=False)
         session = ER.clean_session(body.get("session"))
+        op_id = ER.clean_op_id(body.get("op_id"))
         seen = body.get("seen_reviewed_at")
         if seen is not None and not isinstance(seen, str):
             raise ER.ReviewError("seen_reviewed_at must be an ISO timestamp or null")
@@ -512,28 +611,52 @@ async def citizen_review(assessment_id: str, request: Request):
     client = getattr(request.app.state, "supabase_client", None)
     if client is None:
         raise HTTPException(status_code=503, detail="Supabase client not configured on this server")
+
+    def replay_of(prev: dict) -> dict:
+        return {"assessment_id": assessment_id, "action": prev["action"], "saved": True,
+                "log_id": prev["id"], "logged_at": prev["created_at"].isoformat(),
+                "comparison": prev["comparison"], "replayed": True}
+
+    if op_id:
+        prev = await _run(lambda c: (ER.ensure_schema(c), ER._logged(c, op_id))[1])
+        if prev is not None:
+            if str(prev["assessment_id"]) != assessment_id:
+                raise HTTPException(status_code=400, detail="op_id was already used for another item")
+            await _run(lambda c: c.execute("DELETE FROM research.review_claims WHERE source = 'citizen' "
+                                           "AND item_id = %s AND reviewer_session = %s", (assessment_id, session)))
+            cur = await _citizen_row(request, assessment_id, _CITIZEN_SAVE_COLS)
+            return {**replay_of(prev), "reviewed_at": str(cur.get("reviewed_at") or "") or None}
     await _run_claims(lambda c: ER.take_claim(c, source="citizen", item_id=assessment_id, session=session,
                                               reviewer_name=review["reviewer_name"], queue=review["queue"]))
     from app.supabase_client import is_local_db
     if is_local_db(client):
         rows = await _run(lambda c: _local_citizen_update(c, assessment_id, review, seen))
     else:
+        import httpx
         from datetime import datetime, timezone
         cond = "expert_reviewed=eq.false" if seen is None else "reviewed_at=eq." + urllib.parse.quote(seen, safe="")
-        resp = await client.patch(
-            f"/rest/v1/assessments?id=eq.{assessment_id}&{cond}&select={_CITIZEN_SAVE_COLS}",
-            json=_citizen_patch(review, datetime.now(timezone.utc).isoformat()),
-            headers={"Prefer": "return=representation"})
+        try:
+            resp = await client.patch(
+                f"/rest/v1/assessments?id=eq.{assessment_id}&{cond}&select={_CITIZEN_SAVE_COLS}",
+                json=_citizen_patch(review, datetime.now(timezone.utc).isoformat()),
+                headers={"Prefer": "return=representation"})
+        except httpx.HTTPError as e:
+            # The write may or may not have reached Supabase; the page retries with the same op_id
+            # and the "already holds this review" check below makes that safe.
+            raise HTTPException(status_code=502, detail=f"Supabase unreachable ({type(e).__name__})")
         if not resp.is_success:
             raise HTTPException(status_code=502, detail=f"Supabase answered {resp.status_code}")
         rows = resp.json() or []
     if len(rows) != 1:
-        cur = await _citizen_row(request, assessment_id)          # 404 when the row is gone
-        when = cur.get("reviewed_at")
-        raise HTTPException(status_code=409, detail={
-            "message": f"{cur.get('reviewer_name') or 'Another expert'} saved a review of this item"
-                       f"{f' ({when})' if when else ''}; reload to see it before changing it",
-            "reviewed_by": cur.get("reviewer_name"), "reviewed_at": str(when) if when else None})
+        cur = await _citizen_row(request, assessment_id, _CITIZEN_SAVE_COLS)   # 404 when the row is gone
+        if op_id and _same_review(cur, review):
+            rows = [cur]                                       # an earlier try of this save wrote it
+        else:
+            when = cur.get("reviewed_at")
+            raise HTTPException(status_code=409, detail={
+                "message": f"{cur.get('reviewer_name') or 'Another expert'} saved a review of this item"
+                           f"{f' ({when})' if when else ''}; reload to see it before changing it",
+                "reviewed_by": cur.get("reviewer_name"), "reviewed_at": str(when) if when else None})
     row = dict(rows[0])
     for k in ("reviewed_at", "processed_at"):
         if row.get(k) is not None and not isinstance(row[k], str):
@@ -541,10 +664,56 @@ async def citizen_review(assessment_id: str, request: Request):
     try:
         out = await _run_claims(lambda c: ER.finish_citizen_review(c, assessment_id, body, row))
     except HTTPException as e:
-        # The review is saved; only the research log failed. The page can retry /citizen/log.
+        # The review is saved in Supabase; only the research log failed. The page keeps the save
+        # queued and sends it again: step 2 then finds the review already there and logs it.
+        _server_event(kind="server_save_error", level="error", source="citizen", item_id=assessment_id,
+                      op_id=op_id, reviewer_name=review["reviewer_name"], session=session,
+                      http_status=e.status_code, message=f"saved in Supabase, research log failed: {e.detail}")
         return {"assessment_id": assessment_id, "saved": True, "reviewed_at": row.get("reviewed_at"),
                 "log_error": e.detail}
     return {**out, "saved": True, "reviewed_at": row.get("reviewed_at")}
+
+
+# ============================================================
+# Save events and the leaderboard (migration 008)
+# ============================================================
+
+_event_hits: dict[str, deque] = defaultdict(deque)
+EVENTS_PER_MINUTE = 120
+MAX_EVENTS_PER_POST = 20
+
+
+@router.post("/events")
+async def post_events(request: Request):
+    """The page reports what did not go to plan with a save: {events: [{kind, level, op_id, source,
+    item_id, reviewer_name, session, http_status, attempts, message, detail}]} (at most 20)."""
+    addr = request.client.host if request.client else "?"
+    now = time.time()
+    q = _event_hits[addr]
+    while q and now - q[0] > 60:
+        q.popleft()
+    body = await _json_body(request)
+    events = body.get("events")
+    if not isinstance(events, list) or not 1 <= len(events) <= MAX_EVENTS_PER_POST:
+        raise HTTPException(status_code=400, detail=f"events must be a list of 1-{MAX_EVENTS_PER_POST} objects")
+    if len(q) + len(events) > EVENTS_PER_MINUTE:
+        raise HTTPException(status_code=429, detail="too many events this minute")
+    q.extend([now] * len(events))
+    if not all(isinstance(e, dict) for e in events):
+        raise HTTPException(status_code=400, detail="each event must be an object")
+    return {"stored": await _run(lambda c: ER.record_events(c, "client", events))}
+
+
+@router.get("/events/summary")
+async def events_summary(hours: int = 24, recent: int = 10):
+    """Save problems over the last `hours` (status.ps1 and the operator read this)."""
+    return await _run(lambda c: ER.events_summary(c, hours=hours, recent=recent))
+
+
+@router.get("/leaderboard")
+async def leaderboard():
+    """Items each expert has reviewed, in all and today (Asia/Kolkata), from the research log."""
+    return await _run(ER.leaderboard)
 
 
 

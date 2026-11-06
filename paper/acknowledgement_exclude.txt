@@ -1,0 +1,7 @@
+# Names to leave out of the paper's Acknowledgements (one per line, compared ignoring case).
+# Test and harness accounts used while building the expert page:
+Claude check A
+Claude check B
+Harness A
+Harness B
+Tour Tester
