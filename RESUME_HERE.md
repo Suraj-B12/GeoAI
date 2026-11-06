@@ -45,6 +45,8 @@ Rules for all of them:
 - B's pre-registration is never edited (addenda only), and every test-split evaluation is counted.
 
 **A is DONE and live** (commit 2acd2d4, deployed 2026-11-06 ~15:47 IST, checked with two tabs on production).
+**C is DONE** (Capstone 820c2f7: §8.6, REPORT.md files saved by the main session; GeoAI_Video 8f18fa2 + d016de7 pushed).
+Only **B** (weight-space programming) is still running; see `eval_results/finetune/STATUS.md`.
 
 ## Coordinator steps still to do (after B and C report)
 1. Review each workstream's diff and results, and re-run its tests plus `scripts/validate_all.py`.
