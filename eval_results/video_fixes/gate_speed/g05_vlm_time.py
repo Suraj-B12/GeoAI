@@ -12,6 +12,7 @@ import json
 import math
 import sys
 from pathlib import Path
+import sys as _s; _s.path.insert(0, r"C:/GeoAI/analysis/fixes"); import atomic_io as aio  # noqa: E402,E702 atomic result writes
 
 import numpy as np
 
@@ -80,7 +81,7 @@ res["gates"] = out
 for g in ("probe_calibrated_in_sample", "probe_loso_held_out"):
     res[f"saved_min_per_km_{g}_vs_default"] = out["default"]["all"]["vlm_min_per_km"] - out[g]["all"]["vlm_min_per_km"]
     res[f"saved_min_per_km_{g}_vs_send_all"] = out["send_all"]["all"]["vlm_min_per_km"] - out[g]["all"]["vlm_min_per_km"]
-(HERE / "out" / "vlm_time.json").write_text(json.dumps(res, indent=1), encoding="utf-8")
+aio.write_json(HERE / "out" / "vlm_time.json", res, indent=1)
 print(json.dumps({k: v for k, v in res.items() if k != "gates"}, indent=1))
 for g, per in out.items():
     print(g, {s: (round(p["sent_per_km"], 1), round(p["vlm_min_per_km"], 1), f'{p["vlm_positive_sent"]}/{p["vlm_positive"]}') for s, p in per.items()})

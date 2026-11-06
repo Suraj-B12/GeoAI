@@ -1,0 +1,18 @@
+{
+ "written_utc": "2026-11-06T10:17:28+00:00",
+ "written_before": "any VLM answer of ab_nearest_001 exists (the batch is not yet exported); only the geometry of the control arm is known",
+ "arms": {
+  "sharpest": "field/runs_segments_sendall d47c (default choice), answers batch_001 (27 Oct, default profile)",
+  "nearest": "field/runs_eval/nearest d47c (segments.choice=nearest_sharp, GeoAI_Video 8f18fa2), answers ab_nearest_001 (--profile video; profile does not change answers, vlm_speed 60/60)"
+ },
+ "compared": "only segments whose chosen frame changes (changed_ids.txt); unchanged segments keep the batch_001 answer",
+ "reference": "none is ground truth. Flips (Normal vs Distress class differs) are judged visually, one look per flip at both whole frames with the segment edges marked, by the analysing agent, as for the band study: nearest / sharpest / unclear",
+ "rule": "nearest_sharp becomes the default only if the Wilson 95 % CI of the share of decided flips judged in favour of nearest lies wholly above 0.5. Otherwise the default stays sharpest and nearest_sharp stays opt-in. Agreement, kappa, resolution gain and clustering are reported but do not decide.",
+ "also_reported": [
+  "agreement and kappa on changed segments",
+  "VLM input rows and mm/px at segment centre, both arms",
+  "fair-sharpness ratio nearest/sharpest",
+  "clustering lift over the whole session",
+  "VLM seconds per image"
+ ]
+}

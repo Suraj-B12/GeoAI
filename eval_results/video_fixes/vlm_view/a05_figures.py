@@ -3,7 +3,9 @@ import json
 import sys
 from pathlib import Path
 
-import matplotlib
+sys.path.insert(0, r"C:/GeoAI/analysis/fixes")
+import atomic_io as aio  # noqa: E402  atomic result writes
+import matplotlib  # noqa: E402
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
@@ -47,7 +49,7 @@ ax[2].set_ylim(0, 1.05)
 ax[2].legend(frameon=False, fontsize=8)
 ax[2].set_title("Distress rate by stratum (95 % Wilson CI)", fontsize=9)
 fig.tight_layout()
-fig.savefig(OUT / "fig1_agreement_flips.png")
+aio.savefig(fig, OUT / "fig1_agreement_flips.png")
 
 # ---- Fig 2: clustering before / after ---------------------------------------------------------------
 w, ci = bv["weighted"], bv["weighted_ci95"]
@@ -73,7 +75,7 @@ if (OUT / "nearest_vs_sharpest.json").exists():
     ax[1].text(2.6, max(lifts) * 0.95, f"d47c full session:\nsharpest lift {nv['sharpest']['lift']:.2f}\n"
                f"nearest lift {nv['nearest']['lift']:.2f}", fontsize=7.5, va="top")
 fig.tight_layout()
-fig.savefig(OUT / "fig2_clustering.png")
+aio.savefig(fig, OUT / "fig2_clustering.png")
 
 # ---- Fig 3: resolution gain (band and nearest) ---------------------------------------------------------
 fig, ax = plt.subplots(1, 3, figsize=(10.5, 3.0))
@@ -99,5 +101,5 @@ if (OUT / "nearest_segments.csv").exists():
     ax[2].set_title(f"d47c changed segments (n = {len(rows)}): median\n{np.median(gs):.1f} -> {np.median(gn):.1f} mm/px, "
                     f"near edge {np.median(s):.2f} -> {np.median(n):.2f} m", fontsize=9)
 fig.tight_layout()
-fig.savefig(OUT / "fig3_resolution_time.png")
+aio.savefig(fig, OUT / "fig3_resolution_time.png")
 print("figures written")

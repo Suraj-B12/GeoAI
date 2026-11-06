@@ -18,6 +18,8 @@ import json
 import math
 import sys
 from pathlib import Path
+sys.path.insert(0, r"C:/GeoAI/analysis/fixes")
+import atomic_io as aio  # noqa: E402  atomic result writes
 
 import cv2
 import numpy as np
@@ -121,13 +123,9 @@ def geometry():
         "timings_s": {"sharpest": json.loads((RUN_S / "report.json").read_text())["timings_s"].get("total"),
                       "nearest": rep_n["timings_s"].get("total")},
     }
-    with open(OUT / "nearest_segments.csv", "w", newline="", encoding="utf-8") as f:
-        keys = sorted({k for r in rows for k in r})
-        w = csv.DictWriter(f, fieldnames=keys)
-        w.writeheader()
-        w.writerows(rows)
-    (OUT / "changed_ids.txt").write_text("\n".join(changed) + "\n", encoding="utf-8")
-    json.dump(out, open(OUT / "nearest_geometry.json", "w"), indent=1)
+    aio.write_csv(OUT / "nearest_segments.csv", rows, fieldnames=sorted({k for r in rows for k in r}))
+    aio.write_text(OUT / "changed_ids.txt", "\n".join(changed) + "\n")
+    aio.write_json(OUT / "nearest_geometry.json", out, indent=1)
     print(json.dumps(out, indent=1))
 
 
@@ -169,7 +167,7 @@ def answers():
            "clustering_full_session": {"sharpest": cluster(cls_s), "nearest": cluster(cls_n)},
            "seconds_median_nearest_arm": float(np.median(sec)) if sec else None,
            "profile": [r.get("profile") for r in an.run_info.get("runs", [])], "flips": flips}
-    json.dump(out, open(OUT / "nearest_vs_sharpest.json", "w"), indent=1)
+    aio.write_json(OUT / "nearest_vs_sharpest.json", out, indent=1)
     print(json.dumps({k: v for k, v in out.items() if k != "flips"}, indent=1), len(flips), "flips")
 
 

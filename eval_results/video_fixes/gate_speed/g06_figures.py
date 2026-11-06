@@ -8,6 +8,7 @@ fig2: extraction wall time per km of planned road by stage, before (HEAD, defaul
 """
 import json
 from pathlib import Path
+import sys as _s; _s.path.insert(0, r"C:/GeoAI/analysis/fixes"); import atomic_io as aio  # noqa: E402,E702 atomic result writes
 
 import matplotlib
 matplotlib.use("Agg")
@@ -23,23 +24,29 @@ plt.rcParams.update({"font.size": 9, "axes.edgecolor": MUTED, "axes.labelcolor":
 SESS = [("f428", "f428 (1.15 km)"), ("293d", "293d (0.27 km)"), ("d47c", "d47c (2.64 km)")]
 
 
-def point(ax, d, color, filled, label, dx=0.012, dy=0.0):
+def point(ax, d, color, filled, label=None):
+    """One operating point with its 95 % CI in both directions; labelled through the legend (2026-11-06:
+    text labels overlapped where points coincide, e.g. both at recall 1.0 on 293d)."""
     x, y = d["pass_rate"], d["recall"]
     xe = np.array([[x - d["pass_rate_ci95"][0]], [d["pass_rate_ci95"][1] - x]])
     ye = np.array([[y - d["recall_ci95"][0]], [d["recall_ci95"][1] - y]])
-    ax.errorbar([x], [y], xerr=xe, yerr=ye, fmt="o", ms=7, color=color, mfc=color if filled else "white",
-                mec=color, mew=2, elinewidth=1.5, capsize=3, zorder=3)
-    ax.annotate(label, (x, y), xytext=(x + dx, y + dy), fontsize=8, color=INK, va="center", zorder=4)
+    return ax.errorbar([x], [y], xerr=xe, yerr=ye, fmt="o", ms=7, color=color, mfc=color if filled else "white",
+                       mec=color, mew=2, elinewidth=1.5, capsize=3, zorder=3, label=label)
 
 
-fig, axs = plt.subplots(1, 4, figsize=(13, 3.9), sharey=True)
-for ax, (s, title) in zip(axs, SESS):
+fig, axs = plt.subplots(1, 4, figsize=(13, 4.3), sharey=True)
+for i, (ax, (s, title)) in enumerate(zip(axs, SESS)):
     c = np.array(loso["curves_probe_frac"][s])
-    ax.plot(c[:, 0], c[:, 1], color=GREY, lw=1.5, drawstyle="steps-post", zorder=1)
-    ax.axhline(0.9, color=MUTED, lw=1, ls="--", zorder=0)
+    ax.plot(c[:, 0], c[:, 1], color=GREY, lw=1.5, drawstyle="steps-post", zorder=1,
+            label="probe_frac curve of this session" if i == 0 else None)
+    ax.axhline(0.9, color=MUTED, lw=1, ls="--", zorder=0, label="target recall 0.9" if i == 0 else None)
     v1, v0 = loso["sessions"]["V1_probe_frac"][s], loso["sessions"]["V0_default"][s]
-    point(ax, v1, BLUE, True, f"calibrated on the\nother two: {v1['recall']:.2f} / {v1['pass_rate']:.2f}", dx=0.03, dy=-0.07)
-    point(ax, v0, ORANGE, False, "default", dx=-0.16, dy=-0.04)
+    point(ax, v1, BLUE, True, "probe_frac, calibrated on the other two" if i == 0 else None)
+    point(ax, v0, ORANGE, False, "default thresholds" if i == 0 else None)
+    ax.text(0.03, 0.42, f"calibrated: recall {v1['recall']:.2f}, pass {v1['pass_rate']:.2f}\n"
+                        f"default: recall {v0['recall']:.2f}, pass {v0['pass_rate']:.2f}",
+            fontsize=7.5, color=INK, va="bottom", zorder=5,
+            bbox={"facecolor": "white", "edgecolor": "none", "alpha": 0.9, "pad": 1.5})
     n, p = v1["n"], v1["n_pos"]
     ax.set_title(f"held out: {title}\n{n} segments, {p} VLM-positive", fontsize=9, color=INK, loc="left")
     ax.set_xlabel("pass rate (share of segments sent)")
@@ -47,25 +54,25 @@ for ax, (s, title) in zip(axs, SESS):
     ax.set_ylim(0.4, 1.02)
     ax.grid(color="#e8e7e3", lw=0.6)
 axs[0].set_ylabel("recall vs VLM (distress kept)")
-axs[0].text(0.02, 0.43, "grey: probe_frac curve of the held-out session\n- - target recall 0.9", fontsize=7.5, color=MUTED)
 ax = axs[3]
 P = loso["pooled"]
-names = [("V0_default", ORANGE, False, "default thresholds"), ("V1_probe_frac", BLUE, True, "probe_frac (ships)"),
-         ("V2_probe_max_logit", AQUA, True, "probe_max_logit"), ("V3_probe_frac_or_max_logit", YELLOW, True, "frac OR max_logit"),
-         ("V4_anyof_shipping", GREY, True, "any-of frac/evidence/crack")]
-offs = {"V0_default": (-0.30, -0.05), "V1_probe_frac": (0.03, -0.10), "V2_probe_max_logit": (0.03, 0.06),
-        "V3_probe_frac_or_max_logit": (-0.42, -0.02), "V4_anyof_shipping": (-0.48, -0.13)}
+names = [("V0_default", ORANGE, False, "V0 default thresholds (kept)"), ("V1_probe_frac", BLUE, True, "V1 probe_frac"),
+         ("V2_probe_max_logit", AQUA, True, "V2 probe_max_logit"), ("V3_probe_frac_or_max_logit", YELLOW, True, "V3 frac OR max_logit"),
+         ("V4_anyof_shipping", GREY, True, "V4 any-of frac/evidence/crack")]
 for k, col, filled, lab in names:
-    point(ax, P[k], col, filled, lab, *offs[k])
+    point(ax, P[k], col, filled, lab)
 ax.axhline(0.9, color=MUTED, lw=1, ls="--", zorder=0)
 ax.set_title("pooled over the 3 held-out sessions\n813 segments, 164 VLM-positive", fontsize=9, color=INK, loc="left")
 ax.set_xlabel("pass rate")
 ax.set_xlim(0, 1.02)
 ax.grid(color="#e8e7e3", lw=0.6)
+ax.legend(loc="lower left", fontsize=7.5, frameon=False)
+fig.legend(*axs[0].get_legend_handles_labels(), loc="lower center", ncol=4, fontsize=8, frameon=False,
+           bbox_to_anchor=(0.38, -0.01))
 fig.suptitle("Probe-only gate, leave-one-session-out (target recall 0.9); bars: 95 % CI, 20-segment block bootstrap with "
              "re-calibration, B = 2000. Reference = VLM labels.", fontsize=9, color=MUTED, x=0.01, ha="left")
-fig.tight_layout(rect=(0, 0, 1, 0.94))
-fig.savefig(HERE / "fig1_gate_heldout.png", dpi=200)
+fig.tight_layout(rect=(0, 0.07, 1, 0.94))
+aio.savefig(fig, HERE / "fig1_gate_heldout.png", dpi=200)
 
 # ---- fig2 ----
 rows = []
@@ -111,5 +118,5 @@ ax.legend(handles, [labels[k] for k in cols], fontsize=7.5, frameon=False, loc="
 ax.set_title("Segment-mode extraction: HEAD with default gate (bank + crack filter) vs probe-only calibrated gate,\n"
              "no bank, gate on its own thread", fontsize=9, color=INK, loc="left")
 fig.tight_layout()
-fig.savefig(HERE / "fig2_extraction_time.png", dpi=200)
+aio.savefig(fig, HERE / "fig2_extraction_time.png", dpi=200)
 print("ok")

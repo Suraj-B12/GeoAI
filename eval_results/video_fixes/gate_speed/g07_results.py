@@ -2,6 +2,7 @@
 import hashlib
 import json
 from pathlib import Path
+import sys as _s; _s.path.insert(0, r"C:/GeoAI/analysis/fixes"); import atomic_io as aio  # noqa: E402,E702 atomic result writes
 
 HERE = Path(__file__).resolve().parent
 O = HERE / "out"
@@ -45,5 +46,5 @@ res = {
     "extraction": {"per_session": {s: {k: v for k, v in d.items()} for s, d in cmp_["sessions"].items()},
                    "per_km": timing, "probe_frac_threshold": cmp_["probe_frac_threshold"]},
 }
-(HERE / "results.json").write_text(json.dumps(res, indent=1, default=str), encoding="utf-8")
+aio.write_json(HERE / "results.json", res, indent=1, default=str)
 print(json.dumps(timing, indent=1)[:3000])

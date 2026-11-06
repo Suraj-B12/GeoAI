@@ -1,0 +1,208 @@
+{
+ "changed_answered": 225,
+ "table_sharpest_vs_nearest": {
+  "pp": 31,
+  "pn": 16,
+  "np": 9,
+  "nn": 169,
+  "unknown": 0
+ },
+ "agreement": 0.8888888888888888,
+ "clustering_full_session": {
+  "sharpest": {
+   "n": 528,
+   "positives": 102,
+   "base": 0.19318181818181818,
+   "p_pos_given_prev_pos": 0.42574257425742573,
+   "lift": 2.203843913803145
+  },
+  "nearest": {
+   "n": 528,
+   "positives": 95,
+   "base": 0.17992424242424243,
+   "p_pos_given_prev_pos": 0.3617021276595745,
+   "lift": 2.01030235162374
+  }
+ },
+ "seconds_median_nearest_arm": 4.188,
+ "profile": [
+  "video"
+ ],
+ "flips": [
+  {
+   "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00080",
+   "sharpest": "normal",
+   "nearest": "distress",
+   "sharpest_labels": "",
+   "nearest_labels": "Bleeding+Potholes"
+  },
+  {
+   "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00083",
+   "sharpest": "distress",
+   "nearest": "normal",
+   "sharpest_labels": "Bleeding+Potholes",
+   "nearest_labels": ""
+  },
+  {
+   "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00089",
+   "sharpest": "distress",
+   "nearest": "normal",
+   "sharpest_labels": "Bleeding+Potholes",
+   "nearest_labels": ""
+  },
+  {
+   "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00098",
+   "sharpest": "normal",
+   "nearest": "distress",
+   "sharpest_labels": "",
+   "nearest_labels": "Bleeding+Potholes"
+  },
+  {
+   "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00114",
+   "sharpest": "distress",
+   "nearest": "normal",
+   "sharpest_labels": "Bleeding+Streaking",
+   "nearest_labels": ""
+  },
+  {
+   "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00138",
+   "sharpest": "normal",
+   "nearest": "distress",
+   "sharpest_labels": "",
+   "nearest_labels": "Longitudinal Cracking+Potholes"
+  },
+  {
+   "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00168",
+   "sharpest": "normal",
+   "nearest": "distress",
+   "sharpest_labels": "",
+   "nearest_labels": "Alligator Cracking+Bleeding"
+  },
+  {
+   "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00186",
+   "sharpest": "normal",
+   "nearest": "distress",
+   "sharpest_labels": "",
+   "nearest_labels": "Bleeding+Potholes"
+  },
+  {
+   "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00195",
+   "sharpest": "normal",
+   "nearest": "distress",
+   "sharpest_labels": "",
+   "nearest_labels": "Bleeding+Streaking"
+  },
+  {
+   "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00203",
+   "sharpest": "distress",
+   "nearest": "normal",
+   "sharpest_labels": "Edge Breaking+Potholes",
+   "nearest_labels": ""
+  },
+  {
+   "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00235",
+   "sharpest": "distress",
+   "nearest": "normal",
+   "sharpest_labels": "Bleeding+Potholes",
+   "nearest_labels": ""
+  },
+  {
+   "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00255",
+   "sharpest": "distress",
+   "nearest": "normal",
+   "sharpest_labels": "Bleeding+Hungry Surface+Streaking",
+   "nearest_labels": ""
+  },
+  {
+   "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00257",
+   "sharpest": "distress",
+   "nearest": "normal",
+   "sharpest_labels": "Edge Breaking+Potholes",
+   "nearest_labels": ""
+  },
+  {
+   "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00305",
+   "sharpest": "normal",
+   "nearest": "distress",
+   "sharpest_labels": "",
+   "nearest_labels": "Bleeding+Potholes"
+  },
+  {
+   "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00312",
+   "sharpest": "distress",
+   "nearest": "normal",
+   "sharpest_labels": "Longitudinal Cracking+Potholes",
+   "nearest_labels": ""
+  },
+  {
+   "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00325",
+   "sharpest": "distress",
+   "nearest": "normal",
+   "sharpest_labels": "Bleeding+Potholes",
+   "nearest_labels": ""
+  },
+  {
+   "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00338",
+   "sharpest": "normal",
+   "nearest": "distress",
+   "sharpest_labels": "",
+   "nearest_labels": "Longitudinal Cracking+Potholes"
+  },
+  {
+   "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00353",
+   "sharpest": "distress",
+   "nearest": "normal",
+   "sharpest_labels": "Bleeding+Longitudinal Cracking",
+   "nearest_labels": ""
+  },
+  {
+   "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00359",
+   "sharpest": "distress",
+   "nearest": "normal",
+   "sharpest_labels": "Longitudinal Cracking+Potholes",
+   "nearest_labels": ""
+  },
+  {
+   "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00368",
+   "sharpest": "distress",
+   "nearest": "normal",
+   "sharpest_labels": "Longitudinal Cracking+Potholes",
+   "nearest_labels": ""
+  },
+  {
+   "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00378",
+   "sharpest": "normal",
+   "nearest": "distress",
+   "sharpest_labels": "",
+   "nearest_labels": "Alligator Cracking+Longitudinal Cracking"
+  },
+  {
+   "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00391",
+   "sharpest": "distress",
+   "nearest": "normal",
+   "sharpest_labels": "Potholes",
+   "nearest_labels": ""
+  },
+  {
+   "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00402",
+   "sharpest": "distress",
+   "nearest": "normal",
+   "sharpest_labels": "Longitudinal Cracking+Transverse Cracking",
+   "nearest_labels": ""
+  },
+  {
+   "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00406",
+   "sharpest": "distress",
+   "nearest": "normal",
+   "sharpest_labels": "Alligator Cracking+Potholes",
+   "nearest_labels": ""
+  },
+  {
+   "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00442",
+   "sharpest": "distress",
+   "nearest": "normal",
+   "sharpest_labels": "Bleeding+Potholes",
+   "nearest_labels": ""
+  }
+ ]
+}

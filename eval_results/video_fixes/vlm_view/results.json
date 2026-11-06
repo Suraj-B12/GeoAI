@@ -255,5 +255,504 @@
    "20261027T050257Z_SM-G991B-F0D1_d47c_seg00005"
   ],
   "method": "one look per flip at the whole frame (1280 px) with the segment's edges marked; not ground truth"
+ },
+ "nearest_geometry": {
+  "session": "20261027T050257Z_SM-G991B-F0D1_d47c",
+  "segments_compared": 528,
+  "changed": 225,
+  "changed_share": 0.42613636363636365,
+  "near_report_quality": {
+   "n": 528,
+   "min": 0.9002961827234163,
+   "p10": 0.9758779333765243,
+   "median": 1.0,
+   "p90": 1.0,
+   "max": 1.0,
+   "mean": 0.9930998060566256
+  },
+  "chosen_is_raw_sharpest_share": 0.5681818181818182,
+  "reasons_nearest": {
+   "nearest_sharp": 527,
+   "nearest_sharp_over_blur_limit": 1
+  },
+  "over_blur_share": {
+   "sharpest": 0.001893939393939394,
+   "nearest": 0.001893939393939394
+  },
+  "all_segments": {
+   "s_near_ahead_m": {
+    "median": 1.9215982248192276,
+    "ci95": [
+     1.8782074144273935,
+     1.9658325635303981
+    ],
+    "p10": 1.494972195197579,
+    "p90": 2.293453302540358,
+    "n": 528
+   },
+   "s_vlm_rows": {
+    "median": 433.825,
+    "ci95": [
+     423.15,
+     444.325
+    ],
+    "p10": 360.15,
+    "p90": 553.315,
+    "n": 528
+   },
+   "s_gsd_centre_vlm_mm": {
+    "median": 8.650162266980693,
+    "ci95": [
+     8.39907350309207,
+     8.898110940982157
+    ],
+    "p10": 6.36298009660763,
+    "p90": 10.897422053819383,
+    "n": 528
+   },
+   "s_blur_px": {
+    "median": 0.9699061055845433,
+    "ci95": [
+     0.9140900121087809,
+     1.0321109857000943
+    ],
+    "p10": 0.48318117274691336,
+    "p90": 1.8575677642154191,
+    "n": 528
+   },
+   "n_near_ahead_m": {
+    "median": 1.719365454007061,
+    "ci95": [
+     1.677940030766905,
+     1.773291011834317
+    ],
+    "p10": 1.4531763041003103,
+    "p90": 2.193134477116837,
+    "n": 528
+   },
+   "n_vlm_rows": {
+    "median": 484.4,
+    "ci95": [
+     470.920625,
+     496.65
+    ],
+    "p10": 377.65,
+    "p90": 567.91,
+    "n": 528
+   },
+   "n_gsd_centre_vlm_mm": {
+    "median": 7.538879392859117,
+    "ci95": [
+     7.315400750775224,
+     7.826205443527254
+    ],
+    "p10": 6.150931036388561,
+    "p90": 10.276926392064187,
+    "n": 528
+   },
+   "n_blur_px": {
+    "median": 1.0496696226346307,
+    "ci95": [
+     0.9850199024214407,
+     1.089683271582808
+    ],
+    "p10": 0.5370331351055609,
+    "p90": 1.8538903511007003,
+    "n": 528
+   }
+  },
+  "changed_segments": {
+   "s_near_ahead_m": {
+    "median": 2.103382729913392,
+    "ci95": [
+     2.051023831963448,
+     2.1653102944308102
+    ],
+    "p10": 1.66395862379984,
+    "p90": 2.33285160778878,
+    "n": 225
+   },
+   "s_vlm_rows": {
+    "median": 395.15,
+    "ci95": [
+     382.9,
+     405.65
+    ],
+    "p10": 353.57,
+    "p90": 500.21999999999997,
+    "n": 225
+   },
+   "s_gsd_centre_vlm_mm": {
+    "median": 9.742666742034801,
+    "ci95": [
+     9.419292024344424,
+     10.126774495380989
+    ],
+    "p10": 7.243655519491656,
+    "p90": 11.144816753923743,
+    "n": 225
+   },
+   "s_blur_px": {
+    "median": 0.9194225851770951,
+    "ci95": [
+     0.8605854683791789,
+     0.9898386442120451
+    ],
+    "p10": 0.45766984166313435,
+    "p90": 2.0744262585150106,
+    "n": 225
+   },
+   "s_fair": {
+    "median": 0.06980188310474453,
+    "ci95": [
+     0.055061334234193675,
+     0.08981303117297099
+    ],
+    "p10": 0.010777091884726196,
+    "p90": 0.24565254524611552,
+    "n": 225
+   },
+   "n_near_ahead_m": {
+    "median": 1.628763309527585,
+    "ci95": [
+     1.6057631499957097,
+     1.6835790848311376
+    ],
+    "p10": 1.441241454709433,
+    "p90": 2.073247321123108,
+    "n": 225
+   },
+   "n_vlm_rows": {
+    "median": 510.29999999999995,
+    "ci95": [
+     494.54999999999995,
+     517.3
+    ],
+    "p10": 401.16999999999996,
+    "p90": 572.3199999999999,
+    "n": 225
+   },
+   "n_gsd_centre_vlm_mm": {
+    "median": 7.058056516273988,
+    "ci95": [
+     6.936937176832256,
+     7.413480337381222
+    ],
+    "p10": 6.090652259036489,
+    "p90": 9.55319690888677,
+    "n": 225
+   },
+   "n_blur_px": {
+    "median": 1.0563201519450032,
+    "ci95": [
+     0.995749661283128,
+     1.1237465907517719
+    ],
+    "p10": 0.552529527117684,
+    "p90": 2.0275867311887996,
+    "n": 225
+   },
+   "n_fair": {
+    "median": 0.09032755337509739,
+    "ci95": [
+     0.07817222345230727,
+     0.1060769787349334
+    ],
+    "p10": 0.02624140308203146,
+    "p90": 0.26789379958140125,
+    "n": 225
+   },
+   "vlm_rows_gain": {
+    "median": 1.2119932432432432,
+    "ci95": [
+     1.1844569288389515,
+     1.2571656050955415
+    ],
+    "p10": 0.8990165891667714,
+    "p90": 1.4620221812477638,
+    "n": 225
+   },
+   "gsd_gain_s_over_n": {
+    "median": 1.2723348969295245,
+    "ci95": [
+     1.2325847404776469,
+     1.3337610513357334
+    ],
+    "p10": 0.8770585436861212,
+    "p90": 1.6116929188674876,
+    "n": 225
+   },
+   "fair_ratio_n_over_s": {
+    "median": 1.192949085950743,
+    "ci95": [
+     1.1332737884862993,
+     1.2611935542673844
+    ],
+    "p10": 0.9430979241809649,
+    "p90": 2.673031446016122,
+    "n": 225
+   },
+   "share_fair_ratio_ge_0.9": 1.0,
+   "share_fair_ratio_ge_1": 0.7911111111111111
+  },
+  "discriminator_strip_outside_image_share_by_window_offset_m": {
+   "0.00": 0.038296888888888936,
+   "0.25": 0.008248888888888861,
+   "0.50": 6.0444444444418544e-05,
+   "0.75": 0.0,
+   "1.00": 0.0
+  },
+  "timings_s": {
+   "sharpest": 575.6220180988312,
+   "nearest": 656.469762802124
+  }
+ },
+ "nearest_vs_sharpest": {
+  "changed_answered": 225,
+  "table_sharpest_vs_nearest": {
+   "pp": 31,
+   "pn": 16,
+   "np": 9,
+   "nn": 169,
+   "unknown": 0
+  },
+  "agreement": 0.8888888888888888,
+  "clustering_full_session": {
+   "sharpest": {
+    "n": 528,
+    "positives": 102,
+    "base": 0.19318181818181818,
+    "p_pos_given_prev_pos": 0.42574257425742573,
+    "lift": 2.203843913803145
+   },
+   "nearest": {
+    "n": 528,
+    "positives": 95,
+    "base": 0.17992424242424243,
+    "p_pos_given_prev_pos": 0.3617021276595745,
+    "lift": 2.01030235162374
+   }
+  },
+  "seconds_median_nearest_arm": 4.188,
+  "profile": [
+   "video"
+  ],
+  "flips": [
+   {
+    "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00080",
+    "sharpest": "normal",
+    "nearest": "distress",
+    "sharpest_labels": "",
+    "nearest_labels": "Bleeding+Potholes"
+   },
+   {
+    "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00083",
+    "sharpest": "distress",
+    "nearest": "normal",
+    "sharpest_labels": "Bleeding+Potholes",
+    "nearest_labels": ""
+   },
+   {
+    "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00089",
+    "sharpest": "distress",
+    "nearest": "normal",
+    "sharpest_labels": "Bleeding+Potholes",
+    "nearest_labels": ""
+   },
+   {
+    "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00098",
+    "sharpest": "normal",
+    "nearest": "distress",
+    "sharpest_labels": "",
+    "nearest_labels": "Bleeding+Potholes"
+   },
+   {
+    "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00114",
+    "sharpest": "distress",
+    "nearest": "normal",
+    "sharpest_labels": "Bleeding+Streaking",
+    "nearest_labels": ""
+   },
+   {
+    "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00138",
+    "sharpest": "normal",
+    "nearest": "distress",
+    "sharpest_labels": "",
+    "nearest_labels": "Longitudinal Cracking+Potholes"
+   },
+   {
+    "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00168",
+    "sharpest": "normal",
+    "nearest": "distress",
+    "sharpest_labels": "",
+    "nearest_labels": "Alligator Cracking+Bleeding"
+   },
+   {
+    "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00186",
+    "sharpest": "normal",
+    "nearest": "distress",
+    "sharpest_labels": "",
+    "nearest_labels": "Bleeding+Potholes"
+   },
+   {
+    "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00195",
+    "sharpest": "normal",
+    "nearest": "distress",
+    "sharpest_labels": "",
+    "nearest_labels": "Bleeding+Streaking"
+   },
+   {
+    "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00203",
+    "sharpest": "distress",
+    "nearest": "normal",
+    "sharpest_labels": "Edge Breaking+Potholes",
+    "nearest_labels": ""
+   },
+   {
+    "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00235",
+    "sharpest": "distress",
+    "nearest": "normal",
+    "sharpest_labels": "Bleeding+Potholes",
+    "nearest_labels": ""
+   },
+   {
+    "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00255",
+    "sharpest": "distress",
+    "nearest": "normal",
+    "sharpest_labels": "Bleeding+Hungry Surface+Streaking",
+    "nearest_labels": ""
+   },
+   {
+    "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00257",
+    "sharpest": "distress",
+    "nearest": "normal",
+    "sharpest_labels": "Edge Breaking+Potholes",
+    "nearest_labels": ""
+   },
+   {
+    "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00305",
+    "sharpest": "normal",
+    "nearest": "distress",
+    "sharpest_labels": "",
+    "nearest_labels": "Bleeding+Potholes"
+   },
+   {
+    "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00312",
+    "sharpest": "distress",
+    "nearest": "normal",
+    "sharpest_labels": "Longitudinal Cracking+Potholes",
+    "nearest_labels": ""
+   },
+   {
+    "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00325",
+    "sharpest": "distress",
+    "nearest": "normal",
+    "sharpest_labels": "Bleeding+Potholes",
+    "nearest_labels": ""
+   },
+   {
+    "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00338",
+    "sharpest": "normal",
+    "nearest": "distress",
+    "sharpest_labels": "",
+    "nearest_labels": "Longitudinal Cracking+Potholes"
+   },
+   {
+    "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00353",
+    "sharpest": "distress",
+    "nearest": "normal",
+    "sharpest_labels": "Bleeding+Longitudinal Cracking",
+    "nearest_labels": ""
+   },
+   {
+    "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00359",
+    "sharpest": "distress",
+    "nearest": "normal",
+    "sharpest_labels": "Longitudinal Cracking+Potholes",
+    "nearest_labels": ""
+   },
+   {
+    "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00368",
+    "sharpest": "distress",
+    "nearest": "normal",
+    "sharpest_labels": "Longitudinal Cracking+Potholes",
+    "nearest_labels": ""
+   },
+   {
+    "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00378",
+    "sharpest": "normal",
+    "nearest": "distress",
+    "sharpest_labels": "",
+    "nearest_labels": "Alligator Cracking+Longitudinal Cracking"
+   },
+   {
+    "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00391",
+    "sharpest": "distress",
+    "nearest": "normal",
+    "sharpest_labels": "Potholes",
+    "nearest_labels": ""
+   },
+   {
+    "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00402",
+    "sharpest": "distress",
+    "nearest": "normal",
+    "sharpest_labels": "Longitudinal Cracking+Transverse Cracking",
+    "nearest_labels": ""
+   },
+   {
+    "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00406",
+    "sharpest": "distress",
+    "nearest": "normal",
+    "sharpest_labels": "Alligator Cracking+Potholes",
+    "nearest_labels": ""
+   },
+   {
+    "id": "20261027T050257Z_SM-G991B-F0D1_d47c_seg00442",
+    "sharpest": "distress",
+    "nearest": "normal",
+    "sharpest_labels": "Bleeding+Potholes",
+    "nearest_labels": ""
+   }
+  ]
+ },
+ "nearest_flip_judgements": {
+  "all_flips": {
+   "nearest": 12,
+   "sharpest": 4,
+   "unclear": 9,
+   "nearest_share_of_decided": 0.75,
+   "nearest_share_ci95": [
+    0.505,
+    0.8982
+   ]
+  },
+  "sharpest_distress_to_nearest_normal": {
+   "nearest": 8,
+   "sharpest": 2,
+   "unclear": 6,
+   "nearest_share_of_decided": 0.8,
+   "nearest_share_ci95": [
+    0.4902,
+    0.9433
+   ]
+  },
+  "sharpest_normal_to_nearest_distress": {
+   "nearest": 4,
+   "sharpest": 2,
+   "unclear": 3,
+   "nearest_share_of_decided": 0.6667,
+   "nearest_share_ci95": [
+    0.3,
+    0.9032
+   ]
+  },
+  "method": "one look per flip at both whole frames (900 px) with the segment's edges marked; not ground truth; not blind (each arm and its answer named on the sheet)",
+  "rule": "nearest_sharp becomes the default only if the Wilson 95 % CI of the share of decided flips judged in favour of nearest lies wholly above 0.5. Otherwise the default stays sharpest and nearest_sharp stays opt-in. Agreement, kappa, resolution gain and clustering are reported but do not decide.",
+  "rule_written_utc": "2026-11-06T10:17:28+00:00",
+  "rule_met": true,
+  "margin_flips": {
+   "rule_met": true,
+   "nearest_verdicts_that_can_be_lost": 0
+  }
  }
 }

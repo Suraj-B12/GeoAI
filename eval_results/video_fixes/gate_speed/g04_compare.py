@@ -11,6 +11,7 @@ assert os.environ.get("CUDA_VISIBLE_DEVICES") == "-1"
 import json
 import sys
 from pathlib import Path
+import sys as _s; _s.path.insert(0, r"C:/GeoAI/analysis/fixes"); import atomic_io as aio  # noqa: E402,E702 atomic result writes
 
 sys.path.insert(0, r"C:/GeoAI/tmp/gate_speed_after/pipeline")
 import geoai  # noqa: E402
@@ -91,4 +92,4 @@ for s in SESS:
                              "afterdefault_vs_before_rep1": same_run(R["afterdefault_rep1"]["dir"], R["before_rep1"]["dir"])}})
     res["sessions"][short] = out
     print(short, json.dumps({k: v for k, v in out.items() if k not in ("runs",)}, default=str)[:1500], flush=True)
-(OUT / "compare.json").write_text(json.dumps(res, indent=1, default=str), encoding="utf-8")
+aio.write_json(OUT / "compare.json", res, indent=1, default=str)

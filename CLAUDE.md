@@ -133,8 +133,14 @@ for everything below.
    runner + Stage-1 bypass promised but unbuilt).
 6. **Drive-video survey (GeoAI_Video repo, built 2026-10-27/28):** all 813 segments of 3 S21 drives
    classified, stored in local PostgreSQL + `C:\GeoAI\images`; paper §8; GIS API + teammate brief
-   `paper/GIS_VIDEO_HANDOFF.md`. **Resume from `eval_results/video_fixes/STATUS.md`** (unfinished
-   studies, stuck GPU lock, §8.6 placeholder, owner actions). Memory: project_geoai_video_repo.
+   `paper/GIS_VIDEO_HANDOFF.md`. The 2026-10-28 improvement studies were **finished 2026-11-06** (paper §8.6,
+   `eval_results/video_fixes/{gate_speed,vlm_view}/REPORT.md`):
+   - **Adopted:** the gate on its own thread (1.30× faster extraction, byte-identical outputs).
+   - **Not adopted:**
+     - probe-only gate (held-out recall 87.8 % < 90 %);
+     - 8-bit luma sharpness (a different frame on 2 of 813 segments);
+     - band crop (no better).
+   - **Nearest-sharp frame:** it crashed on every drive because of the camera's 1–4° roll; fixed in GeoAI_Video `8f18fa2`. It met its pre-registered rule with zero margin on a non-blind look, so the default is unchanged. **Open:** a blind expert check of its 25 flips. Memory: project_geoai_video_repo.
 
 **Where things are:**
 - Research paper: `paper/baseline_evaluation.md` (§T7 = deployment record, test suites, incidents).

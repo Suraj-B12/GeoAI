@@ -1,0 +1,26 @@
+id,sharpest,nearest,sharpest_labels,nearest_labels,verdict,note
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00080,normal,distress,,Bleeding+Potholes,unclear,dark oil-like stains and a darker area by the parked car's wheel; no clear pothole or bleeding
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00083,distress,normal,Bleeding+Potholes,,nearest,clean shaded asphalt; nothing like bleeding or potholes in the segment
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00089,distress,normal,Bleeding+Potholes,,nearest,clean road with sun/shade pattern beside a parked car
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00098,normal,distress,,Bleeding+Potholes,unclear,"large darker irregular area (wet, overlay or patch?); ravelled edge at bottom right"
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00114,distress,normal,Bleeding+Streaking,,unclear,dark stain plus thin lines near the left edge; sharpest frame too dark to tell
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00138,normal,distress,,Longitudinal Cracking+Potholes,nearest,cracked surface on the left part of the carriageway in both frames (twig pile is not a pothole)
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00168,normal,distress,,Alligator Cracking+Bleeding,nearest,polygonal crack pattern visible near the near edge in the nearest frame; blurred in the sharpest
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00186,normal,distress,,Bleeding+Potholes,sharpest,clean asphalt; no pothole or bleeding; only kerb-edge wear outside the lane
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00195,normal,distress,,Bleeding+Streaking,unclear,light dried trail across the road (spill/sand) on a coarse surface; streaking? ravelling?
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00203,distress,normal,Edge Breaking+Potholes,,unclear,raised slab/ramp edge at the left and a worn surface; no clear pothole
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00235,distress,normal,Bleeding+Potholes,,nearest,round water/oil stains only; no pothole
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00255,distress,normal,Bleeding+Hungry Surface+Streaking,,unclear,dark stain by the drain plus shadows; spill or bleeding cannot be told
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00257,distress,normal,Edge Breaking+Potholes,,unclear,very dark frame; wet patch/shadow; road edge by construction debris may be broken
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00305,normal,distress,,Bleeding+Potholes,sharpest,manhole cover and small stains; no pothole
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00312,distress,normal,Longitudinal Cracking+Potholes,,nearest,clean carriageway; broken footpath edge lies outside the segment's road
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00325,distress,normal,Bleeding+Potholes,,unclear,dark wet broken patch at the left road margin; edge breaking or a wet stain
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00338,normal,distress,,Longitudinal Cracking+Potholes,nearest,"several crack lines across the shaded road, visible in both frames"
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00353,distress,normal,Bleeding+Longitudinal Cracking,,nearest,clean road; cracks only on the footpath/gutter outside the carriageway
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00359,distress,normal,Longitudinal Cracking+Potholes,,nearest,clean road under tree shade
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00368,distress,normal,Longitudinal Cracking+Potholes,,nearest,"utility cover and a patch line (condition indicator, not a distress type); road clean"
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00378,normal,distress,,Alligator Cracking+Longitudinal Cracking,nearest,"a crack line runs diagonally through the segment, clear in the nearest frame"
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00391,distress,normal,Potholes,,unclear,patched surface with patch outlines and a ravelled area at the left; pothole doubtful
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00402,distress,normal,Longitudinal Cracking+Transverse Cracking,,sharpest,a longitudinal crack/joint with a step runs along the lane in both frames
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00406,distress,normal,Alligator Cracking+Potholes,,sharpest,"heavily damaged, patched surface with depressions; the nearest frame is badly defocused"
+20261027T050257Z_SM-G991B-F0D1_d47c_seg00442,distress,normal,Bleeding+Potholes,,nearest,clean asphalt with leaf shadows and a manhole cover

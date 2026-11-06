@@ -58,6 +58,13 @@
 > is in the UI as an opt-in reference with its measured hit rate beside it, and experts rate it, which gives
 > a Bengaluru re-test. No result changed.
 >
+> **Revision 2026-11-06 — drive-video improvements completed.** §8.6 only, with new Figures 8.9a–c:
+> - **Extraction timing:** the distress check on its own thread makes extraction 1.30× faster with byte-identical outputs (adopted).
+> - **Probe-only check:** 2.6× faster, but held-out recall is 87.8 % < 90 %, so not adopted.
+> - **8-bit sharpness:** not adopted (2/813 different frames).
+> - **Nearest-sharp frame:** it could not run on any real drive (camera roll); this is fixed in GeoAI_Video `8f18fa2`.
+> - **Nearest-sharp A/B on drive C:** 12 of 16 decided flips favour it. The pre-registered bar is met with no flip to spare, by a non-blind look, so the default is unchanged pending a blind expert check.
+
 > **Reading guide.** Results were produced by four successive pipeline versions; every table
 > names the one it used:
 > | Version | Prompts / taxonomy | Adapter | Where reported |
@@ -1245,12 +1252,23 @@ A review agent searched the first three drives for flaws whose fix would make th
 | Change | Measurement | Result | Adopted |
 |---|---|---|---|
 | `profile=video` on `/classify`: skip the record-only probe tiles for video frames | 60 frames, each sent with and without, order alternated | Stage-1-Normal 13.72 → 3.76 s, Distress 24.41 → 14.43 s; **60/60 answers identical** in every decision field; runner end to end 14.4 → 5.2 s/image (2.76×) | Yes |
-| Sharpness on uint8 luma instead of float RGB | all 813 segments re-scored | 31–36 → 10–13 ms per call (~2.9×); same chosen frame on 811/813 segments (Spearman 0.99997) | Safe; not yet switched on |
-| Probe-only distress gate (calibrated on the send-all batch) | leave-one-drive-out | held-out recall 87.8 % [78.5, 95.2] at 59.4 % pass, below the 90 % target (in-sample: 90.2 % at 61.4 %). No pre-registered variant beat it | No: defaults kept |
+| Distress check scored on its own thread beside decoding (default thresholds) | the 3 drives extracted twice before and once after, interleaved, GPU otherwise idle | 937 → 722 s for 4.06 km (231 → 178 s per km, 1.30×); every record, image and sidecar byte-identical | Yes |
+| Sharpness on uint8 luma instead of float RGB | all 813 segments re-scored | 31–36 → 10–13 ms per call (~2.9×), Spearman 0.99997, but a different chosen frame on 2 of 813 segments (drive C) | No: the pre-registered rule required the same frame in every segment |
+| Probe-only distress gate (calibrated on the send-all batch) | leave-one-drive-out; extraction timed twice | held-out recall 87.8 % [78.5, 95.2] at 59.4 % pass, below the 90 % target (in-sample: 90.2 % at 61.4 %; Figure 8.9b). No pre-registered variant beat it. Without the bank pass, extraction would take 88 s per km (2.6× faster; Figure 8.9c) and model time ~13 min per km less | No: defaults kept |
 | Segment band crop instead of the whole frame | 328 segments (164 distress + 164 Normal), both arms answered | 84.1 % agreement (κ 0.68). Band drops 42/164 frame-distress, adds 10/164. One-look visual check of the 52 flips: band right 21, frame 17, unclear 14 | No: no evidence band is better |
-| Nearest-sharp frame (removes the far-frame bias of raw sharpness) | re-extraction done | analysis not run | Pending |
+| Nearest-sharp frame (removes the far-frame bias of raw sharpness) | drive C (528 segments). The option first failed on every drive: the phone is mounted with 1–4° of roll, and the comparison strip fell below the image (fixed). The model answered the 225 segments whose frame changes; flips were judged by eye | Frame changes on 225/528 segments. On those, the segment's near edge is 2.10 → 1.63 m ahead, with 1.21× more rows and 9.7 → 7.1 mm/px at the model's input (Figure 8.9d), and 1.19× higher sharpness on a common ground grid. Answers agree on 200/225 (κ 0.64). Of 25 flips, nearest looks right on 12, sharpest on 4, unclear on 9 (share 0.75 [0.505, 0.898]). The pre-registered bar (lower bound > 0.5) is met with no flip to spare, by one non-blind, non-expert look. In one flip the nearer frame was out of focus. Distressed segments 102 → 95 of 528 | Not yet: the default stays sharpest until an expert checks the 25 flips blind |
 
-The adopted change is the one with identical answers: the per-image cost of the survey fell to the cost of Stage 1 for the four in five frames that are Normal (§8.7).
+The two adopted changes are the two whose outputs are identical: the per-image model cost fell to the cost of Stage 1 for the four in five frames that are Normal (Figure 8.9a, §8.7), and extraction became 1.30× faster. The extraction timings were made under a GPU lock with the model server loaded and idle; the two repetitions of each arm agree within 0.5 s. Data, scripts and the pre-registered rules: `eval_results/video_fixes/` (`gate_speed/`, `vlm_view/`, `vlm_speed/`); Figure 8.9a by `vlm_speed/analyze.py`, Figures 8.9b–c by `gate_speed/g06_figures.py`, Figure 8.9d by `vlm_view/a05_figures.py` (no inference).
+
+Nearest-sharp and band were judged differently from the other rows. Neither has ground truth, so each flip was judged by one non-expert look, and the judge could see which arm produced which answer. That is weaker evidence than the identity checks behind the adopted rows. For nearest-sharp it was decisive: its pre-registered bar was met with zero margin, and losing a single favourable verdict would fail it. The default was therefore left unchanged. The 25 flips (sheets in `C:\GeoAI\analysis\fixes\vlm_view\judge_nearest\`) are the first items for blind expert review.
+
+![Figure 8.9a — Model time per video frame with and without the record-only probe tiles](../eval_results/plots/paper/fig_v9_vlm_speed.png)
+
+![Figure 8.9b — Probe-only distress check held out by drive](../eval_results/plots/paper/fig_v9b_gate_heldout.png)
+
+![Figure 8.9c — Extraction time per km by stage: default distress check vs the probe-only check (not adopted)](../eval_results/plots/paper/fig_v9c_extraction_time.png)
+
+![Figure 8.9d — Model input and time, frame vs band; resolution of the nearest-sharp frames on drive C](../eval_results/plots/paper/fig_v9d_view_resolution.png)
 
 ### 8.7 The survey at scale: 40 further drives through the hands-off pipeline
 
