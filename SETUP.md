@@ -395,6 +395,24 @@ MODEL_PATH=Qwen/Qwen2.5-VL-3B-Instruct uvicorn app.main:app --host 0.0.0.0 --por
 
 **IMPORTANT:** Always use `--workers 1` — the model is on GPU and cannot be shared across processes.
 
+**Production / demo (this machine).** Don't run uvicorn by hand next to production; use the scripts:
+```powershell
+.\start.ps1 -AutoStart -Tunnel -Watchdog -Detach   # after a reboot: everything, hidden, one log
+.\status.ps1                                       # read-only check; exit 1 = something needs attention
+.\stop.ps1                                         # stop the stack
+```
+| `start.ps1` switch | Effect |
+|---|---|
+| `-AutoStart` | Starts the worker once `/health` reports `model_loaded`, after every (re)launch; sends the first `API_KEYS` key as `X-API-Key`. Result lines: `eval_results\autostart.log`. |
+| `-Tunnel` | Cloudflare quick tunnel, hidden (skipped if cloudflared is already running); URL written to `TUNNEL_URL_FILE` (default `C:\GeoAI\tmp\tunnel_url.txt`), log next to it. The URL changes on every cloudflared start. |
+| `-Watchdog` | Relaunches uvicorn on a crash (backoff 5–60 s), killing stray `uvicorn app.main` processes first. |
+| `-Detach` | Relaunches the script hidden with all output in `-LogFile` (default `eval_results\production_final.log`); refuses if a server is already running. |
+| `-SkipChecks`, `-Port`, `-BindHost` | Skip pre-flight; port (8000); bind address (0.0.0.0). |
+
+`status.ps1` checks the P4 settings on `/health`, the worker, the video pipeline, local PostgreSQL, GPU
+memory (warns above 92 %), the GPU lock `C:\GeoAI\gpu.lock` (flags it STALE when its owner PID is gone)
+and whether the tunnel URL answers.
+
 ### Phase 7: Incremental Retraining (after expert corrections)
 
 ```bash
@@ -732,7 +750,7 @@ C:\GeoAI\pgsql\bin\pg_ctl.exe start -D C:\GeoAI\pgdata -l C:\GeoAI\pgdata\log\po
 C:\GeoAI\pgsql\bin\pg_ctl.exe stop  -D C:\GeoAI\pgdata -m fast
 C:\GeoAI\pgsql\bin\pg_isready.exe -h localhost          # "accepting connections"
 # with the server: set DB_BACKEND=postgres in .env, then
-.\start.ps1 -AutoStart -Watchdog     # starts PostgreSQL first (and before every watchdog restart)
+.\start.ps1 -AutoStart -Tunnel -Watchdog -Detach   # starts PostgreSQL first (and before every watchdog restart)
 .\stop.ps1                           # stops uvicorn, then PostgreSQL; -KeepDb leaves it running
 ```
 
