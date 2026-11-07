@@ -1,6 +1,6 @@
 {
- "generated_at": "2026-11-07T01:13:52+00:00",
- "command": "venv/Scripts/python.exe scripts/pci_validation.py --database geoai",
+ "generated_at": "2026-11-07T01:20:22+00:00",
+ "command": "venv/Scripts/python.exe scripts/pci_validation.py --database geoai --redo samples",
  "database": "geoai",
  "data_as_of": "2026-10-30T15:05:00.064449Z",
  "parts": {
@@ -1152,7 +1152,185 @@
    "note": "blocks of each drive in k order (no routing, one pass), 100 m by centre distance, tail < 50 m merged; Table 5.3 (urban)"
   },
   "samples": {
-   "status": "not done: research.pci_reports does not exist in this database (run pci_samples.py)"
+   "status": "done",
+   "reports": [
+    {
+     "id": 1,
+     "rule": "longest_drive",
+     "data_as_of": "2026-10-30 15:05:00.064449+00:00",
+     "length_m": 8309.6,
+     "coverage": 0.9916,
+     "gaps": 0,
+     "gap_m": 0,
+     "cracking": {
+      "E_hi": 22.4083,
+      "E_lo": 18.0825,
+      "band": "Poor"
+     },
+     "potholes": {
+      "E_hi": 9.9083,
+      "E_lo": 5.5825,
+      "band": "Poor"
+     },
+     "pothole_runs_per_km": 7.0388,
+     "final": "Poor–Fair (ravelling, settlement and depression, rut depth not assessed)",
+     "pdf_bytes": 1109057
+    },
+    {
+     "id": 2,
+     "rule": "random_1km_2026-10-27_1",
+     "data_as_of": "2026-10-30 15:05:00.064449+00:00",
+     "length_m": 1551.7,
+     "coverage": 0.8665,
+     "gaps": 3,
+     "gap_m": 219.0,
+     "cracking": {
+      "E_hi": 6.0451,
+      "E_lo": 4.4624,
+      "band": "Fair–Good"
+     },
+     "potholes": {
+      "E_hi": 13.8544,
+      "E_lo": 12.2717,
+      "band": "Poor"
+     },
+     "pothole_runs_per_km": 16.3623,
+     "final": "Poor–Fair (ravelling, settlement and depression, rut depth not assessed)",
+     "pdf_bytes": 1172339
+    },
+    {
+     "id": 3,
+     "rule": "random_1km_2026-10-27_2",
+     "data_as_of": "2026-10-30 15:05:00.064449+00:00",
+     "length_m": 1004.3,
+     "coverage": 0.9609,
+     "gaps": 1,
+     "gap_m": 50.5,
+     "cracking": {
+      "E_hi": 25.5596,
+      "E_lo": 24.8705,
+      "band": "Poor"
+     },
+     "potholes": {
+      "E_hi": 13.1244,
+      "E_lo": 12.4352,
+      "band": "Poor"
+     },
+     "pothole_runs_per_km": 19.6891,
+     "final": "Poor–Fair (ravelling, settlement and depression, rut depth not assessed)",
+     "pdf_bytes": 1024061
+    },
+    {
+     "id": 4,
+     "rule": "random_1km_2026-10-27_3",
+     "data_as_of": "2026-10-30 15:05:00.064449+00:00",
+     "length_m": 1004.4,
+     "coverage": 0.9401,
+     "gaps": 1,
+     "gap_m": 62.0,
+     "cracking": {
+      "E_hi": 9.2105,
+      "E_lo": 7.9428,
+      "band": "Fair"
+     },
+     "potholes": {
+      "E_hi": 17.6828,
+      "E_lo": 16.4151,
+      "band": "Poor"
+     },
+     "pothole_runs_per_km": 22.2398,
+     "final": "Poor–Fair (ravelling, settlement and depression, rut depth not assessed)",
+     "pdf_bytes": 1038834
+    },
+    {
+     "id": 5,
+     "rule": "random_1km_2026-10-29_1",
+     "data_as_of": "2026-10-30 15:05:00.064449+00:00",
+     "length_m": 1003.7,
+     "coverage": 0.7821,
+     "gaps": 2,
+     "gap_m": 233.4,
+     "cracking": {
+      "E_hi": 1.9516,
+      "E_lo": 1.2739,
+      "band": "Good"
+     },
+     "potholes": {
+      "E_hi": 5.7732,
+      "E_lo": 5.0955,
+      "band": "Poor"
+     },
+     "pothole_runs_per_km": 6.3694,
+     "final": "Fair–Good (ravelling, settlement and depression, rut depth not assessed)",
+     "pdf_bytes": 439223
+    },
+    {
+     "id": 6,
+     "rule": "random_1km_2026-10-29_2",
+     "data_as_of": "2026-10-30 15:05:00.064449+00:00",
+     "length_m": 1024.3,
+     "coverage": 0.8884,
+     "gaps": 1,
+     "gap_m": 113.6,
+     "cracking": {
+      "E_hi": 3.4725,
+      "E_lo": 0.5495,
+      "band": "Good"
+     },
+     "potholes": {
+      "E_hi": 4.022,
+      "E_lo": 1.0989,
+      "band": "Poor"
+     },
+     "pothole_runs_per_km": 1.0989,
+     "final": "Fair–Good (ravelling, settlement and depression, rut depth not assessed)",
+     "pdf_bytes": 157255
+    },
+    {
+     "id": 7,
+     "rule": "random_1km_2026-10-29_3",
+     "data_as_of": "2026-10-30 15:05:00.064449+00:00",
+     "length_m": 1003.9,
+     "coverage": 0.9961,
+     "gaps": 0,
+     "gap_m": 0,
+     "cracking": {
+      "E_hi": 30.3915,
+      "E_lo": 27.0,
+      "band": "Poor"
+     },
+     "potholes": {
+      "E_hi": 5.3915,
+      "E_lo": 2.0,
+      "band": "Poor"
+     },
+     "pothole_runs_per_km": 4.0,
+     "final": "Poor–Fair (ravelling, settlement and depression, rut depth not assessed)",
+     "pdf_bytes": 537472
+    },
+    {
+     "id": 8,
+     "rule": "two_gaps",
+     "data_as_of": "2026-10-30 15:05:00.064449+00:00",
+     "length_m": 795.7,
+     "coverage": 0.7953,
+     "gaps": 2,
+     "gap_m": 163.1,
+     "cracking": {
+      "E_hi": 6.6355,
+      "E_lo": 6.3203,
+      "band": "Fair"
+     },
+     "potholes": {
+      "E_hi": 7.4255,
+      "E_lo": 7.1103,
+      "band": "Poor"
+     },
+     "pothole_runs_per_km": 12.6405,
+     "final": "Poor–Fair (ravelling, settlement and depression, rut depth not assessed)",
+     "pdf_bytes": 512101
+    }
+   ]
   }
  }
 }

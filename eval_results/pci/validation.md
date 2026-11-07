@@ -1,6 +1,6 @@
 # Validation — A→B chainage and IRC:82-2015 condition rating
 
-Generated 2026-11-07T01:13:52+00:00 by `venv/Scripts/python.exe scripts/pci_validation.py --database geoai` on database `geoai` (data as of 2026-10-30T15:05:00.064449Z). Every number below is from that run (`eval_results/pci/validation.json`).
+Generated 2026-11-07T01:20:22+00:00 by `venv/Scripts/python.exe scripts/pci_validation.py --database geoai --redo samples` on database `geoai` (data as of 2026-10-30T15:05:00.064449Z). Every number below is from that run (`eval_results/pci/validation.json`).
 
 ## 1. IRC arithmetic
 
@@ -95,7 +95,16 @@ Time-adjacent gaps: OSM route / straight line over 34 of 36 gaps with an OSM rou
 
 ## Sample reports (pre-registered rule, `samples_rule.json`)
 
-not done: research.pci_reports does not exist in this database (run pci_samples.py)
+| id | rule | length m | coverage | gaps | cracking band (E) | pothole band (E) | runs/km | final |
+|---|---|---|---|---|---|---|---|---|
+| 1 | longest_drive | 8309.6 | 0.992 | 0 (≥ 0 m) | Poor (18.1–22.4) | Poor (5.6–9.9) | 7.0 | Poor–Fair (ravelling, settlement and depression, rut depth not assessed) |
+| 2 | random_1km_2026-10-27_1 | 1551.7 | 0.867 | 3 (≥ 219.0 m) | Fair–Good (4.5–6.0) | Poor (12.3–13.9) | 16.4 | Poor–Fair (ravelling, settlement and depression, rut depth not assessed) |
+| 3 | random_1km_2026-10-27_2 | 1004.3 | 0.961 | 1 (≥ 50.5 m) | Poor (24.9–25.6) | Poor (12.4–13.1) | 19.7 | Poor–Fair (ravelling, settlement and depression, rut depth not assessed) |
+| 4 | random_1km_2026-10-27_3 | 1004.4 | 0.940 | 1 (≥ 62.0 m) | Fair (7.9–9.2) | Poor (16.4–17.7) | 22.2 | Poor–Fair (ravelling, settlement and depression, rut depth not assessed) |
+| 5 | random_1km_2026-10-29_1 | 1003.7 | 0.782 | 2 (≥ 233.4 m) | Good (1.3–2.0) | Poor (5.1–5.8) | 6.4 | Fair–Good (ravelling, settlement and depression, rut depth not assessed) |
+| 6 | random_1km_2026-10-29_2 | 1024.3 | 0.888 | 1 (≥ 113.6 m) | Good (0.5–3.5) | Poor (1.1–4.0) | 1.1 | Fair–Good (ravelling, settlement and depression, rut depth not assessed) |
+| 7 | random_1km_2026-10-29_3 | 1003.9 | 0.996 | 0 (≥ 0 m) | Poor (27.0–30.4) | Poor (2.0–5.4) | 4.0 | Poor–Fair (ravelling, settlement and depression, rut depth not assessed) |
+| 8 | two_gaps | 795.7 | 0.795 | 2 (≥ 163.1 m) | Fair (6.3–6.6) | Poor (7.1–7.4) | 12.6 | Poor–Fair (ravelling, settlement and depression, rut depth not assessed) |
 
 ## Statements for the paper (from the numbers above)
 

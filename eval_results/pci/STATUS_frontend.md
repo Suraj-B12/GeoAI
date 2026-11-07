@@ -93,8 +93,17 @@ Screenshots: `…tool-results\mcp-Claude_Browser-blob-1793998646989-ncu5w8.jpg` 
 - "Survey data temporarily unavailable…" in the round-2 1440 screenshot was NOT a bug: the test helper forces
   `#notice` visible in every check to test notice placement (`T.withNotice`). A clean reload shows no notice
   ("45 drives · data loaded"), and the harness log has 0 errors/503s.
-- Waiting for the backend's geoai_test re-copy + sample regeneration (STATUS_backend checkbox) to run the final
-  full set on that data.
+- Final run after the backend re-copied geoai_test and regenerated samples (ids 18–25; harness restarted) — all PASS, no JS errors:
+  - Sample "two_gaps" (no. 25): 2 gaps, 8 sections, 130 attribution rows, PRIORITY box, not stale; section 1 frames
+    = 16 used attribution rows; stored PDF 512 kB / CSV / JSON downloaded as `IRC82-condition_stretch_796m_2026-11-07_no25.*`.
+  - Fresh A→B across a time-adjacent drive gap: 254.5 m, gap 143.6–155.5 m (inside section 100–200, "≥ 12 m (straight line)"),
+    2 passes; via add/remove; PRIORITY (backend priority_notes) + final.note; gap section shows 19 frames = 19 used
+    attribution rows; preview PDF/CSV/JSON; wrong key → "not accepted"; harness key → saved as report 28;
+    key only in sessionStorage. Refusal 165 m off-road shown in the card. Esc closes, focus back on the action.
+  - No report in this data carries a `band_note`, so that row was only checked in code, not on screen.
+  - Overlap detector (all floating elements, #notice forced visible, title ≤ 2 lines, section in view, whole path
+    visible when minimised), states closed/build/picking/minimised/result/saved/saved-open × light/dark at
+    1440×900, 1024×768, 820×1180, 375×812 → **56/56 OK**.
 
 ## Next
 - Coordinator: review, copy `pci.js`, `pci.css`, and the small `app.js`/`map.js`/`index.html` diffs into `webgis/`.
