@@ -1,0 +1,1158 @@
+{
+ "generated_at": "2026-11-07T01:13:52+00:00",
+ "command": "venv/Scripts/python.exe scripts/pci_validation.py --database geoai",
+ "database": "geoai",
+ "data_as_of": "2026-10-30T15:05:00.064449Z",
+ "parts": {
+  "arithmetic": {
+   "app4_example": {
+    "rows": [
+     [
+      "cracking",
+      9,
+      1.2,
+      1.2
+     ],
+     [
+      "ravelling",
+      8,
+      1.2,
+      0.9
+     ],
+     [
+      "potholes",
+      0,
+      3.0,
+      1.5
+     ],
+     [
+      "shoving",
+      0.09,
+      2.1,
+      2.1
+     ],
+     [
+      "patching",
+      5,
+      1.5,
+      1.1
+     ],
+     [
+      "settlement",
+      4,
+      1.2,
+      0.9
+     ],
+     [
+      "rut_depth",
+      9,
+      1.2,
+      1.2
+     ]
+    ],
+    "final": 1.3,
+    "class": "Fair",
+    "note": "IRC prints 1.3 for the rut-depth row; the inferred rule gives 1.2 (RESEARCH §1.5); final 1.3 Fair either way"
+   },
+   "band_boundary_checks": 116,
+   "band_boundary_failures": [],
+   "truncation": {
+    "2-(9-5)/5": 1.2,
+    "1.5555": 1.5
+   },
+   "rounding": {
+    "0.75*1.5": 1.1,
+    "0.75*1.2": 0.9,
+    "0.5*2.5": 1.3
+   },
+   "urban_bracket_all_distress": {
+    "lo": 0.8,
+    "hi": 1.8,
+    "class_lo": "Poor",
+    "class_hi": "Fair",
+    "class": "Poor–Fair",
+    "label": "Poor–Fair (ravelling, settlement and depression, rut depth not assessed)",
+    "n_params": 5,
+    "n_assessed": 2
+   },
+   "urban_bracket_no_distress": {
+    "lo": 1.4,
+    "hi": 2.4,
+    "class_lo": "Fair",
+    "class_hi": "Good",
+    "class": "Fair–Good",
+    "label": "Fair–Good (ravelling, settlement and depression, rut depth not assessed)",
+    "n_params": 5,
+    "n_assessed": 2
+   }
+  },
+  "synthetic": {
+   "shapes": {
+    "straight_1000": {
+     "true_m": 1000.0,
+     "measured_m": 1000.0,
+     "error_m": -0.0
+    },
+    "arc_r100_90deg": {
+     "true_m": 157.08,
+     "measured_m": 157.06,
+     "error_m": -0.02
+    },
+    "turn90_r15": {
+     "true_m": 623.56,
+     "measured_m": 623.45,
+     "error_m": -0.12
+    },
+    "turn180_r8": {
+     "true_m": 625.13,
+     "measured_m": 624.7,
+     "error_m": -0.44
+    }
+   },
+   "ar1_noise_length_error_m_per_1000m": {
+    "sigma4_corr50m": {
+     "n": 50,
+     "mean": 63.36,
+     "sd": 7.0,
+     "min": 45.88,
+     "p50": 62.54,
+     "p90": 69.47,
+     "max": 84.36
+    },
+    "sigma4_corr100m": {
+     "n": 50,
+     "mean": 31.96,
+     "sd": 5.62,
+     "min": 15.19,
+     "p50": 32.08,
+     "p90": 38.41,
+     "max": 43.53
+    },
+    "sigma4_corr200m": {
+     "n": 50,
+     "mean": 16.78,
+     "sd": 5.15,
+     "min": 2.09,
+     "p50": 16.87,
+     "p90": 23.42,
+     "max": 24.69
+    },
+    "sigma6_corr50m": {
+     "n": 50,
+     "mean": 151.36,
+     "sd": 12.41,
+     "min": 122.43,
+     "p50": 149.85,
+     "p90": 166.78,
+     "max": 196.48
+    },
+    "sigma6_corr100m": {
+     "n": 50,
+     "mean": 73.88,
+     "sd": 9.06,
+     "min": 51.56,
+     "p50": 74.32,
+     "p90": 83.38,
+     "max": 98.2
+    },
+    "sigma6_corr200m": {
+     "n": 50,
+     "mean": 37.45,
+     "sd": 7.91,
+     "min": 15.32,
+     "p50": 37.48,
+     "p90": 47.4,
+     "max": 50.87
+    }
+   },
+   "swap": {
+    "length_diff_m": 0.0,
+    "pothole_E_lo_diff": 0.0
+   },
+   "rule_tests": {
+    "test_refusals": "pass",
+    "test_via_points_and_swap_symmetry": "pass",
+    "test_gap_rules": "pass",
+    "test_parallel_road_not_joined": "pass",
+    "test_flyover_refused_level_crossing_used": "pass",
+    "test_u_turn_and_loop_attribution": "pass"
+   }
+  },
+  "retest": {
+   "rule": "nearest segment of each later drive within 6 m, |dheading| < 30 deg, |d alt| <= 4 m",
+   "matched_pairs": 84,
+   "drive_pairs": 4,
+   "pairs_both_classified": 67,
+   "status_pairs": {
+    "send/send": 67,
+    "send/skip": 15,
+    "skip/send": 2
+   },
+   "kappa": {
+    "Distress": {
+     "n": 67,
+     "agreement": 0.9254,
+     "kappa": 0.7564,
+     "positive_a": 15,
+     "positive_b": 10,
+     "both_positive": 10,
+     "ci95_block_bootstrap": [
+      0.0,
+      0.962
+     ],
+     "bootstrap_blocks": 8,
+     "bootstrap_valid": 1997
+    },
+    "Potholes": {
+     "n": 67,
+     "agreement": 0.9104,
+     "kappa": 0.6742,
+     "positive_a": 12,
+     "positive_b": 10,
+     "both_positive": 8,
+     "ci95_block_bootstrap": [
+      0.0,
+      0.908
+     ],
+     "bootstrap_blocks": 8,
+     "bootstrap_valid": 1999
+    },
+    "Cracking": {
+     "n": 67,
+     "agreement": 0.9254,
+     "kappa": 0.5052,
+     "positive_a": 6,
+     "positive_b": 5,
+     "both_positive": 3,
+     "ci95_block_bootstrap": [
+      0.0,
+      0.848
+     ],
+     "bootstrap_blocks": 8,
+     "bootstrap_valid": 1996
+    }
+   },
+   "drive_pairs_time": [
+    {
+     "earlier": "20261027T103050Z_SM-G991B-F0D1_eaf1",
+     "later": "20261027T112443Z_SM-G991B-F0D1_2fb1",
+     "pairs": 37,
+     "hours_apart": 0.9
+    },
+    {
+     "earlier": "20261027T050257Z_SM-G991B-F0D1_d47c",
+     "later": "20261027T095431Z_SM-G991B-F0D1_b81d",
+     "pairs": 29,
+     "hours_apart": 4.86
+    },
+    {
+     "earlier": "20261029T113633Z_SM-G991B-F0D1_bc80",
+     "later": "20261029T114942Z_SM-G991B-F0D1_d94c",
+     "pairs": 15,
+     "hours_apart": 0.22
+    },
+    {
+     "earlier": "20261026T114332Z_SM-G991B-F0D1_f428",
+     "later": "20261027T050257Z_SM-G991B-F0D1_d47c",
+     "pairs": 3,
+     "hours_apart": 17.32
+    }
+   ],
+   "offset_m": {
+    "distance": {
+     "n": 84,
+     "mean": 2.03,
+     "sd": 1.34,
+     "min": 0.23,
+     "p50": 1.8,
+     "p90": 4.7,
+     "max": 5.7
+    },
+    "along_track_abs": {
+     "n": 84,
+     "mean": 1.05,
+     "sd": 1.12,
+     "min": 0.06,
+     "p50": 0.76,
+     "p90": 2.02,
+     "max": 5.28
+    },
+    "cross_track_abs": {
+     "n": 84,
+     "mean": 1.52,
+     "sd": 1.12,
+     "min": 0.02,
+     "p50": 1.58,
+     "p90": 2.24,
+     "max": 5.56
+    },
+    "note": "nearest-neighbour matches inside the 6 m link radius: offsets are bounded by the matching rule, so they describe the link geometry, not an independent chainage error"
+   },
+   "blocks_100m": {
+    "n_blocks": 2,
+    "drive_pairs_with_blocks": 2,
+    "cracking": {
+     "band_agreement": 1.0,
+     "mean_abs_diff_E_lo_pct": 0.0,
+     "E_lo_earlier": {
+      "n": 2,
+      "mean": 0.0,
+      "sd": 0.0,
+      "min": 0.0,
+      "p50": 0.0,
+      "p90": 0.0,
+      "max": 0.0
+     },
+     "E_lo_later": {
+      "n": 2,
+      "mean": 0.0,
+      "sd": 0.0,
+      "min": 0.0,
+      "p50": 0.0,
+      "p90": 0.0,
+      "max": 0.0
+     }
+    },
+    "potholes": {
+     "band_agreement": 0.5,
+     "mean_abs_diff_E_lo_pct": 5.0,
+     "E_lo_earlier": {
+      "n": 2,
+      "mean": 5.0,
+      "sd": 5.0,
+      "min": 0.0,
+      "p50": 5.0,
+      "p90": 9.0,
+      "max": 10.0
+     },
+     "E_lo_later": {
+      "n": 2,
+      "mean": 0.0,
+      "sd": 0.0,
+      "min": 0.0,
+      "p50": 0.0,
+      "p90": 0.0,
+      "max": 0.0
+     }
+    },
+    "final_class_agreement": 1.0,
+    "final_class_pairs": {
+     "Fair–Good / Fair–Good": 2
+    }
+   },
+   "centre_path_over_s_path": {
+    "n": 42,
+    "mean": 0.9986,
+    "sd": 0.0047,
+    "min": 0.9774,
+    "p50": 0.999,
+    "p90": 1.0024,
+    "max": 1.0043
+   }
+  },
+  "osm": {
+   "attribution": "Map data (c) OpenStreetMap contributors, ODbL 1.0 (https://www.openstreetmap.org/copyright), via the Overpass API",
+   "samples": [
+    {
+     "rule": "longest_drive",
+     "surveyed_length_m": 8309.6,
+     "osm_route_length_m": 10342.6,
+     "ratio_ours_over_osm": 0.8034,
+     "waypoint_snap_m": {
+      "n": 84,
+      "mean": 13.9,
+      "sd": 12.5,
+      "min": 0.4,
+      "p50": 9.8,
+      "p90": 29.1,
+      "max": 69.0
+     }
+    },
+    {
+     "rule": "random_1km_2026-10-27_1",
+     "surveyed_length_m": 1332.8,
+     "osm_route_length_m": 1412.3,
+     "ratio_ours_over_osm": 0.9437,
+     "waypoint_snap_m": {
+      "n": 19,
+      "mean": 11.5,
+      "sd": 8.7,
+      "min": 0.7,
+      "p50": 8.1,
+      "p90": 23.1,
+      "max": 32.5
+     }
+    },
+    {
+     "rule": "random_1km_2026-10-27_2",
+     "surveyed_length_m": 953.8,
+     "osm_route_length_m": 1166.1,
+     "ratio_ours_over_osm": 0.8179,
+     "waypoint_snap_m": {
+      "n": 12,
+      "mean": 19.5,
+      "sd": 9.5,
+      "min": 4.3,
+      "p50": 19.2,
+      "p90": 30.8,
+      "max": 35.5
+     }
+    },
+    {
+     "rule": "random_1km_2026-10-27_3",
+     "surveyed_length_m": 942.4,
+     "osm_route_length_m": 4415.4,
+     "ratio_ours_over_osm": 0.2134,
+     "waypoint_snap_m": {
+      "n": 12,
+      "mean": 11.4,
+      "sd": 7.0,
+      "min": 1.4,
+      "p50": 12.2,
+      "p90": 19.3,
+      "max": 24.3
+     }
+    },
+    {
+     "rule": "random_1km_2026-10-29_1",
+     "surveyed_length_m": 770.3,
+     "osm_route_length_m": 910.6,
+     "ratio_ours_over_osm": 0.8459,
+     "waypoint_snap_m": {
+      "n": 11,
+      "mean": 13.6,
+      "sd": 9.0,
+      "min": 2.1,
+      "p50": 11.2,
+      "p90": 28.1,
+      "max": 30.7
+     }
+    },
+    {
+     "rule": "random_1km_2026-10-29_2",
+     "surveyed_length_m": 910.7,
+     "osm_route_length_m": 1262.0,
+     "ratio_ours_over_osm": 0.7216,
+     "waypoint_snap_m": {
+      "n": 10,
+      "mean": 14.0,
+      "sd": 10.2,
+      "min": 1.2,
+      "p50": 12.8,
+      "p90": 23.8,
+      "max": 36.9
+     }
+    },
+    {
+     "rule": "random_1km_2026-10-29_3",
+     "surveyed_length_m": 1003.9,
+     "osm_route_length_m": 1001.9,
+     "ratio_ours_over_osm": 1.002,
+     "waypoint_snap_m": {
+      "n": 11,
+      "mean": 7.0,
+      "sd": 3.9,
+      "min": 1.4,
+      "p50": 5.5,
+      "p90": 12.6,
+      "max": 12.7
+     }
+    },
+    {
+     "rule": "two_gaps",
+     "surveyed_length_m": 632.6,
+     "osm_route_length_m": 724.9,
+     "ratio_ours_over_osm": 0.8727,
+     "waypoint_snap_m": {
+      "n": 10,
+      "mean": 11.7,
+      "sd": 11.8,
+      "min": 2.0,
+      "p50": 6.4,
+      "p90": 23.7,
+      "max": 40.7
+     }
+    }
+   ],
+   "gaps": [
+    {
+     "from_segment": "20261026T114332Z_SM-G991B-F0D1_f428_seg00229",
+     "straight_m": 11.9,
+     "dt_s": 108.3,
+     "osm_route_m": 37.6,
+     "ratio_osm_over_straight": 3.167,
+     "snap_m": [
+      16.5,
+      18.6
+     ]
+    },
+    {
+     "from_segment": "20261027T095431Z_SM-G991B-F0D1_b81d_seg00107",
+     "straight_m": 41.6,
+     "dt_s": 29.2,
+     "osm_route_m": 32.2,
+     "ratio_osm_over_straight": 0.775,
+     "snap_m": [
+      10.5,
+      2.7
+     ]
+    },
+    {
+     "from_segment": "20261027T095650Z_SM-G991B-F0D1_5651_seg00055",
+     "straight_m": 34.8,
+     "dt_s": 407.2,
+     "osm_route_m": 48.2,
+     "ratio_osm_over_straight": 1.386,
+     "snap_m": [
+      18.6,
+      12.1
+     ]
+    },
+    {
+     "from_segment": "20261027T100432Z_SM-G991B-F0D1_4884_seg00045",
+     "straight_m": 28.2,
+     "dt_s": 29.5,
+     "osm_route_m": 26.8,
+     "ratio_osm_over_straight": 0.949,
+     "snap_m": [
+      4.4,
+      3.6
+     ]
+    },
+    {
+     "from_segment": "20261027T100550Z_SM-G991B-F0D1_9766_seg00042",
+     "straight_m": 47.4,
+     "dt_s": 109.9,
+     "osm_route_m": 52.7,
+     "ratio_osm_over_straight": 1.113,
+     "snap_m": [
+      7.8,
+      11.5
+     ]
+    },
+    {
+     "from_segment": "20261027T100809Z_SM-G991B-F0D1_19db_seg00194",
+     "straight_m": 77.4,
+     "dt_s": 21.6,
+     "osm_route_m": 83.3,
+     "ratio_osm_over_straight": 1.077,
+     "snap_m": [
+      10.8,
+      1.8
+     ]
+    },
+    {
+     "from_segment": "20261027T101057Z_SM-G991B-F0D1_3d9b_seg00578",
+     "straight_m": 15.7,
+     "dt_s": 101.8,
+     "osm_route_m": 9.5,
+     "ratio_osm_over_straight": 0.601,
+     "snap_m": [
+      9.3,
+      3.6
+     ]
+    },
+    {
+     "from_segment": "20261027T102007Z_SM-G991B-F0D1_22d5_seg00037",
+     "straight_m": 62.0,
+     "dt_s": 57.4,
+     "osm_route_m": 38.0,
+     "ratio_osm_over_straight": 0.614,
+     "snap_m": [
+      11.9,
+      13.3
+     ]
+    },
+    {
+     "from_segment": "20261027T102142Z_SM-G991B-F0D1_7bf4_seg00326",
+     "straight_m": 29.6,
+     "dt_s": 88.2,
+     "osm_route_m": 18.5,
+     "ratio_osm_over_straight": 0.625,
+     "snap_m": [
+      8.0,
+      3.1
+     ]
+    },
+    {
+     "from_segment": "20261027T102704Z_SM-G991B-F0D1_b63f_seg00086",
+     "straight_m": 133.6,
+     "dt_s": 145.3,
+     "osm_route_m": 121.6,
+     "ratio_osm_over_straight": 0.91,
+     "snap_m": [
+      20.3,
+      2.0
+     ]
+    },
+    {
+     "from_segment": "20261027T103050Z_SM-G991B-F0D1_eaf1_seg00104",
+     "straight_m": 80.2,
+     "dt_s": 36.4,
+     "osm_route_m": 113.5,
+     "ratio_osm_over_straight": 1.416,
+     "snap_m": [
+      0.7,
+      11.4
+     ]
+    },
+    {
+     "from_segment": "20261027T103315Z_SM-G991B-F0D1_2b50_seg00040",
+     "straight_m": 54.3,
+     "dt_s": 69.1,
+     "osm_route_m": 82.6,
+     "ratio_osm_over_straight": 1.522,
+     "snap_m": [
+      4.4,
+      20.5
+     ]
+    },
+    {
+     "from_segment": "20261027T103525Z_SM-G991B-F0D1_35fd_seg00155",
+     "straight_m": 84.5,
+     "dt_s": 38.6,
+     "osm_route_m": 127.3,
+     "ratio_osm_over_straight": 1.506,
+     "snap_m": [
+      8.7,
+      22.9
+     ]
+    },
+    {
+     "from_segment": "20261027T112443Z_SM-G991B-F0D1_2fb1_seg00151",
+     "straight_m": 67.2,
+     "dt_s": 93.3,
+     "osm_route_m": 112.5,
+     "ratio_osm_over_straight": 1.676,
+     "snap_m": [
+      15.7,
+      9.1
+     ]
+    },
+    {
+     "from_segment": "20261027T112804Z_SM-G991B-F0D1_c561_seg00369",
+     "straight_m": 50.5,
+     "dt_s": 98.7,
+     "osm_route_m": 19.5,
+     "ratio_osm_over_straight": 0.387,
+     "snap_m": [
+      23.7,
+      8.5
+     ]
+    },
+    {
+     "from_segment": "20261027T113604Z_SM-G991B-F0D1_3fe3_seg00069",
+     "straight_m": 123.2,
+     "dt_s": 86.8,
+     "osm_route_m": 183.2,
+     "ratio_osm_over_straight": 1.487,
+     "snap_m": [
+      12.2,
+      20.1
+     ]
+    },
+    {
+     "from_segment": "20261027T113840Z_SM-G991B-F0D1_d278_seg00443",
+     "straight_m": 368.5,
+     "dt_s": 200.9,
+     "osm_route_m": 373.7,
+     "ratio_osm_over_straight": 1.014,
+     "snap_m": [
+      6.9,
+      3.2
+     ]
+    },
+    {
+     "from_segment": "20261027T122128Z_SM-G991B-F0D1_2d59_seg00150",
+     "straight_m": 46.0,
+     "dt_s": 50.7,
+     "osm_route_m": 35.1,
+     "ratio_osm_over_straight": 0.762,
+     "snap_m": [
+      6.2,
+      24.5
+     ]
+    },
+    {
+     "from_segment": "20261027T122454Z_SM-G991B-F0D1_f668_seg00104",
+     "straight_m": 212.7,
+     "dt_s": 98.0,
+     "osm_route_m": 161.6,
+     "ratio_osm_over_straight": 0.76,
+     "snap_m": [
+      14.6,
+      41.5
+     ]
+    },
+    {
+     "from_segment": "20261027T122814Z_SM-G991B-F0D1_8902_seg00030",
+     "straight_m": 94.1,
+     "dt_s": 30.8,
+     "osm_route_m": 162.1,
+     "ratio_osm_over_straight": 1.723,
+     "snap_m": [
+      49.3,
+      2.5
+     ]
+    },
+    {
+     "from_segment": "20261029T095033Z_SM-G991B-F0D1_fe0f_seg00118",
+     "straight_m": 647.7,
+     "dt_s": 214.6,
+     "osm_route_m": 863.0,
+     "ratio_osm_over_straight": 1.332,
+     "snap_m": [
+      6.5,
+      10.6
+     ]
+    },
+    {
+     "from_segment": "20261029T095610Z_SM-G991B-F0D1_8873_seg00241",
+     "straight_m": 179.6,
+     "dt_s": 103.2,
+     "osm_route_m": 231.4,
+     "ratio_osm_over_straight": 1.288,
+     "snap_m": [
+      28.1,
+      3.6
+     ]
+    },
+    {
+     "from_segment": "20261029T100119Z_SM-G991B-F0D1_5696_seg00058",
+     "straight_m": 53.7,
+     "dt_s": 27.7,
+     "osm_route_m": 46.9,
+     "ratio_osm_over_straight": 0.873,
+     "snap_m": [
+      15.8,
+      7.6
+     ]
+    },
+    {
+     "from_segment": "20261029T100237Z_SM-G991B-F0D1_11c4_seg00115",
+     "straight_m": 125.0,
+     "dt_s": 75.0,
+     "osm_route_m": 121.9,
+     "ratio_osm_over_straight": 0.975,
+     "snap_m": [
+      14.6,
+      14.6
+     ]
+    },
+    {
+     "from_segment": "20261029T100537Z_SM-G991B-F0D1_23ff_seg00138",
+     "straight_m": 154.3,
+     "dt_s": 29.6,
+     "osm_route_m": 199.1,
+     "ratio_osm_over_straight": 1.29,
+     "snap_m": [
+      14.5,
+      20.3
+     ]
+    },
+    {
+     "from_segment": "20261029T100821Z_SM-G991B-F0D1_c57b_seg00035",
+     "straight_m": 427.4,
+     "dt_s": 224.8,
+     "osm_route_m": 448.0,
+     "ratio_osm_over_straight": 1.048,
+     "snap_m": [
+      15.1,
+      1.2
+     ]
+    },
+    {
+     "from_segment": "20261029T101238Z_SM-G991B-F0D1_81d2_seg00111",
+     "straight_m": 92.7,
+     "dt_s": 25.0,
+     "osm_route_m": 94.2,
+     "ratio_osm_over_straight": 1.016,
+     "snap_m": [
+      15.8,
+      13.6
+     ]
+    },
+    {
+     "from_segment": "20261029T101444Z_SM-G991B-F0D1_0517_seg00103",
+     "straight_m": 29.0,
+     "dt_s": 38.2,
+     "osm_route_m": 20.7,
+     "ratio_osm_over_straight": 0.714,
+     "snap_m": [
+      5.2,
+      5.5
+     ]
+    },
+    {
+     "from_segment": "20261029T101646Z_SM-G991B-F0D1_8394_seg00004",
+     "straight_m": 17.4,
+     "dt_s": 84.1,
+     "osm_route_m": 15.3,
+     "ratio_osm_over_straight": 0.88,
+     "snap_m": [
+      6.4,
+      1.6
+     ]
+    },
+    {
+     "from_segment": "20261029T101817Z_SM-G991B-F0D1_8130_seg00477",
+     "straight_m": 113.6,
+     "dt_s": 62.9,
+     "osm_route_m": 140.7,
+     "ratio_osm_over_straight": 1.238,
+     "snap_m": [
+      22.3,
+      3.0
+     ]
+    },
+    {
+     "from_segment": "20261029T102453Z_SM-G991B-F0D1_389b_seg00580",
+     "straight_m": 112.5,
+     "dt_s": 337.7,
+     "osm_route_m": 197.5,
+     "ratio_osm_over_straight": 1.755,
+     "snap_m": [
+      13.8,
+      13.4
+     ]
+    },
+    {
+     "from_segment": "20261029T112225Z_SM-G991B-F0D1_f2ab_seg00073",
+     "straight_m": 105.3,
+     "dt_s": 22.4,
+     "osm_route_m": 134.8,
+     "ratio_osm_over_straight": 1.279,
+     "snap_m": [
+      24.3,
+      3.8
+     ]
+    },
+    {
+     "from_segment": "20261029T112355Z_SM-G991B-F0D1_1e4e_seg00107",
+     "straight_m": 16.1,
+     "dt_s": 432.6,
+     "osm_route_m": 33.9,
+     "ratio_osm_over_straight": 2.105,
+     "snap_m": [
+      15.4,
+      2.4
+     ]
+    },
+    {
+     "from_segment": "20261029T113256Z_SM-G991B-F0D1_4128_seg00192",
+     "straight_m": 107.2,
+     "dt_s": 27.8,
+     "osm_route_m": 122.2,
+     "ratio_osm_over_straight": 1.14,
+     "snap_m": [
+      6.6,
+      2.9
+     ]
+    },
+    {
+     "from_segment": "20261029T113633Z_SM-G991B-F0D1_bc80_seg00044",
+     "straight_m": 8.0,
+     "dt_s": 592.7,
+     "osm_route_m": 0.0,
+     "ratio_osm_over_straight": null,
+     "snap_m": [
+      16.1,
+      11.7
+     ]
+    },
+    {
+     "from_segment": "20261029T114722Z_SM-G991B-F0D1_3726_seg00068",
+     "straight_m": 9.5,
+     "dt_s": 78.7,
+     "osm_route_m": 0.0,
+     "ratio_osm_over_straight": null,
+     "snap_m": [
+      12.8,
+      3.4
+     ]
+    }
+   ],
+   "gap_ratio_summary": {
+    "n": 34,
+    "mean": 1.188,
+    "sd": 0.512,
+    "min": 0.387,
+    "p50": 1.095,
+    "p90": 1.709,
+    "max": 3.167
+   },
+   "sample_ratio_summary": {
+    "n": 8,
+    "mean": 0.7776,
+    "sd": 0.2279,
+    "min": 0.2134,
+    "p50": 0.8319,
+    "p90": 0.9612,
+    "max": 1.002
+   },
+   "errors": [],
+   "status": "done",
+   "caveat": "OSM routes are shortest paths on an undirected drivable-way graph through our own points, snapped to the nearest OSM vertex; they approximate the driven route, they do not survey it"
+  },
+  "runs": {
+   "Potholes": {
+    "positive_segments": 770,
+    "runs": 502,
+    "segments_per_run": {
+     "n": 502,
+     "mean": 1.53,
+     "sd": 1.08,
+     "min": 1,
+     "p50": 1.0,
+     "p90": 3.0,
+     "max": 11
+    },
+    "hist": {
+     "1": 345,
+     "2": 99,
+     "3": 34,
+     "4": 11,
+     "5": 7,
+     "6": 2,
+     "7": 1,
+     "8": 2,
+     "11": 1
+    },
+    "share_of_positives_in_runs_ge3": 0.2948
+   },
+   "Cracking (any)": {
+    "positive_segments": 761,
+    "runs": 428,
+    "segments_per_run": {
+     "n": 428,
+     "mean": 1.78,
+     "sd": 1.91,
+     "min": 1,
+     "p50": 1.0,
+     "p90": 3.0,
+     "max": 26
+    },
+    "hist": {
+     "1": 278,
+     "2": 80,
+     "3": 34,
+     "4": 16,
+     "5": 6,
+     "6": 5,
+     "7": 5,
+     "8": 1,
+     "9": 1,
+     "19": 1,
+     "26": 1
+    },
+    "share_of_positives_in_runs_ge3": 0.4244
+   },
+   "Alligator Cracking": {
+    "positive_segments": 148,
+    "runs": 108,
+    "segments_per_run": {
+     "n": 108,
+     "mean": 1.37,
+     "sd": 0.88,
+     "min": 1,
+     "p50": 1.0,
+     "p90": 3.0,
+     "max": 6
+    },
+    "hist": {
+     "1": 87,
+     "2": 9,
+     "3": 7,
+     "4": 4,
+     "6": 1
+    },
+    "share_of_positives_in_runs_ge3": 0.2905
+   },
+   "Longitudinal Cracking": {
+    "positive_segments": 720,
+    "runs": 405,
+    "segments_per_run": {
+     "n": 405,
+     "mean": 1.78,
+     "sd": 1.94,
+     "min": 1,
+     "p50": 1.0,
+     "p90": 3.0,
+     "max": 26
+    },
+    "hist": {
+     "1": 263,
+     "2": 79,
+     "3": 28,
+     "4": 15,
+     "5": 7,
+     "6": 5,
+     "7": 4,
+     "8": 1,
+     "9": 1,
+     "19": 1,
+     "26": 1
+    },
+    "share_of_positives_in_runs_ge3": 0.4153
+   },
+   "Transverse Cracking": {
+    "positive_segments": 275,
+    "runs": 195,
+    "segments_per_run": {
+     "n": 195,
+     "mean": 1.41,
+     "sd": 0.96,
+     "min": 1,
+     "p50": 1.0,
+     "p90": 2.0,
+     "max": 7
+    },
+    "hist": {
+     "1": 151,
+     "2": 26,
+     "3": 8,
+     "4": 6,
+     "5": 1,
+     "6": 2,
+     "7": 1
+    },
+    "share_of_positives_in_runs_ge3": 0.2618
+   },
+   "Bleeding": {
+    "positive_segments": 355,
+    "runs": 282,
+    "segments_per_run": {
+     "n": 282,
+     "mean": 1.26,
+     "sd": 0.73,
+     "min": 1,
+     "p50": 1.0,
+     "p90": 2.0,
+     "max": 8
+    },
+    "hist": {
+     "1": 235,
+     "2": 32,
+     "3": 9,
+     "4": 4,
+     "5": 1,
+     "8": 1
+    },
+    "share_of_positives_in_runs_ge3": 0.1577
+   },
+   "Edge Breaking": {
+    "positive_segments": 81,
+    "runs": 67,
+    "segments_per_run": {
+     "n": 67,
+     "mean": 1.21,
+     "sd": 0.44,
+     "min": 1,
+     "p50": 1.0,
+     "p90": 2.0,
+     "max": 3
+    },
+    "hist": {
+     "1": 54,
+     "2": 12,
+     "3": 1
+    },
+    "share_of_positives_in_runs_ge3": 0.037
+   }
+  },
+  "sensitivity": {
+   "blocks": 411,
+   "coverage_status": {
+    "rated": 404,
+    "low_coverage": 4,
+    "insufficient": 3
+   },
+   "rated_under_80_rule": 404,
+   "rated_under_50_rule": 408,
+   "final_class_bracket": {
+    "Poor–Fair": 189,
+    "Fair–Good": 144,
+    "Poor–Good": 75
+   },
+   "final_class_lo": {
+    "Poor": 264,
+    "Fair": 144
+   },
+   "final_class_hi": {
+    "Good": 219,
+    "Fair": 189
+   },
+   "bracket_width": {
+    "n": 408,
+    "mean": 1.1,
+    "sd": 0.14,
+    "min": 1.0,
+    "p50": 1.0,
+    "p90": 1.4,
+    "max": 1.5
+   },
+   "single_class": 0,
+   "cracking_band": {
+    "Good": 164,
+    "Fair": 90,
+    "Poor": 77,
+    "Fair–Good": 60,
+    "Poor–Fair": 17
+   },
+   "cracking_band_lo_differs_from_hi": 77,
+   "potholes_band": {
+    "Poor": 240,
+    "Poor–Good": 118,
+    "Good": 50
+   },
+   "potholes_band_lo_differs_from_hi": 118,
+   "sum_wr_over_sum_w_class": {
+    "Fair–Good": 317,
+    "Poor–Good": 91
+   },
+   "assessed_only_class": {
+    "Fair": 139,
+    "Poor": 110,
+    "Fair–Good": 78,
+    "Good": 40,
+    "Poor–Fair": 36,
+    "Poor–Good": 5
+   },
+   "uncorrected_class": {
+    "Fair–Good": 215,
+    "Poor–Fair": 193
+   },
+   "poor_reachable_lo_end": 264,
+   "pothole_poor_good_only_from_skips": 118,
+   "pothole_band_hi_poor_only_from_skips": 118,
+   "pothole_band_with_pothole_specific_skip_upper": {
+    "Poor": 240,
+    "Poor–Good": 112,
+    "Good": 50,
+    "Fair–Good": 6
+   },
+   "audited_skips": {
+    "classified_audits": 161,
+    "distressed": {
+     "k": 13,
+     "n": 161,
+     "p": 0.0807,
+     "lo": 0.0478,
+     "hi": 0.1332
+    },
+    "with_pothole_label": {
+     "k": 9,
+     "n": 161,
+     "p": 0.0559,
+     "lo": 0.0297,
+     "hi": 0.1028
+    },
+    "note": "audit = segments the gate would have skipped, sent at random (10 %); Wilson 95 % intervals. The report's E_hi uses 13.3 %, the all-distress upper limit (paper §8.7); the pothole-specific upper limit is a sensitivity only"
+   },
+   "note": "blocks of each drive in k order (no routing, one pass), 100 m by centre distance, tail < 50 m merged; Table 5.3 (urban)"
+  },
+  "samples": {
+   "status": "not done: research.pci_reports does not exist in this database (run pci_samples.py)"
+  }
+ }
+}

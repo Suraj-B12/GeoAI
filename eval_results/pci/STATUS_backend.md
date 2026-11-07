@@ -35,12 +35,59 @@ Updated: 2026-11-07
   which the frontend harness is using right now). Only change affecting them: SCHEMA_FILES count 10 → 11 (asserted).
   Coordinator: run them when the frontend is done, then re-run `scripts/pci_copy_to_test_db.py`.
 
-## In progress
-- OSM part of pci_validation (detached process, log `eval_results/pci/validation_run.log`; resumable:
-  `venv/Scripts/python.exe scripts/pci_validation.py --database geoai` reuses finished parts and cached OSM files)
+## Round 2 (REVIEW_backend.md) — progress
+- [x] #1 BLOCKER path segments dropped: rewritten selection (path always used; attached passes fill only
+  ranges the path did not image; not_covered path segments replaced there; revisits counted once (#9)).
+  New tests `test_overlap_path_always_used_others_fill_holes`, `test_gap_mid_section_keeps_every_path_segment`,
+  `test_out_and_back_counted_once` → test_pci_chainage 12/12.
+- [x] B2 `attribution` table + `attribution_columns` in the report JSON; annex uses the used segments and the
+  pictured segment's own measure (#6), reason prints the band(s) (#7).
+- [x] B1 JSON: `summary.priority_notes`, `summary.final.note`; `rating.params[].band_note` when the worse end
+  comes only from skipped segments (#5). PDF: boxed priority line on page 1 (IRC §5.3 quote, 0.50 of 4.00 weight,
+  "labels unvalidated, Attain P 0.43 / R 0.25, 0 expert labels"), Overall line muted + note, route map and strip
+  chart coloured by the POTHOLE band, Overall moved to the last strip row "(secondary)", legend = band colours
+  (distinct hues; violet = "Good on labels, Poor via skips"), riding-quality rule at the top of §8 and in every
+  km block with potholes, "(est.)" in column heads, route chainage labels every 100/200/500 m/1 km by length,
+  "entered point snapped x m to the nearest segment", annex caption without doubled parentheses.
+- [x] #2 save: rate limit BEFORE the key check + failed-key bucket (5 wrong keys / 10 min / client → 429, the right
+  key too while locked out; failures logged). Test `test_wrong_keys_are_rate_limited`.
+- [x] #10 text: Unicode Cc/Cf/Co/Cs/Cn refused (RTL override, zero-width); emoji and Kannada messages both say
+  "write … in English letters"; decreasing road chainage that would go below 0 at B → 422.
+- [x] #8 method sentence; #11 "± one segment at section boundaries" sentence; ACCURACY adds "chainage LENGTH
+  accuracy has not yet been measured against an independent reference".
+- [x] #12 test hygiene: test_pci_routes restores the bumped `updated_at` (trigger disabled for the restore).
+- [x] Validation: κ with block-bootstrap CI + hours between paired drives; audited-skip pothole rate 9/161
+  (0.056 [0.030, 0.103] Wilson) and 118/408 blocks "Poor–Good" for potholes only from the 13.3 % skip bound;
+  "Statements for the paper" section (bracket never a single class 0/408; AR(1) noise ≠ our chainage error; test–retest
+  67 pairs / 2 blocks → class repeatability not measured). OSM part DONE but read as **inconclusive** (vertex
+  snapping; ours/OSM 0.21–1.00) — no chainage-length accuracy claimed.
+- [x] geoai_test re-copied (clean: 0 bumped rows); samples regenerated on geoai_test → ids 18–25 (all 8 PDFs: 0
+  overlaps); `pci_samples.py` now records requested vs routed length in `samples_generated_<db>.json`.
+- [x] Final checks: 4 PCI test files **30 passed**; test_gis_routes **160/160**; validate_all **18/18**; looked at
+  page 1 + route of samples 19 and 25 and synthetic PDFs by eye.
 
-## Next
-final STATUS
+## In progress
+Nothing. Backend round 2 complete.
+
+## API additions in round 2 (frontend: please switch to these)
+- `report.attribution` + `report.attribution_columns` = `["segment_id","measure_m","section","km","pass","used","role"]`,
+  one row per candidate segment (path, attached, opposite); `used=true` rows are exactly what the numbers use;
+  role ∈ path | revisit (counted once) | attached | attached, range already covered | opposite direction |
+  path, not imaged; range filled by an attached pass. Use it instead of guessing the nearest section.
+- `summary.priority_notes: [str]` (show beside the class; boxed on PDF page 1); `summary.final.note`.
+- `rating.params[].band_note` (e.g. "Good (no pothole label); Poor if skipped segments hold a pothole").
+- sections: `passes_used: [{pass, session_id, date_ist}]` (path always used; `chosen_pass` = main one).
+- annex rows: `pass`, `measure_m`/`chainage` = the pictured segment's own.
+- Map colour convention in the PDF: POTHOLE band (headline), never the overall class.
+- Save: 429 after 5 wrong keys / 10 min per client (also for the right key while locked out).
+- Text fields: format/control characters (RTL override, zero-width) → 422.
+
+## Production steps for the coordinator
+1. Restart production to load `/gis/pci/*`; migration 009 self-applies (or `scripts/setup_local_db.py`).
+2. `venv/Scripts/python.exe scripts/pci_samples.py --database geoai` (same pre-registered selection).
+3. `venv/Scripts/python.exe scripts/pci_validation.py --database geoai --redo samples` (fills the samples table).
+4. When the frontend no longer uses geoai_test: run `test_local_db.py` / `test_expert_review.py`, then re-run
+   `scripts/pci_copy_to_test_db.py`.
 
 ## API as built (for the frontend) — all JSON bodies; errors are `{"detail": "..."}`
 Base: the GIS server. Harness: mount `app.pci_routes.router` (or `app.gis_routes.install`) on port 8010 with

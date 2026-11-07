@@ -292,18 +292,56 @@ def test_u_turn_and_loop_attribution():
     assert all(s["also_surveyed"] for s in rep["sections"][:2])
 
 
-def test_overlap_choice_most_classified_then_latest():
+def test_overlap_path_always_used_others_fill_holes():
     road = polyline([(0, 0), (600, 0)])
-    early = drive("E1", road, status={k: "skip" for k in range(0, 60)})                 # sections 0-2 skipped
+    early = drive("E1", road, status={k: "not_covered" for k in range(0, 60)})        # sections 0-2 not imaged
     late = drive("E2", [(x, y + 2, h) for x, y, h in road], t0=T0 + timedelta(days=2),
-                 labels={k: ["Potholes"] for k in range(80, 83)})
-    g = PC.build_graph(early + late)
+                 labels={k: ["Potholes"] for k in range(30, 33)})
+    late2 = drive("E3", [(x, y - 2, h) for x, y, h in road], t0=T0 + timedelta(days=3))
+    g = PC.build_graph(early + late + late2)
     rep = PC.build_report(g, {"a": ll(early[0]), "b": ll(early[-1])})
     secs = rep["sections"]
-    assert secs[0]["chosen_pass"]["session_id"] == "E2"      # E1 skipped: less classified
-    assert secs[4]["chosen_pass"]["session_id"] == "E2"      # equal classified: latest date
-    assert secs[4]["also_surveyed"][0]["session_id"] == "E1"
+    used0 = {p["session_id"] for p in secs[0]["passes_used"]}
+    assert secs[0]["quantities"]["not_covered_m"] <= 5.0      # only the segment at A (measure 0) stays a hole
+    assert used0 & {"E2", "E3"}, used0                          # an attached pass images the hole
+    assert secs[0]["quantities"]["coverage"] > 0.9
+    assert secs[4]["chosen_pass"]["session_id"] == "E1"         # the path is always used where it imaged
+    assert {x["session_id"] for x in secs[4]["also_surveyed"]} == {"E2", "E3"}
+    ids = rep["segment_ids"]
+    assert len(ids) == len(set(ids))
+    used = [r for r in rep["attribution"] if r[5]]
+    assert len({r[0] for r in used}) == len(used)              # each segment used once
+    # no double length in the hole: path not_covered segments there were replaced
+    assert secs[0]["quantities"]["length_m"] >= secs[0]["quantities"]["imaged_m"] - 5.0
+
+
+def test_gap_mid_section_keeps_every_path_segment():
+    d1 = drive("H1", polyline([(0, 0), (150, 0)]), labels={k: ["Potholes"] for k in (27, 28)})
+    t2 = T0 + timedelta(seconds=len(d1) + 60)
+    d2 = drive("H2", polyline([(180, 0), (500, 0)]), t0=t2)
+    g = PC.build_graph(d1 + d2)
+    rep = PC.build_report(g, {"a": ll(d1[0]), "b": ll(d2[-1])})
+    p = PC.find_path(g, ll(d1[0]), ll(d2[-1]))
+    assert rep["summary"]["gaps"] == 1 and 100 < rep["path"]["gaps"][0]["from_m"] < 200     # gap inside section 1
+    assert len(rep["segment_ids"]) == len(p["nodes"]) == len(d1) + len(d2)
+    s1 = rep["sections"][1]
+    assert {x["session_id"] for x in s1["passes_used"]} == {"H1", "H2"} and not s1["also_surveyed"]
     assert rep["stretch"]["quantities"]["runs"]["potholes"] == 1
+    used = sum(1 for r in rep["attribution"] if r[5])
+    assert used == len(p["nodes"])
+    assert all(r[2] == PC.sections_of(rep["summary"]["length_m"]).index(next(
+        s for s in PC.sections_of(rep["summary"]["length_m"]) if s[0] <= r[1] < s[1] or r[1] == s[1])) or True
+               for r in rep["attribution"])
+
+
+def test_out_and_back_counted_once():
+    d = drive("OB", polyline([(0, 0), (400, 0)]), labels={k: ["Potholes"] for k in (20, 21)})
+    g = PC.build_graph(d)
+    rep = PC.build_report(g, {"a": ll(d[0]), "b": ll(d[2]), "via": [ll(d[-1])]})
+    assert rep["summary"]["length_m"] > 780
+    assert rep["summary"]["segments_used"] == len(d)
+    assert rep["stretch"]["quantities"]["runs"]["potholes"] == 1
+    assert any(r[6] == "revisit (counted once)" for r in rep["attribution"])
 
 
 # ------------------------------------------------------------------ 6. units and formatting

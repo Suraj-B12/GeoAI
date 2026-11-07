@@ -59,6 +59,7 @@ _NO_CACHE = {"Cache-Control": "no-cache"}
 _FIELDS = {"a", "b", "via", "category", "lane_width_m", "chainage_at_a_km", "chainage_increases_towards_b",
            "road_name", "road_number", "surface_type", "prepared_by", "title"}
 LIMITS = {"path": (30, 60.0), "report": (10, 60.0), "save": (10, 60.0), "read": (60, 60.0)}
+KEY_FAILURES = (5, 600.0)          # wrong operator keys per client per 10 min before 429
 
 
 # ============================================================ rate limit
@@ -83,6 +84,19 @@ class RateLimiter:
                 for k in [k for k, v in self._hits.items() if not v]:
                     self._hits.pop(k, None)
             return None
+
+    def recent(self, bucket: str, key: str, window: float) -> tuple[int, float]:
+        """(hits in the window, seconds until the oldest leaves it) without counting a new hit."""
+        now = time.monotonic()
+        with self._lock:
+            q = self._hits.setdefault((bucket, key), deque())
+            while q and now - q[0] >= window:
+                q.popleft()
+            return len(q), (window - (now - q[0])) if q else 0.0
+
+    def add(self, bucket: str, key: str) -> None:
+        with self._lock:
+            self._hits.setdefault((bucket, key), deque()).append(time.monotonic())
 
     def reset(self):
         with self._lock:
@@ -185,8 +199,10 @@ def validate_request(body: Any, bbox: Optional[list]) -> dict:
         v = " ".join(v.split())
         if len(v) > MAX_TEXT:
             raise HTTPException(status_code=422, detail=f"{f} is longer than {MAX_TEXT} characters")
-        if any(ord(ch) < 32 for ch in v):
-            raise HTTPException(status_code=422, detail=f"{f} contains control characters")
+        import unicodedata
+        if any(unicodedata.category(ch) in ("Cc", "Cf", "Co", "Cs", "Cn") for ch in v):
+            raise HTTPException(status_code=422, detail=f"{f} contains control, format (e.g. right-to-left override, "
+                                                        f"zero-width) or unassigned characters")
         from app.pci_report_pdf import unsupported_text
         bad = unsupported_text(v)
         if bad:
@@ -447,13 +463,22 @@ def _list() -> list[dict]:
 
 
 def _check_key(request: Request) -> None:
+    """Operator key check, with a failed-key bucket per client (REVIEW_backend #2): after KEY_FAILURES wrong
+    keys in the window every further try is 429 until the window passes, so the key cannot be guessed."""
     from app import security
     keys = security.VALID_API_KEYS
     given = request.headers.get("x-api-key") or ""
     if not keys:
         raise HTTPException(status_code=403, detail="saving reports needs an operator API key, and none is "
                                                     "configured on this server (API_KEYS)")
+    who = client_key(request)
+    n, wait = limiter.recent("key_fail", who, KEY_FAILURES[1])
+    if n >= KEY_FAILURES[0]:
+        raise HTTPException(status_code=429, detail="too many wrong operator keys from this client; try later",
+                            headers={"Retry-After": str(int(math.ceil(wait)) or 1)})
     if not given or not any(hmac.compare_digest(given.encode(), k.encode()) for k in keys):
+        limiter.add("key_fail", who)
+        print(f"[PCI] wrong operator key on save from {who} ({n + 1} in {int(KEY_FAILURES[1])} s)")
         raise HTTPException(status_code=401, detail="saving a report needs the operator API key (X-API-Key)")
 
 
@@ -523,8 +548,8 @@ async def pci_report_csv(request: Request):
 
 @router.post("/reports")
 async def pci_save(request: Request):
+    _limit(request, "save")          # before the key check: wrong keys count against the rate limit too
     _check_key(request)
-    _limit(request, "save")
     body = await _body(request)
     g = await _graph_async()
     req = validate_request(body, g.bbox)

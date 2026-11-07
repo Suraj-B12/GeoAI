@@ -127,6 +127,10 @@ def test_validation():
         (body(road_name="x" * 121), 422, "longer than 120"),
         (body(road_name="ಹೊಸೂರು ರಸ್ತೆ"), 422, "English letters"),
         (body(road_name="a\x07b"), 422, "control"),
+        (body(road_name="Hosur\u202eRoad"), 422, "right-to-left"),
+        (body(road_name="Hosur\u200bRoad"), 422, "zero-width"),
+        (body(road_name="Road \U0001F600"), 422, "English letters"),
+        (body(chainage_at_a_km=0.05, chainage_increases_towards_b=False), 422, "negative at B"),
         (body(prepared_by=5), 422, "text"),
     ]
     for js, code, text in cases:
@@ -169,6 +173,30 @@ def test_rate_limit_per_client():
     # another tunnel user is not locked out
     assert c.post("/gis/pci/path", json=js, headers={"Cf-Connecting-Ip": "8.8.8.8"}).status_code == 200
     R.limiter.reset()
+
+
+def test_wrong_keys_are_rate_limited():
+    old = set(security.VALID_API_KEYS)
+    try:
+        security.VALID_API_KEYS.clear()
+        security.VALID_API_KEYS.add(KEY)
+        R.limiter.reset()
+        c = setup()["client"]
+        codes = [c.post("/gis/pci/reports", json=body(title=TITLE), headers={"X-API-Key": f"guess{i}",
+                                                                         "Cf-Connecting-Ip": "7.7.7.7"}).status_code
+                 for i in range(30)]
+        first429 = codes.index(429)
+        assert codes[:first429] == [401] * first429 and first429 <= 10, codes
+        assert set(codes[first429:]) == {429}, codes
+        # the right key is also refused while the client is locked out (no oracle); another client is not
+        r = c.post("/gis/pci/reports", json=body(title=TITLE), headers={"X-API-Key": KEY, "Cf-Connecting-Ip": "7.7.7.7"})
+        assert r.status_code == 429
+        r = c.post("/gis/pci/reports", json={"a": 1}, headers={"X-API-Key": "x", "Cf-Connecting-Ip": "6.6.6.6"})
+        assert r.status_code == 401
+    finally:
+        security.VALID_API_KEYS.clear()
+        security.VALID_API_KEYS.update(old)
+        R.limiter.reset()
 
 
 def _conn():
@@ -219,13 +247,24 @@ def test_save_dedupe_cap_stored_and_stale():
             assert r.status_code == 409 and "full" in r.text, r.text
         finally:
             R.MAX_STORED = saved_cap
-        # stale: a segment of the report changes after the snapshot
+        # stale: a segment of the report changes after the snapshot; its updated_at is restored afterwards
+        # (REVIEW_backend #12: the shared scratch DB must not drift)
         seg = got["report"]["segment_ids"][5]
         with _conn() as conn:
+            before = conn.execute("SELECT updated_at FROM video_segments WHERE segment_id = %s", (seg,)).fetchone()[0]
             conn.execute("UPDATE video_segments SET status = status WHERE segment_id = %s", (seg,))
-        got = c.get(f"/gis/pci/reports/{rid}").json()
-        assert got["stale"] is True and got["changed_segments"] == 1, got["changed_segments"]
-        assert c.get(f"/gis/pci/reports/{rid}.pdf").content == stored      # frozen
+            try:
+                got = c.get(f"/gis/pci/reports/{rid}").json()
+                assert got["stale"] is True and got["changed_segments"] == 1, got["changed_segments"]
+                assert c.get(f"/gis/pci/reports/{rid}.pdf").content == stored      # frozen
+            finally:
+                conn.execute("ALTER TABLE video_segments DISABLE TRIGGER trg_video_segments_updated_at")
+                try:
+                    conn.execute("UPDATE video_segments SET updated_at = %s WHERE segment_id = %s", (before, seg))
+                finally:
+                    conn.execute("ALTER TABLE video_segments ENABLE TRIGGER trg_video_segments_updated_at")
+                after = conn.execute("SELECT updated_at FROM video_segments WHERE segment_id = %s", (seg,)).fetchone()[0]
+                assert after == before
     finally:
         security.VALID_API_KEYS.clear()
         security.VALID_API_KEYS.update(old)

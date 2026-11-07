@@ -76,6 +76,16 @@ def kappa(pairs) -> dict:
             "positive_a": a1, "positive_b": b1, "both_positive": sum(1 for a, b in pairs if a and b)}
 
 
+def wilson(k, n, z=1.959964) -> dict:
+    if n == 0:
+        return {"k": k, "n": n, "p": None, "lo": None, "hi": None}
+    ph = k / n
+    den = 1 + z * z / n
+    c = (ph + z * z / (2 * n)) / den
+    h = z * math.sqrt(ph * (1 - ph) / n + z * z / (4 * n * n)) / den
+    return {"k": k, "n": n, "p": round(ph, 4), "lo": round(max(0.0, c - h), 4), "hi": round(min(1.0, c + h), 4)}
+
+
 def q(xs, p):
     xs = sorted(xs)
     if not xs:
@@ -215,11 +225,36 @@ def part_retest(ctx) -> dict:
            "matched_pairs": len(pairs), "drive_pairs": len(drive_pairs), "pairs_both_classified": len(both),
            "status_pairs": dict(Counter(f"{g.nodes[i].props['status']}/{g.nodes[j].props['status']}"
                                         for i, j, _ in pairs).most_common())}
-    out["kappa"] = {
-        "Distress": kappa([(a["vlm_class"] == "distress", b["vlm_class"] == "distress") for a, b in both]),
-        "Potholes": kappa([(_has(a, ["Potholes"]), _has(b, ["Potholes"])) for a, b in both]),
-        "Cracking": kappa([(_has(a, C.PARAM_LABELS["cracking"]), _has(b, C.PARAM_LABELS["cracking"])) for a, b in both]),
-    }
+    fns = {"Distress": lambda a, b: (a["vlm_class"] == "distress", b["vlm_class"] == "distress"),
+           "Potholes": lambda a, b: (_has(a, ["Potholes"]), _has(b, ["Potholes"])),
+           "Cracking": lambda a, b: (_has(a, C.PARAM_LABELS["cracking"]), _has(b, C.PARAM_LABELS["cracking"]))}
+    out["kappa"] = {k: kappa([f(a, b) for a, b in both]) for k, f in fns.items()}
+    # block bootstrap: blocks of 20 consecutive pairs (by k of the earlier drive) per drive pair, 2,000 resamples
+    cls_pairs = sorted(((g.nodes[i].session_id, g.nodes[j].session_id, g.nodes[i].k, g.nodes[i].props, g.nodes[j].props)
+                        for i, j, _ in pairs if _classified(g.nodes[i].props) and _classified(g.nodes[j].props)),
+                       key=lambda t: (t[0], t[1], t[2]))
+    blocks_b = defaultdict(list)
+    for sx, sy, k, a, b in cls_pairs:
+        blocks_b[(sx, sy, k // 20)].append((a, b))
+    bl_list = list(blocks_b.values())
+    rnd = random.Random(20261107)
+    for name, f in fns.items():
+        ks = []
+        for _ in range(2000):
+            sample = [pr for _ in range(len(bl_list)) for pr in bl_list[rnd.randrange(len(bl_list))]]
+            kk = kappa([f(a, b) for a, b in sample])["kappa"]
+            if kk is not None:
+                ks.append(kk)
+        out["kappa"][name]["ci95_block_bootstrap"] = ([round(q(ks, 0.025), 3), round(q(ks, 0.975), 3)]
+                                                      if len(ks) > 100 else None)
+        out["kappa"][name]["bootstrap_blocks"] = len(bl_list)
+        out["kappa"][name]["bootstrap_valid"] = len(ks)
+    gaps_t = []
+    for (sx, sy), n in drive_pairs.items():
+        if start.get(sx) and start.get(sy):
+            gaps_t.append({"earlier": sx, "later": sy, "pairs": n,
+                           "hours_apart": round((start[sy] - start[sx]).total_seconds() / 3600.0, 2)})
+    out["drive_pairs_time"] = sorted(gaps_t, key=lambda x: -x["pairs"])
     along, cross = [], []
     for i, j, d in pairs:
         a, b = g.nodes[i], g.nodes[j]
@@ -538,6 +573,10 @@ def part_sensitivity(ctx) -> dict:
             r = C.rate_unit(qq, "urban")
             rows.append((qq, r))
     rated = [(qq, r) for qq, r in rows if r["rated"]]
+    audits = [n.props for n in g.nodes if n.props.get("status") == "audit" and _classified(n.props)]
+    pot_aud = sum(1 for p in audits if _has(p, ["Potholes"]))
+    dis_aud = sum(1 for p in audits if p.get("vlm_class") == "distress")
+    w_pot, w_dis = wilson(pot_aud, len(audits)), wilson(dis_aud, len(audits))
     out = {"blocks": len(rows), "coverage_status": dict(Counter(qq["coverage_status"] for qq, _ in rows)),
            "rated_under_80_rule": sum(1 for qq, _ in rows if qq["rated_80"]),
            "rated_under_50_rule": sum(1 for qq, _ in rows if qq["rated_50"])}
@@ -558,6 +597,21 @@ def part_sensitivity(ctx) -> dict:
         out["uncorrected_class"] = dict(Counter(r["sensitivity"].get("uncorrected", {}).get("class", "n/a")
                                                 for _, r in rated).most_common())
         out["poor_reachable_lo_end"] = out["final_class_lo"].get("Poor", 0)
+        pr = [(qq, next(x for x in r["params"] if x["param"] == "potholes")) for qq, r in rated]
+        out["pothole_poor_good_only_from_skips"] = sum(1 for qq, x in pr if x["band"] == "Poor–Good"
+                                                       and qq["extent"]["potholes"]["affected_m"] <= 0)
+        out["pothole_band_hi_poor_only_from_skips"] = sum(1 for qq, x in pr if x["band_hi"] == "Poor"
+                                                          and qq["extent"]["potholes"]["affected_m"] <= 0)
+        alt = Counter()
+        for qq, x in pr:
+            D = qq["denominator_m"]
+            e_hi = 100.0 * (qq["extent"]["potholes"]["affected_m"] + w_pot["hi"] * qq["skip_m"]) / D if D > 0 else 0
+            alt[C.class_range(C.band("urban", "potholes", e_hi), C.band("urban", "potholes", x["E_lo"]))] += 1
+        out["pothole_band_with_pothole_specific_skip_upper"] = dict(alt.most_common())
+    out["audited_skips"] = {"classified_audits": len(audits), "distressed": w_dis, "with_pothole_label": w_pot,
+                            "note": "audit = segments the gate would have skipped, sent at random (10 %); Wilson 95 % "
+                                    "intervals. The report's E_hi uses 13.3 %, the all-distress upper limit (paper "
+                                    "§8.7); the pothole-specific upper limit is a sensitivity only"}
     out["note"] = ("blocks of each drive in k order (no routing, one pass), 100 m by centre distance, tail < 50 m merged; "
                    "Table 5.3 (urban)")
     return out
@@ -592,6 +646,16 @@ def fmt(x, nd=3):
     return str(x)
 
 
+def _snap_range(o) -> str:
+    v = [x["waypoint_snap_m"]["p50"] for x in o.get("samples", []) if (x.get("waypoint_snap_m") or {}).get("p50")]
+    return f"{min(v):g}–{max(v):g}" if v else "?"
+
+
+def _ratio_range(o) -> str:
+    v = [x["ratio_ours_over_osm"] for x in o.get("samples", []) if x.get("ratio_ours_over_osm")]
+    return f"{min(v):.2f}–{max(v):.2f}" if v else "?"
+
+
 def markdown(res: dict) -> str:
     L = [f"# Validation — A→B chainage and IRC:82-2015 condition rating", "",
          f"Generated {res['generated_at']} by `{res['command']}` on database `{res['database']}` "
@@ -620,7 +684,9 @@ def markdown(res: dict) -> str:
               "| noise | mean | sd | p90 | max |", "|---|---|---|---|---|"]
         for k, v in s["ar1_noise_length_error_m_per_1000m"].items():
             L.append(f"| {k} | {v['mean']} | {v['sd']} | {v['p90']} | {v['max']} |")
-        L += ["", f"- A/B swap: length difference {s['swap']['length_diff_m']} m, pothole E_lo difference "
+        L += ["", "The AR(1) rows measure the method on RAW unsmoothed noise; they are not the chainage error of "
+                  "our data (see Statement 2).",
+              "", f"- A/B swap: length difference {s['swap']['length_diff_m']} m, pothole E_lo difference "
                   f"{s['swap']['pothole_E_lo_diff']}.",
               "- Rule tests: " + "; ".join(f"{k} {v}" for k, v in s["rule_tests"].items()) + ".", ""]
     r = res["parts"].get("retest")
@@ -632,7 +698,11 @@ def markdown(res: dict) -> str:
             L.append(f"| {k} | {v['n']} | {fmt(v.get('agreement'))} | {fmt(v.get('kappa'))} | "
                      f"{v.get('positive_a')} / {v.get('positive_b')} / {v.get('both_positive')} |")
         b = r["blocks_100m"]
-        L += ["", f"100 m blocks fully matched in both drives and rated in both: **{b['n_blocks']}** "
+        L += ["", "κ 95 % block-bootstrap CI (blocks of 20 consecutive pairs): " + "; ".join(
+            f"{k} {v.get('ci95_block_bootstrap')}" for k, v in r["kappa"].items()) + ".",
+              "Drive pairs (hours apart): " + "; ".join(f"{x['hours_apart']} h, {x['pairs']} pairs"
+                                                        for x in r.get("drive_pairs_time", [])) + ".",
+              "", f"100 m blocks fully matched in both drives and rated in both: **{b['n_blocks']}** "
                   f"({b['drive_pairs_with_blocks']} drive pairs)."]
         for p in ("cracking", "potholes"):
             if p in b:
@@ -650,16 +720,23 @@ def markdown(res: dict) -> str:
                                                                       else "") + ". No substitute numbers.", ""]
     else:
         L += [f"Status: {o['status']}. {o['attribution']}. {o['caveat']}.", "",
-              "| Sample | surveyed m (ours) | OSM route m | ours / OSM |", "|---|---|---|---|"]
+              "**Read as inconclusive.** The waypoints snap to the nearest OSM *vertex* (not the nearest way), median "
+              f"{_snap_range(o)} m away per sample; a snap onto a parallel or side road forces a detour, so the OSM "
+              f"route is often longer than the road driven (ours / OSM {_ratio_range(o)}). This is not an independent "
+              "length measurement and no chainage-length accuracy is derived from it.", "",
+              "| Sample | surveyed m (ours) | OSM route m | ours / OSM | waypoint snap p50 / p90 m |",
+              "|---|---|---|---|---|"]
         for x in o["samples"]:
             if "error" in x:
                 L.append(f"| {x['rule']} | – | – | {x['error']} |")
             else:
+                sn = x.get("waypoint_snap_m") or {}
                 L.append(f"| {x['rule']} | {x['surveyed_length_m']} | {fmt(x['osm_route_length_m'], 1)} | "
-                         f"{fmt(x['ratio_ours_over_osm'], 4)} |")
+                         f"{fmt(x['ratio_ours_over_osm'], 4)} | {sn.get('p50')} / {sn.get('p90')} |")
         gs = o["gap_ratio_summary"]
-        L += ["", f"Time-adjacent gaps: OSM route / straight line over {gs.get('n', 0)} gaps: median {gs.get('p50')}, "
-                  f"p90 {gs.get('p90')}, max {gs.get('max')} (straight lines are lower bounds)."]
+        L += ["", f"Time-adjacent gaps: OSM route / straight line over {gs.get('n', 0)} of {len(o['gaps'])} gaps with an "
+                  f"OSM route: median {gs.get('p50')}, p90 {gs.get('p90')}, max {gs.get('max')}. This supports printing "
+                  f"gaps as lower bounds ('at least x m'); the same snapping caveat applies."]
         if o["errors"]:
             L.append(f"- {len(o['errors'])} Overpass requests failed (listed in validation.json).")
         L.append("")
@@ -702,6 +779,42 @@ def markdown(res: dict) -> str:
         else:
             L.append(sm["status"])
         L.append("")
+    L += ["## Statements for the paper (from the numbers above)", ""]
+    if se and se.get("bracket_width"):
+        L.append(f"1. **The Appendix-4 overall class cannot be determined from this pipeline.** On "
+                 f"{se['bracket_width']['n']} rated 100 m blocks the bracketed final is a single class on "
+                 f"{se.get('single_class')} blocks; the bracket width is at least {se['bracket_width']['min']} on every "
+                 f"block (median {se['bracket_width']['p50']}). Only the per-parameter bands (cracking, potholes) carry "
+                 f"information; the overall class must not be quoted as a condition.")
+    if s:
+        L.append("2. **The synthetic AR(1) noise result is not our chainage error.** It measures the method on raw, "
+                 "unsmoothed GNSS noise; the real segment centres come from the video pipeline's own fitted track "
+                 + (f"(centre path / s-path {r['centre_path_over_s_path'].get('p50')} median over "
+                    f"{r['centre_path_over_s_path'].get('n')} drives; not independent)" if r and r.get(
+                     "centre_path_over_s_path") else "") +
+                 ". No chainage-LENGTH accuracy is claimed: the OpenStreetMap comparison in §4 is inconclusive "
+                 "(vertex snapping), so an independent length reference is still missing.")
+    if r:
+        b = r["blocks_100m"]
+        kd = r["kappa"]["Distress"]
+        ci = kd.get("ci95_block_bootstrap")
+        L.append(f"3. **Repeatability between drives is measured only at the segment level.** {kd['n']} matched segment "
+                 f"pairs, κ (Distress) {fmt(kd.get('kappa'))}" + (f" [{ci[0]}, {ci[1]}] (block bootstrap)" if ci else "")
+                 + f"; only {b['n_blocks']} overlapping 100 m blocks, so class repeatability is NOT measured. "
+                 + ("The paired drives are " + ", ".join(f"{x['hours_apart']} h apart ({x['pairs']} pairs)"
+                                                         for x in r.get("drive_pairs_time", [])[:4])
+                    + " — same phone, same model, not different conditions." if r.get("drive_pairs_time") else ""))
+    if se and "audited_skips" in se:
+        a_ = se["audited_skips"]
+        wp, wd = a_["with_pothole_label"], a_["distressed"]
+        L.append(f"4. **Skip correction for potholes.** Audited skips: {wd['k']}/{wd['n']} distressed "
+                 f"({fmt(wd['p'], 3)} [{fmt(wd['lo'], 3)}, {fmt(wd['hi'], 3)}]), {wp['k']}/{wp['n']} with a pothole "
+                 f"label ({fmt(wp['p'], 3)} [{fmt(wp['lo'], 3)}, {fmt(wp['hi'], 3)}], Wilson 95 %). Under the urban NIL "
+                 f"rule the 13.3 % bound makes {se.get('pothole_poor_good_only_from_skips')} of "
+                 f"{se['bracket_width']['n'] if se.get('bracket_width') else '?'} blocks 'Poor–Good' for potholes with "
+                 f"no pothole label at all; with the pothole-specific upper limit instead: "
+                 f"{se.get('pothole_band_with_pothole_specific_skip_upper')}.")
+    L.append("")
     L += ["## 7. Limitation", "",
           "There are **0** expert labels on the video segments and no Bengaluru validation of any label. Everything "
           "above measures arithmetic, geometry and repeatability between drives — not accuracy against ground truth. "

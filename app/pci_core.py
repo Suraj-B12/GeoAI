@@ -361,6 +361,10 @@ def rate_unit(q: Mapping, category: str) -> dict:
                        band=class_range(band(category, p, x_worst), band(category, p, x_best)),
                        rating_best=r_best, rating_worst=r_worst,
                        weighted_best=weighted(w, r_best), weighted_worst=weighted(w, r_worst))
+            if row["band_lo"] != row["band_hi"] and e["affected_m"] <= 0:
+                # the worse end comes only from the gate-skipped length (REVIEW_backend #5)
+                row["band_note"] = (f"{row['band_lo']} (no {PARAM_NAMES[p].lower()} label); {row['band_hi']} if "
+                                    f"skipped segments hold {'a pothole' if p == 'potholes' else 'cracks'}")
             if e["uncorrected"] is not None:
                 r_u = rating_value(category, p, e["uncorrected"])
                 row.update(band_uncorrected=band(category, p, e["uncorrected"]), rating_uncorrected=r_u)

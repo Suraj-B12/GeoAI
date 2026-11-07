@@ -51,6 +51,51 @@ geoai_test with the backend's 8 sample reports). Not committed, not copied into 
 Screenshots (Claude tool-results): `C:\Users\PRO-LAB-3\.claude\projects\C--Users-PRO-LAB-3-Documents-Capstone\8a7b1584-25d6-4c77-a4ce-be4c2864d62e\tool-results\mcp-Claude_Browser-blob-1793997398011-3k0w4f.jpg` (1440 result),
 `…-1793997212625-4t2972.jpg` (1440 section + frames), `…-1793997451084-eksf81.jpg` (sample open), `…-1793997610856-ltn046.jpg` (820), `…-1793997664686-lmxbnp.jpg` (375), `…-1793996717089-6rz6d7.jpg` (375 frames, mock).
 
+## Round 2 — coordinator review + critic (REVIEW_backend §B1/B4), 2026-11-07 — DONE
+Fixes:
+1. Notices never cover the card: while the report is open, `#notice` and `#basemapNotice` are placed by pci.js
+   (desktop: right of the card below the toolbar, left of the dashboard card, stacked; phone: stacked under the
+   dashboard heading, the sheet starts below them). Inline styles are removed on close. Also fixed two overlaps
+   of the EXISTING app with the report closed (found by the extended detector): desktop `#notice` over the drive
+   control + map tools → placed below them; phone `#notice`/`#basemapNotice` on top of each other and the zoom
+   buttons → stacked above the bottom controls.
+2. Parameter table: fixed layout (38/30/32 %), range wraps — no horizontal overflow at any width.
+3. Title: the "Condition report" action is icon-only (aria-label + tooltip); with a text label the title went to
+   3 lines at 1024–1440 (measured: icon 1 line, "Report A→B" 2, "Condition report" 3). Title now 1 line desktop, 2 on phones.
+4. Minimise: labelled button "▾ Hide" / "▴ Show panel" (dark when hidden) + a one-line summary; folding re-fits the
+   whole A→B path (or the selected section) into the free map area (verified at 375: path fully visible).
+5. Critic: when the pothole band contains Poor, a "PRIORITY" box quotes IRC §5.3 ("should be rectified straightway")
+   above the KPIs; the final class is muted with the Appendix-4 note (potholes weigh 0.50…); each assessed parameter
+   shows "labels unvalidated · <Attain evidence> · <n> Bengaluru expert labels". Default colouring = worst assessed
+   parameter band ("Colour by" adds Final class / Cracking / Potholes); a Fair–Good stretch with Poor potholes is
+   drawn Poor. `summary.priority_notes` (strings or {text}) are shown when present; the IRC §5.3 line is added only
+   if none mentions potholes.
+6. Frames per section: uses `sections[].segment_ids`, else top-level `attribution` rows
+   ([segment_id, measure_m, section, km, pass, used] or objects; used=true, ordered by measure), else the
+   nearest-section fallback. STATUS_backend's "API as built" does not list `attribution` / `priority_notes` yet →
+   re-test once it does.
+Detector extended: all fixed children of <body>, dashboard heading/stats/filters, #notice (forced visible in every
+check), #basemapNotice, map status, legend, map tools, zoom, scale, drive control, toolbar, evidence card, strip;
+plus "title ≤ 2 lines", "selected section inside the free map area", "whole path visible when minimised".
+Re-run (real API): states closed / build / picking / minimised / result / saved / saved-open × light/dark at
+1440×900, 1024×768, 820×1180, 375×812 → **56/56 OK**. Functional re-run at 1440: refusal message, gap path
+(1 gap ≥ 11.9 m, 2 passes), generate (priority + final note shown, sections Poor), PDF/CSV/JSON downloads,
+wrong operator key → clear error; no JS errors.
+Screenshots: `…tool-results\mcp-Claude_Browser-blob-1793998646989-ncu5w8.jpg` (1440, priority, notices beside the card),
+`…tool-results\mcp-Claude_Browser-blob-1793998544715-70zn6n.jpg` (375 minimised, path fully visible).
+
+## Round 3 — real backend fields (2026-11-07)
+- Harness restarted (it held the old backend modules); mode real, geoai_test.
+- pci.js now reads `attribution` through `attribution_columns` (used rows per section, ordered by measure) — verified:
+  gap stretch section 1 = 19 used attribution rows = 19 frames shown; `summary.priority_notes` shown in the PRIORITY
+  box (UI's own §5.3 line only as fallback); `summary.final.note` shown under the KPIs (UI's Appendix-4 sentence only
+  when the backend sends neither); `rating.params[].band_note` shown as a note row under its parameter.
+- "Survey data temporarily unavailable…" in the round-2 1440 screenshot was NOT a bug: the test helper forces
+  `#notice` visible in every check to test notice placement (`T.withNotice`). A clean reload shows no notice
+  ("45 drives · data loaded"), and the harness log has 0 errors/503s.
+- Waiting for the backend's geoai_test re-copy + sample regeneration (STATUS_backend checkbox) to run the final
+  full set on that data.
+
 ## Next
 - Coordinator: review, copy `pci.js`, `pci.css`, and the small `app.js`/`map.js`/`index.html` diffs into `webgis/`.
 - Harness still runs on 8010 (background); stop it with TaskStop or by killing the python on port 8010.

@@ -66,7 +66,8 @@ ANNEX_MAX = 24
 
 ACCURACY = ("Segment position ±10 m on surveyed runs (phone GNSS σ 4–6 m, receiver latency not corrected, 5 m "
             "segments); unknown extra error after each gap. A labelled distress may lie up to ~30 m ahead of the "
-            "marked segment in the travel direction (forward-looking camera).")
+            "marked segment in the travel direction (forward-looking camera). Chainage LENGTH accuracy has not yet "
+            "been measured against an independent reference.")
 
 
 class PciError(ValueError):
@@ -385,7 +386,7 @@ def _path_passes(g: Graph, path: dict) -> list[dict]:
         ks = [g.nodes[i].k for i in idxs]
         times = [g.nodes[i].utc for i in idxs if g.nodes[i].utc]
         out.append({"id": f"P{pi}", "kind": "path", "session_id": first.session_id, "device": first.device,
-                    "positions": pos, "nodes": idxs, "k_first": ks[0], "k_last": ks[-1],
+                    "positions": pos, "_posset": set(pos), "nodes": idxs, "k_first": ks[0], "k_last": ks[-1],
                     "from_m": ms[pos[0]], "to_m": ms[pos[-1]],
                     "direction": ("towards B" if c is not None and c > 0 else
                                   "towards A" if c is not None else "unknown"),
@@ -638,6 +639,10 @@ def path_geometry(g: Graph, path: dict) -> dict:
 def path_document(g: Graph, req: Mapping) -> dict:
     canon = canonical_request(req)
     path = find_path(g, canon["a"], canon["b"], canon["via"])
+    if (canon["chainage_at_a_km"] is not None and canon["chainage_increases_towards_b"] is False
+            and canon["chainage_at_a_km"] * 1000.0 - path["length_m"] < -0.5):
+        raise PciError(f"road chainage would be negative at B (Km {canon['chainage_at_a_km']:.3f} at A, decreasing, "
+                       f"path {path['length_m'] / 1000:.3f} km); check the chainage at A and the direction")
     passes = _path_passes(g, path)
     same, opp = _attach_other(g, path, passes)
     geom = path_geometry(g, path)
@@ -694,39 +699,101 @@ def build_report(g: Graph, req: Mapping, *, generated_at: Optional[datetime] = N
     def sec_index(m):
         return max(0, min(len(secs) - 1, bisect.bisect_right(starts, m) - 1))
 
-    # candidate segments per pass per section
-    cand: list[dict] = [dict() for _ in secs]          # section -> pass id -> [seg dicts]
-    pinfo = {}
-    for p in passes:
-        pinfo[p["id"]] = p
-        for pos, j in zip(p["positions"], p["nodes"]):
-            m = path["measures"][pos]
-            cand[sec_index(m)].setdefault(p["id"], []).append(_seg_dict(g, j, m, p["id"]))
-    for p in same:
-        pinfo[p["id"]] = p
-        for j, m in p["segs"]:
-            cand[sec_index(m)].setdefault(p["id"], []).append(_seg_dict(g, j, m, p["id"]))
-    opp_by_sec: list[list] = [[] for _ in secs]
-    for p in opp:
-        pinfo[p["id"]] = p
-        for si in {sec_index(m) for _, m in p["segs"]}:
-            opp_by_sec[si].append(p["id"])
+    # Selection (REVIEW_backend #1, #9):
+    # - every path segment is used (all path passes of a section together form ONE candidate); a segment that
+    #   the path visits twice (out-and-back through a via point) counts once, at its first visit;
+    # - attached same-direction passes only fill measure ranges the path does not cover (greedy: most classified
+    #   length first, ties latest date); "also surveyed" = attached passes that overlap the used segments;
+    # - opposite-direction passes are listed, never used.
+    pinfo = {p["id"]: p for p in passes + same + opp}
+    seen: set = set()
+    path_by_sec: list[list] = [[] for _ in secs]
+    attribution = []
+    for pos, j in enumerate(path["nodes"]):
+        m = path["measures"][pos]
+        pid = next(p["id"] for p in passes if pos in p["_posset"])
+        sid = g.nodes[j].segment_id
+        si = sec_index(m)
+        if sid in seen:
+            attribution.append([sid, round(m, 2), si, None, pid, False, "revisit (counted once)"])
+            continue
+        seen.add(sid)
+        path_by_sec[si].append(_seg_dict(g, j, m, pid))
+        attribution.append([sid, round(m, 2), si, None, pid, True, "path"])
 
     def classified(segs):
-        return sum(float(s.get("length_m") or 0) for s in segs
-                   if s.get("status") in ("send", "audit") and s.get("vlm_class") in ("distress", "normal"))
+        return sum(float(x.get("length_m") or 0) for x in segs
+                   if x.get("status") in ("send", "audit") and x.get("vlm_class") in ("distress", "normal"))
 
+    def covered(m, intervals):
+        return any(a - 1e-9 <= m <= b + 1e-9 for a, b in intervals)
+
+    other_by_sec: list[dict] = [dict() for _ in secs]
+    for p in same:
+        for j, m in p["segs"]:
+            other_by_sec[sec_index(m)].setdefault(p["id"], []).append((j, m))
+    opp_by_sec: list[list] = [[] for _ in secs]
+    for p in opp:
+        for j, m in p["segs"]:
+            si = sec_index(m)
+            if p["id"] not in opp_by_sec[si]:
+                opp_by_sec[si].append(p["id"])
+            attribution.append([g.nodes[j].segment_id, round(m, 2), si, None, p["id"], False, "opposite direction"])
     chosen_segs: list[list] = []
     sec_choice = []
-    for si, c in enumerate(cand):
-        if not c:
-            chosen_segs.append([])
-            sec_choice.append({"chosen": None, "also": []})
-            continue
-        ranked = sorted(c.items(), key=lambda kv: (classified(kv[1]), pinfo[kv[0]]["date_utc"] or
-                                                   datetime.min.replace(tzinfo=timezone.utc), kv[0]), reverse=True)
-        chosen_segs.append(ranked[0][1])
-        sec_choice.append({"chosen": ranked[0][0], "also": [k for k, _ in ranked[1:]]})
+    for si in range(len(secs)):
+        used = list(path_by_sec[si])
+        # a path segment that was never imaged (not_covered) leaves its range open for an attached pass
+        cov = [(x["measure_m"] - float(x.get("length_m") or 5.0) / 2, x["measure_m"] + float(x.get("length_m") or 5.0) / 2)
+               for x in used if x.get("status") != "not_covered"]
+        passes_used = sorted({x["run_key"] for x in used})
+        also = []
+        cands = other_by_sec[si]
+        while cands:
+            def free(pid):
+                return [(j, m) for j, m in cands[pid] if not covered(m, cov) and g.nodes[j].segment_id not in seen]
+            ranked = sorted(cands, key=lambda pid: (classified([g.nodes[j].props for j, _ in free(pid)]),
+                                                    pinfo[pid]["date_utc"] or datetime.min.replace(tzinfo=timezone.utc),
+                                                    pid), reverse=True)
+            pid = ranked[0]
+            fr = free(pid)
+            taken = {g.nodes[j].segment_id for j, _ in fr}
+            for j, m in cands[pid]:
+                sid = g.nodes[j].segment_id
+                use = sid in taken
+                attribution.append([sid, round(m, 2), si, None, pid, use, "attached" if use else
+                                    "attached, range already covered"])
+            if fr:
+                for j, m in fr:
+                    seen.add(g.nodes[j].segment_id)
+                    used.append(_seg_dict(g, j, m, pid))
+                    L_ = float(g.nodes[j].props.get("length_m") or 5.0)
+                    cov.append((m - L_ / 2, m + L_ / 2))
+                passes_used.append(pid)
+            if len(fr) < len(cands[pid]):
+                also.append(pid)
+            del cands[pid]
+        # drop path not_covered segments whose range an attached pass now images (no double length)
+        att = [(x["measure_m"] - float(x.get("length_m") or 5.0) / 2, x["measure_m"] + float(x.get("length_m") or 5.0) / 2)
+               for x in used if not str(x["run_key"]).startswith("P")]
+        if att:
+            drop = {x["segment_id"] for x in used if str(x["run_key"]).startswith("P")
+                    and x.get("status") == "not_covered" and covered(x["measure_m"], att)}
+            if drop:
+                used = [x for x in used if x["segment_id"] not in drop]
+                for row in attribution:
+                    if row[0] in drop and row[6] == "path":
+                        row[5], row[6] = False, "path, not imaged; range filled by an attached pass"
+        used.sort(key=lambda x: x["measure_m"])
+        passes_used = [pid for pid in passes_used if any(x["run_key"] == pid for x in used)]
+        chosen_segs.append(used)
+        main = max(passes_used, key=lambda pid: sum(1 for x in used if x["run_key"] == pid)) if passes_used else None
+        sec_choice.append({"chosen": main, "used": passes_used, "also": also})
+    # km index of every attribution row
+    sec_km = [int(math.floor(a / 1000.0 + 1e-9)) for a, _ in secs]
+    for row in attribution:
+        row[3] = sec_km[row[2]]
+    attribution.sort(key=lambda r: (r[1], r[0]))
     # runs over the whole stretch's chosen segments, each assigned to the unit of its first metre
     all_chosen = [s for segs in chosen_segs for s in segs]
     run_lists = {"potholes": C.runs(all_chosen, C.PARAM_LABELS["potholes"]),
@@ -765,6 +832,7 @@ def build_report(g: Graph, req: Mapping, *, generated_at: Optional[datetime] = N
         ch = sec_choice[si]
         sections.append(unit(m0, m1, chosen_segs[si], si == len(secs) - 1, {
             "index": si, "chosen_pass": pass_label(ch["chosen"]) if ch["chosen"] else None,
+            "passes_used": [pass_label(x) for x in ch["used"]],
             "also_surveyed": [pass_label(x) for x in ch["also"]],
             "other_direction": [pass_label(x) for x in sorted(set(opp_by_sec[si]))]}))
     km_groups: dict[int, list[int]] = {}
@@ -792,11 +860,13 @@ def build_report(g: Graph, req: Mapping, *, generated_at: Optional[datetime] = N
     gen = generated_at or datetime.now(timezone.utc)
 
     sh = stretch["rating"]
+    priority, final_note = priority_notes(sh, cat, stretch["quantities"])
     summary = {
         "length_m": round(L, 1), "chainage_a": fmt_chainage(0), "chainage_b": fmt_chainage(L),
         "coverage": stretch["quantities"]["coverage"], "coverage_status": stretch["quantities"]["coverage_status"],
         "gap_m": round(sum(gp["straight_m"] for gp in path["gaps"]), 1), "gaps": len(path["gaps"]),
-        "headline": sh.get("headline"), "final": sh.get("final"),
+        "headline": sh.get("headline"), "final": (dict(sh["final"], note=final_note) if sh.get("final") else None),
+        "priority_notes": priority,
         "sections_by_class": _count_classes(sections), "km_by_class": _count_classes(kms),
         "segments_used": len(all_chosen), "segments_expert_reviewed": reviewed,
     }
@@ -837,14 +907,56 @@ def build_report(g: Graph, req: Mapping, *, generated_at: Optional[datetime] = N
         "path": public(doc),
         "sections": sections, "km": kms, "stretch": stretch,
         "treatment_heading": C.TREATMENT_HEADING, "treatment_any_class": C.ANY_CLASS_TEXT,
-        "annex": _annex(g, sections, chosen_segs, run_lists, canon),
+        "annex": _annex(g, sections, chosen_segs, run_lists, canon, pinfo),
         "accuracy": ACCURACY,
         "method": _method_text(cat),
         "limitations": LIMITATIONS,
         "segment_ids": used_ids,
+        "attribution_columns": ["segment_id", "measure_m", "section", "km", "pass", "used", "role"],
+        "attribution": attribution,
         "assessment": {p: dict(v) for p, v in C.ASSESSMENT.items()},
     }
     return _clean(report)
+
+
+def priority_notes(rating: Mapping, cat: str, q: Mapping) -> tuple[list[str], Optional[str]]:
+    """REVIEW_backend B1: the per-parameter bands lead; Poor potholes are a priority whatever the overall class."""
+    notes: list[str] = []
+    if not rating.get("rated"):
+        return notes, None
+    wsum = sum(C.WEIGHTS[p] for p in C.TABLES[cat]["params"])
+    prm = {p["param"]: p for p in rating["params"]}
+    pot, cr = prm.get("potholes"), prm.get("cracking")
+    rpk = q["runs_per_km"]["potholes"]
+    if pot and pot["band_hi"] == "Poor":
+        if pot["band_lo"] == "Poor":
+            notes.append(
+                f"Potholes: Poor band ({pot['E_lo']:.1f}–{pot['E_hi']:.1f} % of surveyed length, "
+                f"{(rpk or 0):.1f} runs per km, est.). IRC:82-2015 §5.3: distress that adversely influences riding "
+                f"quality, such as potholes, \"should be rectified straightway\", whatever the overall rating. Under "
+                f"Appendix 4 the overall value is an average in which potholes weigh {C.WEIGHTS['potholes']:.2f} of "
+                f"{wsum:.2f}, so a stretch with Poor potholes can still come out Fair or Good overall. Pothole labels "
+                f"are unvalidated on Bengaluru video (0 expert labels; Attain dataset precision 0.43, recall 0.25).")
+        else:
+            notes.append(
+                f"Potholes: {pot['band']} — no pothole label is Poor on its own (E_lo {pot['E_lo']:.1f} %); the Poor "
+                f"end comes only from gate-skipped segments counted at the audited upper rate (E_hi "
+                f"{pot['E_hi']:.1f} %). Pothole labels are unvalidated on Bengaluru video (0 expert labels).")
+    if cr and cr["band_hi"] == "Poor":
+        notes.append(
+            f"Cracking: {cr['band']} band ({cr['E_lo']:.1f}–{cr['E_hi']:.1f} % of surveyed length, est.; an upper "
+            f"bound on % area). Crack labels are unvalidated on Bengaluru video (0 expert labels; Attain linear crack "
+            f"P 0.89 / R 0.82, alligator recall 0.08). Treatment depends on crack type (§8 of this report).")
+    na = rating.get("not_assessed") or []
+    final_note = None
+    if rating.get("final"):
+        na_w = sum(C.WEIGHTS[p] for p in na)
+        final_note = (f"Overall (Appendix 4, secondary): a bracket, because "
+                      f"{', '.join(C.PARAM_NAMES[p].lower() for p in na) or 'no parameter'} "
+                      f"{'is' if len(na) == 1 else 'are'} not assessed ({len(na)} of {len(C.TABLES[cat]['params'])} "
+                      f"parameters, {na_w:g} of {wsum:g} weight). The bracket is about one class wide on every 100 m "
+                      f"block measured so far; use the per-parameter bands.")
+    return notes, final_note
 
 
 def _count_classes(units: list[dict]) -> dict:
@@ -856,40 +968,51 @@ def _count_classes(units: list[dict]) -> dict:
     return dict(sorted(out.items()))
 
 
-def _annex(g: Graph, sections: list[dict], chosen_segs: list[list], run_lists: dict, canon: Mapping) -> list[dict]:
-    """<= 24 frames: one per pothole run and one per section whose assessed band can be Poor (the most
-    confident distress frame of the section), in chainage order; more than 24 are thinned evenly."""
+def _annex(g: Graph, sections: list[dict], chosen_segs: list[list], run_lists: dict, canon: Mapping,
+           pinfo: Mapping) -> list[dict]:
+    """<= 24 frames from the USED segments (the attribution table): one per pothole run and one per section whose
+    assessed pothole / cracking band can be Poor (the most confident distress frame of the section), in chainage
+    order; more than 24 are thinned evenly. Every caption carries the pictured segment's OWN chainage."""
     picks: dict[str, dict] = {}
+    used = {x["segment_id"]: x for segs in chosen_segs for x in segs}
     by_id = {n.segment_id: n for n in g.nodes}
 
-    def add(sid, reason, m):
-        n = by_id.get(sid)
-        if n is None or not n.props.get("has_image") or sid in picks:
+    def add(sid, reason):
+        n, x = by_id.get(sid), used.get(sid)
+        if n is None or x is None or not n.props.get("has_image") or sid in picks:
             return
         p = n.props
+        m = x["measure_m"]
+        towards_a = (pinfo.get(x["run_key"]) or {}).get("direction") == "towards A"
         picks[sid] = {"segment_id": sid, "reason": reason, "measure_m": round(m, 1), "chainage": fmt_chainage(m),
                       "road_chainage": road_chainage(m, canon["chainage_at_a_km"], canon["chainage_increases_towards_b"]),
-                      "lat": n.lat, "lon": n.lon, "time_ist": _ist(n.utc), "labels": p.get("final_labels") or [],
+                      "pass": x["run_key"], "lat": n.lat, "lon": n.lon, "time_ist": _ist(n.utc),
+                      "labels": p.get("final_labels") or [],
                       "severity": p.get("final_severity"), "confidence": p.get("confidence"),
                       "review_state": ("expert reviewed" if p.get("expert_reviewed") else
                                        "needs expert review (not reviewed)" if p.get("needs_expert_review")
                                        else "model only (not reviewed)"),
                       "image_sha256": n.image_sha256, "session_id": n.session_id, "k": n.k,
-                      "note": "frame shows road ahead of the marked chainage"}
+                      "note": ("frame shows road ahead of the marked chainage (ahead = towards A: this pass was "
+                               "driven towards A)" if towards_a else "frame shows road ahead of the marked chainage")}
 
     for r in run_lists["potholes"]:
         for sid in r["segment_ids"]:
-            if by_id.get(sid) is not None and by_id[sid].props.get("has_image"):
-                add(sid, "pothole run", r["measure_m"])
+            if by_id.get(sid) is not None and by_id[sid].props.get("has_image") and sid in used:
+                add(sid, f"pothole run ({r['n']} segment{'s' if r['n'] > 1 else ''})")
                 break
     for sec, segs in zip(sections, chosen_segs):
         rt = sec["rating"]
-        if not rt.get("rated") or not any(p.get("assessed") and p.get("band_hi") == "Poor" for p in rt["params"]):
+        if not rt.get("rated"):
+            continue
+        poor = [p for p in rt["params"] if p.get("assessed") and p.get("band_hi") == "Poor"]
+        if not poor:
             continue
         dis = [x for x in segs if x.get("vlm_class") == "distress" and x.get("has_image")]
         if dis:
             best = max(dis, key=lambda x: (x.get("confidence") or 0.0, -x["measure_m"]))
-            add(best["segment_id"], "section rated Poor (" + sec["chainage_from"] + ")", best["measure_m"])
+            what = "; ".join(f"{p['name'].lower()} band {p['band']}" for p in poor)
+            add(best["segment_id"], f"{what} in {sec['chainage_from']}–{sec['chainage_to']}")
     out = sorted(picks.values(), key=lambda x: x["measure_m"])
     if len(out) > ANNEX_MAX:
         # keep an even spread along the stretch, deterministic
@@ -906,8 +1029,12 @@ def _method_text(cat: str) -> list[str]:
         "Units: 100 m sub-sections from A (a tail under 50 m merges into the previous one), km rows "
         "(IRC:82 'kilometre-wise'; a row under 1 km is a part-km), and the whole stretch. Quantities are summed, "
         "then rated; ratings are never averaged.",
-        "Where several drives cover a section in the same direction, the pass with the most classified length is "
-        "used (ties: latest date); the others are listed. Opposite-direction passes are listed, not rated.",
+        "Every segment of the path itself is used. Other drives in the same direction fill only the parts of a "
+        "section the path did not image (most classified length first, ties: latest date); drives that overlap "
+        "the used segments are listed as 'also surveyed', never averaged. Opposite-direction passes are listed, "
+        "not rated. A segment the path visits twice (out and back) counts once.",
+        "Each segment is assigned to the 100 m section that holds its centre, so a section boundary can move one "
+        "segment (5 percentage points) between neighbouring sections.",
         "Extent E (% of surveyed length with the distress visible, est.) = affected classified length / "
         "(classified + gate-skipped length). E_lo assumes skipped segments are distress-free; E_hi assumes they "
         "are distressed at the audited rate's upper 95 % limit (13.3 %). Per-type skip rates are not estimable "
@@ -915,7 +1042,7 @@ def _method_text(cat: str) -> list[str]:
         "Coverage = imaged length / section length. Rated at >= 80 % (our choice, not IRC); 50-80 % rated and "
         "flagged 'low coverage'; under 50 % or nothing classified: insufficient data.",
         f"Rating: IRC:82-2015 {C.TABLES[cat]['title']}; rating value interpolated inside each band as inferred "
-        "from the Appendix-4 worked example (6 of 7 rows reproduced; the class never depends on it); weighted "
+        "from the Appendix-4 worked example (6 of 7 rows reproduced; the parameter band never depends on it, the final value and, near 1.0/2.0, the final class do); weighted "
         "values rounded half-up to 0.1; final = mean over ALL parameters of the table (Appendix 4). Parameters "
         "the pipeline cannot assess are bracketed (rating 1.0 for the low end, 3.0 for the high end).",
         "Potholes: runs per km (consecutive positive segments of one pass = one occurrence) is the primary figure; "

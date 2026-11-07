@@ -169,8 +169,19 @@ def main(argv=None) -> int:
         with psycopg.connect(os.environ["DATABASE_URL"], autocommit=True) as c:
             c.execute("DELETE FROM research.pci_reports WHERE sample AND sample_rule = %s AND id <> %s",
                       (label, out["id"]))
-        print(f"  {label}: report {out['id']} ({'new' if out['created'] else 'existing'})")
-        results.append({"rule": label, "id": out["id"], "created": out["created"]})
+            routed, gaps = c.execute("SELECT (report->'summary'->>'length_m')::float, "
+                                     "(report->'summary'->>'gaps')::int FROM research.pci_reports WHERE id = %s",
+                                     (out["id"],)).fetchone()
+        requested = STRETCH_M if label.startswith("random_1km") else None
+        print(f"  {label}: report {out['id']} ({'new' if out['created'] else 'existing'}), routed {routed:.0f} m"
+              + (f" for a requested {requested:.0f} m of trip" if requested else "") + f", {gaps} gap(s)")
+        results.append({"rule": label, "id": out["id"], "created": out["created"],
+                        "requested_trip_m": requested, "routed_length_m": routed, "gaps": gaps})
+    gen = {"database": a.database, "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+           "data_as_of": g.data_as_of, "note": "requested = metres along the drives' own trip (rule b); routed = "
+           "the A->B path the router chose (it may use other drives, gaps and links, so it can differ)",
+           "reports": results}
+    _atomic_write(RULE_FILE.with_name(f"samples_generated_{a.database}.json"), gen)
     print(json.dumps(results))
     return 0
 
