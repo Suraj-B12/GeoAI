@@ -18,7 +18,8 @@ Idempotent: when samples_rule.json exists its chosen inputs are reused (never re
 through app.pci_routes.save_report (dedupe by input hash), and older sample rows of the same rule label are
 deleted when a regenerated one is stored ("regenerated, never edited").
 
-Usage (the database must be named explicitly; the coordinator runs it on production later):
+Usage (the database must be named explicitly; the coordinator runs it on production later; --regenerate after a
+code change re-renders the stored sample PDFs):
     venv/Scripts/python.exe scripts/pci_samples.py --database geoai_test
     venv/Scripts/python.exe scripts/pci_samples.py --database geoai --select-only     # write the rule file only
 """
@@ -136,6 +137,9 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--database", required=True, help="database to read and to save the samples to")
     ap.add_argument("--select-only", action="store_true", help="write samples_rule.json, generate nothing")
+    ap.add_argument("--regenerate", action="store_true",
+                    help="delete the stored sample rows first, so the PDFs are re-rendered with the current code "
+                         "(otherwise an unchanged input on unchanged data returns the stored snapshot)")
     a = ap.parse_args(argv)
     os.environ["DATABASE_URL"] = setup_local_db.with_database(setup_local_db.database_url(), a.database)
     from app import pci_chainage as PC
@@ -159,6 +163,10 @@ def main(argv=None) -> int:
     for req in rule["chosen"]:
         body = {k: v for k, v in req.items() if not k.startswith("_")}
         label = req["_rule"]
+        if a.regenerate:
+            with psycopg.connect(os.environ["DATABASE_URL"], autocommit=True) as c:
+                R.ensure_schema(c)
+                c.execute("DELETE FROM research.pci_reports WHERE sample AND sample_rule = %s", (label,))
         try:
             out = R.save_report(body, sample=True, sample_rule=label, cap=None, graph=g)
         except Exception as e:      # an HTTPException from the builder: record and go on

@@ -34,6 +34,8 @@ MARGIN = 14 * mm
 CLASS_COLORS = {"Good": "#15803d", "Fair–Good": "#84cc16", "Fair": "#eab308", "Poor–Fair": "#f97316",
                 "Poor–Good": "#7c3aed", "Poor": "#b91c1c", "Insufficient data": "#9ca3af"}
 BAND_COLORS = CLASS_COLORS
+OVERALL_GREYS = {"Good": "#d6d3d1", "Fair–Good": "#bfbab6", "Fair": "#a8a29e", "Poor–Fair": "#78716c",
+                 "Poor–Good": "#8f8984", "Poor": "#44403c", "Insufficient data": "#f5f5f4"}
 BAND_LEGEND = {"Good": "Good", "Fair–Good": "Fair–Good (E_lo / E_hi)", "Fair": "Fair",
                "Poor–Fair": "Poor–Fair (E_lo / E_hi)", "Poor–Good": "Good on labels, Poor via skips",
                "Poor": "Poor", "Insufficient data": "Insufficient data"}
@@ -167,8 +169,19 @@ def _band(u: dict, param: str) -> str:
 def _band_text(p: dict, short: bool = False) -> str:
     """A parameter's band for print; a band whose worse end comes only from skipped segments is spelled out."""
     if p.get("band_note"):
-        return ("Good / Poor if skips" if short and p["band_lo"] == "Good" else escape(p["band_note"]))
+        return (f"{escape(p['band_lo'])} / {escape(p['band_hi'])} if skips" if short else escape(p["band_note"]))
     return escape(p["band"])
+
+
+def _area(u: dict) -> str:
+    """' · area: Fair' — the nominal small-pothole area band beside the pothole % band (F5)."""
+    h = (u.get("rating") or {}).get("headline") or {}
+    b = h.get("pothole_nominal_area_band")
+    return f"<br/><font size='6.2' color='#57534e'>area: {escape(b)}</font>" if b else ""
+
+
+def _plural(n, word) -> str:
+    return f"{n} {word}{'' if n == 1 else 's'}"
 
 
 def _badge(text: str, color: str) -> str:
@@ -288,36 +301,50 @@ def _point_at(vertices, m):
     return x, y, (vertices[-2][0], vertices[-2][1], x, y) if len(vertices) > 1 else (x, y, x, y)
 
 
-def route_figure(rep: dict, w: float, h: float) -> Drawing:
+def route_figure(rep: dict, w: float, h: float, m0: Optional[float] = None, m1: Optional[float] = None,
+                 title: Optional[str] = None) -> Drawing:
+    """The track coloured by the pothole band. m0/m1: a detail panel of that measure window (ticks every 100 m,
+    all labelled); without them the whole stretch (labels thinned by length)."""
     d = Drawing(w, h)
     d.add(Rect(0, 0, w, h, strokeColor=RULE, fillColor=None, strokeWidth=0.5))
-    verts = rep["path"]["vertices"]
-    f, s = _fit(verts, w, h, 14 * mm)
+    L = rep["summary"]["length_m"]
+    lo, hi = (0.0, L) if m0 is None else (m0, m1)
+    allv = rep["path"]["vertices"]
+    verts = [v for v in allv if lo - 1e-6 <= v[2] <= hi + 1e-6] or allv
+    f, s_ = _fit(verts, w, h, 14 * mm)
     labels = _Labels(w, h, _fonts["regular"])
-    # sections coloured by the POTHOLE band (the headline; REVIEW_backend B1), never by the overall class
+    if title:
+        labels.place(d, 4, h - 10, title, size=7, force=True)
     for sec in rep["sections"]:
+        if sec["to_m"] < lo - 1e-6 or sec["from_m"] > hi + 1e-6:
+            continue
         col = colors.HexColor(BAND_COLORS.get(_band(sec, "potholes"), "#9ca3af"))
         for part in sec["geometry"]["coordinates"]:
             pts = []
             for lon, lat in part:
                 pts.extend(f(lon, lat))
             if len(pts) >= 4:
-                d.add(PolyLine(pts, strokeColor=col, strokeWidth=2.4, strokeLineCap=1, strokeLineJoin=1))
+                d.add(PolyLine(pts, strokeColor=col, strokeWidth=2.6, strokeLineCap=1, strokeLineJoin=1))
                 labels.obstacle_line(pts)
-    for part in rep["path"]["geometry"]["gaps"]["coordinates"]:
+    for gp, part in zip(rep["path"]["gaps"], rep["path"]["geometry"]["gaps"]["coordinates"]):
+        if gp["to_m"] < lo or gp["from_m"] > hi:
+            continue
         pts = []
         for lon, lat in part:
             pts.extend(f(lon, lat))
         d.add(PolyLine(pts, strokeColor=MUTED, strokeWidth=1.0, strokeDashArray=[3, 2]))
         labels.obstacle_line(pts)
-    # chainage ticks: every 100 m (short), every km (long + label)
-    L = rep["summary"]["length_m"]
-    step_lab = 100.0 if L <= 1200 else 200.0 if L <= 2500 else 500.0 if L <= 6000 else 1000.0
-    while L / step_lab > 25:
-        step_lab *= 2
-    m = 0.0
-    while m <= L + 1e-6:
-        lon, lat, seg = _point_at([[v[0], v[1], v[2]] for v in verts], m)
+    detail = m0 is not None
+    if detail:
+        tick, step_lab = 100.0, 100.0
+    else:
+        tick = 100.0 if L <= 3000 else 500.0
+        step_lab = 100.0 if L <= 1200 else 200.0 if L <= 2500 else 500.0 if L <= 6000 else 1000.0
+        while L / step_lab > 25:
+            step_lab *= 2
+    m = math.ceil(lo / tick - 1e-9) * tick
+    while m <= hi + 1e-6:
+        lon, lat, seg = _point_at([[v[0], v[1], v[2]] for v in allv], m)
         x, y = f(lon, lat)
         ax, ay = f(seg[0], seg[1])
         bx, by = f(seg[2], seg[3])
@@ -325,10 +352,9 @@ def route_figure(rep: dict, w: float, h: float) -> Drawing:
         n = math.hypot(dx, dy) or 1.0
         nx_, ny_ = -dy / n, dx / n
         major = abs(m / 1000.0 - round(m / 1000.0)) < 1e-6
-        if L <= 12000 or major:
-            ln = 4.5 if major else 2.2
-            d.add(Line(x - nx_ * ln, y - ny_ * ln, x + nx_ * ln, y + ny_ * ln, strokeColor=INK,
-                       strokeWidth=0.8 if major else 0.4))
+        ln = 4.5 if major else 2.6
+        d.add(Line(x - nx_ * ln, y - ny_ * ln, x + nx_ * ln, y + ny_ * ln, strokeColor=INK,
+                   strokeWidth=0.8 if major else 0.45))
         if m > 0 and abs(m / step_lab - round(m / step_lab)) < 1e-6:
             anchor = "start" if nx_ > 0.35 else ("end" if nx_ < -0.35 else "middle")
             ly = y + ny_ * 7 + (0 if ny_ > 0.35 else (-6 if ny_ < -0.35 else -2))
@@ -338,26 +364,25 @@ def route_figure(rep: dict, w: float, h: float) -> Drawing:
                 anchor = "end" if anchor == "start" else ("start" if anchor == "end" else "middle")
                 labels.place(d, x - nx_ * 7, y - ny_ * 7 + (0 if ny_ < -0.35 else (-6 if ny_ > 0.35 else -2)),
                              txt, size=6.2, anchor=anchor)
-        m += 100.0
-    # A and B
-    for name, p in (("A", rep["header"]["a"]), ("B", rep["header"]["b"])):
+        m += tick
+    for name, p, mp in (("A", rep["header"]["a"], 0.0), ("B", rep["header"]["b"], L)):
+        if not lo - 1e-6 <= mp <= hi + 1e-6:
+            continue
         x, y = f(p["snapped_lon"], p["snapped_lat"])
         d.add(Rect(x - 3, y - 3, 6, 6, fillColor=INK, strokeColor=colors.white, strokeWidth=0.6))
         for dx, dy in ((5, 3), (-11, 3), (5, -9), (-11, -9)):
             if labels.place(d, x + dx, y + dy, name, size=9):
                 break
-    # north arrow (top right)
     nx0, ny0 = w - 9 * mm, h - 15 * mm
     d.add(Polygon([nx0, ny0 + 9, nx0 - 3, ny0, nx0 + 3, ny0], fillColor=INK, strokeColor=INK))
     labels.place(d, nx0, ny0 + 10.5, "N", size=7, anchor="middle", force=True)
-    # scale bar (bottom left): a round length near 1/5 of the width
-    target = (w * 0.22) / s
+    target = (w * 0.22) / s_
     nice = 10.0
     for c in (10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000):
         if c <= target:
             nice = c
     bx0, by0 = 6 * mm, 6 * mm
-    d.add(Rect(bx0, by0, nice * s, 2.2, fillColor=INK, strokeColor=INK))
+    d.add(Rect(bx0, by0, nice * s_, 2.2, fillColor=INK, strokeColor=INK))
     labels.place(d, bx0, by0 + 4, f"{int(nice)} m" if nice < 1000 else f"{nice / 1000:g} km", size=6.5, force=True)
     return d
 
@@ -399,7 +424,7 @@ def strip_chart(rep: dict, w: float) -> Drawing:
             a, b = x0 + sec["from_m"] * sx, x0 + sec["to_m"] * sx
             r = sec["rating"]
             if key == "final":
-                col = CLASS_COLORS.get(_cls(sec))
+                col = OVERALL_GREYS.get(_cls(sec), "#e7e5e4")
             elif key in ("cracking", "potholes"):
                 col = BAND_COLORS.get(_band(sec, key), "#e7e5e4")
             elif key == "coverage":
@@ -438,22 +463,28 @@ def strip_chart(rep: dict, w: float) -> Drawing:
 
 
 # ============================================================ content blocks
+def _entered(v) -> str:
+    return (user_text(v) + "  <font color='#57534e'>(entered by requester, unverified)</font>") if v else "not entered"
+
+
 def _header_block(rep, st):
     h = rep["header"]
     rc_from, rc_to = h.get("road_chainage_from"), h.get("road_chainage_to")
     road_ch = (f"{rc_from['text']} to {rc_to['text']} — {h['road_chainage_note']}" if rc_from
                else h["road_chainage_note"])
     a, b = h["a"], h["b"]
-    dirs = "; ".join(f"{x['pass']}: vehicle travelled {x['direction']}" for x in h["directions"][:6])
+    dirs = "; ".join(f"{x['pass']}: " + ("direction unknown" if "unknown" in x["direction"]
+                                         else f"vehicle travelled {x['direction']}") for x in h["directions"][:6])
     if len(h["directions"]) > 6:
         dirs += f"; … ({len(h['directions'])} passes)"
     pipe = "; ".join(f"video pipeline {x['pipeline_version']} (config {str(x['config_sha256'])[:12]}…)"
                      for x in h["model"]["video_pipeline"][:3])
     rows = [
-        ("Name of the road", user_text(h.get("road_name")) + "  <font color='#57534e'>(entered by requester, unverified)</font>"),
-        ("Road number", user_text(h.get("road_number")) + "  <font color='#57534e'>(entered by requester, unverified)</font>"),
+        ("Name of the road", _entered(h.get("road_name"))),
+        ("Road number", _entered(h.get("road_number"))),
         ("Road category / IRC table", f"{escape(h['category_name'])} — IRC:82-2015 {escape(h['table_title'])}"),
-        ("Km from / to (relative)", f"{h['km_from']} at A to {h['km_to']} at B"),
+        ("Km from / to (relative)", f"{h['km_from']} at A to {h['km_to']} at B"
+         + (" (≥: gaps counted as straight lines)" if rep["summary"]["gaps"] else "")),
         ("Road chainage", escape(road_ch)),
         ("Point A", f"{a['snapped_lat']:.6f}, {a['snapped_lon']:.6f} (entered point snapped {a['distance_m']:.0f} m to the nearest segment)"),
         ("Point B", f"{b['snapped_lat']:.6f}, {b['snapped_lon']:.6f} (entered point snapped {b['distance_m']:.0f} m to the nearest segment)"),
@@ -461,7 +492,7 @@ def _header_block(rep, st):
         ("Direction (derived from camera heading)", escape(dirs)),
         ("Lane imaged", escape(h["lane_imaged"])),
         ("Surveyed lane width", f"{h['lane_width_m']:.1f} m — {escape(h['lane_width_note'])}"),
-        ("Type of surface", user_text(h.get("surface_type")) + "  <font color='#57534e'>(entered by requester, unverified)</font>"),
+        ("Type of surface", _entered(h.get("surface_type"))),
         ("Date(s) of observation", escape(", ".join(h["survey_dates_ist"]) or "–")),
         ("Season", escape("; ".join(h["season"]) or "–") + " — IRC §5.3 asks for pre- and post-monsoon surveys"),
         ("Weather (as entered on the survey form)", escape(", ".join(h["weather_as_entered_on_survey_form"]) or "not entered")),
@@ -472,7 +503,7 @@ def _header_block(rep, st):
         ("Report id", escape(str(rep.get("report_id")) if rep.get("report_id") is not None
                              else "preview (not stored; numbers may change as reviews arrive)")),
         ("Data as of / generated", escape(f"{rep.get('data_as_of')} / {rep.get('generated_at_ist')}")),
-        ("Prepared by", user_text(h.get("prepared_by")) + "  <font color='#57534e'>(entered by requester, unverified)</font>"),
+        ("Prepared by", _entered(h.get("prepared_by"))),
     ]
     data = [[P(k, st["cellb"]), P(v, st["cell"])] for k, v in rows]
     return _table(data, [52 * mm, 130 * mm], header_rows=0)
@@ -502,11 +533,13 @@ def _summary_block(rep, st):
                 else "label unvalidated on Bengaluru video (0 expert labels); Attain precision 0.43, recall 0.25; "
                      "one pothole flags a whole 5 m segment, see runs per km")
         rows.append([P(p.capitalize(), st["cellb"]), P(frange(e["E_lo"], e["E_hi"]) + " % (est.)", st["cell"]),
-                     P(f'<font color="{col}"><b>{_band_text(sprm.get(p, e))}</b></font>', st["cell"]),
+                     P(f'<font color="{col}"><b>{_band_text(sprm.get(p, e))}</b></font>'
+                       + (_area(rep["stretch"]) if p == "potholes" else ""), st["cell"]),
                      P(note, st["cell"])])
     if hl.get("pothole_runs") is not None:
         rows.append([P("Pothole runs", st["cellb"]),
-                     P(f"{hl['pothole_runs']} runs = {fnum(hl.get('pothole_runs_per_km'))} per surveyed km (est.)",
+                     P(f"{_plural(hl['pothole_runs'], 'run')} = {fnum(hl.get('pothole_runs_per_km'))} per surveyed km "
+                       f"(est.)",
                        st["cell"]), P("primary pothole figure", st["cell"]),
                      P("consecutive positive segments of one pass = one occurrence", st["cell"])])
     if hl.get("pothole_nominal_area_pct") is not None:
@@ -517,6 +550,9 @@ def _summary_block(rep, st):
     if len(rows) > 1:
         out.append(_table(rows, [30 * mm, 38 * mm, 38 * mm, 76 * mm]))
         out.append(Spacer(1, 4))
+    if s.get("resolution_note"):
+        out.append(P("Resolution: " + escape(s["resolution_note"]), st["note"]))
+        out.append(Spacer(1, 3))
     for note in s.get("priority_notes") or []:
         box = Table([[P("<b>" + escape(note.split(". ", 1)[0]) + ".</b> " + escape(note.split(". ", 1)[1])
                         if ". " in note else escape(note), st["body"])]], colWidths=[182 * mm], hAlign="LEFT")
@@ -532,7 +568,7 @@ def _summary_block(rep, st):
         out.append(Spacer(1, 3))
     gaps = (f"{s['gaps']} gap(s) totalling ≥ {s['gap_m']:.0f} m (straight line, unsurveyed)" if s["gaps"]
             else "no gaps")
-    facts = (f"Length {s['length_m']:.0f} m ({s['chainage_a']} to {s['chainage_b']}); coverage "
+    facts = (f"Length {'≥ ' if s['gaps'] else ''}{s['length_m']:.0f} m ({s['chainage_a']} to {s['chainage_b']}); coverage "
              f"{100 * s['coverage']:.1f} % imaged ({s['coverage_status'].replace('_', ' ')}); {gaps}; "
              f"{s['segments_used']} segments used, {s['segments_expert_reviewed']} expert-reviewed.")
     out.append(P(escape(facts), st["body"]))
@@ -555,13 +591,18 @@ def _e_cell(q, key, reported=False):
     return frange(e["lo"], e["hi"])
 
 
+def _km_rows(rep) -> list:
+    """Km rows to print; a stretch with one km row prints the whole stretch only (they are identical)."""
+    return rep["km"] if len(rep["km"]) > 1 else []
+
+
 def _proforma_table(rep, st, width):
     head = ["Chainage from", "Chainage to", "Cracks (%, est.)", "Patch work (%)", "Potholes (%, est.)",
             "Bleeding (%, est.)", "Depression (%)", "Edge breaking (%, est.)", "Ravelling (%)", "Shoving (%)",
             "Rut depth (mm)", "Drainage and shoulder", "Total", "Coverage (%)"]
     rows = [[P(h, st["head"]) for h in head]]
     na = P("<font color='#57534e'>not assessed</font>", st["cellc"])
-    for u in rep["km"] + [rep["stretch"]]:
+    for u in _km_rows(rep) + [rep["stretch"]]:
         q = u["quantities"]
         rated = u["rating"].get("rated")
         lab = "Stretch" if u is rep["stretch"] else ""
@@ -579,7 +620,7 @@ def _proforma_table(rep, st, width):
             vals = [P(frm, st["cell"]), P(to, st["cell"]),
                     P(_e_cell(q, "cracking") + f"<br/><font size='6.2' color='#57534e'>allig. "
                       f"{_e_cell(q, 'cracking_alligator')} · linear {_e_cell(q, 'cracking_linear')}</font>", st["cellc"]),
-                    na, P(_e_cell(q, "potholes") + f"<br/><font size='6.2' color='#57534e'>{q['runs']['potholes']} runs</font>",
+                    na, P(_e_cell(q, "potholes") + f"<br/><font size='6.2' color='#57534e'>{_plural(q['runs']['potholes'], 'run')}</font>",
                           st["cellc"]),
                     P(_e_cell(q, "Bleeding", True) + "<br/><font size='6.2' color='#57534e'>unvalidated</font>", st["cellc"]),
                     na, P(_e_cell(q, "Edge Breaking", True) + "<br/><font size='6.2' color='#57534e'>unvalidated</font>",
@@ -605,8 +646,8 @@ def _rating_table(u, st, title, width):
         if p["assessed"]:
             rows.append([P(escape(p["name"]), st["cellb"]),
                          P(f"{frange(p['E_lo'], p['E_hi'])} {unit}", st["cellc"]),
-                         P(f'<font color="{BAND_COLORS.get(p["band"], "#1c1917")}"><b>{_band_text(p)}</b></font>',
-                           st["cellc"]),
+                         P(f'<font color="{BAND_COLORS.get(p["band"], "#1c1917")}"><b>{_band_text(p)}</b></font>'
+                           + (_area(u) if p["param"] == "potholes" else ""), st["cellc"]),
                          P(frange(p["rating_worst"], p["rating_best"]), st["cellc"]),
                          P(f"{p['weight']:.2f}", st["cellc"]),
                          P(frange(p["weighted_worst"], p["weighted_best"]), st["cellc"]),
@@ -663,7 +704,8 @@ def _sections_table(rep, st, width):
             cells = [_e_cell(q, "cracking"),
                      f'<font color="{BAND_COLORS.get(prm["cracking"]["band"], "#000")}"><b>{_band_text(prm["cracking"], True)}</b></font>',
                      _e_cell(q, "potholes"),
-                     f'<font color="{BAND_COLORS.get(prm["potholes"]["band"], "#000")}"><b>{_band_text(prm["potholes"], True)}</b></font>',
+                     f'<font color="{BAND_COLORS.get(prm["potholes"]["band"], "#000")}"><b>{_band_text(prm["potholes"], True)}</b></font>'
+                     + _area(s),
                      str(q["runs"]["potholes"]), f"{fnum(f['lo'])}–{fnum(f['hi'])}"]
         else:
             cells = ["–", "–", "–", "–", "–", "–"]
@@ -684,7 +726,7 @@ def _treatments_block(rep, st):
     out = [P("<b>" + escape(rep["treatment_any_class"]) + "</b>", st["body"]),
            P(escape(rep["treatment_heading"]), st["note"]), Spacer(1, 3)]
     units = [("Whole stretch", rep["stretch"])] + [(f"Km row {u['chainage_from']} to {u['chainage_to']}", u)
-                                                   for u in rep["km"]]
+                                                   for u in _km_rows(rep)]
     for title, u in units:
         t = u["treatment"]
         pb = _band(u, "potholes")
@@ -775,15 +817,27 @@ def render(rep: dict, image_fetcher: Optional[Callable[[str], Optional[bytes]]] 
     story.append(route_figure(rep, pw, 118 * mm))
     story.append(Spacer(1, 2))
     story.append(legend_table(st))
+    L = rep["summary"]["length_m"]
     story.append(P("Track = the surveyed segment centres, coloured by each 100 m section's POTHOLE band (the headline; "
-                   "the overall class is never used for colour); ticks every 100 m, longer ticks every km, chainage "
-                   "from A; no basemap. " + escape(rep["accuracy"]), st["note"]))
+                   "the overall class is never used for colour); ticks every " + ("100" if L <= 3000 else "500") +
+                   " m, longer ticks every km, chainage from A; no basemap."
+                   + (" Per-km detail panels follow the strip chart." if L > 2000 else "") + " "
+                   + escape(rep["accuracy"]), st["note"]))
     story.append(P("4. Strip chart along chainage", st["h2"]))
     story.append(strip_chart(rep, pw))
     story.append(P("Band colours as in the route legend (two names = E_lo and E_hi fall in different bands; violet = "
                    "Good on the labels, Poor only if gate-skipped segments hold the distress). Coverage: darker = more "
-                   "imaged. The last row is the bracketed Appendix-4 overall class: secondary, never a verdict.",
+                   "imaged. The last row is the bracketed Appendix-4 overall class in greys (darker = worse): secondary, never a "
+                   "verdict.",
                    st["note"]))
+    if L > 2000:
+        story.append(PageBreak())
+        story.append(P("4a. Route detail per km (ticks and labels every 100 m)", st["h2"]))
+        kms = [(k["from_m"], k["to_m"], k["chainage_from"], k["chainage_to"]) for k in rep["km"]]
+        for i, (a, b, ca, cb) in enumerate(kms):
+            story.append(KeepTogether([route_figure(rep, pw, 112 * mm, a, b, title=f"{ca} to {cb}"),
+                                       Spacer(1, 4)]))
+        story.append(legend_table(st))
     story.append(NextPageTemplate("landscape"))
     story.append(PageBreak())
     story.append(P("5. Kilometre-wise distress record (IRC:82 Proforma 1 columns)", st["h2"]))
@@ -792,7 +846,9 @@ def render(rep: dict, image_fetcher: Optional[Callable[[str], Optional[bytes]]] 
     story.append(_proforma_table(rep, st, lw))
     story.append(P("6. Rating per Appendix 4 (bracketed)", st["h2"]))
     story.append(KeepTogether(_rating_table(rep["stretch"], st, "Whole stretch", lw)))
-    for u in rep["km"]:
+    if len(rep["km"]) == 1:
+        story.append(P("The stretch is a single (part-)km: its km row equals the whole stretch.", st["note"]))
+    for u in _km_rows(rep):
         story.append(KeepTogether(_rating_table(u, st, f"Km row {u['chainage_from']} to {u['chainage_to']}"
                                                 + (" (part-km)" if u.get("part_km") else ""), lw)))
     story.append(PageBreak())

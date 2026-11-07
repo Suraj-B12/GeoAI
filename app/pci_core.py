@@ -246,7 +246,8 @@ def run_length_hist(rs: list[dict]) -> dict:
 
 
 def unit_quantities(segments: list[Mapping], length_m: float, *, gap_m: float = 0.0,
-                    lane_width_m: float = DEFAULT_LANE_WIDTH_M, runs_in_unit: Optional[Mapping[str, list]] = None) -> dict:
+                    lane_width_m: float = DEFAULT_LANE_WIDTH_M, runs_in_unit: Optional[Mapping[str, list]] = None,
+                    pothole_runs_touching: Optional[int] = None) -> dict:
     """Summed quantities of one unit (100 m section, km row or whole stretch) from its chosen segments.
 
     length_m: the unit's length along the path (measure). gap_m: unsurveyed path length (gap edges).
@@ -329,7 +330,11 @@ def unit_quantities(segments: list[Mapping], length_m: float, *, gap_m: float = 
     q["runs_per_km"] = {k: (v / (D / 1000.0) if D > 0 else None) for k, v in q["runs"].items()}
     q["run_length_hist"] = {"potholes": run_length_hist(pr), "cracking": run_length_hist(cr)}
     q["lane_width_m"] = lane_width_m
-    q["pothole_nominal_area_pct"] = (100.0 * len(pr) * SMALL_POTHOLE_AREA_M2 / (D * lane_width_m)) if D > 0 else None
+    # nominal area counts every run with a flagged segment in this unit (a run crossing a boundary counts in both
+    # units here, so the area band never contradicts a flagged segment); runs/km count each run once
+    n_area = len(pr) if pothole_runs_touching is None else pothole_runs_touching
+    q["pothole_runs_touching"] = n_area
+    q["pothole_nominal_area_pct"] = (100.0 * n_area * SMALL_POTHOLE_AREA_M2 / (D * lane_width_m)) if D > 0 else None
     return q
 
 
@@ -407,6 +412,20 @@ def rate_unit(q: Mapping, category: str) -> dict:
     sens["coverage_rule_80"] = q["rated_80"]
     sens["coverage_rule_50"] = q["rated_50"]
     out["sensitivity"] = sens
+    # F5: with 5 m segments one flagged segment may already exceed the Poor limit of the unit: then the band is
+    # in effect "flagged / not flagged" (the IRC arithmetic is unchanged; this only says how to read it)
+    D = q.get("denominator_m") or 0.0
+    for row in out["params"]:
+        if not row["assessed"] or D <= 0:
+            continue
+        one = 100.0 * 5.0 / D
+        U = TABLES[category]["params"][row["param"]][1]
+        if one > U + EPS:
+            row["resolution_note"] = (
+                f"One flagged 5 m segment is {one:.1f} % of this unit's surveyed length, above the Poor limit "
+                f"({U:g} %), so this band reads Poor whenever any {PARAM_NAMES[row['param']].lower()} is flagged: "
+                f"read it as 'flagged: yes/no'" + ("; use runs per km for the amount" if row["param"] == "potholes"
+                                                   else ""))
     head = {}
     for row in out["params"]:
         if row["assessed"]:
@@ -441,7 +460,8 @@ CLASS_TEXT = {
              "IRC:82 (§2.4, §9.3)."),
 }
 ANY_CLASS_TEXT = ("Distress that adversely influences riding quality (e.g. potholes) should be rectified straightway "
-                  "(§5.3 p. 6). Recycling of the wearing course is preferred where feasible (Table 9.1 **).")
+                  "(§5.3, p. 6). Recycling of the wearing course is preferred where feasible (Table 9.1, second "
+                  "footnote).")
 
 DISTRESS_TREATMENT: dict[str, dict] = {
     "Potholes": {"any": "Rectify straightway (§5.3). Cut the deteriorated edges, fill with open- or dense-graded "

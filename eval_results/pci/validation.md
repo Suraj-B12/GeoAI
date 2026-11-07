@@ -1,6 +1,6 @@
 # Validation — A→B chainage and IRC:82-2015 condition rating
 
-Generated 2026-11-07T01:20:22+00:00 by `venv/Scripts/python.exe scripts/pci_validation.py --database geoai --redo samples` on database `geoai` (data as of 2026-10-30T15:05:00.064449Z). Every number below is from that run (`eval_results/pci/validation.json`).
+Generated 2026-11-07T01:45:57+00:00 by `venv/Scripts/python.exe scripts/pci_validation.py --database geoai --redo retest sensitivity samples` on database `geoai` (data as of 2026-10-30T15:05:00.064449Z). Every number below is from that run (`eval_results/pci/validation.json`).
 
 ## 1. IRC arithmetic
 
@@ -44,13 +44,18 @@ Rule: nearest segment of each later drive within 6 m, |dheading| < 30 deg, |d al
 | Potholes | 67 | 0.910 | 0.674 | 12 / 10 / 8 |
 | Cracking | 67 | 0.925 | 0.505 | 6 / 5 / 3 |
 
-κ 95 % block-bootstrap CI (blocks of 20 consecutive pairs): Distress [0.0, 0.962]; Potholes [0.0, 0.908]; Cracking [0.0, 0.848].
+κ 95 % block-bootstrap interval (blocks of 20 consecutive pairs, 8 blocks): Distress [0.0, 0.962] (10 % of resamples have positives in only one drive, where κ is exactly 0); Potholes [0.0, 0.908] (10 % of resamples have positives in only one drive, where κ is exactly 0); Cracking [0.0, 0.848] (10 % of resamples have positives in only one drive, where κ is exactly 0). The lower ends of 0 are that artefact, not a measured lower agreement: with so few blocks the interval is **not informative**. Positive agreement with Wilson 95 % intervals (n = positives):
+
+- Distress: later drive also positive when the earlier was 10/15 (0.67 [0.42, 0.85]); earlier also positive when the later was 10/10 (1.00 [0.72, 1.00]).
+- Potholes: later drive also positive when the earlier was 8/12 (0.67 [0.39, 0.86]); earlier also positive when the later was 8/10 (0.80 [0.49, 0.94]).
+- Cracking: later drive also positive when the earlier was 3/6 (0.50 [0.19, 0.81]); earlier also positive when the later was 3/5 (0.60 [0.23, 0.88]).
+
 Drive pairs (hours apart): 0.9 h, 37 pairs; 4.86 h, 29 pairs; 0.22 h, 15 pairs; 17.32 h, 3 pairs.
 
 100 m blocks fully matched in both drives and rated in both: **2** (2 drive pairs).
-- cracking: band agreement 1.000, mean |ΔE_lo| 0.0 percentage points.
-- potholes: band agreement 0.500, mean |ΔE_lo| 5.0 percentage points.
-- bracketed final class agreement 1.000.
+- cracking: band agreement 1.000, mean |ΔE_lo| 0.0 percentage points (n = 2; not interpretable).
+- potholes: band agreement 0.500, mean |ΔE_lo| 5.0 percentage points (n = 2; not interpretable).
+- bracketed final class agreement 1.000 (n = 2; not interpretable — do not quote).
 - Matched-segment offsets (bounded by the 6 m rule): along-track p50 0.76 m, p90 2.02 m; cross-track p50 1.58 m.
 
 ## 4. Independent length (OpenStreetMap)
@@ -95,22 +100,24 @@ Time-adjacent gaps: OSM route / straight line over 34 of 36 gaps with an OSM rou
 
 ## Sample reports (pre-registered rule, `samples_rule.json`)
 
-| id | rule | length m | coverage | gaps | cracking band (E) | pothole band (E) | runs/km | final |
-|---|---|---|---|---|---|---|---|---|
-| 1 | longest_drive | 8309.6 | 0.992 | 0 (≥ 0 m) | Poor (18.1–22.4) | Poor (5.6–9.9) | 7.0 | Poor–Fair (ravelling, settlement and depression, rut depth not assessed) |
-| 2 | random_1km_2026-10-27_1 | 1551.7 | 0.867 | 3 (≥ 219.0 m) | Fair–Good (4.5–6.0) | Poor (12.3–13.9) | 16.4 | Poor–Fair (ravelling, settlement and depression, rut depth not assessed) |
-| 3 | random_1km_2026-10-27_2 | 1004.3 | 0.961 | 1 (≥ 50.5 m) | Poor (24.9–25.6) | Poor (12.4–13.1) | 19.7 | Poor–Fair (ravelling, settlement and depression, rut depth not assessed) |
-| 4 | random_1km_2026-10-27_3 | 1004.4 | 0.940 | 1 (≥ 62.0 m) | Fair (7.9–9.2) | Poor (16.4–17.7) | 22.2 | Poor–Fair (ravelling, settlement and depression, rut depth not assessed) |
-| 5 | random_1km_2026-10-29_1 | 1003.7 | 0.782 | 2 (≥ 233.4 m) | Good (1.3–2.0) | Poor (5.1–5.8) | 6.4 | Fair–Good (ravelling, settlement and depression, rut depth not assessed) |
-| 6 | random_1km_2026-10-29_2 | 1024.3 | 0.888 | 1 (≥ 113.6 m) | Good (0.5–3.5) | Poor (1.1–4.0) | 1.1 | Fair–Good (ravelling, settlement and depression, rut depth not assessed) |
-| 7 | random_1km_2026-10-29_3 | 1003.9 | 0.996 | 0 (≥ 0 m) | Poor (27.0–30.4) | Poor (2.0–5.4) | 4.0 | Poor–Fair (ravelling, settlement and depression, rut depth not assessed) |
-| 8 | two_gaps | 795.7 | 0.795 | 2 (≥ 163.1 m) | Fair (6.3–6.6) | Poor (7.1–7.4) | 12.6 | Poor–Fair (ravelling, settlement and depression, rut depth not assessed) |
+| id | rule | requested trip m | routed m | coverage | gaps | cracking band (E) | pothole band (E) | runs/km | overall (secondary) |
+|---|---|---|---|---|---|---|---|---|---|
+| 9 | longest_drive | – | 8309.6 | 0.992 | 0 (≥ 0 m) | Poor (18.1–22.4) | Poor (5.6–9.9) | 7.0 | Poor–Fair (ravelling, settlement and depression, rut depth not assessed) |
+| 10 | random_1km_2026-10-27_1 | 1000 | 1551.7 | 0.867 | 3 (≥ 219.0 m) | Fair–Good (4.5–6.0) | Poor (12.3–13.9) | 16.4 | Poor–Fair (ravelling, settlement and depression, rut depth not assessed) |
+| 11 | random_1km_2026-10-27_2 | 1000 | 1004.3 | 0.961 | 1 (≥ 50.5 m) | Poor (24.9–25.6) | Poor (12.4–13.1) | 19.7 | Poor–Fair (ravelling, settlement and depression, rut depth not assessed) |
+| 12 | random_1km_2026-10-27_3 | 1000 | 1004.4 | 0.940 | 1 (≥ 62.0 m) | Fair (7.9–9.2) | Poor (16.4–17.7) | 22.2 | Poor–Fair (ravelling, settlement and depression, rut depth not assessed) |
+| 13 | random_1km_2026-10-29_1 | 1000 | 1003.7 | 0.782 | 2 (≥ 233.4 m) | Good (1.3–2.0) | Poor (5.1–5.8) | 6.4 | Fair–Good (ravelling, settlement and depression, rut depth not assessed) |
+| 14 | random_1km_2026-10-29_2 | 1000 | 1024.3 | 0.888 | 1 (≥ 113.6 m) | Good (0.5–3.5) | Poor (1.1–4.0) | 1.1 | Fair–Good (ravelling, settlement and depression, rut depth not assessed) |
+| 15 | random_1km_2026-10-29_3 | 1000 | 1003.9 | 0.996 | 0 (≥ 0 m) | Poor (27.0–30.4) | Poor (2.0–5.4) | 4.0 | Poor–Fair (ravelling, settlement and depression, rut depth not assessed) |
+| 16 | two_gaps | – | 795.7 | 0.795 | 2 (≥ 163.1 m) | Fair (6.3–6.6) | Poor (7.1–7.4) | 12.6 | Poor–Fair (ravelling, settlement and depression, rut depth not assessed) |
+
+Requested = metres along the drives' own trip (rule b); routed = the A→B path the router chose (it may use other drives, links and gaps, so it can differ).
 
 ## Statements for the paper (from the numbers above)
 
-1. **The Appendix-4 overall class cannot be determined from this pipeline.** On 408 rated 100 m blocks the bracketed final is a single class on 0 blocks; the bracket width is at least 1.0 on every block (median 1.0). Only the per-parameter bands (cracking, potholes) carry information; the overall class must not be quoted as a condition.
-2. **The synthetic AR(1) noise result is not our chainage error.** It measures the method on raw, unsmoothed GNSS noise; the real segment centres come from the video pipeline's own fitted track (centre path / s-path 0.999 median over 42 drives; not independent). No chainage-LENGTH accuracy is claimed: the OpenStreetMap comparison in §4 is inconclusive (vertex snapping), so an independent length reference is still missing.
-3. **Repeatability between drives is measured only at the segment level.** 67 matched segment pairs, κ (Distress) 0.756 [0.0, 0.962] (block bootstrap); only 2 overlapping 100 m blocks, so class repeatability is NOT measured. The paired drives are 0.9 h apart (37 pairs), 4.86 h apart (29 pairs), 0.22 h apart (15 pairs), 17.32 h apart (3 pairs) — same phone, same model, not different conditions.
+1. **The Appendix-4 overall class cannot be determined from this pipeline.** On 408 rated 100 m blocks the bracketed final is a single class on 0 blocks; the bracket width is at least 1.0 on every block (median 1.0). The overall class must not be quoted as a condition. Only the **cracking** band carries graded information ({'Good': 164, 'Fair': 90, 'Poor': 77, 'Fair–Good': 60, 'Poor–Fair': 17}). The **pothole** band per 100 m is in effect a flag: {'Poor': 240, 'Poor–Good': 118, 'Good': 50} — Fair on 0 blocks, because one flagged 5 m segment is 5 % of a section against an urban Poor limit of 0.5 %. Read it as 'pothole flagged / not flagged' and report the amount as runs per km (per block: {'n': 408, 'mean': 12.2, 'sd': 14.08, 'min': 0.0, 'p50': 10.0, 'p90': 30.3, 'max': 70.0}; 240 blocks with at least one run). Never report a distribution of pothole bands.
+2. **The synthetic AR(1) noise result is not our chainage error.** It measures the method on raw, unsmoothed GNSS noise; the real segment centres come from the video pipeline's own fitted track (centre path / s-path 0.999 median over 42 drives; not independent). No chainage-LENGTH accuracy is claimed: the OpenStreetMap comparison in §4 is inconclusive (vertex snapping), so an independent length reference is still missing. Gaps are printed as straight lines; the OSM route over the time-adjacent gaps is median 1.095x and up to 3.167x the straight line, so chainage after a gap can be short by up to about that factor times the gap (same snapping caveat).
+3. **Repeatability between drives is measured only at the segment level.** 67 matched segment pairs, κ (Distress) 0.756 [0.0, 0.962], 8 blocks — not informative; only 2 overlapping 100 m blocks, so class repeatability is NOT measured. The paired drives are 0.9 h apart (37 pairs), 4.86 h apart (29 pairs), 0.22 h apart (15 pairs), 17.32 h apart (3 pairs) — same phone, same model, not different conditions.
 4. **Skip correction for potholes.** Audited skips: 13/161 distressed (0.081 [0.048, 0.133]), 9/161 with a pothole label (0.056 [0.030, 0.103], Wilson 95 %). Under the urban NIL rule the 13.3 % bound makes 118 of 408 blocks 'Poor–Good' for potholes with no pothole label at all; with the pothole-specific upper limit instead: {'Poor': 240, 'Poor–Good': 112, 'Good': 50, 'Fair–Good': 6}.
 
 ## 7. Limitation

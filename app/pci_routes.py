@@ -442,6 +442,28 @@ def _load(rid: int, cols: str) -> dict:
     return row
 
 
+def _bands(summary) -> dict:
+    hl = (summary or {}).get("headline") or {}
+    return {p: (hl.get(p) or {}).get("band") for p in ("potholes", "cracking")}
+
+
+def headline_text(summary) -> str:
+    """F8: the list leads with the per-parameter bands; the overall class comes last, marked secondary."""
+    s = summary or {}
+    hl = s.get("headline") or {}
+    if not hl:
+        return f"{s.get('length_m', 0):.0f} m · insufficient data"
+    rpk = hl.get("pothole_runs_per_km")
+    parts = [f"Potholes {(hl.get('potholes') or {}).get('band', '–')}"
+             + (f" ({rpk:.1f} runs/km)" if isinstance(rpk, (int, float)) else ""),
+             f"Cracking {(hl.get('cracking') or {}).get('band', '–')}",
+             f"{'≥ ' if s.get('gaps') else ''}{s.get('length_m', 0):.0f} m"]
+    f = s.get("final") or {}
+    if f.get("class"):
+        parts.append(f"overall, secondary: {f['class']}")
+    return " · ".join(parts)
+
+
 def _list() -> list[dict]:
     from psycopg.rows import dict_row
     conn = _connect()
@@ -456,6 +478,8 @@ def _list() -> list[dict]:
         conn.close()
     return [{"id": r["id"], "created_at": PC._iso(r["created_at"]), "title": r["title"], "sample": r["sample"],
              "sample_rule": r["sample_rule"], "data_as_of": PC._iso(r["data_as_of"]), "category": r["category"],
+             "headline_text": headline_text(r["summary"]), "bands": _bands(r["summary"]),
+             "overall_secondary": ((r["summary"] or {}).get("final") or {}).get("class"),
              "input": r["input"], "summary": r["summary"],
              "links": {"json": f"/gis/pci/reports/{r['id']}", "pdf": f"/gis/pci/reports/{r['id']}.pdf",
                        "csv": f"/gis/pci/reports/{r['id']}.csv", "geojson": f"/gis/pci/reports/{r['id']}.geojson"}}

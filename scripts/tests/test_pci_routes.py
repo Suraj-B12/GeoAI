@@ -224,7 +224,11 @@ def test_save_dedupe_cap_stored_and_stale():
         rid = first["id"]
         R.limiter.reset()
         lst = c.get("/gis/pci/reports").json()
-        assert any(x["id"] == rid for x in lst["reports"])
+        mine = next(x for x in lst["reports"] if x["id"] == rid)
+        assert mine["headline_text"].startswith("Potholes ") and "Cracking " in mine["headline_text"]
+        assert mine["headline_text"].index("Potholes") < mine["headline_text"].find("overall") or \
+            "overall" not in mine["headline_text"]
+        assert set(mine["bands"]) == {"potholes", "cracking"}
         got = c.get(f"/gis/pci/reports/{rid}").json()
         assert got["report"]["report_id"] == rid and got["stale"] is False and got["sample"] is False
         pdf = c.get(f"/gis/pci/reports/{rid}.pdf")

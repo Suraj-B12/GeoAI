@@ -334,6 +334,28 @@ def test_gap_mid_section_keeps_every_path_segment():
                for r in rep["attribution"])
 
 
+def test_priority_evidence_and_resolution_note():
+    d = drive("PE", polyline([(0, 0), (900, 0)]), labels={k: ["Potholes"] for k in (40, 41)})
+    g = PC.build_graph(d)
+    rep = PC.build_report(g, {"a": ll(d[0]), "b": ll(d[-1])})
+    s = rep["summary"]
+    assert len(s["pothole_runs_list"]) == 1 and s["pothole_runs_list"][0]["segments"] == 2
+    assert s["pothole_runs_list"][0]["segment_ids"] == ["PE_seg00040", "PE_seg00041"]
+    note = s["priority_notes"][0]
+    assert note.startswith("Possible pothole") and "rests on 1 run" and "1 pothole run (2 flagged segments)" in note
+    assert "Km 0+200" in note and "§9 (photo annex)" in note
+    assert "yes/no" in s["resolution_note"]
+    sec = rep["sections"][2]
+    pot = next(p for p in sec["rating"]["params"] if p["param"] == "potholes")
+    assert pot["band"] == "Poor" and "flagged: yes/no" in pot["resolution_note"]
+    assert sec["rating"]["headline"]["pothole_nominal_area_band"] in ("Fair", "Poor")
+    # many runs: the IRC wording with the run list, truncated after 10
+    d = drive("PM", polyline([(0, 0), (900, 0)]), labels={k: ["Potholes"] for k in range(5, 175, 12)})
+    rep = PC.build_report(PC.build_graph(d), {"a": ll(d[0]), "b": ll(d[-1])})
+    note = rep["summary"]["priority_notes"][0]
+    assert note.startswith("Potholes: Poor band") and "15 in all" in note and "rectified straightway" in note
+
+
 def test_out_and_back_counted_once():
     d = drive("OB", polyline([(0, 0), (400, 0)]), labels={k: ["Potholes"] for k in (20, 21)})
     g = PC.build_graph(d)

@@ -239,12 +239,18 @@ def part_retest(ctx) -> dict:
     bl_list = list(blocks_b.values())
     rnd = random.Random(20261107)
     for name, f in fns.items():
-        ks = []
+        ks, degenerate = [], 0
         for _ in range(2000):
             sample = [pr for _ in range(len(bl_list)) for pr in bl_list[rnd.randrange(len(bl_list))]]
-            kk = kappa([f(a, b) for a, b in sample])["kappa"]
-            if kk is not None:
-                ks.append(kk)
+            kv = kappa([f(a, b) for a, b in sample])
+            if kv["kappa"] is not None:
+                ks.append(kv["kappa"])
+                if kv["positive_a"] == 0 or kv["positive_b"] == 0:
+                    degenerate += 1
+        out["kappa"][name]["bootstrap_share_positives_in_one_drive_only"] = round(degenerate / max(1, len(ks)), 3)
+        kd = out["kappa"][name]
+        kd["later_positive_given_earlier_positive"] = wilson(kd["both_positive"], kd["positive_a"])
+        kd["earlier_positive_given_later_positive"] = wilson(kd["both_positive"], kd["positive_b"])
         out["kappa"][name]["ci95_block_bootstrap"] = ([round(q(ks, 0.025), 3), round(q(ks, 0.975), 3)]
                                                       if len(ks) > 100 else None)
         out["kappa"][name]["bootstrap_blocks"] = len(bl_list)
@@ -597,6 +603,11 @@ def part_sensitivity(ctx) -> dict:
         out["uncorrected_class"] = dict(Counter(r["sensitivity"].get("uncorrected", {}).get("class", "n/a")
                                                 for _, r in rated).most_common())
         out["poor_reachable_lo_end"] = out["final_class_lo"].get("Poor", 0)
+        rpk = [qq["runs_per_km"]["potholes"] for qq, _ in rated if qq["runs_per_km"]["potholes"] is not None]
+        out["pothole_runs_per_km_per_block"] = summ(rpk, 2)
+        out["blocks_with_pothole_runs"] = sum(1 for x in rpk if x > 0)
+        out["pothole_band_fair_blocks"] = sum(1 for _, r in rated
+                                              if next(x for x in r["params"] if x["param"] == "potholes")["band"] == "Fair")
         pr = [(qq, next(x for x in r["params"] if x["param"] == "potholes")) for qq, r in rated]
         out["pothole_poor_good_only_from_skips"] = sum(1 for qq, x in pr if x["band"] == "Poor–Good"
                                                        and qq["extent"]["potholes"]["affected_m"] <= 0)
@@ -698,18 +709,34 @@ def markdown(res: dict) -> str:
             L.append(f"| {k} | {v['n']} | {fmt(v.get('agreement'))} | {fmt(v.get('kappa'))} | "
                      f"{v.get('positive_a')} / {v.get('positive_b')} / {v.get('both_positive')} |")
         b = r["blocks_100m"]
-        L += ["", "κ 95 % block-bootstrap CI (blocks of 20 consecutive pairs): " + "; ".join(
-            f"{k} {v.get('ci95_block_bootstrap')}" for k, v in r["kappa"].items()) + ".",
+        L += ["", "κ 95 % block-bootstrap interval (blocks of 20 consecutive pairs, "
+              f"{r['kappa']['Distress'].get('bootstrap_blocks')} blocks): " + "; ".join(
+            f"{k} {v.get('ci95_block_bootstrap')} ({100 * (v.get('bootstrap_share_positives_in_one_drive_only') or 0):.0f} % "
+            f"of resamples have positives in only one drive, where κ is exactly 0)" for k, v in r["kappa"].items())
+              + ". The lower ends of 0 are that artefact, not a measured lower agreement: with so few blocks the "
+                "interval is **not informative**. Positive agreement with Wilson 95 % intervals (n = positives):",
+              ""] + [f"- {k}: later drive also positive when the earlier was {v['later_positive_given_earlier_positive']['k']}"
+                     f"/{v['later_positive_given_earlier_positive']['n']} "
+                     f"({fmt(v['later_positive_given_earlier_positive']['p'], 2)} "
+                     f"[{fmt(v['later_positive_given_earlier_positive']['lo'], 2)}, "
+                     f"{fmt(v['later_positive_given_earlier_positive']['hi'], 2)}]); earlier also positive when the later "
+                     f"was {v['earlier_positive_given_later_positive']['k']}/{v['earlier_positive_given_later_positive']['n']} "
+                     f"({fmt(v['earlier_positive_given_later_positive']['p'], 2)} "
+                     f"[{fmt(v['earlier_positive_given_later_positive']['lo'], 2)}, "
+                     f"{fmt(v['earlier_positive_given_later_positive']['hi'], 2)}])."
+                     for k, v in r["kappa"].items() if "later_positive_given_earlier_positive" in v] + ["",
               "Drive pairs (hours apart): " + "; ".join(f"{x['hours_apart']} h, {x['pairs']} pairs"
                                                         for x in r.get("drive_pairs_time", [])) + ".",
               "", f"100 m blocks fully matched in both drives and rated in both: **{b['n_blocks']}** "
                   f"({b['drive_pairs_with_blocks']} drive pairs)."]
+        nb = b["n_blocks"]
         for p in ("cracking", "potholes"):
             if p in b:
                 L.append(f"- {p}: band agreement {fmt(b[p]['band_agreement'])}, mean |ΔE_lo| "
-                         f"{b[p]['mean_abs_diff_E_lo_pct']} percentage points.")
+                         f"{b[p]['mean_abs_diff_E_lo_pct']} percentage points (n = {nb}; not interpretable).")
         if "final_class_agreement" in b:
-            L.append(f"- bracketed final class agreement {fmt(b['final_class_agreement'])}.")
+            L.append(f"- bracketed final class agreement {fmt(b['final_class_agreement'])} (n = {nb}; not "
+                     f"interpretable — do not quote).")
         o = r["offset_m"]
         L += [f"- Matched-segment offsets (bounded by the 6 m rule): along-track p50 {o['along_track_abs'].get('p50')} m, "
               f"p90 {o['along_track_abs'].get('p90')} m; cross-track p50 {o['cross_track_abs'].get('p50')} m.", ""]
@@ -768,24 +795,32 @@ def markdown(res: dict) -> str:
     if sm:
         L += ["## Sample reports (pre-registered rule, `samples_rule.json`)", ""]
         if sm.get("reports"):
-            L += ["| id | rule | length m | coverage | gaps | cracking band (E) | pothole band (E) | runs/km | final |",
-                  "|---|---|---|---|---|---|---|---|---|"]
+            L += ["| id | rule | requested trip m | routed m | coverage | gaps | cracking band (E) | pothole band (E) | "
+                  "runs/km | overall (secondary) |", "|---|---|---|---|---|---|---|---|---|---|"]
             for x in sm["reports"]:
                 c, p = x.get("cracking") or {}, x.get("potholes") or {}
-                L.append(f"| {x['id']} | {x['rule']} | {x['length_m']} | {fmt(x['coverage'], 3)} | {x['gaps']} "
+                req = 1000 if str(x["rule"]).startswith("random_1km") else "–"
+                L.append(f"| {x['id']} | {x['rule']} | {req} | {x['length_m']} | {fmt(x['coverage'], 3)} | {x['gaps']} "
                          f"(≥ {x['gap_m']} m) | {c.get('band', '–')} ({fmt(c.get('E_lo'), 1)}–{fmt(c.get('E_hi'), 1)}) | "
                          f"{p.get('band', '–')} ({fmt(p.get('E_lo'), 1)}–{fmt(p.get('E_hi'), 1)}) | "
                          f"{fmt(x.get('pothole_runs_per_km'), 1)} | {x['final'] or 'Insufficient data'} |")
         else:
             L.append(sm["status"])
-        L.append("")
+        L += ["", "Requested = metres along the drives' own trip (rule b); routed = the A→B path the router chose "
+                  "(it may use other drives, links and gaps, so it can differ).", ""]
     L += ["## Statements for the paper (from the numbers above)", ""]
     if se and se.get("bracket_width"):
         L.append(f"1. **The Appendix-4 overall class cannot be determined from this pipeline.** On "
                  f"{se['bracket_width']['n']} rated 100 m blocks the bracketed final is a single class on "
                  f"{se.get('single_class')} blocks; the bracket width is at least {se['bracket_width']['min']} on every "
-                 f"block (median {se['bracket_width']['p50']}). Only the per-parameter bands (cracking, potholes) carry "
-                 f"information; the overall class must not be quoted as a condition.")
+                 f"block (median {se['bracket_width']['p50']}). The overall class must not be quoted as a condition. "
+                 f"Only the **cracking** band carries graded information ({se.get('cracking_band')}). The **pothole** "
+                 f"band per 100 m is in effect a flag: {se.get('potholes_band')} — Fair on "
+                 f"{se.get('pothole_band_fair_blocks')} blocks, because one flagged 5 m segment is 5 % of a section "
+                 f"against an urban Poor limit of 0.5 %. Read it as 'pothole flagged / not flagged' and report the "
+                 f"amount as runs per km (per block: {se.get('pothole_runs_per_km_per_block')}; "
+                 f"{se.get('blocks_with_pothole_runs')} blocks with at least one run). Never report a distribution of "
+                 f"pothole bands.")
     if s:
         L.append("2. **The synthetic AR(1) noise result is not our chainage error.** It measures the method on raw, "
                  "unsmoothed GNSS noise; the real segment centres come from the video pipeline's own fitted track "
@@ -793,13 +828,19 @@ def markdown(res: dict) -> str:
                     f"{r['centre_path_over_s_path'].get('n')} drives; not independent)" if r and r.get(
                      "centre_path_over_s_path") else "") +
                  ". No chainage-LENGTH accuracy is claimed: the OpenStreetMap comparison in §4 is inconclusive "
-                 "(vertex snapping), so an independent length reference is still missing.")
+                 "(vertex snapping), so an independent length reference is still missing. Gaps are printed as straight "
+                 "lines; the OSM route over the time-adjacent gaps is "
+                 + (f"median {o['gap_ratio_summary'].get('p50')}x and up to {o['gap_ratio_summary'].get('max')}x the "
+                    f"straight line" if o and o.get("gap_ratio_summary", {}).get("n") else "not measured")
+                 + ", so chainage after a gap can be short by up to about that factor times the gap (same snapping "
+                   "caveat).")
     if r:
         b = r["blocks_100m"]
         kd = r["kappa"]["Distress"]
         ci = kd.get("ci95_block_bootstrap")
         L.append(f"3. **Repeatability between drives is measured only at the segment level.** {kd['n']} matched segment "
-                 f"pairs, κ (Distress) {fmt(kd.get('kappa'))}" + (f" [{ci[0]}, {ci[1]}] (block bootstrap)" if ci else "")
+                 f"pairs, κ (Distress) {fmt(kd.get('kappa'))}" + (f" [{ci[0]}, {ci[1]}], {kd.get('bootstrap_blocks')} "
+                                                                 f"blocks — not informative" if ci else "")
                  + f"; only {b['n_blocks']} overlapping 100 m blocks, so class repeatability is NOT measured. "
                  + ("The paired drives are " + ", ".join(f"{x['hours_apart']} h apart ({x['pairs']} pairs)"
                                                          for x in r.get("drive_pairs_time", [])[:4])

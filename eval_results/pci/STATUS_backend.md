@@ -66,8 +66,37 @@ Updated: 2026-11-07
 - [x] Final checks: 4 PCI test files **30 passed**; test_gis_routes **160/160**; validate_all **18/18**; looked at
   page 1 + route of samples 19 and 25 and synthetic PDFs by eye.
 
-## In progress
-Nothing. Backend round 2 complete.
+## Round 3 (REVIEW_frontend.md, backend items)
+- [x] F4 short band cell prints the real E_hi band ("Good / Fair if skips").
+- [x] F5 `summary.resolution_note`, `rating.params[].resolution_note` (when one 5 m segment exceeds the Poor limit),
+  method + limitations sentence; nominal-area band ("area: …") beside every pothole band in the PDF (summary,
+  App-4 tables, 100 m table). Area band now counts every run with a flagged segment in the unit
+  (`quantities.pothole_runs_touching`), so it never contradicts a flagged section. IRC arithmetic unchanged.
+- [x] F6 `summary.pothole_runs_list: [{from_m, to_m, chainage, segments, segment_ids}]`; the priority note cites
+  N runs / flagged segments, the first 10 chainages "…", "verify the frames in §9 (photo annex)"; ≤ 2 runs →
+  "Possible pothole(s) — the Poor band rests on N run(s) … check the frame(s) before acting".
+- [x] F8 `GET /gis/pci/reports` rows: `headline_text` ("Potholes Poor (16.4 runs/km) · Cracking Fair · ≥ 1552 m ·
+  overall, secondary: Poor–Fair"), `bands {potholes, cracking}`, `overall_secondary`.
+- [x] PDF wording: "not entered" alone; §5.3 cited as p. 6 for "rectified straightway" (checked on the IRC text:
+  printed page 6, PDF page 13); stray `**` → "Table 9.1, second footnote"; "1 run"; "≥" on lengths with gaps;
+  "direction unknown"; a one-km stretch prints the whole stretch only; overall strip row in greys (violet means one
+  thing); annex no longer pictures skip-only Poor bands; limitation names the shadow failure mode.
+- [x] Long routes: overview ticks every 500 m above 3 km; for > 2 km a "4a. Route detail per km" page set (one
+  panel per km row, ticks + labels every 100 m).
+- Tests: 4 PCI files 31 passed (new: test_priority_evidence_and_resolution_note; list headline_text check).
+- [x] Validation: V1 statement 1 (pothole band per 100 m = flag; Fair 0 of 408; runs/km per block), V2 "(n = 2; not
+  interpretable)" on the 100 m retest bullets, V3 κ interval explained (≈10 % of resamples have positives in one drive
+  only → κ 0; "not informative") + positive agreement with Wilson CIs, V4 gap factor in statement 2, V5 requested vs
+  routed length in the sample table.
+- [x] `pci_samples.py --regenerate` (deletes the label's sample rows first so PDFs re-render with current code).
+  Regenerated: geoai_test ids 30–37, **production geoai ids 9–16** (sample=true; as instructed). All 16 PDFs: 0
+  overlaps. Longest-drive sample: 28 pages incl. 9 per-km detail panels; page 1 + route + detail checked by eye.
+- [x] Final: 4 PCI files **31 passed**; test_gis_routes **160/160**; validate_all **18/18**; geoai_test clean (0 bumped rows).
+  `pci_validation.py --database geoai --redo retest sensitivity samples` re-run.
+
+## Coordinator
+- Restart production to load the route/PDF changes (stored sample PDFs are already re-rendered).
+- After future code changes to the PDF: `scripts/pci_samples.py --database geoai --regenerate`.
 
 ## API additions in round 2 (frontend: please switch to these)
 - `report.attribution` + `report.attribution_columns` = `["segment_id","measure_m","section","km","pass","used","role"]`,

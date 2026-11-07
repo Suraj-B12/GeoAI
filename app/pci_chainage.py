@@ -389,7 +389,7 @@ def _path_passes(g: Graph, path: dict) -> list[dict]:
                     "positions": pos, "_posset": set(pos), "nodes": idxs, "k_first": ks[0], "k_last": ks[-1],
                     "from_m": ms[pos[0]], "to_m": ms[pos[-1]],
                     "direction": ("towards B" if c is not None and c > 0 else
-                                  "towards A" if c is not None else "unknown"),
+                                  "towards A" if c is not None else "direction unknown"),
                     "heading_agreement": None if c is None else round(c, 3),
                     "date_utc": max(times) if times else None})
     return out
@@ -807,8 +807,10 @@ def build_report(g: Graph, req: Mapping, *, generated_at: Optional[datetime] = N
         return sum(_overlap(m0, m1, gp["from_m"], gp["to_m"]) for gp in path["gaps"])
 
     def unit(m0, m1, segs, last, extra=None):
+        ids = {x["segment_id"] for x in segs}
+        touching = sum(1 for r in run_lists["potholes"] if ids & set(r["segment_ids"]))
         q = C.unit_quantities(segs, m1 - m0, gap_m=gap_in(m0, m1), lane_width_m=width,
-                              runs_in_unit=runs_in(m0, m1, last))
+                              runs_in_unit=runs_in(m0, m1, last), pothole_runs_touching=touching)
         r = C.rate_unit(q, cat)
         u = {"from_m": round(m0, 1), "to_m": round(m1, 1), "chainage_from": fmt_chainage(m0),
              "chainage_to": fmt_chainage(m1),
@@ -860,13 +862,31 @@ def build_report(g: Graph, req: Mapping, *, generated_at: Optional[datetime] = N
     gen = generated_at or datetime.now(timezone.utc)
 
     sh = stretch["rating"]
-    priority, final_note = priority_notes(sh, cat, stretch["quantities"])
+    used_m = {x["segment_id"]: x["measure_m"] for x in all_chosen}
+    runs_list = []
+    for r in run_lists["potholes"]:
+        ms = [used_m[sid] for sid in r["segment_ids"] if sid in used_m]
+        if ms:
+            runs_list.append({"from_m": round(min(ms), 1), "to_m": round(max(ms), 1),
+                              "chainage": fmt_chainage(min(ms)), "segments": r["n"],
+                              "segment_ids": list(r["segment_ids"])})
+    runs_list.sort(key=lambda r: r["from_m"])
+    priority, final_note = priority_notes(sh, cat, stretch["quantities"], runs_list)
+    pot_row = next((p for p in (sh.get("params") or []) if p["param"] == "potholes"), None)
+    resolution_note = (pot_row or {}).get("resolution_note") or (
+        "With 5 m segments one flagged segment is 5 % of a 100 m section, so the 100 m pothole band reads Poor "
+        "whenever any pothole is flagged (Fair is out of reach per section): read section bands as 'pothole "
+        "flagged: yes/no' and use runs per km for the amount." if cat == "urban" else
+        "One flagged 5 m segment is 5 % of a 100 m section, above the Poor pothole limit of this table, so the "
+        "100 m pothole band reads Poor whenever any pothole is flagged; use runs per km for the amount.")
     summary = {
         "length_m": round(L, 1), "chainage_a": fmt_chainage(0), "chainage_b": fmt_chainage(L),
         "coverage": stretch["quantities"]["coverage"], "coverage_status": stretch["quantities"]["coverage_status"],
         "gap_m": round(sum(gp["straight_m"] for gp in path["gaps"]), 1), "gaps": len(path["gaps"]),
         "headline": sh.get("headline"), "final": (dict(sh["final"], note=final_note) if sh.get("final") else None),
         "priority_notes": priority,
+        "resolution_note": resolution_note,
+        "pothole_runs_list": runs_list,
         "sections_by_class": _count_classes(sections), "km_by_class": _count_classes(kms),
         "segments_used": len(all_chosen), "segments_expert_reviewed": reviewed,
     }
@@ -919,7 +939,15 @@ def build_report(g: Graph, req: Mapping, *, generated_at: Optional[datetime] = N
     return _clean(report)
 
 
-def priority_notes(rating: Mapping, cat: str, q: Mapping) -> tuple[list[str], Optional[str]]:
+def _runs_text(runs_list: list, limit: int = 10) -> str:
+    if not runs_list:
+        return "none"
+    s = ", ".join(r["chainage"] + (f" ({r['segments']} segments)" if r["segments"] > 1 else "") for r in runs_list[:limit])
+    return s + (f", … ({len(runs_list)} in all)" if len(runs_list) > limit else "")
+
+
+def priority_notes(rating: Mapping, cat: str, q: Mapping, runs_list: Optional[list] = None
+                   ) -> tuple[list[str], Optional[str]]:
     """REVIEW_backend B1: the per-parameter bands lead; Poor potholes are a priority whatever the overall class."""
     notes: list[str] = []
     if not rating.get("rated"):
@@ -930,13 +958,29 @@ def priority_notes(rating: Mapping, cat: str, q: Mapping) -> tuple[list[str], Op
     rpk = q["runs_per_km"]["potholes"]
     if pot and pot["band_hi"] == "Poor":
         if pot["band_lo"] == "Poor":
-            notes.append(
-                f"Potholes: Poor band ({pot['E_lo']:.1f}–{pot['E_hi']:.1f} % of surveyed length, "
-                f"{(rpk or 0):.1f} runs per km, est.). IRC:82-2015 §5.3: distress that adversely influences riding "
-                f"quality, such as potholes, \"should be rectified straightway\", whatever the overall rating. Under "
-                f"Appendix 4 the overall value is an average in which potholes weigh {C.WEIGHTS['potholes']:.2f} of "
-                f"{wsum:.2f}, so a stretch with Poor potholes can still come out Fair or Good overall. Pothole labels "
-                f"are unvalidated on Bengaluru video (0 expert labels; Attain dataset precision 0.43, recall 0.25).")
+            rl = runs_list or []
+            n = len(rl)
+            nseg = sum(r["segments"] for r in rl)
+            evidence = (f"Evidence: {n} pothole run{'s' if n != 1 else ''} ({nseg} flagged segment"
+                        f"{'s' if nseg != 1 else ''}) at {_runs_text(rl)}; verify the frames in §9 (photo annex) "
+                        f"before acting.")
+            if n <= 2:
+                notes.append(
+                    f"Possible pothole{'s' if n != 1 else ''} — the Poor band rests on {n} run{'s' if n != 1 else ''} "
+                    f"({pot['E_lo']:.1f}–{pot['E_hi']:.1f} % of surveyed length, est.); check the frame"
+                    f"{'s' if nseg != 1 else ''} before acting. {evidence} If confirmed, IRC:82-2015 §5.3 (p. 6): "
+                    f"distress that adversely influences riding quality, such as potholes, \"should be rectified "
+                    f"straightway\". Pothole labels are unvalidated on Bengaluru video (0 expert labels; Attain "
+                    f"dataset precision 0.43, recall 0.25).")
+            else:
+                notes.append(
+                    f"Potholes: Poor band ({pot['E_lo']:.1f}–{pot['E_hi']:.1f} % of surveyed length, "
+                    f"{(rpk or 0):.1f} runs per km, est.). {evidence} IRC:82-2015 §5.3 (p. 6): distress that "
+                    f"adversely influences riding quality, such as potholes, \"should be rectified straightway\", "
+                    f"whatever the overall rating. Under Appendix 4 the overall value is an average in which potholes "
+                    f"weigh {C.WEIGHTS['potholes']:.2f} of {wsum:.2f}, so a stretch with Poor potholes can still come "
+                    f"out Fair or Good overall. Pothole labels are unvalidated on Bengaluru video (0 expert labels; "
+                    f"Attain dataset precision 0.43, recall 0.25).")
         else:
             notes.append(
                 f"Potholes: {pot['band']} — no pothole label is Poor on its own (E_lo {pot['E_lo']:.1f} %); the Poor "
@@ -1005,7 +1049,8 @@ def _annex(g: Graph, sections: list[dict], chosen_segs: list[list], run_lists: d
         rt = sec["rating"]
         if not rt.get("rated"):
             continue
-        poor = [p for p in rt["params"] if p.get("assessed") and p.get("band_hi") == "Poor"]
+        poor = [p for p in rt["params"] if p.get("assessed") and p.get("band_hi") == "Poor"
+                and (p.get("E_lo") or 0) > 0]           # a band that is Poor only via skips has nothing to picture
         if not poor:
             continue
         dis = [x for x in segs if x.get("vlm_class") == "distress" and x.get("has_image")]
@@ -1047,7 +1092,11 @@ def _method_text(cat: str) -> list[str]:
         "the pipeline cannot assess are bracketed (rating 1.0 for the low end, 3.0 for the high end).",
         "Potholes: runs per km (consecutive positive segments of one pass = one occurrence) is the primary figure; "
         "a nominal small-pothole area (runs x 0.0314 m², IRC §7.5.3.4) over the surveyed lane is a sensitivity "
-        "figure, not a bound.",
+        "figure, not a bound, printed beside every pothole band ('area: …').",
+        "Resolution of the pothole band: one flagged 5 m segment is 5 % of a 100 m section, far above the urban "
+        "Poor limit of 0.5 %, so a section's pothole band is in effect 'pothole flagged: yes (Poor) / no (Good)' — "
+        "Fair cannot occur per section, and at stretch level Fair needs fewer than one flagged segment per km. The "
+        "IRC arithmetic is applied unchanged; read the band as a flag and use runs per km for the amount.",
     ]
 
 
@@ -1073,6 +1122,10 @@ LIMITATIONS = [
     "one direction per pass; distress outside the camera's view or in other lanes is not seen.",
     "Survey-form fields (road name, direction, weather) on the drives are form defaults or entries by the "
     "operator and are printed only as 'as entered'.",
+    "Known failure mode seen on the annex frames: dappled tree shade and vehicle shadows on smooth asphalt are often "
+    "labelled Potholes. Check the frames before acting on a pothole finding.",
+    "Resolution: with 5 m segments one flagged segment is 5 % of a 100 m section, so the urban pothole band per "
+    "section is in effect 'flagged / not flagged' (Fair cannot occur); runs per km carry the amount.",
 ]
 
 
