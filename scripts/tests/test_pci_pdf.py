@@ -175,6 +175,35 @@ def test_unsupported_text():
     assert PDF.unsupported_text("道路") is not None
 
 
+def test_basemap_projection():
+    from app import pci_basemap as B
+    x, y = B.world_px(0.0, 0.0, 0)
+    assert abs(x - 128) < 1e-9 and abs(y - 128) < 1e-9          # centre of the single z0 tile
+    import math
+    lon, lat, z = 77.5946, 12.9716, 15                           # Bengaluru; OSM wiki slippy-map formula:
+    tx = int((lon + 180) / 360 * 2 ** z)
+    ty = int((1 - math.asinh(math.tan(math.radians(lat))) / math.pi) / 2 * 2 ** z)
+    x, y = B.world_px(lon, lat, z)
+    assert (int(x // 256), int(y // 256)) == (tx, ty) == (23446, 15193), (x // 256, y // 256, tx, ty)
+
+
+def test_offline_route_figure_still_renders():
+    """Without the street map (offline / PCI_BASEMAP=0) the PDF still builds and says the map is missing."""
+    old = os.environ.get("PCI_BASEMAP")
+    os.environ["PCI_BASEMAP"] = "0"
+    try:
+        data = PDF.render(_report(False, category="rural"))
+    finally:
+        if old is None:
+            os.environ.pop("PCI_BASEMAP", None)
+        else:
+            os.environ["PCI_BASEMAP"] = old
+    assert data[:5] == b"%PDF-"
+    if fitz is not None:
+        text = "".join(p.get_text() for p in fitz.open(stream=data, filetype="pdf"))
+        assert "street map unavailable" in text
+
+
 TESTS = [v for k, v in dict(globals()).items() if k.startswith("test_") and callable(v)]
 
 if __name__ == "__main__":

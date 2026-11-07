@@ -1519,7 +1519,7 @@ bracketed class, coverage, a 100 m strip chart and the sections, each linked to 
 as PDF, CSV or JSON. The A4 PDF follows Proforma 1: road details as entered (marked unverified), category and
 IRC table, relative/calibrated chainage, A/B coordinates, derived direction, survey dates and season (IRC asks for
 pre- and post-monsoon surveys), device and pipeline version; a summary with the headline bands and the priority
-note; a vector route figure with chainage ticks, gaps, north arrow and scale bar; the strip chart; km-wise
+note; a route figure drawn over an OpenStreetMap street map (street and area names; © OpenStreetMap contributors) with chainage ticks, gaps, north arrow and scale bar, a location map about 2 km around stretches shorter than 3 km, and per-km detail maps for longer ones; the strip chart; km-wise
 Proforma-1 and Appendix-4 tables with every not-assessed cell marked; the 100 m table; candidate treatments; up
 to 24 frames with their own chainage, coordinates, time, labels and review state; method; limitations; and
 blank "Recorded by / Checked by" boxes. Reports are snapshots: the stored PDF never changes, and a report whose
@@ -1529,9 +1529,10 @@ report.csv,reports}`; storage `research.pci_reports` (migration 009).
 
 ![Figure 9.1 — Route and strip chart of sample report 2 (random 1 km stretch, 27 Oct)](../eval_results/plots/paper/fig_9_1_sample_route_strip.png)
 
-**Figure 9.1** — Page 2 of a sample report as produced by the server: the surveyed path coloured by each 100 m
-section's pothole band, chainage ticks from A, three unsurveyed gaps (dashed, "≥ 219 m" in total), and the strip
-chart along chainage. The last strip row is the bracketed Appendix-4 class, shown as secondary.
+**Figure 9.1** — Page 2 of a sample report as produced by the server: the surveyed path over an OpenStreetMap
+street map, coloured by the pothole band each 100 m section's labels show (white dashes where gate-skipped frames
+could make it worse), chainage ticks from A, three unsurveyed gaps (dashed, "≥ 219 m" in total), and a location
+map with the surrounding localities.
 
 ### 9.5 Results
 

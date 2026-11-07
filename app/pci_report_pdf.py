@@ -261,8 +261,8 @@ def _fit(vertices, w, h, pad):
 class _Labels:
     """Places text labels in a drawing without overlaps (and inside the drawing)."""
 
-    def __init__(self, w, h, font):
-        self.boxes, self.w, self.h, self.font = [], w, h, font
+    def __init__(self, w, h, font, halo=False):
+        self.boxes, self.w, self.h, self.font, self.halo = [], w, h, font, halo
 
     def obstacle_line(self, pts, r=1.3):
         """Mark a drawn line (flat [x0, y0, x1, y1, ...]) as an obstacle, sampled every ~3 pt."""
@@ -273,7 +273,8 @@ class _Labels:
                 x, y = x1 + (x2 - x1) * k / n, y1 + (y2 - y1) * k / n
                 self.boxes.append((x - r, y - r, x + r, y + r))
 
-    def place(self, d: Drawing, x, y, text, size=6.5, color=INK, anchor="start", force=False) -> bool:
+    def place(self, d: Drawing, x, y, text, size=6.5, color=INK, anchor="start", force=False, bg=False) -> bool:
+        bg = bg or self.halo
         tw = pdfmetrics.stringWidth(text, self.font, size)
         x0 = x if anchor == "start" else (x - tw if anchor == "end" else x - tw / 2)
         box = (x0 - 1, y - size * 0.3 - 1, x0 + tw + 1, y + size * 0.95 + 1)
@@ -288,6 +289,9 @@ class _Labels:
             if not (box[2] <= b[0] or box[0] >= b[2] or box[3] <= b[1] or box[1] >= b[3]):
                 return False
         self.boxes.append(box)
+        if bg:   # white label box so the text reads over the street map
+            d.add(Rect(box[0], box[1], box[2] - box[0], box[3] - box[1], fillColor=colors.white, fillOpacity=0.88,
+                       strokeColor=None))
         d.add(String(x0, y, text, fontName=self.font, fontSize=size, fillColor=color))
         return True
 
@@ -301,38 +305,70 @@ def _point_at(vertices, m):
     return x, y, (vertices[-2][0], vertices[-2][1], x, y) if len(vertices) > 1 else (x, y, x, y)
 
 
+def _band_lo_hi(u: dict, param: str) -> tuple[str, str]:
+    """(band the labels show, band if gate-skipped segments hold the distress) of one unit."""
+    r = u.get("rating") or {}
+    if not r.get("rated"):
+        return "Insufficient data", "Insufficient data"
+    p = next((x for x in r.get("params", []) if x["param"] == param), None)
+    if not p:
+        return "Insufficient data", "Insufficient data"
+    return p.get("band_lo") or p["band"], p.get("band_hi") or p["band"]
+
+
 def route_figure(rep: dict, w: float, h: float, m0: Optional[float] = None, m1: Optional[float] = None,
                  title: Optional[str] = None) -> Drawing:
-    """The track coloured by the pothole band. m0/m1: a detail panel of that measure window (ticks every 100 m,
-    all labelled); without them the whole stretch (labels thinned by length)."""
+    """The track over a street map (app.pci_basemap), coloured by the pothole band the labels show; white dashes
+    on the line where gate-skipped segments could make it worse. m0/m1: a detail panel of that measure window
+    (ticks every 100 m, all labelled); without them the whole stretch (labels thinned by length)."""
+    from app import pci_basemap
+    from reportlab.graphics.shapes import Image as GImage
+
     d = Drawing(w, h)
-    d.add(Rect(0, 0, w, h, strokeColor=RULE, fillColor=None, strokeWidth=0.5))
     L = rep["summary"]["length_m"]
     lo, hi = (0.0, L) if m0 is None else (m0, m1)
     allv = rep["path"]["vertices"]
     verts = [v for v in allv if lo - 1e-6 <= v[2] <= hi + 1e-6] or allv
-    f, s_ = _fit(verts, w, h, 14 * mm)
-    labels = _Labels(w, h, _fonts["regular"])
+    try:
+        base = pci_basemap.view([(v[0], v[1]) for v in verts], w, h, 14 * mm)
+    except Exception:
+        base = None
+    if base is not None:
+        f, s_ = base.xy, base.pt_per_m
+        d.add(GImage(0, 0, w, h, base.image_path))
+    else:
+        f, s_ = _fit(verts, w, h, 14 * mm)
+    d.add(Rect(0, 0, w, h, strokeColor=RULE, fillColor=None, strokeWidth=0.6))
+    labels = _Labels(w, h, _fonts["regular"], halo=base is not None)
     if title:
-        labels.place(d, 4, h - 10, title, size=7, force=True)
+        labels.place(d, 4, h - 10, title, size=7, force=True, bg=True)
+    parts = []
     for sec in rep["sections"]:
         if sec["to_m"] < lo - 1e-6 or sec["from_m"] > hi + 1e-6:
             continue
-        col = colors.HexColor(BAND_COLORS.get(_band(sec, "potholes"), "#9ca3af"))
+        b_lo, b_hi = _band_lo_hi(sec, "potholes")
         for part in sec["geometry"]["coordinates"]:
             pts = []
             for lon, lat in part:
                 pts.extend(f(lon, lat))
             if len(pts) >= 4:
-                d.add(PolyLine(pts, strokeColor=col, strokeWidth=2.6, strokeLineCap=1, strokeLineJoin=1))
-                labels.obstacle_line(pts)
+                parts.append((pts, b_lo, b_hi))
+    for pts, _, _ in parts:      # white casing first, so the colours read on the map
+        d.add(PolyLine(pts, strokeColor=colors.white, strokeWidth=5.4, strokeLineCap=1, strokeLineJoin=1))
+    for pts, b_lo, b_hi in parts:
+        d.add(PolyLine(pts, strokeColor=colors.HexColor(BAND_COLORS.get(b_lo, "#9ca3af")), strokeWidth=3.2,
+                       strokeLineCap=1, strokeLineJoin=1))
+        if b_hi != b_lo:
+            d.add(PolyLine(pts, strokeColor=colors.white, strokeWidth=1.1, strokeDashArray=[2.2, 2.2]))
+        labels.obstacle_line(pts, r=2.4)
     for gp, part in zip(rep["path"]["gaps"], rep["path"]["geometry"]["gaps"]["coordinates"]):
         if gp["to_m"] < lo or gp["from_m"] > hi:
             continue
         pts = []
         for lon, lat in part:
             pts.extend(f(lon, lat))
-        d.add(PolyLine(pts, strokeColor=MUTED, strokeWidth=1.0, strokeDashArray=[3, 2]))
+        d.add(PolyLine(pts, strokeColor=colors.white, strokeWidth=3.0))
+        d.add(PolyLine(pts, strokeColor=INK, strokeWidth=1.2, strokeDashArray=[3, 2]))
         labels.obstacle_line(pts)
     detail = m0 is not None
     if detail:
@@ -352,28 +388,29 @@ def route_figure(rep: dict, w: float, h: float, m0: Optional[float] = None, m1: 
         n = math.hypot(dx, dy) or 1.0
         nx_, ny_ = -dy / n, dx / n
         major = abs(m / 1000.0 - round(m / 1000.0)) < 1e-6
-        ln = 4.5 if major else 2.6
+        ln = 5.0 if major else 3.4
         d.add(Line(x - nx_ * ln, y - ny_ * ln, x + nx_ * ln, y + ny_ * ln, strokeColor=INK,
-                   strokeWidth=0.8 if major else 0.45))
+                   strokeWidth=1.0 if major else 0.6))
         if m > 0 and abs(m / step_lab - round(m / step_lab)) < 1e-6:
             anchor = "start" if nx_ > 0.35 else ("end" if nx_ < -0.35 else "middle")
-            ly = y + ny_ * 7 + (0 if ny_ > 0.35 else (-6 if ny_ < -0.35 else -2))
+            ly = y + ny_ * 8 + (0 if ny_ > 0.35 else (-6 if ny_ < -0.35 else -2))
             mm_ = int(round(m))
             txt = f"Km {mm_ // 1000}" if mm_ % 1000 == 0 else f"{mm_ // 1000}+{mm_ % 1000:03d}"
-            if not labels.place(d, x + nx_ * 7, ly, txt, size=6.2, anchor=anchor):
+            if not labels.place(d, x + nx_ * 8, ly, txt, size=6.4, anchor=anchor):
                 anchor = "end" if anchor == "start" else ("start" if anchor == "end" else "middle")
-                labels.place(d, x - nx_ * 7, y - ny_ * 7 + (0 if ny_ < -0.35 else (-6 if ny_ > 0.35 else -2)),
-                             txt, size=6.2, anchor=anchor)
+                labels.place(d, x - nx_ * 8, y - ny_ * 8 + (0 if ny_ < -0.35 else (-6 if ny_ > 0.35 else -2)),
+                             txt, size=6.4, anchor=anchor)
         m += tick
     for name, p, mp in (("A", rep["header"]["a"], 0.0), ("B", rep["header"]["b"], L)):
         if not lo - 1e-6 <= mp <= hi + 1e-6:
             continue
         x, y = f(p["snapped_lon"], p["snapped_lat"])
-        d.add(Rect(x - 3, y - 3, 6, 6, fillColor=INK, strokeColor=colors.white, strokeWidth=0.6))
-        for dx, dy in ((5, 3), (-11, 3), (5, -9), (-11, -9)):
-            if labels.place(d, x + dx, y + dy, name, size=9):
+        d.add(Rect(x - 4, y - 4, 8, 8, fillColor=INK, strokeColor=colors.white, strokeWidth=1.0))
+        for dx, dy in ((6, 4), (-13, 4), (6, -11), (-13, -11)):
+            if labels.place(d, x + dx, y + dy, name, size=10, bg=True):
                 break
     nx0, ny0 = w - 9 * mm, h - 15 * mm
+    d.add(Rect(nx0 - 6, ny0 - 3, 12, 25, fillColor=colors.white, fillOpacity=0.88, strokeColor=None))
     d.add(Polygon([nx0, ny0 + 9, nx0 - 3, ny0, nx0 + 3, ny0], fillColor=INK, strokeColor=INK))
     labels.place(d, nx0, ny0 + 10.5, "N", size=7, anchor="middle", force=True)
     target = (w * 0.22) / s_
@@ -382,21 +419,90 @@ def route_figure(rep: dict, w: float, h: float, m0: Optional[float] = None, m1: 
         if c <= target:
             nice = c
     bx0, by0 = 6 * mm, 6 * mm
+    lab = f"{int(nice)} m" if nice < 1000 else f"{nice / 1000:g} km"
+    d.add(Rect(bx0 - 3, by0 - 3, nice * s_ + 6, 15, fillColor=colors.white, fillOpacity=0.88, strokeColor=None))
     d.add(Rect(bx0, by0, nice * s_, 2.2, fillColor=INK, strokeColor=INK))
-    labels.place(d, bx0, by0 + 4, f"{int(nice)} m" if nice < 1000 else f"{nice / 1000:g} km", size=6.5, force=True)
+    labels.place(d, bx0, by0 + 4, lab, size=6.5, force=True)
+    if base is not None:
+        labels.place(d, w - 3, 3.5, base.attribution, size=5.6, color=MUTED, anchor="end", force=True, bg=True)
+    else:
+        labels.place(d, w - 3, 3.5, "street map unavailable (offline): route drawn without a background",
+                     size=5.6, color=MUTED, anchor="end", force=True)
     return d
 
 
+def locator_figure(rep: dict, w: float, h: float, half_km: float = 2.0) -> Optional[Drawing]:
+    """Where the stretch is: a street map about 2 x half_km wide around it, so locality names show; the route
+    drawn on top with A and B. None when the street map is unavailable (the route figure already says so)."""
+    from app import pci_basemap
+    from reportlab.graphics.shapes import Image as GImage
+
+    allv = rep["path"]["vertices"]
+    lons = [v[0] for v in allv]
+    lats = [v[1] for v in allv]
+    cx, cy = (min(lons) + max(lons)) / 2, (min(lats) + max(lats)) / 2
+    dlat = half_km / 110.54
+    dlon = half_km / (111.32 * math.cos(math.radians(cy)))
+    box = [(min(lons) - dlon, min(lats) - dlat), (max(lons) + dlon, max(lats) + dlat)]
+    try:
+        base = pci_basemap.view(box, w, h, 0.0)
+    except Exception:
+        base = None
+    if base is None:
+        return None
+    d = Drawing(w, h)
+    d.add(GImage(0, 0, w, h, base.image_path))
+    d.add(Rect(0, 0, w, h, strokeColor=RULE, fillColor=None, strokeWidth=0.6))
+    labels = _Labels(w, h, _fonts["regular"], halo=True)
+    pts = []
+    for lon, lat, _m in allv:
+        pts.extend(base.xy(lon, lat))
+    if len(pts) >= 4:
+        d.add(PolyLine(pts, strokeColor=colors.white, strokeWidth=6.0, strokeLineCap=1, strokeLineJoin=1))
+        d.add(PolyLine(pts, strokeColor=colors.HexColor("#1d4ed8"), strokeWidth=3.4, strokeLineCap=1,
+                       strokeLineJoin=1))
+        labels.obstacle_line(pts, r=3.0)
+    L = rep["summary"]["length_m"]
+    for name, p, _mp in (("A", rep["header"]["a"], 0.0), ("B", rep["header"]["b"], L)):
+        x, y = base.xy(p["snapped_lon"], p["snapped_lat"])
+        d.add(Rect(x - 4, y - 4, 8, 8, fillColor=INK, strokeColor=colors.white, strokeWidth=1.0))
+        for dx, dy in ((6, 4), (-13, 4), (6, -11), (-13, -11)):
+            if labels.place(d, x + dx, y + dy, name, size=10, bg=True):
+                break
+    labels.place(d, 4, h - 10, "Location: the stretch (blue) and its surroundings", size=7, force=True, bg=True)
+    nx0, ny0 = w - 9 * mm, h - 15 * mm
+    d.add(Rect(nx0 - 6, ny0 - 3, 12, 25, fillColor=colors.white, fillOpacity=0.88, strokeColor=None))
+    d.add(Polygon([nx0, ny0 + 9, nx0 - 3, ny0, nx0 + 3, ny0], fillColor=INK, strokeColor=INK))
+    labels.place(d, nx0, ny0 + 10.5, "N", size=7, anchor="middle", force=True)
+    target = (w * 0.22) / base.pt_per_m
+    nice = 100.0
+    for c in (100, 200, 500, 1000, 2000, 5000):
+        if c <= target:
+            nice = c
+    bx0, by0 = 6 * mm, 6 * mm
+    lab = f"{int(nice)} m" if nice < 1000 else f"{nice / 1000:g} km"
+    d.add(Rect(bx0 - 3, by0 - 3, nice * base.pt_per_m + 6, 15, fillColor=colors.white, fillOpacity=0.88,
+               strokeColor=None))
+    d.add(Rect(bx0, by0, nice * base.pt_per_m, 2.2, fillColor=INK, strokeColor=INK))
+    labels.place(d, bx0, by0 + 4, lab, size=6.5, force=True)
+    labels.place(d, w - 3, 3.5, base.attribution, size=5.6, color=MUTED, anchor="end", force=True, bg=True)
+    return d
+
+
+ROUTE_LEGEND = (("Good", "Good: no pothole label"), ("Fair", "Fair"), ("Poor", "Poor: pothole label(s)"),
+                ("Insufficient data", "Insufficient data (< 50 % imaged)"))
+
+
 def legend_table(st, title: str = "Pothole band") -> Table:
-    cells = []
-    for name, col in BAND_COLORS.items():
-        cells.append(P(f'<font color="{col}">■</font> {escape(BAND_LEGEND[name])}', st["cell"]))
-    cells.append(P('<font color="#57534e">- - -</font> gap (straight line)', st["cell"]))
-    rows = [cells[i:i + 4] for i in range(0, len(cells), 4)]
-    rows[-1] += [""] * (4 - len(rows[-1]))
+    cells = [P(f'<font color="{BAND_COLORS[k]}">■</font> {escape(v)}', st["cell"]) for k, v in ROUTE_LEGEND]
+    cells.append(P('Colour with <b>white dashes</b>: could be worse — gate-skipped frames (never classified) may '
+                   'hold potholes', st["cell"]))
+    cells.append(P('<font color="#1c1917">- - -</font> gap: not surveyed (straight line)', st["cell"]))
+    rows = [cells[0:4], [cells[4], "", cells[5], ""]]
     t = Table(rows, colWidths=[44 * mm] * 4, hAlign="LEFT")
     t.setStyle(TableStyle([("LEFTPADDING", (0, 0), (-1, -1), 0), ("TOPPADDING", (0, 0), (-1, -1), 0),
-                           ("BOTTOMPADDING", (0, 0), (-1, -1), 1)]))
+                           ("BOTTOMPADDING", (0, 0), (-1, -1), 1), ("SPAN", (0, 1), (1, 1)),
+                           ("SPAN", (2, 1), (3, 1))]))
     return t
 
 
@@ -426,7 +532,14 @@ def strip_chart(rep: dict, w: float) -> Drawing:
             if key == "final":
                 col = OVERALL_GREYS.get(_cls(sec), "#e7e5e4")
             elif key in ("cracking", "potholes"):
-                col = BAND_COLORS.get(_band(sec, key), "#e7e5e4")
+                b_lo, b_hi = _band_lo_hi(sec, key)
+                col = BAND_COLORS.get(b_lo, "#e7e5e4")
+                if b_hi != b_lo:
+                    d.add(Rect(a, y + 0.8, max(0.4, b - a), row_h - 1.6, fillColor=colors.HexColor(col),
+                               strokeColor=None))
+                    d.add(Line(a + 0.5, y + row_h / 2, max(a + 0.5, b - 0.5), y + row_h / 2, strokeColor=colors.white,
+                               strokeWidth=1.1, strokeDashArray=[2, 2]))
+                    continue
             elif key == "coverage":
                 cov = sec["quantities"]["coverage"]
                 g = int(235 - 160 * max(0.0, min(1.0, cov)))
@@ -818,18 +931,26 @@ def render(rep: dict, image_fetcher: Optional[Callable[[str], Optional[bytes]]] 
     story.append(Spacer(1, 2))
     story.append(legend_table(st))
     L = rep["summary"]["length_m"]
-    story.append(P("Track = the surveyed segment centres, coloured by each 100 m section's POTHOLE band (the headline; "
+    story.append(P("Track = the surveyed segment centres, coloured by each 100 m section's POTHOLE band as the labels show it "
+                   "(the headline; "
                    "the overall class is never used for colour); ticks every " + ("100" if L <= 3000 else "500") +
-                   " m, longer ticks every km, chainage from A; no basemap."
+                   " m, longer ticks every km, chainage from A. Street map © OpenStreetMap contributors, for orientation only."
                    + (" Per-km detail panels follow the strip chart." if L > 2000 else "") + " "
                    + escape(rep["accuracy"]), st["note"]))
-    story.append(P("4. Strip chart along chainage", st["h2"]))
-    story.append(strip_chart(rep, pw))
-    story.append(P("Band colours as in the route legend (two names = E_lo and E_hi fall in different bands; violet = "
-                   "Good on the labels, Poor only if gate-skipped segments hold the distress). Coverage: darker = more "
-                   "imaged. The last row is the bracketed Appendix-4 overall class in greys (darker = worse): secondary, never a "
-                   "verdict.",
-                   st["note"]))
+    if L <= 3000:
+        locd = locator_figure(rep, pw, 78 * mm)
+        if locd is not None:
+            story.append(Spacer(1, 4))
+            story.append(KeepTogether([locd, P("Location map for orientation: about 2 km around the stretch, so "
+                                               "locality names are visible. Street map © OpenStreetMap contributors.",
+                                               st["note"])]))
+    story.append(KeepTogether([   # heading, chart and note on one page
+        P("4. Strip chart along chainage", st["h2"]),
+        strip_chart(rep, pw),
+        P("Band colours as in the route legend: the colour is the band the labels show (E_lo); white dashes = "
+          "the band could be worse (E_hi) if gate-skipped segments hold the distress. Coverage: darker = more "
+          "imaged. The last row is the bracketed Appendix-4 overall class in greys (darker = worse): secondary, never a "
+          "verdict.", st["note"])]))
     if L > 2000:
         story.append(PageBreak())
         story.append(P("4a. Route detail per km (ticks and labels every 100 m)", st["h2"]))
