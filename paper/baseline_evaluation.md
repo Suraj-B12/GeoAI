@@ -2,6 +2,8 @@
 
 ## Paper-Ready Sections + Technical Notes
 
+> **Revision 2026-11-07 — chainage and IRC:82 condition rating.** Added §9: relative chainage along the surveyed track and the IRC:82-2015 distress-based rating (Tables 5.1–5.3, Appendix 4) for any stretch A→B picked in the WebGIS, with a downloadable report, eight pre-registered sample reports, validation and three rounds of independent review. Two statements in §8.9 corrected ("% of length" is not IRC's area; chainage now derived).
+>
 > **Revision 2026-09-23.** Added: field-restricted Stage 2 confidence (§3.4), threshold
 > calibration on 407 labelled images (§3.5, §6.5), and an input-resolution study (§3.8,
 > §6.6, §7.6–7.8, T2.2–T2.5). Every figure in these sections is regenerated from stored
@@ -1419,9 +1421,204 @@ A drive appears on the GIS map when it is stored: the GIS reads the database dir
 
 ### 8.9 Limitations
 
-(1) The reference is the model, not engineers: the gate's recall and precision, and every "% of length", inherit the model's errors (on Attain its Stage 1 found about half of distressed frames). (2) 43 drives over 42.0 km, recorded on three days (26, 27 and 29 Oct 2026) with one phone; per-drive differences mix road, light, speed and focus, and the 40 later drives were gated, so their shares are not directly comparable with the send-all first three; two drives were lost to a portrait mount. Driving speed is associated with the answer even within a drive (§8.8), and repeatability between drives is not yet measured. (3) Positions are phone GNSS (σ ≈ 6 m) without latency correction (no drive had enough braking events for the automatic estimate) and without map-matching; chainage is absent because no start chainage was entered. (4) The full frame shows road beyond the segment, so a label can come from outside it; positive segments cluster more than chance (P(positive | previous positive) 0.43–0.60 against base rates 0.18–0.38), which may inflate "% of length" (§8.6). (5) The model's labels are per segment, not measurements of extent; "% of length" counts a whole segment for any distress in it, as IRC:82 section ratings by length do, but it is not an area.
+(1) The reference is the model, not engineers: the gate's recall and precision, and every "% of length", inherit the model's errors (on Attain its Stage 1 found about half of distressed frames). (2) 43 drives over 42.0 km, recorded on three days (26, 27 and 29 Oct 2026) with one phone; per-drive differences mix road, light, speed and focus, and the 40 later drives were gated, so their shares are not directly comparable with the send-all first three; two drives were lost to a portrait mount. Driving speed is associated with the answer even within a drive (§8.8), and repeatability between drives is not yet measured. (3) Positions are phone GNSS (σ ≈ 6 m) without latency correction (no drive had enough braking events for the automatic estimate) and without map-matching; no start chainage was entered, so road (km-stone) chainage is absent; §9.2 derives a relative chainage along the surveyed track instead. (4) The full frame shows road beyond the segment, so a label can come from outside it; positive segments cluster more than chance (P(positive | previous positive) 0.43–0.60 against base rates 0.18–0.38), which may inflate "% of length" (§8.6). (5) The model's labels are per segment, not measurements of extent; "% of length" counts a whole segment for any distress in it; it is not an area, and IRC:82's percentages are areas (its measurement proforma records m²), so for localised distress (potholes, single cracks) "% of length" is an upper bound on "% area" (§9.3).
 
 ---
+
+## 9. Chainage and an IRC:82-2015 Condition Rating for a Chosen Stretch (A → B)
+
+A road engineer plans maintenance by stretch and by kilometre, not by photograph. This section adds the two
+quantities an Indian maintenance plan is written in — **chainage** and the **IRC:82-2015 distress-based
+condition rating** — to the drive-video survey of §8. In the WebGIS a user clicks a start point A and an end
+point B on a surveyed road, and the server returns the chainage of every 5 m segment between them, a rating per
+100 m sub-section, per kilometre and for the whole stretch, candidate treatments with IRC clause numbers, and a
+downloadable report. The method, the code and every number below were reviewed three times by an independent
+critic agent before deployment (§9.6).
+
+### 9.1 What IRC:82-2015 specifies, and what we therefore compute
+
+IRC:82-2015 rates a bituminous surface from a visual survey on a **1–3 scale** (Poor 1, Fair 1.1–2, Good 2.1–3),
+separately for each distress, with one table per road category: Table 5.1 (highways), 5.2 (MDR and rural roads)
+and **5.3 (urban roads)**, which applies to Bengaluru streets (cracking %, ravelling %, potholes %, settlement %,
+rut depth in mm). Appendix 4 combines the parameters: each rating is multiplied by a fixed weight (cracking 1.00,
+ravelling 0.75, potholes 0.50, shoving 1.00, patching 0.75, settlement 0.75, rut depth 1.00) and the final value
+is the plain mean of the weighted ratings. Data are recorded "kilometer wise" in Proforma 1 (§5.3, Appendix 1).
+The code does not define a separate "pavement condition index"; the phrase appears once (§9.3) without a
+definition. We therefore compute the **IRC:82 rating, not an ASTM D6433 PCI**: D6433 needs measured areas and
+deduct curves that exist only in the licensed standard, and the brief asked for IRC compliance. The tables were
+transcribed from the code and checked by eye against the rendered pages (IRC:82-2015 pp. 4–5, 74). How a rating
+value is placed inside a band is not stated; the rule we use (Fair = 2 − (x − L)/(U − L), Good = 3 − x/L,
+truncated to one decimal) reproduces six of the seven rows of the Appendix-4 worked example and its final value
+(1.3, Fair). The seventh row (rut depth, printed 1.3, rule 1.2) cannot be reproduced by any single rule, because
+it has the same input and bands as the cracking row printed 1.2; it is an inconsistency in the example itself.
+Sources and every table are in `eval_results/pci/RESEARCH.md`.
+
+### 9.2 Chainage along the surveyed track
+
+No drive had a start chainage entered, so km-stone (road) chainage is not available. We report a **relative
+chainage** "Km 0+000 at A … Km x+yyy at B", and a road chainage only when the user enters the km-stone value at A
+(printed "calibrated by requester, unverified").
+
+- **Survey network.** The 8,402 segment centres are nodes. Edges: consecutive segments of a drive (8,359);
+  same-road links between drives (|Δheading| < 30°, < 6 m; 208); crossing links (≥ 30°, < 8 m; 15); and gap edges
+  only from the end of a drive to the start of the **next drive in time** from the same phone, < 10 min later
+  (36), which reproduces the vehicle's actual trip. A link is refused when the ellipsoidal heights differ by more
+  than 4 m (a possible flyover). Each switch between drives costs 50 m.
+- **Path and chainage.** A, B and up to eight via points snap to the nearest segment (refused beyond 40 m). The
+  path is the cheapest route through them. Chainage is the cumulative distance between the path's segment
+  centres, **without smoothing**: the centres are already 5.0 m apart along the camera's fitted track, and a
+  moving average shortens every curve (2–12 m per turn in the critic's simulation). A gap is a straight line,
+  printed as "≥ x m (straight line)".
+- **Attribution.** Every segment on the path is always used; segments of other drives only fill 100 m sections
+  the path did not image, preferring the drive with the most classified length, then the latest date. A road
+  driven out and back counts once. The direction of travel is derived from the camera heading, not from the
+  survey form, whose road name ("test 1/2") and direction were left at their defaults on all 43 drives.
+- **Accuracy statement printed on every report:** segment position ±10 m on surveyed runs (phone GNSS σ ≈ 4–6 m,
+  latency uncorrected, 5 m segments); unknown extra error after each gap; a labelled distress may lie up to
+  ≈ 30 m *ahead* of its segment, because the camera looks forward (§8.1).
+
+### 9.3 From per-segment labels to IRC inputs
+
+The pipeline gives one classified frame per 5 m of one lane; it does not measure area, width or depth. For each
+100 m sub-section, kilometre and stretch, and each IRC parameter *p*, we compute the **percentage of surveyed
+length on which the model saw the distress**, E_p, and label it "(est.)". IRC's percentages are areas (Proforma 2
+records m²), so E_p is an **upper bound on % area for localised distress** — a single pothole or crack flags a
+whole 5 m segment.
+
+- **Assessed parameters.** A parameter is rated only if the labels feeding it have measured recall above zero on
+  a labelled dataset. With the free-form list the video pipeline uses, that holds for **cracking** (Attain test:
+  linear crack precision 0.89, recall 0.82, MCC 0.257; alligator recall 0.08) and **potholes** (precision 0.43,
+  recall 0.25, MCC 0.219) — both weak. **Ravelling** (recall 0 on Attain, 0 labels on the 8,402 video segments),
+  **settlement and depression** (never evaluated, 0 labels) and **rut depth** (needs a 3 m straight edge) are
+  *not assessed*; so are shoving and patching on the other tables. A parameter that is not assessed is printed
+  "not assessed", never 0 %.
+- **Bracketed final value.** Appendix 4 averages over all parameters of the table, so the final value is computed
+  twice — with every not-assessed parameter at rating 1.0 and at 3.0 — and printed as a class range
+  ("Poor–Fair") unless both ends agree. Without this, the design reviewed in round 1 could never return Poor on an
+  urban road (the two parameters the model never labels would always count as Good).
+- **Gate skips.** The distress gate (§8.5) does not send 15 % of segments to the model, and audited skips are
+  less often distressed (13/161 = 8.1 % [4.8, 13.3]) than sent segments (19.7 %). Each E_p is therefore a range:
+  skips distress-free (E_lo) to skips distressed at the upper confidence limit (E_hi).
+- **Coverage.** A unit is rated when ≥ 80 % of its length was imaged; 50–80 % is rated but flagged; below that it
+  is "insufficient data".
+- **Potholes.** Because the camera looks ≈ 30 m ahead, one pothole is often labelled on several consecutive
+  segments; the primary pothole figure is therefore **runs per km** (consecutive positive segments = one
+  occurrence). Under Table 5.3 any pothole puts the pothole parameter out of "Good", and under Appendix 4 potholes
+  carry only 0.50 of 4.00 weight, so a stretch with Poor potholes can still come out Fair or Good overall. Every
+  report with a Poor pothole band opens with a boxed note quoting IRC §5.3 — distress that affects riding
+  quality, such as potholes, "should be rectified straightway" — and colours its map by the pothole band.
+- **Treatments.** For each kilometre and distress the report lists candidate treatments from IRC:82 §7–9 with
+  clause numbers (e.g. crack sealing §7.3.4.5, pothole filling §7.5.3.5, renewal per Table 9.1), headed "to be
+  confirmed by field inspection".
+
+### 9.4 The tool and the report
+
+The WebGIS (`/gis/app/`) has a *Condition report* action: click A and B (and optional via points); the
+surveyed path is drawn with gaps dashed; the preview shows the per-parameter bands, pothole runs per km, the
+bracketed class, coverage, a 100 m strip chart and the sections, each linked to its frames. The report downloads
+as PDF, CSV or JSON. The A4 PDF follows Proforma 1: road details as entered (marked unverified), category and
+IRC table, relative/calibrated chainage, A/B coordinates, derived direction, survey dates and season (IRC asks for
+pre- and post-monsoon surveys), device and pipeline version; a summary with the headline bands and the priority
+note; a vector route figure with chainage ticks, gaps, north arrow and scale bar; the strip chart; km-wise
+Proforma-1 and Appendix-4 tables with every not-assessed cell marked; the 100 m table; candidate treatments; up
+to 24 frames with their own chainage, coordinates, time, labels and review state; method; limitations; and
+blank "Recorded by / Checked by" boxes. Reports are snapshots: the stored PDF never changes, and a report whose
+segments were relabelled afterwards is marked stale. Saving to the portal requires the operator key and is
+rate-limited per client; previews and downloads are open. API: `/gis/pci/{meta,path,report,report.pdf,
+report.csv,reports}`; storage `research.pci_reports` (migration 009).
+
+![Figure 9.1 — Route and strip chart of sample report 2 (random 1 km stretch, 27 Oct)](../eval_results/plots/paper/fig_9_1_sample_route_strip.png)
+
+**Figure 9.1** — Page 2 of a sample report as produced by the server: the surveyed path coloured by each 100 m
+section's pothole band, chainage ticks from A, three unsurveyed gaps (dashed, "≥ 219 m" in total), and the strip
+chart along chainage. The last strip row is the bracketed Appendix-4 class, shown as secondary.
+
+### 9.5 Results
+
+**Arithmetic.** The Appendix-4 worked example is reproduced (1.3, Fair) and 116 band-boundary checks pass.
+The critic recomputed all 182 rated units of nine stored reports with independent code: 0 mismatches.
+
+**Chainage.** On synthetic drives without noise the measured length is within 0.44 m of the truth (straight
+1,000 m, arc, 90° and 180° turns). Path lengths recomputed from SQL agree with the stored reports within
+0.005 %. Swapping A and B changes neither the length nor E_p. On 67 segment pairs where two drives cover the
+same lane within 6 m, the along-track offset of matched segments is 0.76 m (median; p90 2.02 m). **An independent
+check of chainage length is still missing**: a comparison with OpenStreetMap routes was inconclusive, because the
+waypoints snap to OSM vertices 5.5–19 m away (median per sample) and force detours (our length / OSM 0.21–1.00).
+OSM routes across 34 of the 36 time-adjacent gaps were a median 1.095 × the straight line (p90 1.709), which supports
+printing gaps as lower bounds.
+
+**Rating behaviour on all 411 100 m blocks of the 43 drives (Table 5.3).**
+- The bracketed final class is never a single class: 0 of 408 rated blocks; the bracket is ≥ 1.0 wide on every
+  block (Poor–Fair 189, Fair–Good 144, Poor–Good 75). **The overall IRC class cannot be determined from this
+  pipeline**; only the cracking and pothole bands carry information.
+- Pothole band: Poor 240, Poor–Good 118, Good 50. On 118 blocks the "Poor" end comes only from the skip upper
+  limit, with no pothole label at all (with the audited pothole-specific skip rate, 9/161 = 5.6 % [3.0, 10.3],
+  112 blocks).
+- Cracking band: Good 164, Fair 90, Poor 77, Fair–Good 60, Poor–Fair 17.
+- Runs: potholes 770 positive segments in 502 runs (mean 1.53 segments per run, 29.5 % of positives in runs of
+  three or more); cracking 761 in 428 runs (1.78).
+
+**Repeatability between drives.** Where two drives cover the same lane (84 matched segment pairs from 4 drive
+pairs; 67 classified in both), Distress agrees on 92.5 % (κ 0.756, 95 % block-bootstrap CI [0.0, 0.962]),
+Potholes 91.0 % (κ 0.674) and Cracking 92.5 % (κ 0.505). The intervals are wide and the pairs are the same phone
+and model 0.2–17 h apart; only two 100 m blocks overlap fully, so **class repeatability is not measured**.
+
+**Sample reports.** Eight stretches were chosen by a rule fixed before any rating was computed
+(`samples_rule.json`, seed 20261107: the longest drive, three random 1 km stretches on each of 27 and 29 Oct, and
+one stretch crossing two gaps) and are stored in the portal as samples:
+
+| Sample | Length | Coverage | Gaps | Cracking band (E, %) | Pothole band (E, %) | Pothole runs/km | Final (secondary) |
+|---|---|---|---|---|---|---|---|
+| Longest drive | 8,310 m | 99.2 % | 0 | Poor (18.1–22.4) | Poor (5.6–9.9) | 7.0 | Poor–Fair |
+| 27 Oct, random 1 | 1,552 m | 86.7 % | 3 (≥ 219 m) | Fair–Good (4.5–6.0) | Poor (12.3–13.9) | 16.4 | Poor–Fair |
+| 27 Oct, random 2 | 1,004 m | 96.1 % | 1 (≥ 51 m) | Poor (24.9–25.6) | Poor (12.4–13.1) | 19.7 | Poor–Fair |
+| 27 Oct, random 3 | 1,004 m | 94.0 % | 1 (≥ 62 m) | Fair (7.9–9.2) | Poor (16.4–17.7) | 22.2 | Poor–Fair |
+| 29 Oct, random 1 | 1,004 m | 78.2 % | 2 (≥ 233 m) | Good (1.3–2.0) | Poor (5.1–5.8) | 6.4 | Fair–Good |
+| 29 Oct, random 2 | 1,024 m | 88.8 % | 1 (≥ 114 m) | Good (0.5–3.5) | Poor (1.1–4.0) | 1.1 | Fair–Good |
+| 29 Oct, random 3 | 1,004 m | 99.6 % | 0 | Poor (27.0–30.4) | Poor (2.0–5.4) | 4.0 | Poor–Fair |
+| Two gaps | 796 m | 79.5 % | 2 (≥ 163 m) | Fair (6.3–6.6) | Poor (7.1–7.4) | 12.6 | Poor–Fair |
+
+Every sample has a Poor pothole band. This should not be read as a finding about the roads: potholes are the
+most frequent label on the video (770 of 1,287 distressed segments), the model's pothole precision on Attain is
+0.43, and in the critic's look at one report's photo annex at least 4 of 12 frames labelled pothole showed no
+visible pothole. The pothole band will mean something only after expert review.
+
+**Cost.** Building the survey network takes ≈ 3.5 s once (cached); computing an 8.3 km report takes ≈ 0.1 s and
+rendering its 19-page PDF ≈ 5 s. Tests: 30 unit and route tests for the rating, chainage, report and API
+(`scripts/tests/test_pci_*.py`), plus a PDF check that no two text spans overlap and none leave the page on any
+stored report.
+
+### 9.6 Independent review
+
+A separate critic agent reviewed the design, the backend with its sample reports, and the user interface, each
+time before the next step; every finding was fixed and re-tested. The changes that mattered most:
+
+| Round | Finding | Fix |
+|---|---|---|
+| Design | Two urban parameters the model never labels would count as Good, so Poor was unreachable | "assessed" only with measured recall; bracketed final |
+| Design | Moving-average smoothing shortens curves and the planned length check was circular | no smoothing; correlated-noise test; independent reference attempted |
+| Design | "Any drive within 15 m / 600 m" links join parallel roads, flyovers and cut through blocks | same-road and crossing rules, altitude check, gaps only to the next drive in time |
+| Design | Look-ahead camera inflates "% length" and shifts positions | runs per km; ≈ 30 m look-ahead stated |
+| Backend | Path segments were dropped when a gap fell inside a section (41 of 70 random reports, up to 7 %) | path segments always used; regression tests |
+| Backend | A stretch with Poor potholes printed "Fair–Good" in green | IRC §5.3 priority box; map coloured by pothole band; overall class shown as secondary |
+| Backend | Save endpoint allowed unlimited key guessing; one rate-limit bucket for all tunnel users | per-client limit before the key check; failed-key lock-out |
+
+The reviews are in `eval_results/pci/REVIEW_design.md`, `REVIEW_backend.md` and `REVIEW_frontend.md`.
+
+### 9.7 Limitations and what is needed next
+
+1. **No ground truth.** There are no expert labels on the video segments yet and no Bengaluru validation of any
+   label; §9.5 measures arithmetic, geometry and repeatability, not accuracy. The rating is a **screening estimate
+   for prioritising inspection**, not an IRC:82 condition survey (which IRC asks experienced engineers to carry out
+   twice a year on urban roads).
+2. **Only two of five urban parameters are assessed**, both weakly; the overall class is always a bracket.
+3. **Length, not area**; forward-looking frames; one lane; GNSS positions without map-matching; no independent
+   check of chainage length; unrecorded gaps between clips.
+4. **Validation protocol for when labels exist:** experts label every 5 m segment of about ten randomly chosen
+   100 m sub-sections (the expert page's Video tab already stores labels per segment); compare E_p and the
+   per-parameter band from expert labels with those from model labels, with the block-bootstrap intervals used in
+   §6. Calibrating one drive to a km stone, or measuring a few stretches with a measuring wheel, would give the
+   missing chainage-length check.
 
 ## Acknowledgements
 
