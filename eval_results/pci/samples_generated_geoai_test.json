@@ -1,0 +1,72 @@
+{
+  "database": "geoai_test",
+  "generated_at": "2026-11-07T01:45:11+00:00",
+  "data_as_of": "2026-10-30T15:05:00.064449Z",
+  "note": "requested = metres along the drives' own trip (rule b); routed = the A->B path the router chose (it may use other drives, gaps and links, so it can differ)",
+  "reports": [
+    {
+      "rule": "longest_drive",
+      "id": 30,
+      "created": true,
+      "requested_trip_m": null,
+      "routed_length_m": 8309.6,
+      "gaps": 0
+    },
+    {
+      "rule": "random_1km_2026-10-27_1",
+      "id": 31,
+      "created": true,
+      "requested_trip_m": 1000.0,
+      "routed_length_m": 1551.7,
+      "gaps": 3
+    },
+    {
+      "rule": "random_1km_2026-10-27_2",
+      "id": 32,
+      "created": true,
+      "requested_trip_m": 1000.0,
+      "routed_length_m": 1004.3,
+      "gaps": 1
+    },
+    {
+      "rule": "random_1km_2026-10-27_3",
+      "id": 33,
+      "created": true,
+      "requested_trip_m": 1000.0,
+      "routed_length_m": 1004.4,
+      "gaps": 1
+    },
+    {
+      "rule": "random_1km_2026-10-29_1",
+      "id": 34,
+      "created": true,
+      "requested_trip_m": 1000.0,
+      "routed_length_m": 1003.7,
+      "gaps": 2
+    },
+    {
+      "rule": "random_1km_2026-10-29_2",
+      "id": 35,
+      "created": true,
+      "requested_trip_m": 1000.0,
+      "routed_length_m": 1024.3,
+      "gaps": 1
+    },
+    {
+      "rule": "random_1km_2026-10-29_3",
+      "id": 36,
+      "created": true,
+      "requested_trip_m": 1000.0,
+      "routed_length_m": 1003.9,
+      "gaps": 0
+    },
+    {
+      "rule": "two_gaps",
+      "id": 37,
+      "created": true,
+      "requested_trip_m": null,
+      "routed_length_m": 795.7,
+      "gaps": 2
+    }
+  ]
+}

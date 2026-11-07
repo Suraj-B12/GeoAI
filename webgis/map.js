@@ -349,7 +349,7 @@
       // Floating cards do not occupy a full row or column. Find the largest
       // clear rectangle among their measured edges so a right-hand summary
       // does not unnecessarily remove the map's right side at every height.
-      const selectors = ['.topbar', '.dashboard-heading', '.dashboard-stats', '#activeFilters', '#driveControl', '.toolbar', '#stripPanel', '.legend-control', '.map-tools', '.map-status', '.leaflet-control-zoom'];
+      const selectors = ['.topbar', '.dashboard-heading', '.dashboard-stats', '#activeFilters', '#driveControl', '.toolbar', '#stripPanel', '.legend-control', '.map-tools', '.map-status', '.leaflet-control-zoom', '#pciPanel'];
       if (includeDetail && mobile) selectors.push('#detailPanel');
       const obstacles = selectors.map(selector => {
         const rect = visibleRect(document.querySelector(selector));

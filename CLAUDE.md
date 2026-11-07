@@ -105,6 +105,7 @@ for everything below.
 | Worker time per upload | ~11 s at 1024² (272 s uncapped), + ~1.5 s shadow probe, + ~6.5 s recorded tiles | A5000 | §6.6, T7 |
 | Production review load | 213 of 361 uploads in expert_review | Bengaluru | T7.2 |
 | Grad-CAM of the probe vs location prior | pointing hit 0.258 vs 0.226, Δ +0.032 [−0.042, +0.130] — FAIL; pothole +0.31, suggested boxes IoU≥0.5 on ≤2% | Attain, 1,884 pairs | §6.10 |
+| IRC:82 condition rating, A→B (drive video) | overall Appendix-4 class never a single class (0 of 408 100 m blocks, bracket ≥ 1.0); pothole band at 100 m = presence flag (Fair 0/408); test–retest positive agreement 10/15 Distress [0.42, 0.85]; chainage length vs independent reference NOT measured | 43 drives, 8 pre-registered samples | §9 |
 | Weight-space programming (Stage 1, head 26.17 edit) | test recall 51.7% → 74.8%, MCC 0.208 → 0.333; recalibrated base (+1.56 logit) 77.1% / 0.352 — edit − recal MCC −0.019 [−0.036, −0.006] — NOT better; AUROC unchanged 0.957 | Attain test, 547 (1 run, 32/50 passes) | §6.11 |
 
 **What is decided (with evidence — don't re-litigate without new data):**
@@ -118,6 +119,7 @@ for everything below.
 | Probe in shadow, not live | doubles Attain macro MCC, but Attain thresholds add Ravelling to 98% of Bengaluru uploads | §6.8 |
 | Full photo, tiles recorded only | tiles +0.020 AUROC (CI incl. 0); find-then-zoom worse | §6.9, Fig 6.9 |
 | Grad-CAM only as an opt-in reference overlay (owner's request), never a box source | fails pre-registered rule vs location prior; maps are points, not regions; UI shows its hit rate, experts rate it | §6.10, §7.11 |
+| Condition rating = IRC:82-2015 Tables 5.1–5.3 + App. 4, never ASTM PCI; only cracking + potholes assessed, the rest bracketed 1–3; headline = per-parameter bands + pothole runs/km | ravelling/settlement never labelled (Poor unreachable otherwise); 3 critic rounds | §9, `eval_results/pci/` |
 | No weight edit in production (and no LoRA/QLoRA/PEFT ever, user's rule) | the best forward-pass-only edit only moves the Stage 1 threshold (every edit ≈ a logit shift, AUROC flat); a constant offset does it slightly better; Bengaluru Distress share 19.7% → 36.7%. If more Stage 1 recall is wanted: set an offset on expert-labelled Bengaluru frames | §6.11, §7.12, `eval_results/finetune/` |
 
 **Next steps, in order:**
@@ -150,6 +152,8 @@ for everything below.
    better than a recalibrated threshold; production unchanged. Test split is now spent for this question — a new
    edit study needs new held-out data. Not attempted: editing the Stage 2 free-form list. The abandoned QLoRA plan
    (`scripts/ft_train.py`, `ft_eval.py`, `ABANDONED.md`) is kept unused. Memory: project_weight_space_programming.
+
+8. **A→B chainage + IRC:82 condition report (built 2026-11-07, paper §9):** WebGIS "Condition report" button (`webgis/pci.js`, `pci.css`) → `/gis/pci/{meta,path,report,report.pdf,report.csv,reports}` (`app/pci_core.py` rating, `pci_chainage.py` survey graph + relative chainage, `pci_report_pdf.py`, `pci_routes.py`; save needs the operator key; `research.pci_reports`, migration 009). 8 sample reports in production (ids 9–16) from the pre-registered rule `eval_results/pci/samples_rule.json`; after any PDF change run `scripts/pci_samples.py --database geoai --regenerate`, then `scripts/pci_validation.py --database geoai --redo samples`. Research/design/reviews/validation: `eval_results/pci/{RESEARCH,DESIGN,REVIEW_*,validation}.md`. Tests `scripts/tests/test_pci_*.py` (31); `test_local_db`/`test_expert_review` DROP `geoai_test` → re-run `scripts/pci_copy_to_test_db.py` after them. **Open:** expert labels on video sections (protocol §9.7); pothole labels look over-called (shadows); km-stone calibration or wheel-measured stretch for chainage length.
 
 **Where things are:**
 - Research paper: `paper/baseline_evaluation.md` (§T7 = deployment record, test suites, incidents).

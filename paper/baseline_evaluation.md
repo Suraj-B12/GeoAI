@@ -1551,7 +1551,9 @@ printing gaps as lower bounds.
 - The bracketed final class is never a single class: 0 of 408 rated blocks; the bracket is ≥ 1.0 wide on every
   block (Poor–Fair 189, Fair–Good 144, Poor–Good 75). **The overall IRC class cannot be determined from this
   pipeline**; only the cracking and pothole bands carry information.
-- Pothole band: Poor 240, Poor–Good 118, Good 50. On 118 blocks the "Poor" end comes only from the skip upper
+- Pothole band: Poor 240, Poor–Good 118, Good 50, **Fair 0**. With 5 m segments one flagged segment is 5 % of a
+  100 m section, far above Table 5.3's 0.5 % Poor limit, so at 100 m the band is effectively a presence flag
+  ("pothole labelled: yes/no"); runs per km (median 10 per block, p90 30.3) carry more information. On 118 blocks the "Poor" end comes only from the skip upper
   limit, with no pothole label at all (with the audited pothole-specific skip rate, 9/161 = 5.6 % [3.0, 10.3],
   112 blocks).
 - Cracking band: Good 164, Fair 90, Poor 77, Fair–Good 60, Poor–Fair 17.
@@ -1560,7 +1562,10 @@ printing gaps as lower bounds.
 
 **Repeatability between drives.** Where two drives cover the same lane (84 matched segment pairs from 4 drive
 pairs; 67 classified in both), Distress agrees on 92.5 % (κ 0.756, 95 % block-bootstrap CI [0.0, 0.962]),
-Potholes 91.0 % (κ 0.674) and Cracking 92.5 % (κ 0.505). The intervals are wide and the pairs are the same phone
+Potholes 91.0 % (κ 0.674) and Cracking 92.5 % (κ 0.505). The κ intervals are not informative: their lower
+ends of 0 come from resamples in which positives occur in only one drive. Positive agreement is more
+direct: of the segments either drive flagged, both flagged 10 of 15 for Distress (0.67, Wilson 95 % [0.42, 0.85])
+and 8 of 12 for Potholes (0.67 [0.39, 0.86]). The intervals are wide and the pairs are the same phone
 and model 0.2–17 h apart; only two 100 m blocks overlap fully, so **class repeatability is not measured**.
 
 **Sample reports.** Eight stretches were chosen by a rule fixed before any rating was computed
@@ -1602,6 +1607,8 @@ time before the next step; every finding was fixed and re-tested. The changes th
 | Backend | Path segments were dropped when a gap fell inside a section (41 of 70 random reports, up to 7 %) | path segments always used; regression tests |
 | Backend | A stretch with Poor potholes printed "Fair–Good" in green | IRC §5.3 priority box; map coloured by pothole band; overall class shown as secondary |
 | Backend | Save endpoint allowed unlimited key guessing; one rate-limit bucket for all tunnel users | per-client limit before the key check; failed-key lock-out |
+| UI and live reports | At 100 m the urban pothole band can only be Good or Poor (one 5 m segment = 5 %), and a PRIORITY note could rest on one run whose frame shows only a shadow | resolution note on every report; nominal-area band beside it; the priority note lists its runs with chainages and links to their frames, and says "check the frames" when it rests on ≤ 2 runs |
+| UI and live reports | Errors appeared off-screen; label-free road painted as possibly Poor; survey layer colours clashed with band colours | errors shown at the button; map coloured by what the labels show, skip uncertainty dashed; survey layer faded while a report is open |
 
 The reviews are in `eval_results/pci/REVIEW_design.md`, `REVIEW_backend.md` and `REVIEW_frontend.md`.
 

@@ -117,7 +117,7 @@
     map?.setTheme(theme); try { localStorage.setItem('geoaiSurveyTheme',theme); } catch {}
   }
   try {
-    map = new window.SurveyMap('surveyMap', {onSelect:feature=>{pause();state.expanded=false;selectFeature(feature,true);}, onSelectionMove:()=>positionCard(), onSelectionInvalidated:()=>closeSelection(), onBasemapNotice:message=>{let el=$('basemapNotice');if(!el){el=document.createElement('div');el.id='basemapNotice';el.className='basemap-notice';el.setAttribute('role','status');document.body.append(el);}el.textContent=message;el.hidden=!message;}, onNotice:message=>notice(message), onViewChange:view=>{
+    map = new window.SurveyMap('surveyMap', {onSelect:feature=>{if(window.PCI?.active)return;pause();state.expanded=false;selectFeature(feature,true);}, onSelectionMove:()=>positionCard(), onSelectionInvalidated:()=>closeSelection(), onBasemapNotice:message=>{let el=$('basemapNotice');if(!el){el=document.createElement('div');el.id='basemapNotice';el.className='basemap-notice';el.setAttribute('role','status');document.body.append(el);}el.textContent=message;el.hidden=!message;}, onNotice:message=>notice(message), onViewChange:view=>{
       positionCard();
       if (!state.ready || state.loading) return;
       const geom=view.zoom>=16?'footprint':'point';
@@ -484,7 +484,7 @@
     const preferredLeft=clampLeft(preferRight?anchor.x+42:anchor.x-width-42);
     const desiredTop=anchor.y-wantedHeight*.4;
     // The map fills the viewport; evidence must use the gaps between floating controls.
-    const obstacles=[...document.querySelectorAll('.topbar,.dashboard-heading,.dashboard-stats,#activeFilters,#driveControl,.toolbar,.legend-control,.map-tools,.map-status,.leaflet-control-zoom')].flatMap(element=>{
+    const obstacles=[...document.querySelectorAll('.topbar,.dashboard-heading,.dashboard-stats,#activeFilters,#driveControl,.toolbar,.legend-control,.map-tools,.map-status,.leaflet-control-zoom,#pciPanel')].flatMap(element=>{
       const style=getComputedStyle(element),rect=element.getBoundingClientRect();
       return element.hidden||style.display==='none'||style.visibility==='hidden'||!rect.width||!rect.height?[]:[rect];
     });
@@ -549,5 +549,7 @@
   document.fonts?.ready.then(()=>{syncNavSlider();syncFloatingGeometry();});
   if(window.ResizeObserver){const observer=new ResizeObserver(()=>{syncNavSlider();syncFloatingGeometry();});for(const element of [document.querySelector('.nav-pill'),document.querySelector('.dashboard-heading'),$('stripPanel')])observer.observe(element);}
   const loader=document.createElement('div');loader.id='initialLoader';loader.className='initial-loader';loader.setAttribute('role','status');loader.innerHTML='<div class="loader-brand"><span class="brand-geo">GEO</span><span class="brand-ai">AI</span></div><p>Preparing survey map…</p>';document.body.append(loader);document.body.classList.add('initial-loading');
+  // A→B condition report (pci.js) shares the map, flows and helpers through this narrow hook.
+  window.GeoAIApp={get map(){return map;},get meta(){return state.meta;},get sessions(){return state.sessions;},state,api,mediaURL,esc,closeAllFlows,closeSelection,pause,fitBBox:b=>map?.fitBBox(b),closeStrip:()=>{pause();state.stripOpen=false;renderStrip();},syncFloatingGeometry:()=>syncFloatingGeometry()};
   setNav('video');updateExports();readURL();boot();
 })();

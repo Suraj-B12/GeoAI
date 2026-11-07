@@ -1,5 +1,8 @@
 # STATUS — frontend (A→B condition report in the WebGIS)
 
+**Deployed 2026-11-07 (coordinator copied webgis_dev → webgis/ with ?v=20261107 cache-busting), harness stopped
+(port 8010 free; no background processes left).**
+
 Updated: 2026-11-07 — **DONE** (all 7 steps). UI runs on the REAL `/gis/pci/*` routes (harness mode "real",
 geoai_test with the backend's 8 sample reports). Not committed, not copied into `webgis/` (coordinator's call).
 
@@ -104,6 +107,48 @@ Screenshots: `…tool-results\mcp-Claude_Browser-blob-1793998646989-ncu5w8.jpg` 
   - Overlap detector (all floating elements, #notice forced visible, title ≤ 2 lines, section in view, whole path
     visible when minimised), states closed/build/picking/minimised/result/saved/saved-open × light/dark at
     1440×900, 1024×768, 820×1180, 375×812 → **56/56 OK**.
+
+## Round 4 — critic REVIEW_frontend.md (F1–F11 frontend items), 2026-11-07 — DONE
+Changes in `webgis_dev/pci.js` + `pci.css` (backup of the round-3 file: scratchpad `pci_front\pci.before_r3.js`):
+- F1 Generate errors: shown in the footer next to the button (role=alert) AND in the form (scrolled into view);
+  focus stays on Generate; API messages capitalised, "Km 0.050" → "Km 0+050". Test: negative road chainage →
+  "Not generated: Road chainage would be negative at B (Km 0+050 at A, …)", in view, focus = generate.
+- F2/F11.1 colour: default "Potholes band (as the PDF)" by the OBSERVED band (E_lo / band_lo); the worse band that
+  skipped frames could add is a dashed edge on the map, a thin bar in the strip, "Good / Poor?" on the chip, and the
+  backend `band_note` in every section row. Options: Potholes / Cracking / Worst assessed (observed) / Overall
+  (App. 4, secondary). Legend = every colour drawn + the dashed-edge meaning. Clean road is no longer purple.
+- F3/F9: while the card is open the dashboard stats + filter chips are hidden (note in the card: the report uses
+  every drive, map filters not applied), survey points/clusters at 22 % opacity in greyscale, tracks greyscale,
+  selection/coverage hidden; restored on close. Phones: dashboard heading hidden while open; "▴ Taller" toggle
+  (sheet to ≤ 88 % height, below the toolbar). Free map: 1024×768 490×494 px (was 490×195); 820×1180 724×431;
+  375×812 279×257 with the sheet body 240 px (was 180), 324 px when taller.
+- F5: pothole row shows the nominal-area band ("Fair (0.028 % of lane area, sensitivity only)") and the backend
+  `resolution_note` (params → headline → summary; UI sentence only as fallback).
+- F6: PRIORITY box lists the pothole runs as chips (`summary.pothole_runs_list`; fallback: consecutive used pothole
+  frames from `attribution`), "Rests on N runs, M frames", ≤ 2 runs → "Possible pothole — check the frame(s)"
+  (skipped if the backend note already says so). A chip opens the section and focuses that frame.
+- F7: focus is remembered before every re-render and restored (section, frame, via, pick, colour-by, details);
+  opening a frame focuses the `<figure>` (tabindex −1); image alt carries labels + chainage.
+- F8: saved list leads with `headline_text` (fallback "Potholes Poor · 3.1 runs/km · Cracking Fair"), overall last;
+  minimised summary leads with the bands.
+- F10: light band tokens darkened — white-on-chip contrast good 6.48, fair–good 5.65, fair 5.76, poor–fair 6.04,
+  poor 6.01, poor–good 5.95, insufficient 4.99 (dark theme 5.75–9.98); panel text ≥ 11 px (strip 10.5–11);
+  targets ≥ 32 px, 44 px on phones (tabs, buttons, chips, summaries, thumbnails).
+- F11: "≥" on path/stretch length and Km B when gaps; "Surveyed length"; snapped distance 1 decimal; road chainage
+  without the "(12.350)" duplicate; chainage on thumbnails + frame caption (+ road Km when calibrated); treatment
+  clause "(IRC:82 …)"; after Save, downloads use the stored report (`…_no<N>.*`); operator key only stored after a
+  successful save and cleared on 401; sample rule shows requested vs routed length; strip pothole axis has 0.
+- Bug found and fixed while testing: JSON download after save failed ("Cannot access 'id' before initialization").
+Tests (harness restarted with the backend's round-3 code; real fields `resolution_note`, `pothole_runs_list`,
+`headline_text`, regenerated samples):
+- Functional 1440: fresh A→B across a gap (254.5 m, gap 143.6–155.5 m inside section 100–200, "≥ 254.5 m");
+  8 run chips = 8 `pothole_runs_list` entries, chip → frame "Potholes · Km 0+045" focused; gap section 19 frames;
+  map lines all observed band; preview PDF/CSV/JSON; save → "already saved as report 28" (dedupe), then stored
+  PDF/CSV/JSON `…_no28.*`; sample no. 37 opens with 8 run chips; saved list leads with headline_text; no JS errors.
+- Overlap: own detector + the critic's `critic3\detect.js` (structural containers #workspace/#initialLoader/
+  skip-link/dashboard-overview filtered) in states closed/build/picking/minimised/result/(tall on ≤ 820)/saved/
+  saved-open × light/dark at 1440×900, 1024×768, 820×1180, 375×812 → **60/60 OK** (incl. critic small-font,
+  small-target, h-overflow, svg-text checks).
 
 ## Next
 - Coordinator: review, copy `pci.js`, `pci.css`, and the small `app.js`/`map.js`/`index.html` diffs into `webgis/`.
