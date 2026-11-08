@@ -2,6 +2,8 @@
 
 ## Paper-Ready Sections + Technical Notes
 
+> **Revision 2026-11-09 — a PCI estimate with a 90 % interval.** §9.9: every parameter now gets its best evidence (Attain-calibrated distress areas, scooter-accelerometer roughness, a literature rut-depth range, pothole runs checked against accelerometer jolts) with an honest 90 % interval, combined by Monte Carlo. Sample stretches read PCI ≈ 47–55 (Fair) with 90 % intervals of about 30–90, against strict ranges of 3–97; the survey vehicle is a scooter. Samples regenerated (ids 49–56).
+
 > **Revision 2026-11-08 — IRC:82-2023.** The A→B report now follows **IRC:82-2023 (Second Revision)**, which replaced the 2015 1–3 rating with a **Pavement Condition Index (PCI, 0–100)** over six parameters including roughness (IRI) (§9.8). Added: transcribed Appendix-2 equations with a worked-example check; per-type probe scores on all 7,050 video segments; a phone-accelerometer roughness feature on all drives; a survey calibration/blind-test tool with a pre-registered split; eight sample reports regenerated (ids 33–40). §9.1–9.7 are kept as the 2015 record.
 
 > **Revision 2026-11-07 — chainage and IRC:82 condition rating.** Added §9: relative chainage along the surveyed track and the IRC:82-2015 distress-based rating (Tables 5.1–5.3, Appendix 4) for any stretch A→B picked in the WebGIS, with a downloadable report, eight pre-registered sample reports, validation and three rounds of independent review. Two statements in §8.9 corrected ("% of length" is not IRC's area; chainage now derived).
@@ -1529,11 +1531,11 @@ segments were relabelled afterwards is marked stale. Saving to the portal requir
 rate-limited per client; previews and downloads are open. API: `/gis/pci/{meta,path,report,report.pdf,
 report.csv,reports}`; storage `research.pci_reports` (migration 009).
 
-![Figure 9.1 — Route page of sample report 34 (random 1 km stretch, 27 Oct)](../eval_results/plots/paper/fig_9_1_sample_route_strip.png)
+![Figure 9.1 — Route page of sample report 50 (random 1 km stretch, 27 Oct)](../eval_results/plots/paper/fig_9_1_sample_route_strip.png)
 
-**Figure 9.1** — Page 2 of sample report 34 (IRC:82-2023 version, §9.8): the surveyed path over an OpenStreetMap
-street map, each 100 m section coloured by the worst Table 5.3 range of its measured parameters (not by PCI, which
-is still a range), pothole runs as rings, chainage ticks from A, three unsurveyed gaps (dashed), and a location map.
+**Figure 9.1** — Page 2 of sample report 50 (IRC:82-2023 estimate version, §9.9): the surveyed path over an OpenStreetMap
+street map, each 100 m section coloured by the Table 5.5 class of its median PCI estimate (the 90 % interval
+is in the tables), pothole runs as rings, chainage ticks from A, three unsurveyed gaps (dashed), and a location map.
 Page 1 (summary, headline PCI range, the six-parameter table) is `fig_9_2_sample_page1.png`.
 
 ### 9.5 Results
@@ -1694,6 +1696,53 @@ the surveyed roads.
 **Limitations specific to 2023.** One lane is imaged while IRC extents and IRI are carriageway means; rut depth
 needs a straight edge or profiler and has only a weak image proxy; a pothole run is counted as one pothole of at
 least one 0.1 m² unit; the roughness calibration is specific to the car, the mount and the phone.
+
+### 9.9 Tightening the PCI: an estimate with a 90 % interval from all the data
+
+**Why.** With unknown parameters counted as PCIᵢ 0 and 100, the 2023 PCI of every stretch was a range ~79 points
+wide (§9.8) — correct, but of little use to an engineer. We replaced "unknown" with the best available evidence for
+each parameter, each carrying a 90 % interval that its evidence supports, and combined them by Monte Carlo
+(1,500 draws per 100 m section). The strict range is still printed as the worst case. Records:
+`eval_results/pci/ESTIMATE.md`, `extent/REPORT.md`, `iri/UNCERTAINTY.md`, `rut/RUT_PRIOR.md`, `REVIEW_estimate.md`.
+
+**The survey vehicle is a scooter** (phone on the handlebar; owner, 2026-11-09). Every vehicle-dependent step was
+re-examined for it.
+
+| Parameter (weight) | Evidence used | What it shows |
+|---|---|---|
+| Cracking (0.12), patching (0.08), ravelling (0.10) | Per-type probe scores of every frame, calibrated to **% of road area** on Attain ground-truth boxes (pre-registered DEV/TEST, block bootstrap) | The old "% of length flagged" overstated cracked area ~10× (TEST MAE 70 vs 3 pp). Cracking ranks stretches (ρ 0.59 [0.26, 0.82]); 90 % intervals held on 27/28 (cracking), 26/28 (patching) TEST blocks; ravelling **failed** (22/28) and is widened. None beats a constant on accuracy; Attain→Bengaluru score shift is measured and the intervals widened for it |
+| Potholes (0.16) | Label runs × the share that is real, from the **scooter's accelerometer**: a jolt within ±1 segment above a speed-matched threshold is felt at 52 % of pothole-labelled segments vs 24 % elsewhere; with label precision 0.43 this gives P(real \| jolt) 0.74 (0.72–0.81) and P(real \| no jolt) 0.09 (0–0.33); run recall 0.5–0.7; 1–4 IRC units (0.1 m²) per pothole (size not measured) | Unconfirmed pothole runs are mostly false alarms (shade, manholes), confirmed ones mostly real; the report lists both, confirmed first |
+| Roughness / IRI (0.40) | Scooter accelerometer, 0.5–15 Hz vertical RMS, speed-normalised; Golden-Car-equivalent index divided by a scooter response ratio from a 10-assumption sensitivity analysis (5/50/95 % = 0.77/1.59/3.08), combined in quadrature with pass-to-pass scatter | No calibrated motorcycle IRI model exists; a 100 m interval is typically ~2–13 m/km. This is the largest remaining uncertainty |
+| Rut depth (0.14) | Published Bengaluru straight-edge measurements, 0–23 mm → judgement range 0–25 mm | No phone signal measures rutting; the interval holds at both ends of the range |
+
+Image-based extents move together in the simulation (one calibration); km rows and the stretch are length-weighted
+means of their sections (errors taken as fully correlated). An independent critic agent reviewed the method and
+widened it where the evidence was thinner than first assumed (pothole units and recall, rut prior as a range,
+correlated extents, IRI quadrature, speed-aware jolt threshold).
+
+**Results (eight sample stretches, urban, ids 49–56).**
+
+| Report | Length | Strict range | **Estimate (90 % interval)** | Class |
+|---|---|---|---|---|
+| 49 | 8.3 km | 5–89 | **50 (31–81)** | Fair |
+| 50 | 1.55 km | 9–85 | **50 (31–86)** | Fair |
+| 51 | 1.0 km | 3–84 | **47 (29–82)** | Fair |
+| 52 | 1.0 km | 7–84 | **50 (31–85)** | Fair |
+| 53 | 1.0 km | 15–89 | **50 (34–82)** | Fair |
+| 54 | 1.0 km | 15–97 | **54 (39–89)** | Fair |
+| 55 | 1.0 km | 3–90 | **50 (31–85)** | Fair |
+| 56 | 0.8 km | 10–86 | **55 (33–93)** | Fair |
+
+The interval is about 35 % narrower than the strict range and every stretch has a median class; roughly half of what
+remains is roughness (IRI), then potholes and rut depth. Two further studies did not help and are reported as such:
+scoring only the segment's own 5 m image strip did not localise potholes better than the full frame (agreement with
+jolts AUC 0.697 vs 0.711, `eval_results/pci/band_view.md`), and subtracting the idle noise floor from the
+accelerometer did not meet its pre-registered criterion (`iri/NOISE_FLOOR.md`).
+
+**What closes the gap.** A reference IRI on 8–10 sites (or the road survey's IRI through
+`scripts/pci_survey_compare.py`) narrows the IRI interval about 3× — the single largest gain; measured rut depths
+remove the next term; expert labels on video segments replace Attain's pothole and crack rates with Bengaluru's.
+Until then the report says plainly that the number is an estimate, which parameter limits it, and what would fix it.
 
 ## Acknowledgements
 

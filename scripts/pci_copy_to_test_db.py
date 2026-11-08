@@ -59,6 +59,9 @@ def _wrap(cols, row):
     return [Jsonb(v) if (c in JSON_COLS and v is not None) else v for c, v in zip(cols, row)]
 
 
+RESEARCH_TABLES = ("research.video_probe_scores", "research.segment_roughness", "research.session_roughness")
+
+
 def read_source(src_dsn: str) -> dict:
     """Everything to copy, read in ONE read-only transaction from production."""
     with psycopg.connect(src_dsn, autocommit=False, options="-c TimeZone=UTC") as c:
@@ -69,8 +72,16 @@ def read_source(src_dsn: str) -> dict:
         assessments = c.execute(
             f"SELECT {', '.join('a.' + x for x in a_cols)} FROM assessments a "
             f"JOIN video_segments g ON g.assessment_id = a.id").fetchall()
+        research = {}
+        for t in RESEARCH_TABLES:       # probe scores + IMU roughness (the PCI estimate needs them)
+            if c.execute("SELECT to_regclass(%s) AS t", (t,)).fetchone()[0] is not None:
+                cols = [r[0] for r in c.execute(
+                    "SELECT column_name FROM information_schema.columns WHERE table_schema = 'research' "
+                    "AND table_name = %s ORDER BY ordinal_position", (t.split(".")[1],)).fetchall()]
+                research[t] = (cols, c.execute(f"SELECT {', '.join(cols)} FROM {t}").fetchall())
         c.rollback()
-    return {"sessions": sessions, "segments": segments, "assessments": assessments, "a_cols": a_cols}
+    return {"sessions": sessions, "segments": segments, "assessments": assessments, "a_cols": a_cols,
+            "research": research}
 
 
 def write_target(dst_dsn: str, data: dict) -> dict:
@@ -104,6 +115,11 @@ def write_target(dst_dsn: str, data: dict) -> dict:
                         r = list(r)
                         r[pid] = None
                         cp.write_row(_wrap(SEGMENT_COLS, r))
+            for t, (cols, rows) in (data.get("research") or {}).items():
+                c.execute(f"DELETE FROM {t}")
+                with c.cursor() as cur, cur.copy(f"COPY {t} ({', '.join(cols)}) FROM STDIN") as cp:
+                    for r in rows:
+                        cp.write_row([Jsonb(v) if isinstance(v, dict) else v for v in r])
         n = c.execute("SELECT count(*), count(assessment_id) FROM video_segments WHERE session_id = ANY(%s)",
                       (sids,)).fetchone()
     return {"sessions": len(sids), "segments": n[0], "with_assessment": n[1], "assessments": len(data["assessments"])}

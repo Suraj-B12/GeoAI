@@ -151,7 +151,7 @@ class Graph:
     by_sk: dict = field(default_factory=dict)
     sessions: dict = field(default_factory=dict)     # session_id -> {pipeline_version, config_sha256}
     by_id: dict = field(default_factory=dict)        # segment_id -> node index
-    jolt_threshold: Optional[float] = None           # see JOLT_PCTL (None: no IMU data)
+    jolt_threshold: Optional[dict] = None            # {edges, thr} per speed quartile, see JOLT_PCTL (None: no IMU)
 
     def xy(self, lat: float, lon: float) -> tuple[float, float]:
         return (R_EARTH * math.radians(lon - self.lon0) * math.cos(math.radians(self.lat0)),
@@ -828,7 +828,9 @@ def build_report(g: Graph, req: Mapping, *, generated_at: Optional[datetime] = N
         if extra and "index" in extra:            # 100 m section: the PCI estimate with a 90 % interval
             ru = runs_in(m0, m1, last)["potholes"]
             pci["estimate"] = C.pci_estimate_unit(segs, q, cat, canon.get("surface"), canon.get("entered"), width,
-                                                  impact_runs=sum(1 for r in ru if r.get("impact_felt")))
+                                                  impact_runs=sum(1 for r in ru if r.get("impact_felt")),
+                                                  impact_known=all(r.get("impact_felt") is not None for r in ru),
+                                                  runs_per_section=len(run_lists["potholes"]) / max(1, len(secs)))
         u = {"from_m": round(m0, 1), "to_m": round(m1, 1), "chainage_from": fmt_chainage(m0),
              "chainage_to": fmt_chainage(m1),
              "road_chainage_from": road_chainage(m0, canon["chainage_at_a_km"], canon["chainage_increases_towards_b"]),
@@ -942,12 +944,13 @@ def build_report(g: Graph, req: Mapping, *, generated_at: Optional[datetime] = N
             "a": path["snapped"][0], "b": path["snapped"][-1], "via": path["snapped"][1:-1],
             "directions": [{"pass": p["id"], "session_id": p["session_id"], "direction": p["direction"]}
                            for p in passes],
-            "lane_imaged": "one lane (the lane the vehicle drove in); lane position not recorded",
+            "lane_imaged": "one lane (the lane the scooter rode in); position in the lane not recorded",
             "lane_width_m": width, "lane_width_note": ("default 3.5 m (not measured)"
                                                       if req.get("lane_width_m") in (None, "") else "entered by requester"),
             "surface_type": canon["surface_type"], "survey_dates_ist": dates, "season": seasons,
             "weather_as_entered_on_survey_form": weather,
-            "method": "Phone video (forward-looking, windshield mount), one frame per 5 m segment, frame gate, "
+            "method": "Phone video from a scooter (forward-looking, phone on the handlebar), accelerometer 200 Hz, "
+                      "one frame per 5 m segment, frame gate, "
                       "VLM classification (pipeline P4)",
             "devices": devices,
             "model": {"pipeline": "P4", "model": "Qwen/Qwen2.5-VL-7B-Instruct (base, 4-bit NF4, 1024² cap)",
@@ -1050,11 +1053,16 @@ def _run_impact(g: Graph, segment_ids) -> tuple:
         for dk in (-1, 0, 1):
             j = g.by_sk.get((n0.session_id, n0.k + dk))
             rj = (g.nodes[j].props.get("roughness") or {}) if j is not None else {}
-            if rj.get("jolt") is not None:
-                jolts.append(rj["jolt"])
+            if rj.get("jolt") is not None and rj.get("speed_mps") is not None:
+                jolts.append((rj["jolt"], rj["speed_mps"]))
     if g.jolt_threshold is None or not jolts:
         return None, None
-    return bool(max(jolts) > g.jolt_threshold), round(max(jolts), 2)
+    jt = g.jolt_threshold
+
+    def thr(v):
+        return jt["thr"][int(np.digitize([v], jt["edges"])[0])]
+    ratio = max(j / thr(v) for j, v in jolts)       # > 1: above the speed-matched threshold
+    return bool(ratio > 1.0), round(ratio, 2)
 
 
 def estimate_mean(sections: list[dict], window: tuple) -> Optional[dict]:
@@ -1301,10 +1309,21 @@ def load_graph(force: bool = False) -> Graph:
                                                       "config_sha256": e.get("config_sha256")})
         g = build_graph(recs, key=key, data_as_of=as_of, sessions=sessions)
         g.by_id = {n.segment_id: i for i, n in enumerate(g.nodes)}
-        nonpot = [n.props["roughness"]["jolt"] for n in g.nodes
+        # speed-aware: slow riding (junctions, speed breakers) jolts more, so the threshold is the JOLT_PCTL
+        # percentile of non-pothole segments within the same speed quartile (REVIEW_estimate.md E4)
+        nonpot = [(n.props["roughness"]["speed_mps"], n.props["roughness"]["jolt"]) for n in g.nodes
                   if (n.props.get("roughness") or {}).get("jolt") is not None
+                  and (n.props.get("roughness") or {}).get("speed_mps") is not None
                   and "Potholes" not in (n.props.get("final_labels") or [])]
-        g.jolt_threshold = float(np.percentile(nonpot, JOLT_PCTL)) if len(nonpot) >= 100 else None
+        if len(nonpot) >= 400:
+            sp = np.array([v for v, _ in nonpot])
+            jl = np.array([j for _, j in nonpot])
+            edges = list(np.percentile(sp, [25, 50, 75]))
+            bins = np.digitize(sp, edges)
+            g.jolt_threshold = {"edges": [float(e) for e in edges],
+                                "thr": [float(np.percentile(jl[bins == b], JOLT_PCTL)) for b in range(4)]}
+        else:
+            g.jolt_threshold = None
         _cache.update(key=key, graph=g)
         return g
 

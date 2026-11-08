@@ -197,7 +197,9 @@ def test_iri_interval_uncalibrated():
     assert abs(iv["point"] - est / r50) < 1e-9
     assert iv["lo90"] < iv["point"] < iv["hi90"] and iv["hi90"] / iv["lo90"] > 4
     k = math.exp(P.Z90 * P.REPEAT_SIGMA_LN_100M)
-    assert abs(iv["hi90"] - est / r05 * k) < 1e-9
+    import math as _m                                                  # physics and scatter in quadrature
+    up = _m.sqrt(_m.log(r50 / r05) ** 2 + _m.log(k) ** 2)
+    assert abs(iv["hi90"] - est / r50 * _m.exp(up)) < 1e-9 and iv["hi90"] < est / r05 * k
     km = P.iri_interval({**agg, "length_m": 1000.0})
     assert km["hi90"] / km["lo90"] < iv["hi90"] / iv["lo90"]          # scatter shrinks, bias does not
     assert km["hi90"] / km["lo90"] > (r95 / r05)                       # never narrower than the vehicle term

@@ -802,11 +802,15 @@ def iri_interval(agg: Mapping, calibration: Optional[Mapping] = None, p: Params 
     r05, r50, r95 = _sens_at(v)
     sig = REPEAT_SIGMA_LN_100M * math.sqrt(100.0 / max(L, 100.0)) if L else REPEAT_SIGMA_LN_100M
     k = math.exp(Z90 * sig)
-    return {**base, "point": est / r50, "lo90": est_nf / r95 / k, "hi90": est / r05 * k,
+    # the physics spread (scooter response ratio) and the pass-to-pass scatter are independent: combine their log
+    # half-widths in quadrature (multiplying both 5 % ends gave a wider-than-90 % interval; REVIEW_estimate.md E6)
+    up = math.sqrt(math.log(r50 / r05) ** 2 + math.log(k) ** 2)
+    dn = math.sqrt(math.log(r95 / r50) ** 2 + math.log(k) ** 2)
+    return {**base, "point": est / r50, "lo90": (est_nf / r50) * math.exp(-dn), "hi90": (est / r50) * math.exp(up),
             "basis": "uncalibrated_scooter", "iri_gc_uncal": est,
             "detail": (f"Golden-Car-equivalent {est:.2f} divided by the scooter response ratio R "
                        f"(p05/p50/p95 = {r05:.2f}/{r50:.2f}/{r95:.2f} at {v:.1f} m/s), noise floor "
-                       f"{NOISE_FLOOR_RMS} m/s2 at the low end, pass-to-pass scatter x/{k:.2f}. Not a measured "
+                       f"{NOISE_FLOOR_RMS} m/s2 at the low end, pass-to-pass scatter x/{k:.2f} (combined in quadrature). Not a measured "
                        "IRI; replaced by the calibrated value once the survey calibration exists.")}
 
 

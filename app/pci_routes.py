@@ -319,7 +319,32 @@ CSV_COLUMNS = (("unit", "index", "chainage_from", "chainage_to", "from_m", "to_m
                 "road_chainage_to", "start_lat", "start_lon", "end_lat", "end_lon", "length_m", "imaged_pct",
                 "coverage_status")
                + tuple(c for p, n in CSV_PARAMS for c in (n, n + "_lo", n + "_hi", p + "_pci_i", p + "_source"))
-               + ("pci_lo", "pci_hi", "pci_single", "pci_class", "recommendation_table_5_5", "missing_parameters"))
+               + ("pci_lo", "pci_hi", "pci_single", "pci_class", "recommendation_table_5_5", "missing_parameters")
+               + ("pci_est", "pci_est_lo90", "pci_est_hi90", "class_est", "recommendation_est")
+               + tuple(c for p, _n in CSV_PARAMS for c in (p + "_est", p + "_est_lo90", p + "_est_hi90",
+                                                           p + "_est_basis"))
+               + ("pothole_frames", "impact_felt", "jolt"))
+
+
+def _csv_est_inputs(rep: dict, m0: float, m1: float) -> dict:
+    """{param: (point, lo90, hi90)} over the 100 m sections inside [m0, m1] that have an estimate:
+    length-weighted means, potholes summed (same as the PDF's km / stretch rows)."""
+    items = []
+    for sec in rep["sections"]:
+        e = (sec.get("pci") or {}).get("estimate") or {}
+        if e.get("estimate") and sec["from_m"] >= m0 - 1e-6 and sec["to_m"] <= m1 + 1e-6:
+            items.append((e.get("inputs") or {}, sec["to_m"] - sec["from_m"]))
+    out = {}
+    for p, _n in CSV_PARAMS:
+        xs = [(i[p], wt) for i, wt in items if p in i]
+        if not xs:
+            continue
+        if p == "potholes":
+            out[p] = tuple(sum(x[k] for x, _ in xs) for k in ("point", "lo90", "hi90"))
+        else:
+            W = sum(wt for _, wt in xs)
+            out[p] = tuple(sum(x[k] * wt for x, wt in xs) / W for k in ("point", "lo90", "hi90"))
+    return out
 
 
 def _csv_lonlat(rep: dict, m: float) -> tuple:
@@ -356,13 +381,21 @@ def report_csv(rep: dict) -> str:
                  ("A lat/lon", f"{h['a']['snapped_lat']:.7f} {h['a']['snapped_lon']:.7f}"),
                  ("B lat/lon", f"{h['b']['snapped_lat']:.7f} {h['b']['snapped_lon']:.7f}"),
                  ("length_m", s["length_m"]), ("survey_dates", ", ".join(h.get("survey_dates_ist") or [])),
-                 ("data_as_of", rep.get("data_as_of")), ("whole-stretch PCI", head_pci),
+                 ("data_as_of", rep.get("data_as_of")),
+                 ("whole-stretch PCI estimate", "insufficient data" if not s.get("pci_estimate") else
+                  f"{s['pci_estimate']['median']:.1f} (90 % interval {s['pci_estimate']['lo90']:.1f} to "
+                  f"{s['pci_estimate']['hi90']:.1f}), {s['pci_estimate']['class']} (median); an estimate, not a "
+                  "measurement (eval_results/pci/ESTIMATE.md)"),
+                 ("whole-stretch PCI worst case", head_pci),
                  ("note", "one lane imaged; cracking % = share of surveyed LENGTH (upper bound of % area); potholes "
                           "= runs of consecutive pothole-labelled 5 m frames; chainage measured from A"),
                  ("columns", "<param> = best estimate (gate-skipped frames at the audited rate); _lo = classified "
                              "frames only (potholes_no_lo = runs counted); _hi = skipped frames at the upper 95 % "
                              "rate; <param>_pci_i at the best estimate; empty = not assessed (bracketed 0-100 in "
-                             "pci_lo / pci_hi)")):
+                             "pci_lo / pci_hi = the strict worst case). pci_est* / <param>_est* = the PCI estimate "
+                             "and its inputs (median / point and 90 % interval; km and stretch rows: length-weighted "
+                             "over the 100 m sections, potholes summed). unit=pothole rows: one run of pothole frames; "
+                             "impact_felt = the scooter's accelerometer recorded a jolt there")):
         w.writerow(["# " + k, csv_cell(v)])
     w.writerow(CSV_COLUMNS)
     kms = [k for k in rep["km"] if ((k.get("pci") or {}).get("pci"))]
@@ -400,12 +433,35 @@ def report_csv(rep: dict) -> str:
                      ", ".join(pc.get("missing") or [])]
         else:
             vals += [None, None, None, "insufficient data", None, None]
+        # PCI estimate (median, 90 % interval) and its inputs
+        eb = pb.get("estimate") or {}
+        est = s.get("pci_estimate") if whole else (eb.get("estimate") if "inputs" in eb else (eb or None))
+        if est:
+            vals += [est.get("median"), est.get("lo90"), est.get("hi90"), est.get("class"),
+                     est.get("recommendation")]
+        else:
+            vals += [None, None, None, None if not pc else "no estimate", None]
+        ins = _csv_est_inputs(rep, u["from_m"], u["to_m"]) if est else {}
+        basis = (eb.get("basis") or {}) if kind == "100m" else {}
+        for p, _n in CSV_PARAMS:
+            x = ins.get(p)
+            vals += [x[0], x[1], x[2], basis.get(p)] if x else [None, None, None, None]
+        vals += [None, None, None]
         w.writerow([csv_cell(x) for x in vals])
     for sec in rep["sections"]:
         row("100m", sec["index"], sec)
     for k in rep["km"]:
         row("km", k["km"], k)
     row("stretch", "", rep["stretch"], whole=True)
+    blank = len(CSV_COLUMNS) - 15 - 3
+    for j, r in enumerate(s.get("pothole_runs_list") or [], start=1):
+        a_lat, a_lon = _csv_lonlat(rep, r["from_m"])
+        b_lat, b_lon = _csv_lonlat(rep, r["to_m"])
+        felt = r.get("impact_felt")
+        vals = (["pothole", j, r.get("chainage"), None, r["from_m"], r["to_m"], None, None, a_lat, a_lon, b_lat,
+                 b_lon, round(r["to_m"] - r["from_m"] + 5.0, 1), None, None] + [None] * blank
+                + [r.get("segments"), None if felt is None else ("yes" if felt else "no"), r.get("jolt")])
+        w.writerow([csv_cell(x) for x in vals])
     return "﻿" + buf.getvalue()
 
 
@@ -531,6 +587,10 @@ def _bands(summary) -> dict:
 def headline_text(summary) -> str:
     """Saved-report list line: IRC:82-2023 PCI (single or range) and class, then length."""
     s = summary or {}
+    est = s.get("pci_estimate")
+    if est:
+        return (f"PCI ≈ {est['median']:.0f} (90 % {est['lo90']:.0f}–{est['hi90']:.0f}) · {est['class']} · "
+                f"{'≥ ' if s.get('gaps') else ''}{s.get('length_m', 0):.0f} m")
     pci = s.get("pci")
     if pci:
         v = (f"PCI {pci['single']:.0f}" if pci.get("single") is not None
@@ -626,7 +686,69 @@ def _meta_2023() -> dict:
             "params": [{"id": p, "name": P23.PARAM_NAMES[p], "unit": P23.PARAM_UNITS[p], "weight": P23.WEIGHTS[p],
                         "entered_limits": list(ENTERED_LIMITS[p])} for p in P23.PARAMS],
             "classes": [{"name": n, "above": lo, "recommendation": P23.RECOMMENDATION[n]} for lo, n in P23.CLASSES]
-                       + [{"name": "Fail", "above": None, "recommendation": P23.RECOMMENDATION["Fail"]}]}
+                       + [{"name": "Fail", "above": None, "recommendation": P23.RECOMMENDATION["Fail"]}],
+            "curves": _curves_2023(surf)}
+
+
+_CURVES: dict = {}
+
+
+def _curves_2023(surf: dict) -> dict:
+    """PCI_i sampled from app.pci_irc2023.pci_param (the one implementation) so the WebGIS can show PCI_i at an
+    estimate by linear interpolation. {"x": {grid: [...]}, "grid": {param: grid}, "y": {road class: {param: [...]}}}
+    with roughness per surface ({"iri": {surface: [...]}}); y = null where the printed equation is not usable."""
+    if _CURVES:
+        return _CURVES
+    from app import pci_irc2023 as P23
+
+    def grid(a, b, step):
+        n = int(round((b - a) / step))
+        return [round(a + i * step, 4) for i in range(n + 1)]
+    xs = {"pct": grid(0, 5, .1) + grid(5.5, 30, .5) + grid(32, 100, 2),
+          "count": grid(0, 10, .1) + grid(10.5, 30, .5) + grid(32, 100, 2),
+          "mm": grid(0, 50, .5), "iri": grid(.5, 10, .05) + grid(10.1, 30, .1)}
+    gridof = {"cracking": "pct", "ravelling": "pct", "patching": "pct", "potholes": "count", "rut_depth": "mm",
+              "iri": "iri"}
+
+    def ys(cls, p, s):
+        out = []
+        for v in xs[gridof[p]]:
+            try:
+                out.append(round(P23.pci_param(cls, p, v, s), 2))
+            except ValueError:            # Unavailable is a ValueError: printed equation not usable
+                out.append(None)
+        return out
+    _CURVES.update(x=xs, grid=gridof, y={cls: {p: ({s: ys(cls, p, s) for s in surf[cls]} if p == "iri"
+                                                    else ys(cls, p, None)) for p in P23.PARAMS}
+                                         for cls in P23.ROAD_CLASSES})
+    return _CURVES
+    from app import pci_irc2023 as P23
+
+    def grid(a, b, step):
+        n = int(round((b - a) / step))
+        return [round(a + i * step, 4) for i in range(n + 1)]
+    xs = {"pct": grid(0, 5, .1) + grid(5.5, 30, .5)[0:] + grid(32, 100, 2),
+          "potholes": grid(0, 10, .1) + grid(10.5, 30, .5) + grid(32, 100, 2),
+          "rut_depth": grid(0, 50, .5),
+          "iri": grid(.5, 10, .05) + grid(10.1, 30, .1)}
+
+    def curve(cls, p, s, x):
+        y = []
+        for v in x:
+            try:
+                y.append(round(P23.pci_param(cls, p, v, s), 3))
+            except ValueError:            # Unavailable is a ValueError: printed equation not usable
+                y.append(None)
+        return {"x": x, "y": y}
+    for cls in P23.ROAD_CLASSES:
+        d = {}
+        for p in P23.PARAMS:
+            if p == "iri":
+                d["iri"] = {s: curve(cls, p, s, xs["iri"]) for s in surf[cls]}
+            else:
+                d[p] = curve(cls, p, None, xs["pct"] if p in ("cracking", "ravelling", "patching") else xs[p])
+        _CURVES[cls] = d
+    return _CURVES
 
 
 @router.post("/path")

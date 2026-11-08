@@ -293,11 +293,60 @@ def band23(road_class: str, param: str, x: float, surface: Optional[str] = None)
 POTHOLE_LABEL_PRECISION = 0.43
 POTHOLE_RUN_UPPER = 0.43 / 0.25
 RAVELLING_EXTRA_WIDEN = 2.0
+# A jolt "confirms" a run when any segment of the run or k +- 1 exceeds the 90th percentile of non-pothole
+# segments, so a run that is NOT a pothole is still confirmed with probability >= 1 - 0.9^3 = 0.27 (one-segment
+# run; longer runs more). With label precision 0.43 and a hit rate of 1 for real potholes (the most favourable
+# case), P(real | confirmed) = 0.43 / (0.43 + 0.57 x 0.27) = 0.74, so a confirmed run is NOT certain: the 5 % lower
+# bound is the 5 % quantile of Binomial(confirmed runs, 0.74) (REVIEW_estimate.md P2).
+JOLT_FALSE_CONFIRM_MIN = 1.0 - 0.9 ** 3
+P_REAL_IF_CONFIRMED = POTHOLE_LABEL_PRECISION / (POTHOLE_LABEL_PRECISION
+                                                 + (1 - POTHOLE_LABEL_PRECISION) * JOLT_FALSE_CONFIRM_MIN)
+# Share of pothole runs that are real, given the jolt (speed-matched threshold, +-1 segment; all 43 drives,
+# 2026-11-09): pothole-labelled segments confirmed 52.4 %, non-pothole segments 24.0 % (false confirmations).
+# With label precision pi: 0.524 = pi*c + (1-pi)*0.24, c = P(jolt | real) <= 1 => pi >= 0.375. Over pi in
+# [0.375, 0.58] (0.58 = the upper end the jolt rate allowed earlier) and pi = 0.43 (Attain) as the point:
+#   P(real | jolt)    = 0.74 (0.72 - 0.81);   P(real | no jolt) = 0.09 (0.00 - 0.33).
+# Assumes pi and the false-confirmation rate are the same for every road (a stated assumption).
+REAL_IF_JOLT = (0.72, 0.74, 0.81)
+REAL_IF_NO_JOLT = (0.0, 0.09, 0.33)
+
+
+# Pothole UNITS (IRC:82-2023 eq. 2, §7.5.3.4: one unit = 0.1 m2, "a person's foot"). Per section:
+#   real potholes = runs x share real (0.74 if a jolt was felt, 0.43 otherwise) / run-level recall, + missed ones;
+#   run-level recall: a pothole stays in view for ~4-6 frames, each flagged with Attain frame recall 0.25, so
+#   1 - 0.75^5 = 0.76 if independent; frames are correlated, so 0.7 (point) and 0.5 (pessimistic end);
+#   missed potholes: Poisson with the stretch's own rate of labelled runs per section x (1 - 0.5) / 0.5 (upper end);
+#   units per pothole: 1 (lower), 2 (point), 4 (upper) = 0.1-0.4 m2 (300-700 mm across) - a stated assumption: the
+#   code gives no size distribution and the images give no scale. REVIEW_estimate.md E1.
+RUN_RECALL_POINT, RUN_RECALL_LOW = 0.7, 0.5
+UNITS_PER_POTHOLE = (1.0, 2.0, 4.0)
+
+
+def _poisson_q95(lam: float) -> int:
+    k, pmf = 0, math.exp(-lam)
+    cdf = pmf
+    while cdf < 0.95 and k < 1000:
+        k += 1
+        pmf *= lam / k
+        cdf += pmf
+    return k
+
+
+def _binom_q05(n: int, p: float) -> int:
+    """Smallest k with P(Binomial(n, p) <= k) >= 0.05."""
+    acc = 0.0
+    for k in range(n + 1):
+        acc += math.comb(n, k) * p ** k * (1 - p) ** (n - k)
+        if acc >= 0.05 - 1e-12:
+            return k
+    return n
 
 
 def _extent_inputs(segments: Iterable[Mapping], lane_width_m: float) -> dict:
     from app import pci_extent as PE
-    segs = [s for s in segments if s.get("status") != "not_covered"]
+    # only segments with a stored image (and so probe scores): gate-skipped frames have no image and stand on their
+    # neighbours (audited: skipped frames are LESS often distressed, so this leans conservative). REVIEW E5.
+    segs = [s for s in segments if s.get("status") != "not_covered" and isinstance(s.get("probe"), Mapping)]
     if not segs:
         return {}
     try:
@@ -324,7 +373,8 @@ def _extent_inputs(segments: Iterable[Mapping], lane_width_m: float) -> dict:
 
 def pci_estimate_unit(segments: list[Mapping], q: Mapping, road_class: str, surface: Optional[str] = None,
                       entered: Optional[Mapping] = None, lane_width_m: float = DEFAULT_LANE_WIDTH_M,
-                      impact_runs: int = 0) -> Optional[dict]:
+                      impact_runs: int = 0, runs_per_section: float = 0.0, impact_known: bool = True
+                      ) -> Optional[dict]:
     """PCI estimate + 90 % interval of one 100 m section (see the evidence block above). Precedence per parameter:
     entered > survey calibration (param_calibration.json / iri_calibration.json) > the estimates above.
     Returns None when coverage is insufficient."""
@@ -335,32 +385,53 @@ def pci_estimate_unit(segments: list[Mapping], q: Mapping, road_class: str, surf
     inputs, basis = {}, {}
     ext = _extent_inputs(segments, lane_width_m)
     for p in ("cracking", "ravelling", "patching"):
-        if p in ext:
-            inputs[p] = {k: ext[p][k] for k in ("point", "lo90", "hi90")}
+        if p in ext:      # one probe calibration -> errors move together (REVIEW_estimate.md E3)
+            inputs[p] = dict({k: ext[p][k] for k in ("point", "lo90", "hi90")}, group="image_extent")
             basis[p] = ext[p]["basis"]
     # potholes: runs of pothole frames in this unit
     n = q["runs"]["potholes"]
     skip_segs = q["skip_m"] / SEGMENT_M
     conf = min(int(impact_runs), n)
-    inputs["potholes"] = {"point": max(conf, POTHOLE_LABEL_PRECISION * n), "lo90": float(conf),
-                          "hi90": POTHOLE_RUN_UPPER * n + POTHOLE_SKIP_UPPER * skip_segs}
-    basis["potholes"] = (f"{n} run(s) of pothole frames, {conf} confirmed by a jolt; point = 0.43 x runs (label "
-                         "precision), upper = runs x 1.7 (precision/recall) + skipped frames")
+    if impact_known:
+        lo_conf = _binom_q05(conf, REAL_IF_JOLT[0])
+        real_pt = REAL_IF_JOLT[1] * conf + REAL_IF_NO_JOLT[1] * (n - conf)
+        real_hi = REAL_IF_JOLT[2] * conf + REAL_IF_NO_JOLT[2] * (n - conf) + POTHOLE_SKIP_UPPER * skip_segs
+    else:                                   # no IMU data for these runs: label precision only
+        lo_conf = 0
+        real_pt = POTHOLE_LABEL_PRECISION * n
+        real_hi = 0.58 * n + POTHOLE_SKIP_UPPER * skip_segs
+    lam = max(0.0, runs_per_section) * POTHOLE_LABEL_PRECISION * (1 - RUN_RECALL_LOW) / RUN_RECALL_LOW
+    occ_pt = real_pt / RUN_RECALL_POINT
+    occ_hi = real_hi / RUN_RECALL_LOW + _poisson_q95(lam)
+    u_lo, u_pt, u_hi = UNITS_PER_POTHOLE
+    inputs["potholes"] = {"point": occ_pt * u_pt, "lo90": float(lo_conf) * u_lo, "hi90": max(occ_pt * u_pt, occ_hi * u_hi)}
+    basis["potholes"] = (f"{n} run(s) of pothole frames, {conf} with a jolt; IRC units (0.1 m2) = real potholes x "
+                         f"1-4 units each (assumed 0.1-0.4 m2). Real potholes: point {occ_pt:.1f} (a run is real with "
+                         f"p 0.74 if the scooter felt a jolt, 0.09 if not; run recall 0.7), upper {occ_hi:.1f} "
+                         f"(recall 0.5, + likely missed ones)")
     # IRI
     rows = [dict(s["roughness"], s0_m=0.0, s1_m=_len(s)) for s in segments
             if isinstance(s.get("roughness"), Mapping) and s.get("status") != "not_covered"]
-    if rows:
-        agg = pci_iri.aggregate(rows)
+    agg = pci_iri.aggregate(rows) if rows else None
+    if agg is not None and (agg.get("length_m") or 0.0) < LOW_COVERAGE * q["imaged_m"] - EPS:
+        # < 50 % of the imaged length has usable IMU data (as roughness_value): the interval's pass-to-pass term
+        # assumes a full 100 m, so a few metres would be reported as precise as a whole section
+        basis["iri"] = (f"IMU data on only {agg.get('length_m') or 0.0:.0f} m of {q['imaged_m']:.0f} m imaged "
+                        "(< 50 %): no roughness estimate")
+        agg = None
+    if agg is not None:
         iv = pci_iri.iri_interval(agg, calibration=iri_calibration())
         if iv.get("point") is not None:
             inputs["iri"] = {"point": iv["point"], "lo90": iv["lo90"], "hi90": iv["hi90"]}
             basis["iri"] = f"{iv['basis']}: {iv.get('detail', '')}".strip()
     # rut depth
     stats = pci_rut.score_stats([(s.get("probe") or {}).get("Rutting") for s in segments])
-    rp = pci_rut.rut_prior(stats)
+    rp = pci_rut.rut_prior(stats, calibration=pci_rut.load_calibration())
     if rp.get("point") is None:
+        # a literature judgement range, explicitly NOT a 90 % probability interval (RUT_PRIOR.md §3): the PCI
+        # interval must hold at both ends ("range"), not average over an assumed uniform distribution
         inputs["rut_depth"] = {"point": (rp["lo90"] + rp["hi90"]) / 2, "lo90": rp["lo90"], "hi90": rp["hi90"],
-                               "dist": "uniform"}
+                               "dist": "range"}
     else:
         inputs["rut_depth"] = {"point": rp["point"], "lo90": rp["lo90"], "hi90": rp["hi90"]}
     basis["rut_depth"] = rp["basis"] + (f"; {rp['flag']}" if rp.get("flag") else "")
@@ -369,8 +440,13 @@ def pci_estimate_unit(segments: list[Mapping], q: Mapping, road_class: str, surf
     for p, spec in ((cal or {}).get("params") or {}).items():
         pv = (q.get("probe") or {}).get(p)
         if spec["source"] == "probe" and pv and pv.get("value") is not None:
-            inputs[p] = {"point": pv["value"], "lo90": pv["value"], "hi90": pv["value"]}
-            basis[p] = spec["evidence"]
+            # the calibration file stores no residual spread: keep the uncalibrated interval around the calibrated
+            # value instead of a zero-width (falsely exact) one
+            prior = inputs.get(p)
+            v = pv["value"]
+            inputs[p] = {"point": v, "lo90": min(v, prior["lo90"]) if prior else v,
+                         "hi90": max(v, prior["hi90"]) if prior else v}
+            basis[p] = spec["evidence"] + ("" if prior else "; no interval (calibration stores no residuals)")
     for p, v in (entered or {}).items():
         if p in P23.WEIGHTS and v is not None:
             x = float(v) * (L / 1000.0 if p == "potholes" else 1.0)

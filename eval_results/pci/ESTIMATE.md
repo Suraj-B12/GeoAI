@@ -2,7 +2,7 @@
 
 Why: the strict IRC:82-2023 range (unknown parameters counted as PCIᵢ 0 and 100) was ~79 points wide. The owner
 asked for a tighter, defensible number. The estimate replaces "unknown" with the best evidence for each parameter,
-each with an honest 90 % interval, and combines them by Monte Carlo (`app/pci_irc2023.pci_estimate`, 1,500 draws
+each with a 90 % interval its evidence supports (reviewed: REVIEW_estimate.md), and combines them by Monte Carlo (`app/pci_irc2023.pci_estimate`, 1,500 draws
 per 100 m section, independent parameters). The strict range is kept as the worst case.
 
 | Parameter (weight) | Input per 100 m section | Evidence |
@@ -34,3 +34,10 @@ roughness 39.6, rut depth 12.4, potholes 6.2, cracking 4.0, patching 1.5, ravell
    expected ~3x narrower IRI interval. The road survey's IRI does this automatically (`pci_survey_compare.py fit`).
 2. Rut depth measured on site (straight edge) or by the survey → entered / calibrated.
 3. Expert labels on video segments → pothole precision/recall on Bengaluru data instead of Attain's.
+
+## Update after the critic review and fixes (2026-11-09, final)
+Pothole units (runs × P(real | jolt) 0.74 / P(real | no jolt) 0.09, run recall 0.5–0.7, 1–4 units per pothole),
+correlated image extents, rut depth as a range that must hold at both ends, IRI physics and scatter combined in
+quadrature, speed-matched jolt threshold, extents over imaged segments only. Final sample results (ids 49–56):
+50 (31–81), 50 (31–86), 47 (29–82), 50 (31–85), 50 (34–82), 54 (39–89), 50 (31–85), 55 (33–93) — all Fair.
+The earlier table above (52 (40–83) …) was before these corrections and is superseded.

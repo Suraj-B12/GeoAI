@@ -162,6 +162,33 @@ def _calibrated_report():
     return rep
 
 
+def _estimate_report():
+    """1.25 km urban drive in the state the production reports are in since 2026-11-09: per-type probe scores on
+    every segment (cracking / ravelling / patching extents from app.pci_extent), IRI entered (the phone-IMU IRI
+    needs app.pci_iri features), rut depth from its prior -> every 100 m section has a PCI estimate with a 90 %
+    interval, summary.pci_estimate is set. Two pothole runs; the first is marked impact_felt (no IMU here)."""
+    from test_pci_chainage import drive, ll, polyline
+    labels = {k: ["Potholes"] for k in (30, 31, 160)}
+    labels |= {k: ["Longitudinal Cracking", "Bleeding"] for k in range(60, 75)}
+    labels |= {k: ["Alligator Cracking", "Edge Breaking"] for k in range(200, 206)}
+    d = drive("20261027T130000Z_DEV_eeee", polyline([(0, 0), (900, 0), (900, 350)]), labels=labels)
+    keys = sorted({k for ks in C.PROBE_KEYS.values() for k in ks})
+    for rec in d:
+        k = rec["props"]["k"]
+        rec["props"]["probe"] = {key: (0.75 if (60 <= k < 75 and "Crack" in key) or (100 <= k < 120 and
+                                                                                     key == "Ravelling")
+                                       else 0.12) for key in keys}
+    g = PC.build_graph(d)
+    rep = PC.build_report(g, {"a": ll(d[0]), "b": ll(d[-1]), "category": "urban", "entered": {"iri": 3.2},
+                              "road_name": "Estimate test road"})
+    runs = rep["summary"].get("pothole_runs_list") or []
+    if runs:
+        runs[-1]["impact_felt"], runs[-1]["jolt"] = True, 4.2
+        if len(runs) > 1:
+            runs[0]["impact_felt"], runs[0]["jolt"] = False, 1.1
+    return rep
+
+
 LONG_NAME = ("Outer Ring Road service lane between Silk Board junction and the Agara flyover approach "
              "(eastbound) KarnatakaRoadDevelopmentCorporation")[:120]
 
@@ -176,6 +203,7 @@ def reports():
         _cache["long_name"] = _report(True, road_name=LONG_NAME, category="highway", lane_width_m=7.0)
         _cache["short"] = _report(False, category="rural")
         _cache["calibrated"] = _calibrated_report()
+        _cache["estimate"] = _estimate_report()
     return _cache
 
 
@@ -273,6 +301,34 @@ def test_single_state():
         assert s in text, s
     for gone in ("No single PCI yet", "Not assessed:", "Distress range (Table"):
         assert gone not in text, gone
+
+
+def test_estimate_state():
+    """Headline 'PCI ≈ m (90 % interval lo–hi)', parameter table with share of interval and short basis, km and
+    100 m estimate columns, map legend 'colour = median estimate', impact-felt pothole list (confirmed first),
+    other distresses with 2023 clauses, scooter wording."""
+    rep = reports()["estimate"]
+    e = rep["summary"].get("pci_estimate")
+    assert e and e["lo90"] <= e["median"] <= e["hi90"], e
+    rows = PDF.stretch_estimate_rows(rep)
+    assert abs(sum(r["share"] for r in rows) - 100.0) < 0.5
+    assert {r["param"] for r in rows if r.get("point") is not None} == set(P23.PARAMS)
+    for r in rows:
+        assert len(r["basis"].split()) <= 8, r["basis"]
+    if not _need_fitz():
+        return
+    text = _text("estimate")
+    for s in (f"PCI ≈ {e['median']:.0f}", f"90 % interval {e['lo90']:.0f}–{e['hi90']:.0f}",
+              "Recommended for the median class (Table 5.5)", "The interval is mostly", "Worst case",
+              "Share of interval", "literature prior 0–25 mm", "entered by requester (unverified)",
+              "PCI ≈ (90 % interval)", "Class (median)", "colour = median estimate", "Impact felt",
+              "potholes the rider steered around show no jolt", "Other distresses seen (not part of the IRC PCI)",
+              "Bleeding", "7.2.1.5", "Edge Breaking", "7.5.5.6", "scooter's handlebar", "An estimate, not a measurement"):
+        assert s in text, s
+    for gone in ("windshield", "No single PCI yet", "Distress range (Table"):
+        assert gone not in text, gone
+    i_yes, i_no = text.index(" yes "), text.index(" no ", text.index("Impact felt"))
+    assert i_yes < i_no, "confirmed potholes are listed first"
 
 
 def test_rural_pothole_not_computable():

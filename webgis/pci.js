@@ -40,7 +40,8 @@
       const m = (await get('/gis/pci/meta'))?.irc2023; if (!m) return;
       if (Array.isArray(m.road_classes)) for (const rc of m.road_classes) { const r = P23.roads.find(x => x.id === rc.id); if (r && Array.isArray(rc.surfaces) && rc.surfaces.length) { r.surfaces = rc.surfaces; r.def = rc.default_surface || r.def; } }
       if (Array.isArray(m.params)) for (const p of m.params) { const d = P23.params.find(x => x.id === p.id); if (d && Array.isArray(p.entered_limits)) d.lim = p.entered_limits.map(Number); }
-      if (S.open && S.view === 'build') render();
+      if (m.curves?.x && m.curves?.y) P23.curves = m.curves;
+      if (S.open) render();
     } catch { /* fallback constants stay */ }
   }
 
@@ -369,7 +370,12 @@
   const sectionRated = s => Boolean(unitPci(s)?.rated && unitPci(s)?.pci);
   const unitParam = (u, id) => (unitPci(u)?.params || []).find(p => p.param === id) || null;
   // A measure = {lo, hi, single} on the 0–100 PCI scale: the PCI itself, or one parameter's PCI_i.
+  // ---- PCI estimate with a 90 % interval (ESTIMATE.md): sections carry pci.estimate.estimate; summary.pci_estimate
+  const hasEst = r => Boolean(summaryOf(r).pci_estimate && num(summaryOf(r).pci_estimate.median) !== null);
+  const estOf = u => { const e = unitPci(u)?.estimate; return e && typeof e === 'object' && e.estimate && num(e.estimate.median) !== null ? e.estimate : null; };
+  const estMeasure = e => e ? { lo: num(e.lo90), hi: num(e.hi90), single: num(e.median), est: true } : null;
   function pciMeasure(u, by = 'pci') {
+    if (S.report && hasEst(S.report)) return estMeasure(estOf(u));     // colour = class of the median estimate
     const P = unitPci(u); if (!P?.rated || !P.pci) return null;
     if (by === 'pci') return { lo: num(P.pci.lo), hi: num(P.pci.hi), single: num(P.pci.single) };
     const p = unitParam(u, by); if (!p) return null;
@@ -387,6 +393,7 @@
   const r0 = v => String(Math.round(Number(v)));
   function measureText(m) {
     if (!m || m.lo === null) return '—';
+    if (m.est) return `≈ ${r0(m.single)} (${r0(m.lo)}–${r0(m.hi)})`;
     if (m.single !== null && m.single !== undefined) return r0(m.single);
     return r0(m.lo) === r0(m.hi) ? r0(m.lo) : `${r0(m.lo)}–${r0(m.hi)}`;
   }
@@ -415,7 +422,13 @@
     }
     return [...groups].map(([why, names]) => `${names.join(', ')} (${why})`).join(' · ');
   }
+  function summaryMeasure(s) {
+    const E = s?.pci_estimate; if (E && num(E.median) !== null && num(s?.pci?.single) === null) return estMeasure(E);
+    const P = s?.pci; return P ? { lo: num(P.lo), hi: num(P.hi), single: num(P.single) } : null;
+  }
   function pciLine(s) {
+    const E = s?.pci_estimate;
+    if (E && num(E.median) !== null && num(s?.pci?.single) === null) return `PCI ≈ ${r0(E.median)} (${r0(E.lo90)}–${r0(E.hi90)}) · ${E.class || classOf(E.median)}`;
     const P = s?.pci; if (!P) return 'Saved before the PCI update — no PCI';
     const m = { lo: num(P.lo), hi: num(P.hi), single: num(P.single) };
     return `PCI ${measureText(m)} · ${colourText(colourOf(m))}`;
@@ -668,7 +681,7 @@
   }
   // ---- what colours the map, the strip and the section list: the PCI, or one parameter's PCI_i (same 0–100 scale)
   const COLOR_BY = [['pci', 'PCI'], ['potholes', 'Potholes (PCI_i)'], ['cracking', 'Cracking (PCI_i)']];
-  const colorByName = () => (COLOR_BY.find(c => c[0] === S.colorBy) || COLOR_BY[0])[1];
+  const colorByName = () => S.report && hasEst(S.report) ? 'PCI estimate' : (COLOR_BY.find(c => c[0] === S.colorBy) || COLOR_BY[0])[1];
   const swatches = c => `<i class="pci-sw cls-${ckey(c.a)}" aria-hidden="true"></i>${c.b ? `<i class="pci-sw cls-${ckey(c.b)}" aria-hidden="true"></i>` : ''}`;
   const SKIP = s => num(s.quantities?.skip_m) || 0;
   // ---- evidence behind the pothole band: runs (backend list, else consecutive used pothole frames per pass)
@@ -681,7 +694,8 @@
   function potholeRuns(r) {
     const list = r?.summary?.pothole_runs_list;
     if (Array.isArray(list)) return list.map(x => ({ from_m: num(x.from_m ?? x.measure_m ?? x.start_m) ?? 0, to_m: num(x.to_m ?? x.end_m) ?? num(x.from_m) ?? 0,
-      ids: (x.segment_ids || x.segments || (x.segment_id ? [x.segment_id] : [])).map(v => String(v.segment_id || v)), chainage: x.chainage || x.chainage_from || null }));
+      ids: (x.segment_ids || x.segments || (x.segment_id ? [x.segment_id] : [])).map(v => String(v.segment_id || v)), chainage: x.chainage || x.chainage_from || null,
+      felt: x.impact_felt === true ? true : x.impact_felt === false ? false : null, jolt: num(x.jolt) }));
     const rows = attrRows(r).filter(x => x.used).sort((a, b) => a.measure_m - b.measure_m);
     if (!rows.length || rows.some(x => !S.features.has(String(x.segment_id)))) return null;     // frames not loaded yet
     const runs = []; let cur = null;
@@ -712,6 +726,117 @@
     for (const v of [0, 20, 40, 60, 80, 90, 100]) svg += `<text x="${Math.min(W - 1, Math.max(1, x(v)))}" y="34" class="axis ${v === 0 ? 'start' : v === 100 ? 'end' : 'mid'}">${v}</text>`;
     return `${svg}</svg>`;
   }
+  // ---- PCI_i at a value, from the curves GET /gis/pci/meta samples out of app/pci_irc2023.pci_param (null if absent)
+  function curveOf(cls, p, surface) {
+    const C = P23.curves; if (!C?.y?.[cls]) return null;
+    let y = C.y[cls][p]; if (p === 'iri') y = y?.[surface] || y?.[road(cls).def];
+    const x = C.x?.[C.grid?.[p]]; return Array.isArray(y) && Array.isArray(x) ? { x, y } : null;
+  }
+  function curveAt(c, v) {
+    const { x, y } = c, n = x.length; v = Math.max(x[0], Math.min(x[n - 1], v));
+    let i = 1; while (i < n - 1 && x[i] < v) i++;
+    if (y[i - 1] === null || y[i] === null) return null;
+    const t = x[i] === x[i - 1] ? 0 : (v - x[i - 1]) / (x[i] - x[i - 1]);
+    return y[i - 1] + t * (y[i] - y[i - 1]);
+  }
+  // PCI_i at the point value and its worst / best over the 90 % interval (curves are not all monotone)
+  function pciIOf(cls, p, surface, q) {
+    const c = curveOf(cls, p, surface); if (!c || num(q?.point) === null) return null;
+    const a = Math.min(num(q.lo90) ?? q.point, num(q.hi90) ?? q.point), b = Math.max(num(q.lo90) ?? q.point, num(q.hi90) ?? q.point);
+    const vals = [curveAt(c, a), curveAt(c, b)];
+    c.x.forEach((xv, i) => { if (xv > a && xv < b) vals.push(c.y[i]); });
+    const pt = curveAt(c, q.point); if (pt === null || vals.some(v => v === null)) return null;
+    return { point: pt, lo: Math.min(...vals), hi: Math.max(...vals) };
+  }
+  // Stretch-level inputs = length-weighted mean of the 100 m sections' point, 5 % and 95 % values (as the backend
+  // does for the PCI); width_by_param likewise. Potholes stay a number per 100 m section.
+  function stretchInputs(r) {
+    if (r._estIn) return r._estIn;
+    const acc = {}, width = {}, basis = {}; let L = 0, n = 0;
+    for (const s of sectionsOf(r)) {
+      const E = unitPci(s)?.estimate, e = estOf(s); if (!e) continue;
+      const w = Math.max(1, (num(s.to_m) ?? 0) - (num(s.from_m) ?? 0)); L += w; n++;
+      for (const [p, q] of Object.entries(E.inputs || {})) {
+        const a = acc[p] || (acc[p] = { point: 0, lo90: 0, hi90: 0, w: 0 });
+        if (num(q.point) === null) continue;
+        a.point += w * q.point; a.lo90 += w * (num(q.lo90) ?? q.point); a.hi90 += w * (num(q.hi90) ?? q.point); a.w += w;
+      }
+      for (const [p, v] of Object.entries(e.width_by_param || {})) if (num(v) !== null) { width[p] = (width[p] || 0) + w * v; }
+      for (const [p, b] of Object.entries(E.basis || {})) if (!basis[p]) basis[p] = String(b);
+    }
+    const inputs = Object.fromEntries(Object.entries(acc).filter(([, a]) => a.w).map(([p, a]) => [p, { point: a.point / a.w, lo90: a.lo90 / a.w, hi90: a.hi90 / a.w }]));
+    for (const p in width) width[p] /= L || 1;
+    return (r._estIn = { inputs, width, basis, n });
+  }
+  function shortBasis(p, text, source) {
+    const t = String(text || '');
+    if (source === 'entered' || /entered/i.test(t)) return 'Entered';
+    if (/uncalibrated/i.test(t) && (p === 'iri' || /scooter/i.test(t))) return 'Scooter, uncalibrated';
+    if (/calibrat\w* (on|against) (the )?survey|survey calibration|calibrated on survey/i.test(t) && !/uncalibrated|once the survey/i.test(t)) return 'Survey-calibrated';
+    if (p === 'iri') return /scooter|accelero/i.test(t) ? 'Scooter accelerometer' : t.slice(0, 48) || '—';
+    if (p === 'rut_depth' || /prior range/i.test(t)) return 'Prior range, not measured';
+    if (p === 'potholes') return 'Frames × label precision';
+    if (/FAILED/.test(t)) return 'Probe (Attain), interval ×2';
+    if (/attain/i.test(t)) return 'Probe (Attain-calibrated)';
+    return t.slice(0, 48) || '—';
+  }
+  const NARROW = { iri: 'a reference roughness (IRI) measurement would narrow it', rut_depth: 'a straight-edge rut measurement would narrow it',
+    potholes: 'expert-checked pothole frames would narrow it', cracking: 'a survey calibration of cracking would narrow it',
+    ravelling: 'a survey calibration of ravelling would narrow it', patching: 'a survey calibration of patching would narrow it' };
+  const estUnit = p => p === 'potholes' ? ' per 100 m' : unitSuffix(paramDef(p).unit);
+  function estValueText(p, q) {
+    if (!q || num(q.point) === null) return '—';
+    const u = paramDef(p).unit === 'number' ? 'count' : paramDef(p).unit, f = v => fmtVal(v, u === 'count' ? 'number' : u);
+    const a = f(q.lo90), b = f(q.hi90);
+    return `${esc(f(q.point) + estUnit(p))}${a === b ? '' : `<small>${esc(a)}–${esc(b)}</small>`}`;
+  }
+  function headlineEst(r, kpis, callout, flags) {
+    const s = summaryOf(r), E = s.pci_estimate, P = s.pci || unitPci(r.stretch)?.pci || {};
+    const m = estMeasure(E), cls = E.class || classOf(E.median), rec = E.recommendation || P23.rec[cls];
+    const cLo = E.class_lo || classOf(E.lo90), cHi = E.class_hi || classOf(E.hi90);
+    const cat = r.header?.category || r.input?.category || 'urban', surface = r.header?.surface || road(cat).def;
+    const SI = stretchInputs(r), params = unitPci(r.stretch)?.params || [];
+    const widest = Object.entries(SI.width).sort((a, b) => b[1] - a[1])[0];
+    const lead = widest && widest[1] >= 3 ? `Most of the uncertainty is ${paramDef(widest[0]).name.toLowerCase().replace('(iri)', '(IRI)')} (about ${r0(widest[1])} PCI points in a typical 100 m section): ${NARROW[widest[0]] || 'a measurement would narrow it'}.` : '';
+    const strict = num(P.lo) !== null ? `Strict IRC range, unassessed parameters at PCI<sub>i</sub> 0 and 100: ${r0(P.lo)}–${r0(P.hi)}.` : '';
+    const used = num(E.sections_used) !== null ? `Estimated on ${E.sections_used} of ${E.sections} sections${num(E.length_m) ? ` (${fmtM(E.length_m)})` : ''}, length-weighted.` : '';
+    const rows = P23.params.map(d => {
+      const q = SI.inputs[d.id], sp = params.find(p => p.param === d.id), ip = pciIOf(cat, d.id, surface, q);
+      return `<tr${q ? '' : ' class="na"'}><th scope="row">${esc(d.name)}<small>weight ${d.w.toFixed(2)}</small></th><td>${estValueText(d.id, q)}</td><td>${ip ? `${esc(r0(ip.point))}${r0(ip.lo) === r0(ip.hi) ? '' : `<small>${esc(r0(ip.lo))}–${esc(r0(ip.hi))}</small>`}` : '—'}</td><td>${esc(q ? shortBasis(d.id, SI.basis[d.id], sp?.source) : 'No estimate')}</td></tr>`;
+    }).join('');
+    return `<div class="pci-headline">
+      <div class="pci-score">
+        <div class="pci-score-top"><div><span class="pci-score-label">PCI estimate · IRC:82-2023 (0–100)</span><strong class="pci-score-num">≈ ${esc(r0(E.median))}</strong></div>
+          <span class="pci-chip">${swatches({ a: cls, b: null })}${esc(cls)}</span></div>
+        <p class="pci-interval">90 % interval <strong>${esc(r0(E.lo90))}–${esc(r0(E.hi90))}</strong>${cLo && cHi && cLo !== cHi ? ` (${esc(cLo)} to ${esc(cHi)})` : ''}</p>
+        ${scaleBar(m)}
+        <p class="pci-rec"><span>Maintenance for the median class (Table 5.5)</span><strong>${esc(rec)}</strong>${cLo !== cHi ? '<em class="pci-rec-note">The interval spans more than one class: confirm on site before choosing a treatment.</em>' : ''}</p>
+        ${lead ? `<p class="pci-lead">${esc(lead)}</p>` : ''}
+        <p class="pci-note pci-basis">${strict}${strict && used ? ' ' : ''}${esc(used)}</p>
+      </div>
+      <table class="pci-params pci-est"><colgroup><col class="c1"><col class="c2"><col class="c3"><col class="c4"></colgroup>
+        <caption>Typical 100 m section · estimate, 90 % interval below</caption>
+        <thead><tr><th scope="col">Parameter</th><th scope="col">Estimate</th><th scope="col">PCI<sub>i</sub></th><th scope="col">Basis</th></tr></thead><tbody>${rows}</tbody></table>
+      <p class="pci-note">Inputs not measured on site are evidence-based estimates (method: report PDF). PCI<sub>i</sub> at the estimate${P23.curves ? '' : ' appears once the server provides the IRC curves'}; the PCI interval comes from combining all six, not from this column.</p>
+      ${flags}
+      ${kpis}
+      ${callout}
+    </div>`;
+  }
+  // Pothole flags with the scooter's jolt check (impact_felt): felt = more likely a real pothole.
+  function flagsHTML(r, params) {
+    const s = summaryOf(r), runs = potholeRuns(r), h = s.headline || {};
+    const potFrames = hasEst(r) || params.some(p => p.param === 'potholes' && /^labels/.test(p.source));
+    if (!potFrames) return '';
+    if (runs === null) return sectionsOf(r).some(x => sectionRuns(x)) ? '<p class="pci-note">Loading the pothole frames…</p>' : '';
+    if (!runs.length) return '';
+    const rpk = num(h.pothole_runs_per_km) ?? (lengthOf(r) ? runs.length / (lengthOf(r) / 1000) : null);
+    const checked = runs.some(x => x.felt !== null && x.felt !== undefined), felt = runs.filter(x => x.felt === true).length;
+    const badge = x => x.felt === true ? '<span class="pci-jolt yes">jolt felt</span>' : x.felt === false ? '<span class="pci-jolt no">no jolt</span>' : '';
+    return `<details class="pci-flags" data-details="flags" ${S.flagsOpen ? 'open' : ''}><summary>Pothole flags · ${runs.length} run${runs.length === 1 ? '' : 's'}${rpk !== null ? ` (${rpk.toFixed(1)} per km)` : ''}${checked ? ` · ${felt} with a jolt` : ''}</summary>
+        <p class="pci-note">${checked ? '“Jolt felt” = the phone on the scooter’s handlebar recorded an impact there, so a real pothole is more likely; “no jolt” = possibly a shadow or patch, or the wheel passed beside it. ' : 'Image labels, not validated; shadows are often labelled as potholes. '}Open a frame and check it before acting.</p>
+        <div class="pci-runs">${runs.slice(0, 24).map((x, i) => `<button type="button" class="pci-run${x.felt === true ? ' felt' : ''}" data-act="run" data-index="${i}" data-id="${esc(x.ids[0])}">${esc(x.chainage || kmText(x.from_m))}${x.ids.length > 1 ? ` · ${x.ids.length} frames` : ''}${badge(x)}</button>`).join('')}${runs.length > 24 ? `<span class="pci-note">+ ${runs.length - 24} more (see sections)</span>` : ''}</div></details>`;
+  }
   function headline(r) {
     const s = summaryOf(r), P = s.pci || unitPci(r.stretch)?.pci, params = unitPci(r.stretch)?.params || [];
     const cov = num(s.coverage), covPct = cov === null ? null : cov <= 1.0001 ? cov * 100 : cov;
@@ -723,6 +848,8 @@
         <div><span>Expert-reviewed</span><strong>${num(s.segments_expert_reviewed) ?? '—'}<small> of ${num(s.segments_used) ?? '—'}</small></strong><small>segments used</small></div>
       </div>`;
     const callout = `<p class="pci-callout"><strong>Screening estimate</strong> from images of one lane and the values entered. Confirm by field inspection before deciding on maintenance.</p>`;
+    const flags = flagsHTML(r, params);
+    if (hasEst(r) && num(P?.single) === null) return headlineEst(r, kpis, callout, flags);
     if (!P || num(P.lo) === null) return `<div class="pci-headline"><div class="pci-error" role="note"><strong>No PCI</strong><span>No 100 m section has enough imaged length to be rated.</span></div>${kpis}${callout}</div>`;
     const m = { lo: num(P.lo), hi: num(P.hi), single: num(P.single) }, col = colourOf(m);
     const cls = m.single !== null ? (P.single_class || classOf(m.single)) : null, rec = cls ? (P.recommendation || P23.rec[cls]) : null;
@@ -742,20 +869,13 @@
     }).join('');
     const na = notAssessedLine(params);
     const usesLabels = params.some(p => p.known && /^labels/.test(p.source));
-    const runs = potholeRuns(r), h = s.headline || {};
-    const rpk = num(h.pothole_runs_per_km) ?? (runs && lengthOf(r) ? runs.length / (lengthOf(r) / 1000) : null);
-    const potLabels = params.some(p => p.param === 'potholes' && /^labels/.test(p.source));
-    const flags = potLabels && runs && runs.length ? `<details class="pci-flags" data-details="flags" ${S.flagsOpen ? 'open' : ''}><summary>Pothole flags · ${runs.length} run${runs.length === 1 ? '' : 's'}${rpk !== null ? ` (${rpk.toFixed(1)} per km)` : ''}</summary>
-        <p class="pci-note">Image labels, not validated; shadows are often labelled as potholes. Open a frame and check it before acting.</p>
-        <div class="pci-runs">${runs.slice(0, 24).map((x, i) => `<button type="button" class="pci-run" data-act="run" data-index="${i}" data-id="${esc(x.ids[0])}">${esc(x.chainage || kmText(x.from_m))}${x.ids.length > 1 ? ` · ${x.ids.length} frames` : ''}</button>`).join('')}${runs.length > 24 ? `<span class="pci-note">+ ${runs.length - 24} more (see sections)</span>` : ''}</div></details>`
-      : potLabels && runs === null && sectionsOf(r).some(x => sectionRuns(x)) ? '<p class="pci-note">Loading the pothole frames…</p>' : '';
     return `<div class="pci-headline">
       <div class="pci-score">
         <div class="pci-score-top"><div><span class="pci-score-label">PCI · IRC:82-2023 (0–100)</span><strong class="pci-score-num">${esc(measureText(m))}</strong></div>
           <span class="pci-chip">${swatches(col)}${esc(cls || colourText(col))}</span></div>
         ${scaleBar(m)}
         ${rec ? `<p class="pci-rec"><span>Maintenance (Table 5.5)</span><strong>${esc(rec)}</strong></p>`
-          : `<p class="pci-rec pending"><span>Not yet a single PCI</span>${missing.length ? `${esc(listNames(missing.map(p => p.name)))} (${missW} % of the weight) ${missing.length === 1 ? 'has' : 'have'} no PCI<sub>i</sub> yet, so each is taken as 0 and as 100. ` : ''}${why ? `${esc(why.charAt(0).toUpperCase() + why.slice(1))}${/[.]$/.test(why) ? '' : '.'} ` : ''}A maintenance recommendation needs a single PCI.</p>`}
+          : `<p class="pci-rec pending"><span>Not yet a single PCI</span>${missing.length ? `${esc(listNames(missing.map(p => p.name)))} (${missW} % of the weight) ${missing.length === 1 ? 'has' : 'have'} no PCI<sub>i</sub> yet, so each is taken as 0 and as 100. ` : ''}${why && !missing.length ? `${esc(why.charAt(0).toUpperCase() + why.slice(1))}${/[.]$/.test(why) ? '' : '.'} ` : ''}A maintenance recommendation needs a single PCI.</p>`}
         ${basis || skipNote ? `<p class="pci-note pci-basis">${esc([basis, skipNote].filter(Boolean).join(' · '))}.</p>` : ''}
       </div>
       <table class="pci-params pci-p23"><colgroup><col class="c1"><col class="c2"><col class="c3"><col class="c4"><col class="c5"></colgroup>
@@ -773,7 +893,7 @@
     const total = lengthOf(r) || num(secs[secs.length - 1].to_m) || 1;
     const W = 360, left = 30, right = 8, plot = W - left - right, x = m => left + plot * (num(m) || 0) / total;
     const top = 6, H = 80, y = v => top + H - H * Math.max(0, Math.min(100, v)) / 100, cellY = top + H + 6;
-    let svg = `<svg class="pci-strip" viewBox="0 0 ${W} ${cellY + 34}" role="img" aria-labelledby="pciStripT pciStripD"><title id="pciStripT">${esc(colorByName())} along the stretch, per 100 m</title><desc id="pciStripD">For each 100 m section from A to B: grey bar = possible range, coloured line = single value when known, on the 0–100 scale with lines at the class limits 20, 40, 60, 80 and 90. The row below has the map colours; select a cell to open the section.</desc>`;
+    let svg = `<svg class="pci-strip" viewBox="0 0 ${W} ${cellY + 34}" role="img" aria-labelledby="pciStripT pciStripD"><title id="pciStripT">${esc(colorByName())} along the stretch, per 100 m</title><desc id="pciStripD">For each 100 m section from A to B: grey bar = ${hasEst(r) ? '90 % interval, coloured line = median estimate' : 'possible range, coloured line = single value when known'}, on the 0–100 scale with lines at the class limits 20, 40, 60, 80 and 90. The row below has the map colours; select a cell to open the section.</desc>`;
     for (const v of [20, 40, 60, 80, 90]) svg += `<line x1="${left}" x2="${W - right}" y1="${y(v)}" y2="${y(v)}" class="grid"/>`;
     svg += `<line x1="${left}" x2="${W - right}" y1="${y(0)}" y2="${y(0)}" class="base"/>`;
     for (const v of [0, 20, 40, 60, 80, 100]) svg += `<text x="${left - 4}" y="${y(v) + 3.5}" class="axis end">${v}</text>`;
@@ -798,10 +918,16 @@
     const secs = sectionsOf(S.report); let two = false, none = false;
     for (const s of secs) { const c = colourOf(pciMeasure(s, S.colorBy)); if (c.b) two = true; if (!c.a) none = true; }
     const cls = [['fail', 'Fail ≤ 20'], ['poor', 'Poor'], ['fair', 'Fair'], ['satisfactory', 'Satisfactory'], ['good', 'Good'], ['excellent', 'Excellent > 90']];
-    return `<div class="pci-legend" role="group" aria-label="Map legend">${cls.map(([k, t]) => `<span><i class="cls-${k}"></i>${t}</span>`).join('')}${none ? '<span><i class="cls-none"></i>No data (dashed)</span>' : ''}
+    return `<div class="pci-legend" role="group" aria-label="Map legend">${cls.map(([k, t]) => `<span><i class="cls-${k}"></i>${t}</span>`).join('')}${none ? `<span><i class="cls-none"></i>${hasEst(S.report) ? 'No estimate' : 'No data'} (dashed)</span>` : ''}
+      ${hasEst(S.report) ? '<p class="pci-legend-rule">Colour = class of the median estimate; in the strip the grey bar is its 90 % interval.</p>' : ''}
       ${two ? '<p class="pci-legend-rule"><i class="cls-poor"></i><i class="cls-excellent"></i>Two colours (striped on the map) = still a range: worst and best possible class.</p>' : ''}</div>`;
   }
   function sectionFacts(s) {
+    if (S.report && hasEst(S.report)) {
+      const I = unitPci(s)?.estimate?.inputs; if (!estOf(s) || !I) return sectionRated(s) ? 'No estimate' : 'Insufficient data';
+      const f = (p, label) => num(I[p]?.point) === null ? '' : `${label} ${fmtVal(I[p].point, p === 'potholes' ? 'number' : paramDef(p).unit)}${p === 'potholes' ? '' : unitSuffix(paramDef(p).unit)}`;
+      return [f('cracking', 'Cracking'), f('potholes', 'Potholes'), f('iri', 'IRI')].filter(Boolean).join(' · ');
+    }
     if (!sectionRated(s)) return 'Insufficient data';
     const c = unitParam(s, 'cracking'), p = unitParam(s, 'potholes'), parts = [];
     if (c?.known) parts.push(`Cracking ${valueText(c)}`);
@@ -821,8 +947,13 @@
     }).join('')}</ul>`;
   }
   function sectionDetail(s) {
-    const parts = [], P = unitPci(s);
-    if (P?.pci) {
+    const parts = [], P = unitPci(s), e = S.report && hasEst(S.report) ? estOf(s) : null;
+    if (e) {
+      const c = e.class || classOf(e.median), w = Object.entries(e.width_by_param || {}).sort((a, b) => b[1] - a[1])[0];
+      parts.push(`<p class="pci-note"><strong>PCI ≈ ${esc(r0(e.median))}</strong> · 90 % interval ${esc(r0(e.lo90))}–${esc(r0(e.hi90))} · ${esc(c)}: ${esc(e.recommendation || P23.rec[c])}${w ? ` · widest input: ${esc(paramDef(w[0]).name)}` : ''}${P?.pci ? ` · strict range ${esc(r0(P.pci.lo))}–${esc(r0(P.pci.hi))}` : ''}.</p>`);
+    } else if (S.report && hasEst(S.report)) {
+      parts.push(`<p class="pci-note">No estimate for this section${(P?.estimate?.missing || []).length ? ` (no input for ${esc(P.estimate.missing.join(', '))})` : ''}.</p>`);
+    } else if (P?.pci) {
       const m = { lo: num(P.pci.lo), hi: num(P.pci.hi), single: num(P.pci.single) }, cls = m.single !== null ? (P.pci.single_class || classOf(m.single)) : null;
       const known = (P.params || []).filter(p => p.known).map(p => `${p.name} ${measureText({ lo: num(p.pci_worst), hi: num(p.pci_best), single: null })}`);
       parts.push(`<p class="pci-note"><strong>PCI ${esc(measureText(m))}</strong> (${esc(cls || colourText(colourOf(m)))})${cls ? ` · ${esc(P.pci.recommendation || P23.rec[cls])}` : ''}${known.length ? ` · PCI<sub>i</sub>: ${esc(known.join(', '))}` : ''}.</p>`);
@@ -922,6 +1053,7 @@
   }
   function renderResult() {
     const r = S.report; if (!r) { S.view = 'build'; renderBuild(); return; }
+    if (hasEst(r)) S.colorBy = 'pci';
     const stale = r.stale || r.is_stale;
     const h = r.header || {}, title = r.title || [h.road_name, h.road_number].filter(Boolean).join(' · ') || `${summaryOf(r).chainage_a || 'Km 0+000'} to ${summaryOf(r).chainage_b || ''}`;
     $('pciNew').innerHTML = `
@@ -932,7 +1064,7 @@
       ${r.sample && r.sample_rule ? `<p class="pci-note">Sample chosen by a rule fixed before any rating was seen: ${esc(ruleText(r.sample_rule, lengthOf(r)))}. Regenerated, never edited.</p>` : ''}
       ${has2023(r) ? `${headline(r)}
       <section class="pci-section" aria-labelledby="pciStripH"><div class="pci-section-head"><h3 id="pciStripH">Along the stretch · 100 m</h3>
-        <label class="pci-colorby">Colour by <select data-act-change="color-by" aria-label="Colour the map and sections by">${COLOR_BY.map(([v, t]) => `<option value="${v}" ${S.colorBy === v ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label></div>
+        ${hasEst(r) ? '' : `<label class="pci-colorby">Colour by <select data-act-change="color-by" aria-label="Colour the map and sections by">${COLOR_BY.map(([v, t]) => `<option value="${v}" ${S.colorBy === v ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>`}</div>
         ${stripChart(r)}${legendHTML()}</section>
       <section class="pci-section" aria-labelledby="pciSecH"><h3 id="pciSecH">Sections</h3><p class="pci-note">Select a section to highlight it on the map and see its frames.</p>${sectionsList(r)}</section>`
       : `<div class="pci-error" role="note"><strong>No PCI in this saved report</strong><span>It was saved before the IRC:82-2023 PCI was added. Generate it again from the same points to get the PCI; the saved copy stays as it is.</span></div>
@@ -966,7 +1098,7 @@
       : !list.length ? '<p class="pci-note">No saved reports yet.</p>'
       : `<ul class="pci-saved">${list.map(x => `<li><button type="button" class="pci-saved-item" data-act="open-saved" data-id="${esc(x.id ?? x.report_id)}">
           <span class="pci-saved-title"><strong>${esc(x.title || 'Condition report')}</strong>${x.sample ? '<span class="pci-tag sample">Sample</span>' : ''}${x.stale ? '<span class="pci-tag stale">Stale</span>' : ''}</span>
-          <span class="pci-saved-bands">${x.summary?.pci ? `${swatches(colourOf({ lo: num(x.summary.pci.lo), hi: num(x.summary.pci.hi), single: num(x.summary.pci.single) }))}` : ''}${esc(pciLine(x.summary))}</span>
+          <span class="pci-saved-bands">${summaryMeasure(x.summary) ? swatches(colourOf(summaryMeasure(x.summary))) : ''}${esc(pciLine(x.summary))}</span>
           ${x.sample && x.sample_rule ? `<span class="pci-saved-meta">Rule: ${esc(ruleText(x.sample_rule, x.summary?.length_m))}</span>` : ''}<span class="pci-saved-meta">${esc([num(x.summary?.length_m ?? x.length_m) !== null ? fmtM(Number(x.summary?.length_m ?? x.length_m)) : '', x.category ? road(x.category).name : '', x.created_at ? D.localTime(x.created_at) : ''].filter(Boolean).join(' · '))}</span></button></li>`).join('')}</ul>`;
   }
 

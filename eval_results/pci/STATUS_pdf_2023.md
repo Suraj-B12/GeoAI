@@ -27,3 +27,9 @@ Not touched: app/pci_core.py, app/pci_chainage.py, app/pci_irc2023.py (report JS
 - Open: pci_core.class_treatment KeyError 'mdr' (2015 _RENEWAL) breaks test_report_mdr_category (not my file).
   Annex selection rule is still the 2015 one in pci_chainage._annex (pothole runs + sections whose 2015 band
   can be Poor); the PDF words it neutrally.
+
+## Round 2 (2026-11-09): PCI estimate with 90 % interval (eval_results/pci/ESTIMATE.md)
+Headline = summary.pci_estimate; param table with estimates; km/100 m estimate columns; map by median class;
+pothole impact_felt; "Other distresses seen" per km; scooter wording; CSV estimate columns; previews of
+production ids 33-40 -> C:\GeoAI\pci\preview_2023b\ (no DB writes).
+- [x] PDF (estimate mode + fallback)  - [x] CSV  - [x] tests (pdf 13/13, routes 9/9)  - [x] previews viewed: C:\GeoAI\pci\preview_2023b/r33..r40.pdf/.csv/.json (rebuilt read-only from geoai with current code; script scratchpad pv_prod.py), 0 overlap/off-page; test PDFs test_*.pdf there too

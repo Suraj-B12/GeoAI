@@ -80,6 +80,42 @@ TREATMENT: dict[str, dict] = {
 }
 TREATMENT["Block Cracking"] = dict(TREATMENT["Transverse Cracking"])      # IRC 7.3.5.1: transverse "large blocks"
 
+# Distresses outside the IRC:82-2023 PCI (reported only; labels unvalidated on Bengaluru video)
+OTHER_TREATMENT: dict[str, dict] = {
+    "Bleeding": {"clause": "7.2.1.5",
+                 "Low": "Heated coarse sand (passing 1.18 mm) to blot excess bitumen, light rolling",
+                 "Medium": "Pre-coated chips (4.75-1.18 mm, 1 % bitumen), single layer, light rolling",
+                 "High": "Mill out and repair; RAP with fresh aggregate then slurry seal / microsurfacing, or "
+                         "low-bitumen open-graded premix carpet"},
+    "Edge Breaking": {"clause": "7.5.5.6",
+                      "any": "Cut to a regular section; rebuild pavement and shoulder together with thorough "
+                             "compaction; shoulder slope 1 % steeper than camber; improve drainage"},
+    "Hungry Surface": {"clause": "7.2.4.5",
+                       "any": "Fog seal / liquid rejuvenator; or slurry seal / microsurfacing 2-4 mm"},
+    "Streaking": {"clause": "7.2.3.5", "any": "Remove the streaked surface and apply a new surface"},
+    "Stripping": {"clause": "7.5.1.5",
+                  "any": "Surface dressing: hot coarse sand (≥ 150 °C) rolled in, or a liquid seal; else remove and "
+                         "relay the mix; rejuvenating sealant, slurry seal or microsurfacing"},
+    "Slippage": {"clause": "7.4.1.5",
+                 "any": "Remove the surface to well-bonded material; tack coat; premix patch"},
+    "Corrugation": {"clause": "7.4.3.5",
+                    "any": "Scarify and re-compact, then new surfacing; or cut high spots / sand-bitumen premix "
+                           "with a drag spreader, then roll"},
+    "Rutting": TREATMENT["Rutting"],
+    "Shoving": {"clause": "7.4.4.5", "any": "Remove to a firm base and lay a stable premix patch"},
+    "Shallow Depression": {"clause": "7.4.5.5", "any": "Fill with premix and compact to the surrounding profile"},
+}
+OTHER_ORDER = ("Bleeding", "Edge Breaking", "Hungry Surface", "Stripping", "Streaking", "Slippage", "Corrugation",
+               "Rutting", "Shoving", "Shallow Depression")
+
+
+def other_treatment(label: str, severity: Optional[str] = None) -> Optional[dict]:
+    t = OTHER_TREATMENT.get(label)
+    if not t:
+        return None
+    text = t.get(severity) if severity in t else (t.get("any") or t.get("Medium"))
+    return {"treatment": text, "clause": t["clause"]}
+
 # Labels whose treatment is printed only when that parameter has a value in the report
 PARAM_OF = {"Potholes": "potholes", "Alligator Cracking": "cracking", "Longitudinal Cracking": "cracking",
             "Transverse Cracking": "cracking", "Hairline Cracks": "cracking", "Edge Cracking": "cracking",

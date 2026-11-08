@@ -309,33 +309,75 @@ def pci_estimate(road_class: str, inputs: Mapping[str, Mapping[str, float]], sur
                  n: int = 4000, seed: int = 20261109) -> dict:
     """PCI estimate with a 90 % interval from per-parameter estimates.
 
-    inputs: {param: {"point": x, "lo90": a, "hi90": b[, "dist": "uniform"]}} for EVERY parameter ("uniform": a
-    prior range drawn uniformly between lo90 and hi90, point = its middle) (a parameter without an estimate must be
-    passed with its widest defensible bounds by the caller, or this returns None). Each parameter is drawn
-    independently from a split-normal with those 5/50/95 % quantiles (independence is an assumption: in reality
-    distresses co-occur, which would widen the interval somewhat); PCI = sum w_i PCI_i per draw; the result is the
-    median and the 5-95 % range of the draws, plus the PCI of the point values. Deterministic (seeded)."""
+    inputs: {param: {"point": x, "lo90": a, "hi90": b[, "dist": "uniform" | "range"]}} for EVERY parameter (a
+    parameter without an estimate must be passed with its widest defensible bounds by the caller, or this returns
+    None). Optional "group": parameters with the same group share one random draw (fully correlated, e.g. extents
+    from one probe calibration). "uniform": a probability distribution uniform on [lo90, hi90]. "range": a judgement range that is NOT a
+    probability distribution: the interval is widened to hold at both ends (envelope of the runs with the value
+    fixed at each end); the median then assumes uniform and says so (`median_assumes`). Other parameters are drawn
+    independently from a split-normal with those 5/50/95 % quantiles. Independence is an assumption: with all
+    parameters fully correlated the interval is markedly wider (REVIEW_estimate.md E3). PCI = sum w_i PCI_i per
+    draw; the result is the median and the 5-95 % range of the draws, plus the PCI of the point values.
+    Deterministic (seeded)."""
     import random
     if any(p not in inputs for p in PARAMS):
         return None
-    rnd = random.Random(seed)
+    # each input checked and ordered: lo90 <= point <= hi90 (a reversed side would flip the split-normal)
+    clean = {}
+    for p in PARAMS:
+        q = dict(inputs[p])
+        for k in ("point", "lo90", "hi90"):
+            v = float(q[k])
+            if not math.isfinite(v) or v < 0:
+                raise ValueError(f"{p}: {k} must be a finite number >= 0")
+            q[k] = v
+        q["lo90"], q["hi90"] = min(q["lo90"], q["point"]), max(q["hi90"], q["point"])
+        clean[p] = q
+    inputs = clean
     for p in PARAMS:                                  # fail early on an unusable equation
         pci_param(road_class, p, inputs[p]["point"], surface)
-    draws = []
-    for _ in range(n):
-        tot = 0.0
-        for p in PARAMS:
-            q = inputs[p]
-            if q.get("dist") == "uniform":            # a prior range without a typical value
-                x = q["lo90"] + rnd.random() * (q["hi90"] - q["lo90"])
-            else:
-                x = _split_normal_quantile(rnd.random(), q["lo90"], q["point"], q["hi90"])
-            tot += WEIGHTS[p] * pci_param(road_class, p, x, surface)
-        draws.append(tot)
-    draws.sort()
+    ranged = [p for p in PARAMS if inputs[p].get("dist") == "range"]
+
+    def run(fixed: Mapping[str, float]) -> list:
+        rnd = random.Random(seed)
+        out = []
+        for _ in range(n):
+            tot = 0.0
+            shared: dict = {}
+            for p in PARAMS:
+                q = inputs[p]
+                u = rnd.random()                      # always drawn, so every run uses the same random stream
+                g = q.get("group")
+                if g is not None:                     # parameters of one group move together (shared calibration)
+                    u = shared.setdefault(g, u)
+                if p in fixed:
+                    x = fixed[p]
+                elif q.get("dist") in ("uniform", "range"):   # a prior range without a typical value
+                    x = q["lo90"] + u * (q["hi90"] - q["lo90"])
+                else:
+                    x = _split_normal_quantile(u, q["lo90"], q["point"], q["hi90"])
+                tot += WEIGHTS[p] * pci_param(road_class, p, x, surface)
+            out.append(tot)
+        out.sort()
+        return out
+
+    draws = run({})
     point = sum(WEIGHTS[p] * pci_param(road_class, p, inputs[p]["point"], surface) for p in PARAMS)
     med = draws[n // 2]
     lo, hi = draws[int(0.05 * n)], draws[int(0.95 * n) - 1]
+    if ranged:
+        # "range" = a judgement range that is NOT a probability distribution (e.g. the rut-depth literature range,
+        # app/pci_rut.py): the interval must hold wherever in the range the value lies, so it is the envelope of
+        # the runs with each such parameter at its worst and at its best end (REVIEW_estimate.md E2). The median
+        # still assumes a value uniform over the range and is labelled so.
+        worst, best = {}, {}
+        for p in ranged:                              # the ends of the range (PCI curves fall with the value)
+            ends = sorted([inputs[p]["lo90"], inputs[p]["hi90"]],
+                          key=lambda x: pci_param(road_class, p, x, surface))
+            worst[p], best[p] = ends[0], ends[-1]
+        d_w, d_b = run(worst), run(best)
+        lo = min(lo, d_w[int(0.05 * n)])
+        hi = max(hi, d_b[int(0.95 * n) - 1])
     contrib = {}
     for p in PARAMS:                                  # how much of the interval each parameter causes
         others = {k: inputs[k]["point"] for k in PARAMS}
@@ -346,7 +388,8 @@ def pci_estimate(road_class: str, inputs: Mapping[str, Mapping[str, float]], sur
         contrib[p] = abs(vals[0] - vals[1])
     return {"point": point, "median": med, "lo90": lo, "hi90": hi, "class": pci_class(med),
             "class_lo": pci_class(lo), "class_hi": pci_class(hi), "recommendation": RECOMMENDATION[pci_class(med)],
-            "width_by_param": contrib, "draws": n}
+            "width_by_param": contrib, "draws": n, "range_params": ranged,
+            "median_assumes": ([f"{PARAM_NAMES[p]} uniform over its range" for p in ranged] or None)}
 
 
 def potholes_number(area_m2: float) -> float:

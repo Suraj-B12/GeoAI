@@ -34,3 +34,20 @@ harness tests pass (live page is served from disk).
 - `summary.priority_notes`, `limitations`, `treatment*` text still cite IRC:82-2015; the panel no longer shows priority/treatment, but shows limitations in the header details.
 - Entered potholes are applied unchanged to every unit (100 m section, km row, stretch) — semantics "number per unit" need a decision.
 - Visual review screenshots: `scratchpad\pci_ui23\shots_{desk,desk2,dark,phone,mdr,live}\*.png`.
+
+## Round 2 — PCI estimate with a 90 % interval (2026-11-09) — DONE, deployed (?v=20261109)
+- Headline: "PCI ≈ 52 · 90 % interval 40–83 (Poor to Good) · Fair", scale bar (interval box + median tick),
+  Table 5.5 recommendation for the median class (+ "confirm on site" when the interval spans classes), one line
+  naming the widest input (mean `width_by_param` over the sections), strict range as a small secondary line.
+- Table "Typical 100 m section": estimate with 90 % interval (length-weighted mean of the sections' inputs;
+  potholes per 100 m), PCI_i at the estimate (from `meta.irc2023.curves`, sampled from `pci_param`; "—" until
+  the server serves them), weight under the name, short basis.
+- Map/strip/list coloured by the median-estimate class; sections without an estimate grey dashed; colour-by
+  selector hidden in estimate mode. Pothole flags carry "jolt felt" / "no jolt" badges + one-line explanation.
+  Saved list "PCI ≈ 52 (40–83) · Fair" (strict range / "no PCI" for older reports).
+- Fallback: no `summary.pci_estimate` → previous strict-range UI (tested on harness and live server).
+- `pci_meta()` adds `irc2023.curves` (~54 KB, cached). Needs the server restart.
+- Tests: harness fixture mode (`/__mode?fixture=1` answers from `C:\GeoAI\pci\preview_2023b\r34.json`, since
+  geoai_test has no probe scores, so no estimates); desktop light/dark, 375 px, fixture on/off; overlap 0, no JS errors.
+- Backend wording still about a car: header.method "forward-looking, windshield mount" and header.lane_imaged
+  "the lane the vehicle drove in" (app/pci_chainage.py) — the survey vehicle is a scooter (handlebar mount).

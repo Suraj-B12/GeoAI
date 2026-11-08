@@ -263,7 +263,10 @@ def worst_range(u: dict, road_class: str, surface: Optional[str]) -> Optional[st
 
 
 def colour_key(rep, u: dict) -> tuple[str, str]:
-    """(colour, label) of one unit for the map and the tables."""
+    """(colour, label) of one unit for the map and the tables: the median estimate's Table 5.5 class when the
+    report has the PCI estimate, else the strict PCI class / worst Table 5.x range."""
+    if estimate_mode(rep):
+        return est_colour_key(rep, u)
     pc = _upci(u)
     if not pc:
         return NO_DATA, "Insufficient data"
@@ -572,6 +575,20 @@ def locator_figure(rep: dict, w: float, h: float, half_km: float = 2.0) -> Optio
 
 
 def legend_table(rep, st, width) -> Table:
+    if estimate_mode(rep):
+        items = [(CLASS_COLORS[c], f"{c} ({r})") for c, r, _ in T.TABLE_5_5]
+        items.append((NO_DATA, "No estimate (see §3)"))
+        cells = [P(f"{_swatch(c)} {escape(t)}", st["cell"]) for c, t in items]
+        cells.append(P("<font color='#1c1917'>○</font> pothole (one run of flagged frames)", st["cell"]))
+        cells.append(P("<font color='#1c1917'>- - -</font> gap, not surveyed (straight line)", st["cell"]))
+        cells.append(P("<b>colour = median estimate</b>", st["cell"]))
+        ncol = 4
+        rows = [cells[i:i + ncol] for i in range(0, len(cells), ncol)]
+        rows[-1] += [""] * (ncol - len(rows[-1]))
+        t = Table(rows, colWidths=[width / ncol] * ncol, hAlign="LEFT")
+        t.setStyle(TableStyle([("LEFTPADDING", (0, 0), (-1, -1), 0), ("TOPPADDING", (0, 0), (-1, -1), 0),
+                               ("BOTTOMPADDING", (0, 0), (-1, -1), 1.5)]))
+        return t
     if single_mode(rep):
         items = [(CLASS_COLORS[c], f"{c} ({r})") for c, r, _ in T.TABLE_5_5]
         items.append((PART_DATA, "PCI not available here"))
@@ -617,7 +634,8 @@ def header_block(rep, st, width):
         ("Length", length, "Road chainage", road_ch),
         ("Survey date", escape(dates + (f" ({season})" if season else "")), "Imaged",
          f"{100 * s['coverage']:.0f} % of the length, one lane"),
-        ("Method", "Phone video, forward-looking camera; one frame per 5 m; automatic image classification",
+        ("Method", "Phone on a scooter's handlebar: forward video (one frame per 5 m, automatic image "
+                   "classification) and accelerometer",
          "Device", escape(", ".join(h["devices"]) or "–")),
         ("Code", "IRC:82-2023, PCI 0–100 (§5.2, Tables 5.4–5.5, Appendix 2 Table "
                  f"{APPENDIX_TABLE.get(h['category'], '')})", "Prepared by", _entered(h.get("prepared_by"))),
@@ -1033,7 +1051,7 @@ def method_lines(rep) -> list[str]:
     rc = _road_class(rep)
     h = rep["header"]
     lines = [
-        "<b>Survey.</b> A phone on the windshield records forward-looking video; one frame per 5 m of travel is "
+        "<b>Survey.</b> A phone on a scooter's handlebar records forward-looking video; one frame per 5 m of travel is "
         "classified by a vision-language model (Qwen2.5-VL-7B, pipeline P4). A frame gate skips frames it judges "
         "uninformative; the PCI range allows for distress in skipped frames at the audited rate (upper 95 % limit).",
         "<b>Chainage</b> is the distance along the surveyed track from A (frame centres 5 m apart). Gaps between "
@@ -1102,6 +1120,8 @@ def annex_block(rep, st, image_fetcher):
         return [P("No photographs selected (no pothole and no section in the worst distress range).", st["body"])]
     cells = []
     col_w = 88 * mm
+    felt = {sid: r.get("impact_felt") for r in rep["summary"].get("pothole_runs_list") or []
+            for sid in r.get("segment_ids") or []}
     for i, a in enumerate(items, start=1):
         img = None
         data = image_fetcher(a["segment_id"]) if image_fetcher else None
@@ -1116,10 +1136,12 @@ def annex_block(rep, st, image_fetcher):
                 img = None
         reason = (a["reason"].replace("segments)", "frames)").replace("segment)", "frame)")
                   if a["reason"].startswith("pothole run") else "most distressed frame of its 100 m section")
+        if a["reason"].startswith("pothole run") and felt.get(a["segment_id"]) is not None:
+            reason += " · impact felt: " + ("<b>yes</b>" if felt[a["segment_id"]] else "no")
         note = a.get("note") or ""
         look = ("camera looking towards A" if "towards A" in note else
                 "camera looking towards B" if "towards B" in note else "")
-        cap = (f"<b>Photo {i} — {escape(_ch(a['measure_m']))}</b> · {escape(reason)}<br/>"
+        cap = (f"<b>Photo {i} — {escape(_ch(a['measure_m']))}</b> · {reason}<br/>"
                f"{a['lat']:.6f}, {a['lon']:.6f} · {escape(a.get('time_ist') or '?')}"
                + (f" · {look}" if look else "") + "<br/>"
                f"Labels: {escape(', '.join(a['labels']) or '–')} · {escape(a['review_state'])}<br/>"
@@ -1136,6 +1158,467 @@ def annex_block(rep, st, image_fetcher):
                                ("RIGHTPADDING", (0, 0), (-1, -1), 3 * mm), ("BOTTOMPADDING", (0, 0), (-1, -1), 6)]))
         out.append(t)
     return out
+
+
+# ============================================================ PCI estimate (90 % interval) — app.pci_core.pci_estimate_unit
+EST_UNIT = {"cracking": "% area", "ravelling": "% area", "patching": "% area", "potholes": "units / 100 m",
+            "rut_depth": "mm",
+            "iri": "m/km"}
+
+
+def estimate_mode(rep) -> bool:
+    """True when the report carries the PCI estimate (summary.pci_estimate)."""
+    return bool(rep["summary"].get("pci_estimate"))
+
+
+def _uest(u: dict) -> Optional[dict]:
+    """The unit's estimate ({median, lo90, hi90, class, ...}) or None (section: pci.estimate.estimate; km row:
+    pci.estimate)."""
+    e = ((u or {}).get("pci") or {}).get("estimate")
+    if not e:
+        return None
+    return e.get("estimate") if "inputs" in e else e
+
+
+def est_text(e: Optional[dict], nd=0) -> str:
+    if not e:
+        return "–"
+    m = e.get("median", e.get("point"))
+    lo, hi = fnum(e["lo90"], nd), fnum(e["hi90"], nd)
+    return f"{fnum(m, nd)} ({lo}–{hi})" if lo != hi else fnum(m, nd)
+
+
+def _est_sections(rep) -> list[tuple[dict, float]]:
+    """(section estimate block incl. inputs/basis, length) for every section that has an estimate."""
+    out = []
+    for s in rep["sections"]:
+        e = (s.get("pci") or {}).get("estimate")
+        if e and e.get("estimate"):
+            out.append((e, s["to_m"] - s["from_m"]))
+    return out
+
+
+def _short_basis(p: str, basis: str, rep) -> str:
+    b = (basis or "").lower()
+    if b.startswith("entered"):
+        return "entered by requester (unverified)"
+    if p == "potholes":
+        runs = rep["summary"].get("pothole_runs_list") or []
+        conf = sum(1 for r in runs if r.get("impact_felt"))
+        return f"{conf} of {len(runs)} label runs confirmed by jolt"
+    if p == "iri":
+        return ("scooter accelerometer, uncalibrated" if "uncalibrated" in b
+                else "accelerometer, calibrated on reference IRI")
+    if p == "rut_depth":
+        return "literature prior 0–25 mm" if "prior" in b else "calibrated on survey"
+    if "attain" in b:
+        if "failed" in b:
+            return "Attain-calibrated; failed its coverage test"
+        if "interval only" in b:
+            return "Attain-calibrated (interval only)"
+        return "calibrated on Attain ground truth"
+    return "calibrated on survey"
+
+
+def stretch_estimate_rows(rep) -> list[dict]:
+    """Per parameter over the sections that have an estimate (length-weighted; potholes summed): point / lo90 /
+    hi90 of the input, PCIᵢ at the point (length-weighted mean of the sections' PCIᵢ), share of the interval width
+    (width_by_param, PCI points), short basis."""
+    secs = _est_sections(rep)
+    rc, surf = _road_class(rep), rep["header"].get("surface")
+    W = sum(w for _, w in secs) or 1.0
+    widths = {p: sum((e["estimate"].get("width_by_param") or {}).get(p, 0.0) * w for e, w in secs) / W
+              for p in P23.PARAMS}
+    tw = sum(widths.values()) or 1.0
+    rows = []
+    for p in P23.PARAMS:
+        ins = [(e["inputs"].get(p), w, (e.get("basis") or {}).get(p, "")) for e, w in secs]
+        ins = [x for x in ins if x[0]]
+        r = {"param": p, "name": P23.PARAM_NAMES[p], "weight": P23.WEIGHTS[p], "unit": EST_UNIT[p],
+             "share": 100.0 * widths[p] / tw, "width": widths[p]}
+        if ins:
+            # every parameter, potholes included, as the length-weighted mean of the 100 m sections (a stretch sum
+            # of each section's 95 % end is not a 95 % end of anything and reads as hundreds of potholes)
+            ww = sum(x[1] for x in ins)
+            agg = {k: sum(x[0][k] * x[1] for x in ins) / ww for k in ("point", "lo90", "hi90")}
+            pis = []
+            for x, w, _b in ins:
+                try:
+                    pis.append((P23.pci_param(rc, p, x["point"], surf), w))
+                except P23.Unavailable:
+                    pass
+            r.update(agg)
+            r["pci_i"] = (sum(a * w for a, w in pis) / sum(w for _, w in pis)) if pis else None
+            r["basis"] = _short_basis(p, ins[0][2], rep)
+            r["basis_long"] = ins[0][2]
+        rows.append(r)
+    return rows
+
+
+def _top_contributor_line(rep) -> str:
+    rows = sorted(stretch_estimate_rows(rep), key=lambda r: -r["share"])
+    if not rows or rows[0]["share"] <= 0:
+        return ""
+    top = rows[0]
+    name = {"iri": "roughness (IRI)"}.get(top["param"], LOWER_NAMES[top["param"]])
+    txt = f"The interval is mostly {name} ({top['share']:.0f} % of its width)"
+    if top["param"] == "iri" and "uncalibrated" in (top.get("basis") or ""):
+        txt += ": a reference IRI measurement would narrow it about 3×."
+    elif top["param"] == "rut_depth":
+        txt += ": measuring rut depth on site (straight edge) would narrow it."
+    else:
+        txt += "."
+    return txt
+
+
+def no_estimate_reason(u: dict) -> str:
+    """Why a unit has no estimate, in a few words."""
+    if u["quantities"]["coverage_status"] == "insufficient":
+        return "insufficient data (< 50 % imaged)"
+    e = (u.get("pci") or {}).get("estimate") or {}
+    if e.get("missing"):
+        return "no estimate: no image scores for " + ", ".join(m.lower() for m in e["missing"])
+    if e.get("unavailable"):
+        return "no estimate: an Appendix-2 equation is not computable"
+    return "no estimate"
+
+
+def est_colour_key(rep, u: dict) -> tuple[str, str]:
+    e = _uest(u)
+    if not e:
+        return NO_DATA, "No estimate"
+    return CLASS_COLORS[e["class"]], e["class"]
+
+
+def est_headline_block(rep, st, width):
+    s = rep["summary"]
+    e = s["pci_estimate"]
+    cls = e["class"]
+    col = CLASS_COLORS[cls]
+    left = [P(f'PCI ≈ <font color="{col}">{fnum(e["median"], 0)}</font>', st["big"]),
+            P(f'90 % interval {fnum(e["lo90"], 0)}–{fnum(e["hi90"], 0)}', st["bigsub"]),
+            P(f'<font color="{col}">{escape(cls)}</font> (Table 5.5)', st["bigsub"])]
+    span = (f"{e['class_lo']} to {e['class_hi']}" if e["class_lo"] != e["class_hi"] else e["class_lo"])
+    right = [P(f"<b>Recommended for the median class (Table 5.5):</b> "
+               f"{escape(T.class_recommendation(cls) or '')}.", st["body"])]
+    if e["median"] < 60:
+        right.append(P("Below PCI 60: investigate the strengthening requirement before renewal (Table 10.1 "
+                       "note).", st["body"]))
+    right += [P(f"The interval spans {escape(span)}. " + escape(_top_contributor_line(rep)), st["body"]),
+              P("An estimate, not a measurement: each parameter is replaced by its best evidence with a 90 % "
+                "interval (table below).", st["note"])]
+    t = Table([[left, right]], colWidths=[60 * mm, width - 60 * mm], hAlign="LEFT")
+    t.setStyle(TableStyle([("BOX", (0, 0), (-1, -1), 1.0, INK), ("LINEAFTER", (0, 0), (0, 0), 0.4, RULE),
+                           ("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("LEFTPADDING", (0, 0), (-1, -1), 7),
+                           ("RIGHTPADDING", (0, 0), (-1, -1), 7), ("TOPPADDING", (0, 0), (-1, -1), 6),
+                           ("BOTTOMPADDING", (0, 0), (-1, -1), 7)]))
+    out = [t]
+    pc = s.get("pci")
+    notes = []
+    if pc:
+        notes.append(f"Worst case (parameters without a measured value counted as PCIᵢ 0 and 100): {pci_text(pc)}"
+                     + (f"; strict PCI from measured values {fnum(pc['single'], 1)}" if pc.get("single") is not None
+                        else "") + ".")
+    if e.get("sections_used", 0) < e.get("sections", 0):
+        notes.append(f"{e['sections'] - e['sections_used']} of {e['sections']} sections have no estimate "
+                     "(too little imagery or no image scores, see §3) and are left out.")
+    if notes:
+        out.append(P(escape(" ".join(notes)), st["note"]))
+    return out
+
+
+def est_param_table(rep, st, width):
+    rows = stretch_estimate_rows(rep)
+    head = [P(h, st["head"]) for h in ("Parameter", "Weight", "Estimate (90 % interval)", "PCIᵢ at estimate",
+                                       "Share of interval", "Basis")]
+    data = [head]
+    for r in rows:
+        unit = (" " + r["unit"]) if r["unit"] else ""
+        if r.get("point") is None:
+            val, pci_i = "–", "–"
+        else:
+            nd = 2 if r["param"] == "iri" else 1
+            val = (f"{fnum(r['point'], nd)}{unit} <font color='#57534e'>({fnum(r['lo90'], nd)}–"
+                   f"{fnum(r['hi90'], nd)})</font>")
+            if r["param"] == "potholes":
+                val = (f"{fnum(r['point'], 1)} <font color='#57534e'>({fnum(r['lo90'], 0)}–{fnum(r['hi90'], 1)})"
+                       "</font>")
+            pci_i = fnum(r.get("pci_i"), 0) if r.get("pci_i") is not None else "not computable"
+        name = escape(r["name"]) + (" (number)" if r["param"] == "potholes" else "")
+        data.append([P(name, st["cellb"]), P(f"{r['weight']:.2f}", st["cellc"]), P(val, st["cell"]),
+                     P(pci_i, st["cellc"]), P(f"{r['share']:.0f} %", st["cellc"]),
+                     P(escape(r.get("basis") or "–"), st["cell"])])
+    e = rep["summary"]["pci_estimate"]
+    data.append([P("<b>PCI = Σ weight × PCIᵢ</b>", st["cell"]), P("1.00", st["cellc"]),
+                 P(f"<b>{fnum(e['median'], 0)}</b> ({fnum(e['lo90'], 0)}–{fnum(e['hi90'], 0)})", st["cell"]),
+                 "", P("100 %", st["cellc"]), P(f"<b>{escape(e['class'])}</b> (median)", st["cell"])])
+    cw = [31, 13, 42, 19, 16]
+    cw.append(width / mm - sum(cw))
+    return _table(data, [c * mm for c in cw],
+                  extra=[("BACKGROUND", (0, len(data) - 1), (-1, len(data) - 1), TOTAL_BG)])
+
+
+def est_key_findings(rep, st) -> list:
+    s = rep["summary"]
+    q = rep["stretch"]["quantities"]
+    runs = s.get("pothole_runs_list") or []
+    rows = {r["param"]: r for r in stretch_estimate_rows(rep)}
+    out = []
+    if runs:
+        conf = sum(1 for r in runs if r.get("impact_felt"))
+        out.append(f"<b>Potholes:</b> {_plural(len(runs), 'location')} flagged in the images, <b>{conf} confirmed "
+                   "by a jolt</b> on the scooter's accelerometer (list in §4; check the photos before sending a "
+                   "crew).")
+    else:
+        out.append("<b>Potholes:</b> none flagged on the imaged frames.")
+    c = rows.get("cracking") or {}
+    if c.get("point") is not None:
+        out.append(f"<b>Cracking:</b> estimated {fnum(c['point'], 1)} % of the road area "
+                   f"(90 %: {fnum(c['lo90'], 1)}–{fnum(c['hi90'], 1)}); frames showing cracks cover "
+                   f"{fnum(q['extent']['cracking'].get('point'), 1)} % of the length.")
+    i = rows.get("iri") or {}
+    if i.get("point") is not None:
+        out.append(f"<b>Roughness:</b> IRI ≈ {fnum(i['point'], 1)} m/km (90 %: {fnum(i['lo90'], 1)}–"
+                   f"{fnum(i['hi90'], 1)}), {escape(i.get('basis') or '')}.")
+    cov = f"<b>Coverage:</b> {100 * s['coverage']:.0f} % of the length imaged"
+    if s["gaps"]:
+        cov += f"; {_plural(s['gaps'], 'gap')} not surveyed (≥ {s['gap_m']:.0f} m in all)"
+    out.append(cov + ".")
+    return [P(x, st["bullet"], bulletText="•") for x in out]
+
+
+def _unit_inputs(rep, m0, m1) -> dict:
+    """Point inputs of the sections inside [m0, m1] (length-weighted; potholes summed)."""
+    items = [((s["pci"].get("estimate") or {}).get("inputs") or {}, s["to_m"] - s["from_m"]) for s in rep["sections"]
+             if s["from_m"] >= m0 - 1e-6 and s["to_m"] <= m1 + 1e-6 and _uest(s)]
+    out = {}
+    for p in P23.PARAMS:
+        xs = [(i[p], w) for i, w in items if p in i]
+        if not xs:
+            continue
+        if p == "potholes":
+            out[p] = sum(x["point"] for x, _ in xs)
+        else:
+            out[p] = sum(x["point"] * w for x, w in xs) / sum(w for _, w in xs)
+    return out
+
+
+def _runs_in(rep, m0, m1, last=False) -> tuple[int, int]:
+    runs = [r for r in rep["summary"].get("pothole_runs_list") or []
+            if m0 - 1e-6 <= r["from_m"] and (r["from_m"] < m1 - 1e-6 or last)]
+    return len(runs), sum(1 for r in runs if r.get("impact_felt"))
+
+
+EST_COLS = (("cracking", "Cracking (% area)"), ("ravelling", "Ravelling (% area)"),
+            ("patching", "Patching (% area)"), ("iri", "IRI (m/km)"))
+
+
+def est_unit_table(rep, st, width, units, *, first_head="Chainage (from–to)", swatch=True, total=False):
+    """Rows: [swatch] chainage | imaged | potholes (runs / jolt) | cracking, ravelling, patching, IRI (point
+    estimates) | PCI ≈ (90 %) | class (median)."""
+    head = ([""] if swatch else []) + [first_head, "Imaged (%)", "Potholes (runs / jolt)"] + \
+        [h for _, h in EST_COLS] + ["PCI ≈ (90 % interval)", "Class (median)"]
+    lab_col = 1 if swatch else 0
+    data = [[P(h, st["headc"] if i > lab_col else st["head"]) for i, h in enumerate(head)]]
+    ext = []
+    L = rep["summary"]["length_m"]
+    for i, (u, label, est) in enumerate(units, start=1):
+        q = u["quantities"]
+        row = ([P(_swatch(est_colour_key(rep, u)[0]), st["cellc"])] if swatch else [])
+        row += [P(label, st["cell"]), P(fnum(100 * q["coverage"], 0), st["cellc"])]
+        if est:
+            n, c = _runs_in(rep, u["from_m"], u["to_m"], last=u["to_m"] >= L - 1e-6)
+            ins = _unit_inputs(rep, u["from_m"], u["to_m"])
+            row.append(P(f"{n} / {c}" if n else "0", st["cellc"]))
+            for p, _h in EST_COLS:
+                row.append(P(fnum(ins[p], 2 if p == "iri" else 1) if p in ins else "–", st["cellc"]))
+            row += [P(("<b>" if total and i == len(units) else "") + est_text(est)
+                      + ("</b>" if total and i == len(units) else ""), st["cellc"]),
+                    P(f'<font color="{CLASS_COLORS[est["class"]]}">{escape(est["class"])}</font>', st["cellc"])]
+        else:
+            row += [P(f"<font color='#57534e'>{escape(no_estimate_reason(u))}</font>", st["cellc"])] + \
+                [""] * (len(EST_COLS) + 2)
+            ext.append(("SPAN", (lab_col + 2, i), (-1, i)))
+        data.append(row)
+    fixed = ([6] if swatch else []) + [27 if swatch else 33, 13, 17]
+    tail = [27, 21]
+    rest = (width / mm - sum(fixed) - sum(tail)) / len(EST_COLS)
+    cw = fixed + [rest] * len(EST_COLS) + tail
+    if total:
+        ext.append(("BACKGROUND", (0, len(data) - 1), (-1, len(data) - 1), TOTAL_BG))
+    return _table(data, [c * mm for c in cw], zebra=not total, extra=ext)
+
+
+def est_tables(rep, st, width) -> list:
+    out = [P("Kilometre-wise", st["h3"])]
+    units = [(k, f"{_ch(k['from_m'])}–{_ch(k['to_m'])}" + (" <font color='#57534e'>(part)</font>"
+                                                            if k.get("part_km") else ""), _uest(k))
+             for k in rep["km"]]
+    multi = len(rep["km"]) > 1
+    if multi:
+        units.append((rep["stretch"], f"<b>Whole stretch</b><br/>{_ch(0)}–{_ch(rep['summary']['length_m'])}",
+                      rep["summary"]["pci_estimate"]))
+    out.append(est_unit_table(rep, st, width, units, first_head="Km (from–to)", swatch=False, total=multi))
+    out.append(P("Point estimates per row; potholes = runs of pothole frames / runs confirmed by a jolt. PCI = "
+                 "length-weighted mean of the 100 m sections' estimates. Rut depth is not measured (prior 0–25 mm in "
+                 "every section).", st["note"]))
+    out.append(Spacer(1, 4))
+    out.append(P("100 m sections", st["h3"]))
+    secs = [(s, f"{_ch(s['from_m'])}–{_ch(s['to_m'])}", _uest(s)) for s in rep["sections"]]
+    out.append(est_unit_table(rep, st, width, secs))
+    out.append(P("Colour square = map colour (Table 5.5 class of the median estimate). A section under 50 % imaged, "
+                 "or without image scores, has no estimate and is left out of the km and stretch values.",
+                 st["note"]))
+    return out
+
+
+def est_pothole_table(rep, st, width):
+    runs = list(enumerate(rep["summary"].get("pothole_runs_list") or [], start=1))
+    annex = {}
+    for i, a in enumerate(rep.get("annex") or [], start=1):
+        annex.setdefault(a["segment_id"], i)
+    order = {True: 0, False: 1, None: 2}
+    runs.sort(key=lambda t: (order.get(t[1].get("impact_felt"), 2), t[1]["from_m"]))
+    inp = rep.get("input") or {}
+    at_a, inc = inp.get("chainage_at_a_km"), inp.get("chainage_increases_towards_b")
+    calibrated = at_a is not None and inc is not None
+    head = ["#", "Impact felt", "Chainage from A", "Flagged length"] + (["Road chainage"] if calibrated else []) + \
+        ["Latitude, longitude", "Photo"]
+    data = [[P(h, st["head"]) for h in head]]
+    ext = []
+    for row_i, (i, r) in enumerate(runs, start=1):
+        lon, lat = lonlat_at(rep, (r["from_m"] + r["to_m"]) / 2)
+        ch = _ch(r["from_m"]) + ("" if r["segments"] == 1 else f" to {_ch(r['to_m'])}")
+        photo = next((annex[s] for s in r["segment_ids"] if s in annex), None)
+        felt = {True: "<b>yes</b>", False: "no"}.get(r.get("impact_felt"), "–")
+        row = [P(str(i), st["cellc"]), P(felt, st["cellc"]), P(ch, st["cell"]),
+               P(f"{r['segments'] * 5} m ({_plural(r['segments'], 'frame')})", st["cell"])]
+        if calibrated:
+            km = float(at_a) + ((r["from_m"] if inc else -r["from_m"]) / 1000.0)
+            row.append(P(f"Km {int(km)}+{int(round((km - int(km)) * 1000)) % 1000:03d}" if km >= 0 else "–",
+                         st["cell"]))
+        row += [P(f"{lat:.6f}, {lon:.6f}", st["cell"]), P(f"Photo {photo}" if photo else "–", st["cellc"])]
+        data.append(row)
+        if r.get("impact_felt"):
+            ext.append(("BACKGROUND", (0, row_i), (-1, row_i), colors.HexColor("#fef3c7")))
+    cw = [9, 17, 38, 32] + ([28] if calibrated else []) + [44, 18]
+    return _table(data, [c * mm for c in cw], extra=ext)
+
+
+def other_distress_table(rep, st, width) -> list:
+    """Per km: labels outside the PCI (q['reported'] extents, % of length) with the IRC:82-2023 §7 treatment."""
+    rows = []
+    for k in rep["km"]:
+        q = k["quantities"]
+        present = set(q.get("labels_present") or [])
+        for lab in T.OTHER_ORDER:
+            e = (q.get("reported") or {}).get(lab)
+            if lab not in present or not e or not (e.get("lo") or 0) > 0:
+                continue
+            t = T.other_treatment(lab, (q.get("worst_severity") or {}).get(lab))
+            rows.append((k, lab, e, t))
+    if not rows:
+        return [P("No other distress labelled.", st["body"])]
+    data = [[P(h, st["head"]) for h in ("Km", "Distress", "% of length", "Treatment (IRC:82-2023 §7)", "Clause")]]
+    for k, lab, e, t in rows:
+        data.append([P(f"{_ch(k['from_m'])}–{_ch(k['to_m'])}", st["cell"]), P(escape(lab), st["cellb"]),
+                     P(fnum(e.get("point", e["lo"]), 1), st["cellc"]), P(escape(t["treatment"]), st["cell"]),
+                     P(escape(t["clause"]), st["cellc"])])
+    cw = [25, 28, 16, 0, 16]
+    cw[3] = width / mm - sum(cw)
+    return [_table(data, [c * mm for c in cw], zebra=True),
+            P("Not part of the IRC PCI. These labels are not validated on Bengaluru roads (dark shade and wet "
+              "patches can look like bleeding); confirm on site before acting.", st["note"])]
+
+
+def est_maintenance_block(rep, st, width):
+    e = rep["summary"]["pci_estimate"]
+    cls = e["class"]
+    out = [P(f"<b>Whole stretch: PCI ≈ {fnum(e['median'], 0)}, {escape(cls)} — "
+             f"{escape(T.class_recommendation(cls))}</b> (median estimate, dark shading). The 90 % interval reaches "
+             f"{escape(e['class_hi'])} to {escape(e['class_lo'])} (light shading): confirm the roughness before "
+             "committing to a treatment class.", st["body"])]
+    a, b = T.CLASS_ORDER.index(e["class_hi"]), T.CLASS_ORDER.index(e["class_lo"])
+    span = set(T.CLASS_ORDER[a:b + 1])
+    data = [[P(h, st["head"]) for h in ("Class", "PCI", "Recommendation (Table 5.5)")]]
+    ext = []
+    for i, (c, r, rec) in enumerate(T.TABLE_5_5, start=1):
+        bold = c == cls
+        data.append([P(f"{_swatch(CLASS_COLORS[c])} " + (f"<b>{escape(c)}</b>" if bold else escape(c)), st["cell"]),
+                     P(escape(r), st["cell"]), P((f"<b>{escape(rec)}</b>" if bold else escape(rec)), st["cell"])])
+        if bold:
+            ext.append(("BACKGROUND", (0, i), (-1, i), colors.HexColor("#fde68a")))
+        elif c in span:
+            ext.append(("BACKGROUND", (0, i), (-1, i), colors.HexColor("#fef9e7")))
+    out.append(_table(data, [32 * mm, 26 * mm, 84 * mm], extra=ext))
+    out.append(Spacer(1, 2))
+    out.append(P(escape(T.renewal_note(_road_class(rep))), st["note"]))
+    q = rep["stretch"]["quantities"]
+    labels = set(q.get("labels_present") or [])
+    labs = [lab for lab in labels if T.PARAM_OF.get(lab) in ("potholes", "cracking")]
+    rows = T.distress_rows(labs, q.get("worst_severity"))
+    out.append(P("Repairs for the distress in the PCI (IRC:82-2023 Section 7)", st["h3"]))
+    if rows:
+        data = [[P(h, st["head"]) for h in ("Distress", "Worst severity (visual)", "Treatment", "Clause")]]
+        for r in rows:
+            data.append([P(escape(r["label"]), st["cellb"]), P(escape(r["severity"]), st["cellc"]),
+                         P(escape(r["treatment"]), st["cell"]), P(escape(r["clause"]), st["cellc"])])
+        cw = [32, 22, 0, 22]
+        cw[2] = width / mm - sum(cw)
+        out.append(_table(data, [c * mm for c in cw]))
+        out.append(P("Severity is judged from the image (crack width and pothole depth are not measured). §5.3: "
+                     "distress that seriously affects riding quality, such as potholes, is to be rectified by timely "
+                     "maintenance.", st["note"]))
+    else:
+        out.append(P("No pothole or cracking found on the imaged frames.", st["body"]))
+    out.append(KeepTogether([P("Other distresses seen (not part of the IRC PCI)", st["h3"])]
+                            + other_distress_table(rep, st, width)[:1]))
+    out.extend(other_distress_table(rep, st, width)[1:])
+    return out
+
+
+def est_method_lines(rep) -> list[str]:
+    rc = _road_class(rep)
+    return [
+        "<b>Survey.</b> A phone on a scooter's handlebar records forward-looking video and its accelerometer; one "
+        "frame per 5 m of travel is classified by a vision-language model (Qwen2.5-VL-7B, pipeline P4). A frame gate "
+        "skips uninformative frames; the pothole upper bound allows for them.",
+        "<b>Chainage</b> = distance along the surveyed track from A (frame centres 5 m apart); gaps between drives "
+        "count as straight lines, so lengths after a gap are lower bounds.",
+        f"<b>PCI</b> = Σ weight × PCIᵢ (§5.2, Table 5.4); PCIᵢ from the Appendix-2 equations for "
+        f"{escape(ROAD_CLASS_NAMES.get(rc, rc).lower())}s (Table {APPENDIX_TABLE.get(rc, '')}). Each 100 m section "
+        "gets an <b>estimate</b>: every parameter is drawn 1,500 times from its 90 % interval (the three image-based "
+        "extents together, as they share one calibration; rut depth's prior range must hold at both ends) and the "
+        "median and 5–95 % of the PCI are reported. Km rows and the stretch = length-weighted "
+        "mean of the sections (§5.1 note: 100–1000 m).",
+        "<b>Inputs.</b> Cracking, ravelling, patching: % of road area from per-type image scores calibrated on the "
+        "Attain dataset (ground-truth boxes). Potholes: runs of pothole frames; a run is real with probability 0.74 "
+        "if the scooter's accelerometer felt a jolt there and 0.09 if not (label precision 0.43 and the measured jolt "
+        "rates: 52 % at pothole frames, 24 % elsewhere); allowing for missed ones (run recall 0.5–0.7) and 1–4 IRC "
+        "units of 0.1 m² per pothole (size not measured). IRI: scooter accelerometer, "
+        "not calibrated against a reference IRI, hence its wide interval. Rut depth: no phone signal measures it; "
+        "prior 0–25 mm from published Bengaluru measurements.",
+        "<b>Worst case.</b> The strict IRC range counts every parameter without a measured value as PCIᵢ 0 and 100; "
+        "it is printed under the headline.",
+    ]
+
+
+def est_limitation_lines(rep) -> list[str]:
+    ev_p = C.ASSESSMENT["potholes"]["evidence"]
+    return [
+        "<b>One lane.</b> Only the lane ridden in is imaged; IRC:82-2023 measures extents over all lanes of the "
+        "carriageway and IRI / rut depth as the mean of all lanes in one direction.",
+        f"<b>Labels and calibration</b> come from the Attain dataset (Tehran), not yet from Bengaluru expert labels "
+        f"(potholes {escape(ev_p)}; ravelling failed its interval test). Shade and shadows are sometimes labelled "
+        "as potholes — check the photos.",
+        "<b>Roughness</b> from a scooter is not an IRI measurement until calibrated on reference sites; the IRI "
+        "interval dominates the PCI interval.",
+        "<b>Position.</b> Phone GPS ±10 m, more after a gap; the camera looks ahead, so a distress may lie up to "
+        "~30 m beyond the marked chainage in the direction of travel.",
+        "<b>Not an IRC condition survey.</b> §5.3 asks for instrumented surveys (e.g. a Network Survey Vehicle) on "
+        "two-lane and wider roads, or visual surveys by experienced engineers. Use this to screen and prioritise; "
+        "confirm on site before design or payment.",
+    ]
 
 
 # ============================================================ render
@@ -1155,18 +1638,29 @@ def render(rep: dict, image_fetcher: Optional[Callable[[str], Optional[bytes]]] 
     story.append(P("1. Summary", st["h2"]))
     story.append(header_block(rep, st, pw))
     story.append(Spacer(1, 6))
-    story.extend(headline_block(rep, st, pw))
-    story.append(Spacer(1, 6))
-    ptab, _tot = param_table(rep, st, pw)
-    story.append(KeepTogether([P("PCI by parameter", st["h3"]), ptab,
-                               P("PCIᵢ = the parameter's index (0–100) at the best estimate, length-weighted over "
-                                 "the km rows. Grey brackets = what the PCI range allows: frames the gate skipped "
-                                 "and, for cracking, a cracked area anywhere from 0 up to the cracked length. "
-                                 f"Range column: the value against Table {DISTRESS_TABLE[_road_class(rep)]} "
-                                 "(potholes per km).",
-                                 st["note"])]))
-    story.append(P("Key findings", st["h3"]))
-    story.extend(key_findings(rep, st))
+    est = estimate_mode(rep)
+    if est:
+        story.extend(est_headline_block(rep, st, pw))
+        story.append(Spacer(1, 4))
+        story.append(KeepTogether([P("PCI by parameter", st["h3"]), est_param_table(rep, st, pw),
+                                   P("Typical 100 m section (length-weighted mean of the sections); potholes in IRC units of 0.1 m² per 100 m. "
+                                     "PCIᵢ = the parameter's index (0–100) at the estimate. Share of interval = "
+                                     "how much of the PCI interval each parameter's uncertainty causes.",
+                                     st["note"])]))
+        story.append(P("Key findings", st["h3"]))
+        story.extend(est_key_findings(rep, st))
+    else:
+        story.extend(headline_block(rep, st, pw))
+        story.append(Spacer(1, 6))
+        ptab, _tot = param_table(rep, st, pw)
+        story.append(KeepTogether([P("PCI by parameter", st["h3"]), ptab,
+                                   P("PCIᵢ = the parameter's index (0–100) at the best estimate, length-weighted "
+                                     "over the km rows. Grey brackets = what the PCI range allows: frames the gate "
+                                     "skipped and, for cracking, a cracked area anywhere from 0 up to the cracked "
+                                     f"length. Range column: the value against Table "
+                                     f"{DISTRESS_TABLE[_road_class(rep)]} (potholes per km).", st["note"])]))
+        story.append(P("Key findings", st["h3"]))
+        story.extend(key_findings(rep, st))
     story.append(KeepTogether(signoff_block(st)))
 
     # 2. route
@@ -1175,7 +1669,8 @@ def render(rep: dict, image_fetcher: Optional[Callable[[str], Optional[bytes]]] 
     story.append(route_figure(rep, pw, 122 * mm))
     story.append(Spacer(1, 3))
     story.append(legend_table(rep, st, pw))
-    colour_note = ("Each 100 m section is coloured by its PCI class (Table 5.5)." if single_mode(rep) else
+    colour_note = ("Each 100 m section is coloured by the Table 5.5 class of its median PCI estimate." if est else
+                   "Each 100 m section is coloured by its PCI class (Table 5.5)." if single_mode(rep) else
                    f"Each 100 m section is coloured by the worst Table {DISTRESS_TABLE[_road_class(rep)]} range of "
                    "its measured parameters (cracking %, potholes) — not by PCI, which is still a range.")
     story.append(P(colour_note + " Ticks every " + ("100" if L <= 3000 else "500") + " m, labelled with chainage "
@@ -1197,23 +1692,34 @@ def render(rep: dict, image_fetcher: Optional[Callable[[str], Optional[bytes]]] 
     # 3. tables
     story.append(PageBreak())
     story.append(P("3. Condition by km and by 100 m section", st["h2"]))
-    note = _not_shown_note(rep, _shown_params(rep))
-    story.append(P("Kilometre-wise", st["h3"]))
-    story.append(km_table(rep, st, pw))
-    story.append(P(("Whole stretch: values over the full length; PCI = length-weighted mean of the km rows. "
-                    if len(rep["km"]) > 1 else "") + "Potholes per row; cracking as % of surveyed length. "
-                   + escape(note), st["note"]))
-    story.append(Spacer(1, 4))
-    story.append(P("100 m sections", st["h3"]))
-    story.append(section_table(rep, st, pw))
-    story.append(P(("Colour square = map colour. " if not single_mode(rep) else "Colour square = map colour (PCI "
-                    "class). ") + "'low' = 50–80 % imaged; under 50 % the section is not rated.", st["note"]))
+    if est:
+        story.extend(est_tables(rep, st, pw))
+    else:
+        note = _not_shown_note(rep, _shown_params(rep))
+        story.append(P("Kilometre-wise", st["h3"]))
+        story.append(km_table(rep, st, pw))
+        story.append(P(("Whole stretch: values over the full length; PCI = length-weighted mean of the km rows. "
+                        if len(rep["km"]) > 1 else "") + "Potholes per row; cracking as % of surveyed length. "
+                       + escape(note), st["note"]))
+        story.append(Spacer(1, 4))
+        story.append(P("100 m sections", st["h3"]))
+        story.append(section_table(rep, st, pw))
+        story.append(P(("Colour square = map colour. " if not single_mode(rep) else "Colour square = map colour "
+                        "(PCI class). ") + "'low' = 50–80 % imaged; under 50 % the section is not rated.",
+                       st["note"]))
 
     # 4. potholes
     story.append(CondPageBreak(60 * mm))
     story.append(P("4. Pothole locations", st["h2"]))
     runs = s.get("pothole_runs_list") or []
-    if runs:
+    if runs and est:
+        conf = sum(1 for r in runs if r.get("impact_felt"))
+        story.append(P(f"{_plural(len(runs), 'run')} of consecutive frames labelled pothole, {conf} with an impact "
+                       "felt (listed first, shaded). <b>Impact felt: yes</b> = the scooter's accelerometer recorded "
+                       "a jolt there; potholes the rider steered around show no jolt. Coordinates are the middle of "
+                       "the run; the pothole may be up to ~30 m further on in the direction of travel.", st["note"]))
+        story.append(est_pothole_table(rep, st, pw))
+    elif runs:
         story.append(P("Each row is one run of consecutive frames labelled pothole. Coordinates are the middle of "
                        "the run; the pothole may be up to ~30 m further on in the direction of travel. "
                        "Check the photo before sending a crew.", st["note"]))
@@ -1224,15 +1730,15 @@ def render(rep: dict, image_fetcher: Optional[Callable[[str], Optional[bytes]]] 
     # 5. maintenance
     story.append(CondPageBreak(90 * mm))
     story.append(P("5. Maintenance (IRC:82-2023)", st["h2"]))
-    story.extend(maintenance_block(rep, st, pw))
+    story.extend(est_maintenance_block(rep, st, pw) if est else maintenance_block(rep, st, pw))
 
     # 6. method and limitations
     story.append(CondPageBreak(70 * mm))
     story.append(P("6. Method and limitations", st["h2"]))
-    for line in method_lines(rep):
+    for line in (est_method_lines(rep) if est else method_lines(rep)):
         story.append(P(line, st["bullet"], bulletText="•"))
     story.append(Spacer(1, 3))
-    for line in limitation_lines(rep):
+    for line in (est_limitation_lines(rep) if est else limitation_lines(rep)):
         story.append(P(line, st["bullet"], bulletText="•"))
     story.append(P(f"Report {rep.get('report_id') if rep.get('report_id') is not None else 'preview (not stored)'}"
                    f" · data as of {escape(str(rep.get('data_as_of') or '?'))} · {s['segments_used']} frames used, "

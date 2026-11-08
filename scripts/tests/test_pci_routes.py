@@ -174,16 +174,16 @@ def test_csv_irc2023_columns():
         [x for x in text.splitlines() if x.startswith("# ")])}
     assert meta["edition"] == "IRC:82-2023" and meta["road_class"] == "urban"
     assert meta["surface"].startswith("SDBC") and meta["road_name (as entered)"] == "CSV test road"
-    assert "whole-stretch PCI" in meta and "columns" in meta
+    assert "whole-stretch PCI worst case" in meta and "columns" in meta
     rows = list(_csv.DictReader([x for x in text.splitlines() if not x.startswith("#")]))
     assert tuple(rows[0].keys()) == R.CSV_COLUMNS
     rep = post("/gis/pci/report", body(road_name="CSV test road", surface="SDBC", entered={"rut_depth": 4})).json()
     kinds = [x["unit"] for x in rows]
     assert kinds.count("100m") == len(rep["sections"]) and kinds.count("km") == len(rep["km"])
-    assert kinds[-1] == "stretch"
+    assert kinds.count("stretch") == 1 and set(kinds[kinds.index("stretch") + 1:]) <= {"pothole"}
     for x in rows:
         assert len(x["start_lat"].split(".")[1]) == 7 and len(x["end_lon"].split(".")[1]) == 7, x
-        if x["pci_class"] == "insufficient data":
+        if x["unit"] == "pothole" or x["pci_class"] == "insufficient data":
             continue
         lo, hi = float(x["pci_lo"]), float(x["pci_hi"])
         assert 0 <= lo <= hi <= 100, x
@@ -194,9 +194,24 @@ def test_csv_irc2023_columns():
             if x[f"{p}_source"] == "not_assessed":
                 assert x[f"{p}_pct"] == "" and x[f"{p}_pci_i"] == "", x
         assert x["cracking_source"].startswith("labels") and x["potholes_source"].startswith("labels"), x
-    st = rows[-1]
+    st = next(x for x in rows if x["unit"] == "stretch")
     hp = rep["summary"]["pci"]
     assert abs(float(st["pci_lo"]) - hp["lo"]) < 0.01 and abs(float(st["pci_hi"]) - hp["hi"]) < 0.01
+    # PCI estimate columns (eval_results/pci/ESTIMATE.md): median inside its 90 % interval; per-parameter inputs
+    est = rep["summary"].get("pci_estimate")
+    assert "whole-stretch PCI estimate" in meta
+    if est:
+        assert abs(float(st["pci_est"]) - est["median"]) < 0.01 and st["class_est"] == est["class"]
+    for x in rows:
+        if x["pci_est"]:
+            assert float(x["pci_est_lo90"]) - 1e-6 <= float(x["pci_est"]) <= float(x["pci_est_hi90"]) + 1e-6, x
+            assert x["iri_est"] != "" and x["potholes_est"] != "", x
+            if x["unit"] == "100m":
+                assert x["iri_est_basis"], x
+    pot = [x for x in rows if x["unit"] == "pothole"]
+    assert len(pot) == len(rep["summary"].get("pothole_runs_list") or [])
+    for x in pot:
+        assert x["impact_felt"] in ("yes", "no", "") and int(x["pothole_frames"]) >= 1, x
 
 
 def test_rate_limit_per_client():

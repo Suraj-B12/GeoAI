@@ -26,3 +26,10 @@ app/pci_core.py, scripts/pci_survey_compare.py.
 - roughness_value() reviewed (REVIEW_2023.md section "roughness_value()").
 
 ## DONE — scripts/pci_survey_compare.py released to the coordinator (IRI fit can be added).
+
+## Round 2 — PCI ESTIMATE critic (2026-11-09) — DONE
+- eval_results/pci/REVIEW_estimate.md (E1-E12, L1-L5); fixes in pci_irc2023.pci_estimate and the pci_core
+  estimate block (range semantics for the rut prior, rut calibration loaded, IRI coverage >= 50 %, calibrated
+  values keep an interval, binomial pothole lower bound, input validation). Output field names unchanged.
+- New scripts/tests/test_pci_estimate.py 11/11. Full PCI set: chainage 13, core 8, estimate 11, extent 8,
+  irc2023 13, iri 13, pdf 13, survey 8, routes 9/9 — all pass.
