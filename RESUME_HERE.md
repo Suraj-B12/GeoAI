@@ -13,3 +13,10 @@ strict range as the worst case. Survey calibration (scripts/pci_survey_compare.p
 | Attain-calibrated extents (cracking/ravelling/patching % area, pothole number via eq. 2) | app/pci_extent.py, scripts/pci_attain_extent_calibration.py, scripts/tests/test_pci_extent.py, eval_results/pci/extent/* | eval_results/pci/extent/STATUS.md |
 | IRI interval + rut-depth prior (IRI agent resumed) | app/pci_iri.py (+ app/pci_rut.py), eval_results/pci/iri/*, eval_results/pci/rut/* | eval_results/pci/iri/STATUS.md |
 | Coordinator: pci_estimate (done), wire into pci_core.pci_unit + report JSON (`pci.estimate`), then PDF/UI agents show estimate + interval + "other distresses" table, critic, regenerate samples 33-40, paper §9.9, commit | | this file |
+
+## Progress 2026-11-09
+- DONE + committed 59f43ca: extents (Attain), IRI interval (scooter), rut prior, pothole jolt confirmation,
+  pci_estimate_unit / estimate_mean, ESTIMATE.md. Samples: estimate ~52 (40-83) vs strict 9-85; IRI = most width.
+- RUNNING: PDF/CSV agent (estimate display, impact column, other-distress table -> preview_2023b), WebGIS agent,
+  critic (REVIEW_estimate.md, test_pci_estimate.py); band-view probe GPU job (C:\GeoAI\pci\probe_run\band_full.log).
+- THEN: restart production, regenerate samples (no bash `source .env`!), verify live, paper §9.9, CLAUDE.md, commit.
