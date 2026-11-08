@@ -150,6 +150,8 @@ class Graph:
     ends: set = field(default_factory=set)
     by_sk: dict = field(default_factory=dict)
     sessions: dict = field(default_factory=dict)     # session_id -> {pipeline_version, config_sha256}
+    by_id: dict = field(default_factory=dict)        # segment_id -> node index
+    jolt_threshold: Optional[float] = None           # see JOLT_PCTL (None: no IMU data)
 
     def xy(self, lat: float, lon: float) -> tuple[float, float]:
         return (R_EARTH * math.radians(lon - self.lon0) * math.cos(math.radians(self.lat0)),
@@ -878,12 +880,27 @@ def build_report(g: Graph, req: Mapping, *, generated_at: Optional[datetime] = N
     sh = stretch["rating"]
     used_m = {x["segment_id"]: x["measure_m"] for x in all_chosen}
     runs_list = []
+    jthr = g.jolt_threshold
+    if not g.by_id:
+        g.by_id = {n.segment_id: i for i, n in enumerate(g.nodes)}
     for r in run_lists["potholes"]:
         ms = [used_m[sid] for sid in r["segment_ids"] if sid in used_m]
         if ms:
+            jolts = []
+            for sid in r["segment_ids"]:
+                n0 = g.nodes[g.by_id[sid]] if sid in g.by_id else None
+                if n0 is None:
+                    continue
+                for dk in (-1, 0, 1):
+                    j = g.by_sk.get((n0.session_id, n0.k + dk))
+                    rj = (g.nodes[j].props.get("roughness") or {}) if j is not None else {}
+                    if rj.get("jolt") is not None:
+                        jolts.append(rj["jolt"])
+            impact = None if (jthr is None or not jolts) else max(jolts) > jthr
             runs_list.append({"from_m": round(min(ms), 1), "to_m": round(max(ms), 1),
                               "chainage": fmt_chainage(min(ms)), "segments": r["n"],
-                              "segment_ids": list(r["segment_ids"])})
+                              "segment_ids": list(r["segment_ids"]), "impact_felt": impact,
+                              "jolt": round(max(jolts), 2) if jolts else None})
     runs_list.sort(key=lambda r: r["from_m"])
     priority, final_note = priority_notes(sh, cat, stretch["quantities"], runs_list)
     pot_row = next((p for p in (sh.get("params") or []) if p["param"] == "potholes"), None)
@@ -1229,8 +1246,9 @@ def load_graph(force: bool = False) -> Graph:
             return _cache["graph"]
         rows = GR._fetch_segment_rows(None)
         extra = {r["segment_id"]: r for r in GR._query(lambda cur: cur.execute(_EXTRA_SQL).fetchall())}
-        probe = _probe_scores(cal["probe_fp"]) if cal is not None else {}
-        rough = _roughness_rows() if C.iri_calibration() is not None else {}
+        # always attached: the PCI estimate (calibrated extents, IRI interval) needs them even without a survey
+        probe = _probe_scores(cal["probe_fp"] if cal is not None else _latest_probe_fp())
+        rough = _roughness_rows()
         recs, sessions = [], {}
         for r in rows:
             props = GR._segment_feature(r, "point")["properties"]
@@ -1244,11 +1262,29 @@ def load_graph(force: bool = False) -> Graph:
             sessions.setdefault(props["session_id"], {"pipeline_version": e.get("pipeline_version"),
                                                       "config_sha256": e.get("config_sha256")})
         g = build_graph(recs, key=key, data_as_of=as_of, sessions=sessions)
+        g.by_id = {n.segment_id: i for i, n in enumerate(g.nodes)}
+        nonpot = [n.props["roughness"]["jolt"] for n in g.nodes
+                  if (n.props.get("roughness") or {}).get("jolt") is not None
+                  and "Potholes" not in (n.props.get("final_labels") or [])]
+        g.jolt_threshold = float(np.percentile(nonpot, JOLT_PCTL)) if len(nonpot) >= 100 else None
         _cache.update(key=key, graph=g)
         return g
 
 
-def _probe_scores(probe_fp: str) -> dict:
+def _latest_probe_fp() -> Optional[str]:
+    """The probe configuration with the most scored segments (the production probe), or None."""
+    from app import gis_routes as GR
+
+    def q(cur):
+        if cur.execute("SELECT to_regclass('research.video_probe_scores') AS t").fetchone()["t"] is None:
+            return None
+        return cur.execute("SELECT probe_fp FROM research.video_probe_scores GROUP BY 1 ORDER BY count(*) DESC "
+                           "LIMIT 1").fetchone()
+    r = GR._query(q)
+    return r["probe_fp"] if r else None
+
+
+def _probe_scores(probe_fp: Optional[str]) -> dict:
     """{segment_id: {probe key: P(yes)}} from research.video_probe_scores (migration 010); {} if the table is
     missing (a database the scoring run never touched)."""
     from app import gis_routes as GR
@@ -1258,6 +1294,8 @@ def _probe_scores(probe_fp: str) -> dict:
             return []
         return cur.execute("SELECT segment_id, scores FROM research.video_probe_scores "
                            "WHERE probe_fp = %s AND scores IS NOT NULL", (probe_fp,)).fetchall()
+    if not probe_fp:
+        return {}
     return {r["segment_id"]: r["scores"] for r in GR._query(q)}
 
 
@@ -1271,10 +1309,30 @@ def _roughness_rows() -> dict:
     def q(cur):
         if cur.execute("SELECT to_regclass('research.segment_roughness') AS t").fetchone()["t"] is None:
             return []
-        return cur.execute("SELECT segment_id, duration_s, speed_mps, rms_av, rms_rot, iri_gc_uncal, flags, error "
-                           "FROM research.segment_roughness WHERE method_fp = %s", (fp,)).fetchall()
-    return {r["segment_id"]: {k: r[k] for k in ("duration_s", "speed_mps", "rms_av", "rms_rot", "iri_gc_uncal",
-                                                   "flags", "error")} for r in GR._query(q)}
+        return cur.execute("SELECT segment_id, session_id, duration_s, speed_mps, rms_av, rms_rot, peak_av, "
+                           "iri_gc_uncal, flags, error FROM research.segment_roughness WHERE method_fp = %s",
+                           (fp,)).fetchall()
+    rows = GR._query(q)
+    # jolt = the segment's peak vertical acceleration / the median RMS of its drive (removes phone/mount/rider level)
+    by_sess: dict = {}
+    for r in rows:
+        if r["rms_av"] is not None and not r["error"]:
+            by_sess.setdefault(r["session_id"], []).append(r["rms_av"])
+    med = {k: float(np.median(v)) for k, v in by_sess.items() if v}
+    out = {}
+    for r in rows:
+        d = {k: r[k] for k in ("duration_s", "speed_mps", "rms_av", "rms_rot", "iri_gc_uncal", "flags", "error")}
+        m = med.get(r["session_id"])
+        d["jolt"] = (float(r["peak_av"]) / m) if (r["peak_av"] is not None and m) else None
+        out[r["segment_id"]] = d
+    return out
+
+
+# A pothole run is "impact felt" when a segment of the run, or the one before/after it, has a jolt above this:
+# the 90th percentile of the jolt of segments WITHOUT a pothole label (all 43 drives, scooter, 2026-11-09: 39 % of
+# pothole-labelled segments exceed it vs 10 % by construction; AUC 0.69; alignment best at the same segment).
+# Computed from the data at graph load (JOLT_PCTL), not tuned.
+JOLT_PCTL = 90.0
 
 
 def changed_since(segment_ids: list[str], as_of: Optional[str]) -> int:

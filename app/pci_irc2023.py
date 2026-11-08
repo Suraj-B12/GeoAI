@@ -296,6 +296,55 @@ def pci_range(road_class: str, known: Mapping[str, Optional[float]], surface: Op
             "missing": missing, "rows": rows, "known_weight": sum(WEIGHTS[p] for p in PARAMS if p not in missing)}
 
 
+def _split_normal_quantile(u: float, lo: float, mid: float, hi: float) -> float:
+    """Value at probability u of a split-normal with 5 % quantile lo, median mid, 95 % quantile hi (each side its
+    own spread); values below 0 are clipped to 0 (all PCI inputs are >= 0)."""
+    from statistics import NormalDist
+    z = NormalDist().inv_cdf(min(max(u, 1e-9), 1 - 1e-9))
+    s = (mid - lo) / 1.6448536 if z < 0 else (hi - mid) / 1.6448536
+    return max(0.0, mid + z * s)
+
+
+def pci_estimate(road_class: str, inputs: Mapping[str, Mapping[str, float]], surface: Optional[str] = None,
+                 n: int = 4000, seed: int = 20261109) -> dict:
+    """PCI estimate with a 90 % interval from per-parameter estimates.
+
+    inputs: {param: {"point": x, "lo90": a, "hi90": b}} for EVERY parameter (a parameter without an estimate must be
+    passed with its widest defensible bounds by the caller, or this returns None). Each parameter is drawn
+    independently from a split-normal with those 5/50/95 % quantiles (independence is an assumption: in reality
+    distresses co-occur, which would widen the interval somewhat); PCI = sum w_i PCI_i per draw; the result is the
+    median and the 5-95 % range of the draws, plus the PCI of the point values. Deterministic (seeded)."""
+    import random
+    if any(p not in inputs for p in PARAMS):
+        return None
+    rnd = random.Random(seed)
+    for p in PARAMS:                                  # fail early on an unusable equation
+        pci_param(road_class, p, inputs[p]["point"], surface)
+    draws = []
+    for _ in range(n):
+        tot = 0.0
+        for p in PARAMS:
+            q = inputs[p]
+            x = _split_normal_quantile(rnd.random(), q["lo90"], q["point"], q["hi90"])
+            tot += WEIGHTS[p] * pci_param(road_class, p, x, surface)
+        draws.append(tot)
+    draws.sort()
+    point = sum(WEIGHTS[p] * pci_param(road_class, p, inputs[p]["point"], surface) for p in PARAMS)
+    med = draws[n // 2]
+    lo, hi = draws[int(0.05 * n)], draws[int(0.95 * n) - 1]
+    contrib = {}
+    for p in PARAMS:                                  # how much of the interval each parameter causes
+        others = {k: inputs[k]["point"] for k in PARAMS}
+        vals = []
+        for x in (inputs[p]["lo90"], inputs[p]["hi90"]):
+            others[p] = x
+            vals.append(sum(WEIGHTS[k] * pci_param(road_class, k, others[k], surface) for k in PARAMS))
+        contrib[p] = abs(vals[0] - vals[1])
+    return {"point": point, "median": med, "lo90": lo, "hi90": hi, "class": pci_class(med),
+            "class_lo": pci_class(lo), "class_hi": pci_class(hi), "recommendation": RECOMMENDATION[pci_class(med)],
+            "width_by_param": contrib, "draws": n}
+
+
 def potholes_number(area_m2: float) -> float:
     """eq. (2): equivalent pothole number = pothole area / 0.1 m2."""
     return float(area_m2) / POTHOLE_UNIT_AREA_M2

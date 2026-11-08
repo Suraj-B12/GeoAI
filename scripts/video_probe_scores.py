@@ -44,9 +44,14 @@ def load_env():
                 os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
 
 
-def probe_fingerprint(cfg: dict, keys: list[str], max_pixels: int) -> str:
+BAND_MARGIN = 0.10      # --view band: extra rows above/below the segment's strip, as a share of its height
+
+
+def probe_fingerprint(cfg: dict, keys: list[str], max_pixels: int, view: str = "full") -> str:
     blob = {"model": MODEL, "quant": 4, "variant": cfg["variant"], "keys": keys, "max_pixels": max_pixels,
             "view": "full"}
+    if view != "full":           # the full-view fingerprint stays what it was (rows already stored)
+        blob["view"] = {"name": view, "margin": BAND_MARGIN}
     return hashlib.sha256(json.dumps(blob, sort_keys=True).encode()).hexdigest()[:16]
 
 
@@ -54,6 +59,9 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--database", default=None, help="override the database name in DATABASE_URL")
+    ap.add_argument("--view", choices=["full", "band"], default="full",
+                    help="band: only the image rows of the segment's own 5 m strip (record.frame.rows_of_segment), "
+                         "full width, +10 %% margin")
     args = ap.parse_args()
     load_env()
     if args.database:
@@ -73,13 +81,14 @@ def main() -> int:
     types = all_probe_types()
     keys = [t.key for t in types]
     max_pixels = int(os.environ["MAX_IMAGE_PIXELS"])
-    fp = probe_fingerprint(cfg, keys, max_pixels)
+    fp = probe_fingerprint(cfg, keys, max_pixels, args.view)
 
     conn = video_store.connect()
     sql = (PROJECT_ROOT / "migrations" / "010_video_probe_scores.sql").read_text(encoding="utf-8")
     with conn.cursor() as cur:
         cur.execute(sql)
-        cur.execute("""SELECT g.segment_id, g.image_path, g.image_sha256 FROM video_segments g
+        cur.execute("""SELECT g.segment_id, g.image_path, g.image_sha256,
+                              g.record->'frame'->'rows_of_segment' AS rows FROM video_segments g
                        WHERE g.image_path IS NOT NULL
                          AND NOT EXISTS (SELECT 1 FROM research.video_probe_scores s
                                          WHERE s.segment_id = g.segment_id AND s.probe_fp = %s)
@@ -102,7 +111,7 @@ def main() -> int:
     t_run = time.time()
     n_err = 0
     for i, row in enumerate(todo, 1):
-        seg, path, sha = row[0], row[1], row[2]
+        seg, path, sha, rows = row[0], row[1], row[2], row[3]
         scores, err, dt = None, None, None
         try:
             p = local_image_path(path)
@@ -110,6 +119,15 @@ def main() -> int:
                 raise FileNotFoundError(f"image missing: {path}")
             with Image.open(p) as im:
                 img = im.convert("RGB")
+            if args.view == "band":
+                if not (isinstance(rows, list) and len(rows) == 2):
+                    raise ValueError("no rows_of_segment in the segment record")
+                r0, r1 = sorted(float(v) for v in rows)
+                m = BAND_MARGIN * (r1 - r0)
+                top, bot = max(0, int(r0 - m)), min(img.height, int(r1 + m + 0.5))
+                if bot - top < 32:
+                    raise ValueError(f"strip too thin ({bot - top} rows)")
+                img = img.crop((0, top, img.width, bot))
             t0 = time.time()
             scores = {r["key"]: round(float(r["p_yes"]), 6) for r in prober.probe(img)}
             dt = time.time() - t0
