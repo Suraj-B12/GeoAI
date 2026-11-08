@@ -2,6 +2,8 @@
 
 ## Paper-Ready Sections + Technical Notes
 
+> **Revision 2026-11-08 — IRC:82-2023.** The A→B report now follows **IRC:82-2023 (Second Revision)**, which replaced the 2015 1–3 rating with a **Pavement Condition Index (PCI, 0–100)** over six parameters including roughness (IRI) (§9.8). Added: transcribed Appendix-2 equations with a worked-example check; per-type probe scores on all 7,050 video segments; a phone-accelerometer roughness feature on all drives; a survey calibration/blind-test tool with a pre-registered split; eight sample reports regenerated (ids 33–40). §9.1–9.7 are kept as the 2015 record.
+
 > **Revision 2026-11-07 — chainage and IRC:82 condition rating.** Added §9: relative chainage along the surveyed track and the IRC:82-2015 distress-based rating (Tables 5.1–5.3, Appendix 4) for any stretch A→B picked in the WebGIS, with a downloadable report, eight pre-registered sample reports, validation and three rounds of independent review. Two statements in §8.9 corrected ("% of length" is not IRC's area; chainage now derived).
 >
 > **Revision 2026-09-23.** Added: field-restricted Stage 2 confidence (§3.4), threshold
@@ -1425,7 +1427,7 @@ A drive appears on the GIS map when it is stored: the GIS reads the database dir
 
 ---
 
-## 9. Chainage and an IRC:82-2015 Condition Rating for a Chosen Stretch (A → B)
+## 9. Chainage and an IRC:82 Condition Rating for a Chosen Stretch (A → B)
 
 A road engineer plans maintenance by stretch and by kilometre, not by photograph. This section adds the two
 quantities an Indian maintenance plan is written in — **chainage** and the **IRC:82-2015 distress-based
@@ -1527,12 +1529,12 @@ segments were relabelled afterwards is marked stale. Saving to the portal requir
 rate-limited per client; previews and downloads are open. API: `/gis/pci/{meta,path,report,report.pdf,
 report.csv,reports}`; storage `research.pci_reports` (migration 009).
 
-![Figure 9.1 — Route and strip chart of sample report 2 (random 1 km stretch, 27 Oct)](../eval_results/plots/paper/fig_9_1_sample_route_strip.png)
+![Figure 9.1 — Route page of sample report 34 (random 1 km stretch, 27 Oct)](../eval_results/plots/paper/fig_9_1_sample_route_strip.png)
 
-**Figure 9.1** — Page 2 of a sample report as produced by the server: the surveyed path over an OpenStreetMap
-street map, coloured by the pothole band each 100 m section's labels show (white dashes where gate-skipped frames
-could make it worse), chainage ticks from A, three unsurveyed gaps (dashed, "≥ 219 m" in total), and a location
-map with the surrounding localities.
+**Figure 9.1** — Page 2 of sample report 34 (IRC:82-2023 version, §9.8): the surveyed path over an OpenStreetMap
+street map, each 100 m section coloured by the worst Table 5.3 range of its measured parameters (not by PCI, which
+is still a range), pothole runs as rings, chainage ticks from A, three unsurveyed gaps (dashed), and a location map.
+Page 1 (summary, headline PCI range, the six-parameter table) is `fig_9_2_sample_page1.png`.
 
 ### 9.5 Results
 
@@ -1627,6 +1629,71 @@ The reviews are in `eval_results/pci/REVIEW_design.md`, `REVIEW_backend.md` and 
    per-parameter band from expert labels with those from model labels, with the block-bootstrap intervals used in
    §6. Calibrating one drive to a km stone, or measuring a few stretches with a measuring wheel, would give the
    missing chainage-length check.
+
+### 9.8 Move to IRC:82-2023: a 0–100 PCI, and what it takes to make it a single number
+
+**Why.** The owner plans to compare the report with an actual road survey, which will follow the current code.
+IRC:82-2023 (Second Revision; Council approval of the draft October 2022) replaced the 2015 method: §5.2 defines
+a **PCI from 0 to 100** = Σ wᵢ·PCIᵢ with weights **IRI 0.40, potholes 0.16, rut depth 0.14, cracking 0.12,
+ravelling 0.10, patching 0.08** (Table 5.4); PCIᵢ comes from per-class equations (Appendix 2, Tables A2.1–A2.3:
+highways, MDR/rural, urban); Table 5.5 maps the PCI to six classes (>90 Excellent … ≤20 Fail), each with a
+maintenance action. Potholes are now a **number** (area / 0.1 m², eq. 2), extents are over all lanes of a
+carriageway, sections 100–1000 m, and settlement and shoving are no longer rated. We read a third-party hosted copy
+whose title page is IRC's; the owner should confirm it against an official copy.
+
+**Equations.** Appendix 2 prints its equations as images; we transcribed them (`app/pci_irc2023.py`,
+`eval_results/pci/IRC82_2023.md`) and an independent critic agent re-read every coefficient from the page images
+(digit-for-digit agreement). Checks: every usable equation gives PCI ≈ 80 at the Tables 5.1–5.3
+Excellent-to-Good limit and ≈ 40 at the Satisfactory-to-Fair limit, and follows its printed curve. The three
+**highway** worked examples reproduce within 0.53 points (93.88 / 40.84 / 20.56 vs 93.58 / 41.37 / 20.54); the
+three **urban** examples do not (−1.6, −10.0, −7.1): the gap is the roughness term, which no printed curve gives
+(unexplained). Three printed equations are **not usable**: the MDR/rural pothole polynomial rises to 192 at 10
+potholes while its curve falls to 0 (a missing linear term near −19.25·PN would reproduce examples B.1–B.3 within
+1.4 points, but that is a reconstruction), and the rural roughness equations for surface dressing and mix-seal
+surfacing (an Excellent road scores 0.6). These are reported "not computable" and bracketed, never guessed.
+
+**What each parameter comes from** (in order; `app/pci_core.pci_unit`): a value entered from site; a calibrated
+per-type probe score (ravelling, patching, rut-depth proxy, or cracking/potholes); calibrated phone-accelerometer
+roughness (IRI); Stage 2 labels (cracking = % of surveyed length, an upper bound on % area; potholes = runs of
+consecutive pothole frames); otherwise **not assessed**, counted as PCIᵢ = 0 and 100, which gives the PCI range.
+A single PCI is printed only when all six have values and none comes from uncalibrated labels. The stretch PCI is
+the length-weighted mean of the km rows (IRC analyses 100–1000 m; a pothole count over a longer stretch is off the
+equations' scale).
+
+**New measurements.** (i) The per-type probe (§6.8) was run on all **7,050** stored segment images (1.8 s each,
+0 errors; `research.video_probe_scores`): it gives P(yes) for ravelling, patching and rutting, which the free-form
+list never names. These are scores, not labels: the Attain thresholds do not transfer (§6.8), so they become
+values only through calibration. (ii) The phone recorded its accelerometer at 200 Hz on every drive. The roughness
+feature is the RMS of vertical acceleration, 0.5–15 Hz (above that, the engine's ≈ 25 Hz firing line dominates),
+over each 5 m segment, speed-normalised (`app/pci_iri.py`, 8,110 usable segments). On synthetic quarter-car data
+it recovers the IRI ranking (Spearman 0.991 across a different car, mount and noise); on real data it separates
+pothole-labelled segments (AUC 0.68 [0.65, 0.72]); but the idle noise floor is high (0.26 vs 0.66 m/s² moving;
+pre-registered limit failed) and repeatability could not be tested (3 qualifying repeated 100 m blocks). A phone
+on a windshield of an unknown car gives **no absolute IRI** without calibration against a reference.
+
+**Results (eight sample reports, ids 33–40, urban).** With only cracking and potholes assessed (0.28 of the
+weight), every stretch PCI is a wide range — from 3–90 to 15–97, "Fail to Good" — and the median width over the
+151 rated 100 m sections is **79 points** (72–85). The report states this plainly (no single PCI, which parameters
+are missing and why) and gives what *is* actionable: pothole locations by chainage with photographs, cracking share,
+and the distress-specific treatments of IRC:82-2023 §7 with clause numbers.
+
+**Closing the gap: calibration on a reference survey, tested blind.** `scripts/pci_survey_compare.py` imports a
+survey (per section: start/end GPS, any of the six parameters, the survey's PCI). A split **registered before any
+survey data** (`eval_results/pci/survey_split_rule.json`) assigns alternate blocks of three consecutive sections to
+a calibration half and a test half. On the calibration half it fits, per parameter, a probe threshold and scale (or
+a label scale) by mean absolute error in PCIᵢ points, and the IRI calibration (log-linear in RMS and speed); a
+parameter is used only if it beats a constant in-sample. Agreement is reported **only on the test half**: MAE of
+the single PCI and of a **partial PCI** over the parameters both sides have (addendum, registered before data,
+because rut depth may stay unmeasurable), each beside a constant baseline with block-bootstrap CIs, Spearman ρ,
+Bland–Altman limits and Table 5.5 class agreement. A ledger marks any refit after a test as post hoc, and a
+calibration reaches production only after its own blind evaluation. The tool was checked end to end on a synthetic
+survey built from our own probe scores (it recovers the planted thresholds); that check shows the plumbing works and
+says nothing about accuracy. The split interleaves sections of the same roads, so the test measures transfer within
+the surveyed roads.
+
+**Limitations specific to 2023.** One lane is imaged while IRC extents and IRI are carriageway means; rut depth
+needs a straight edge or profiler and has only a weak image proxy; a pothole run is counted as one pothole of at
+least one 0.1 m² unit; the roughness calibration is specific to the car, the mount and the phone.
 
 ## Acknowledgements
 
