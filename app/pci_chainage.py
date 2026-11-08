@@ -39,6 +39,7 @@ import numpy as np
 from scipy.spatial import cKDTree
 
 from app import pci_core as C
+from app import pci_irc2023 as P23
 
 SCHEMA = "geoai.pci.v1"
 R_EARTH = 6371008.8
@@ -588,7 +589,8 @@ def _ist(dt: Optional[datetime]) -> Optional[str]:
 
 
 # ============================================================ request
-CATEGORY_NAMES = {"urban": "Urban road", "highway": "Highway (NH/SH)", "rural": "MDR / rural road (ODR, VR)"}
+CATEGORY_NAMES = {"urban": "Urban road", "highway": "Highway (NH/SH)", "mdr": "Major District Road (MDR)",
+                  "rural": "Rural road (ODR, VR)"}
 TEXT_FIELDS = ("road_name", "road_number", "surface_type", "prepared_by", "title")
 
 
@@ -601,6 +603,12 @@ def canonical_request(req: Mapping) -> dict:
            "lane_width_m": float(req.get("lane_width_m") or C.DEFAULT_LANE_WIDTH_M),
            "chainage_at_a_km": None if req.get("chainage_at_a_km") is None else float(req["chainage_at_a_km"]),
            "chainage_increases_towards_b": req.get("chainage_increases_towards_b")}
+    # IRC:82-2023 inputs, only when given (so the hash of a request without them is unchanged)
+    if req.get("surface"):
+        out["surface"] = str(req["surface"])
+    ent = {k: float(v) for k, v in (req.get("entered") or {}).items() if v is not None}
+    if ent:
+        out["entered"] = dict(sorted(ent.items()))
     for f in TEXT_FIELDS:
         v = req.get(f)
         out[f] = v.strip() if isinstance(v, str) and v.strip() else None
@@ -812,11 +820,12 @@ def build_report(g: Graph, req: Mapping, *, generated_at: Optional[datetime] = N
         q = C.unit_quantities(segs, m1 - m0, gap_m=gap_in(m0, m1), lane_width_m=width,
                               runs_in_unit=runs_in(m0, m1, last), pothole_runs_touching=touching)
         r = C.rate_unit(q, cat)
+        pci = C.pci_unit(q, cat, canon.get("surface"), canon.get("entered"))
         u = {"from_m": round(m0, 1), "to_m": round(m1, 1), "chainage_from": fmt_chainage(m0),
              "chainage_to": fmt_chainage(m1),
              "road_chainage_from": road_chainage(m0, canon["chainage_at_a_km"], canon["chainage_increases_towards_b"]),
              "road_chainage_to": road_chainage(m1, canon["chainage_at_a_km"], canon["chainage_increases_towards_b"]),
-             "quantities": _trim_q(q), "rating": _round_rating(r), "treatment": {
+             "quantities": _trim_q(q), "pci": _round_rating(pci), "rating": _round_rating(r), "treatment": {
                  "class": C.class_treatment(r["final"]["class"] if r.get("final") else None, cat),
                  "distress": C.distress_treatments(q) if r.get("rated") else []}}
         if extra:
@@ -883,6 +892,8 @@ def build_report(g: Graph, req: Mapping, *, generated_at: Optional[datetime] = N
         "length_m": round(L, 1), "chainage_a": fmt_chainage(0), "chainage_b": fmt_chainage(L),
         "coverage": stretch["quantities"]["coverage"], "coverage_status": stretch["quantities"]["coverage_status"],
         "gap_m": round(sum(gp["straight_m"] for gp in path["gaps"]), 1), "gaps": len(path["gaps"]),
+        "pci": pci_mean(kms),
+        "pci_sections": pci_mean(sections),
         "headline": sh.get("headline"), "final": (dict(sh["final"], note=final_note) if sh.get("final") else None),
         "priority_notes": priority,
         "resolution_note": resolution_note,
@@ -896,6 +907,12 @@ def build_report(g: Graph, req: Mapping, *, generated_at: Optional[datetime] = N
         "input": canon,
         "input_note": "road name/number, surface type and prepared by: entered by requester, unverified",
         "header": {
+            "edition": P23.EDITION, "pci_name": P23.NAME,
+            "surface": canon.get("surface") or P23.DEFAULT_SURFACE[cat],
+            "surface_name": P23.SURFACE_NAMES.get(canon.get("surface") or P23.DEFAULT_SURFACE[cat]),
+            "surface_note": "entered by requester" if canon.get("surface") else "default for the road class",
+            "entered": canon.get("entered") or {},
+            "calibration": C.calibration_info(),
             "road_name": canon["road_name"], "road_number": canon["road_number"],
             "category": cat, "category_name": CATEGORY_NAMES[cat], "table": C.TABLES[cat]["table"],
             "table_title": C.TABLES[cat]["title"],
@@ -1001,6 +1018,30 @@ def priority_notes(rating: Mapping, cat: str, q: Mapping, runs_list: Optional[li
                       f"parameters, {na_w:g} of {wsum:g} weight). The bracket is about one class wide on every 100 m "
                       f"block measured so far; use the per-parameter bands.")
     return notes, final_note
+
+
+def pci_mean(units: list[dict]) -> Optional[dict]:
+    """Stretch PCI = length-weighted mean of the km rows' PCI (IRC:82-2023 §5.1: analyse 100-1000 m; pothole
+    numbers are per section, so a stretch-long count would not be on the PCI curves' scale). Units without a PCI
+    (insufficient coverage) are left out and counted."""
+    from app import pci_irc2023 as P23
+    rated = [u for u in units if (u.get("pci") or {}).get("pci")]
+    if not rated:
+        return None
+    w = [u["to_m"] - u["from_m"] for u in rated]
+    W = sum(w)
+    lo = sum(wi * u["pci"]["pci"]["lo"] for wi, u in zip(w, rated)) / W
+    hi = sum(wi * u["pci"]["pci"]["hi"] for wi, u in zip(w, rated)) / W
+    singles = [u["pci"]["pci"]["single"] for u in rated]
+    single = (sum(wi * v for wi, v in zip(w, singles)) / W) if all(v is not None for v in singles) else None
+    missing = sorted({m for u in rated for m in u["pci"]["pci"]["missing"]})
+    cl, ch = P23.pci_class(lo), P23.pci_class(hi)
+    return {"lo": round(lo, 2), "hi": round(hi, 2), "class_lo": cl, "class_hi": ch,
+            "class": cl if cl == ch else f"{cl}–{ch}", "single": None if single is None else round(single, 2),
+            "single_class": P23.pci_class(single) if single is not None else None,
+            "recommendation": P23.RECOMMENDATION[P23.pci_class(single)] if single is not None else None,
+            "missing": missing, "units_rated": len(rated), "units": len(units),
+            "length_rated_m": round(W, 1), "basis": "length-weighted mean of the km rows (each 100-1000 m)"}
 
 
 def _count_classes(units: list[dict]) -> dict:
@@ -1181,14 +1222,19 @@ def load_graph(force: bool = False) -> Graph:
     """The cached graph; rebuilt when the segment count / updated_at or any review changed."""
     from app import gis_routes as GR
     key, as_of = data_key()
+    cal = C.current_calibration()
+    key = (key, None if cal is None else (cal["probe_fp"], json.dumps(cal["params"], sort_keys=True)))
     with _cache_lock:
         if not force and _cache["graph"] is not None and _cache["key"] == key:
             return _cache["graph"]
         rows = GR._fetch_segment_rows(None)
         extra = {r["segment_id"]: r for r in GR._query(lambda cur: cur.execute(_EXTRA_SQL).fetchall())}
+        probe = _probe_scores(cal["probe_fp"]) if cal is not None else {}
         recs, sessions = [], {}
         for r in rows:
             props = GR._segment_feature(r, "point")["properties"]
+            if props["segment_id"] in probe:
+                props["probe"] = probe[props["segment_id"]]
             e = extra.get(props["segment_id"], {})
             recs.append({"props": props, "alt": e.get("alt"), "device": e.get("device_id"),
                          "weather": e.get("weather"), "image_sha256": e.get("image_sha256")})
@@ -1197,6 +1243,19 @@ def load_graph(force: bool = False) -> Graph:
         g = build_graph(recs, key=key, data_as_of=as_of, sessions=sessions)
         _cache.update(key=key, graph=g)
         return g
+
+
+def _probe_scores(probe_fp: str) -> dict:
+    """{segment_id: {probe key: P(yes)}} from research.video_probe_scores (migration 010); {} if the table is
+    missing (a database the scoring run never touched)."""
+    from app import gis_routes as GR
+
+    def q(cur):
+        if cur.execute("SELECT to_regclass('research.video_probe_scores') AS t").fetchone()["t"] is None:
+            return []
+        return cur.execute("SELECT segment_id, scores FROM research.video_probe_scores "
+                           "WHERE probe_fp = %s AND scores IS NOT NULL", (probe_fp,)).fetchall()
+    return {r["segment_id"]: r["scores"] for r in GR._query(q)}
 
 
 def changed_since(segment_ids: list[str], as_of: Optional[str]) -> int:

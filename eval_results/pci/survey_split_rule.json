@@ -1,0 +1,12 @@
+{
+  "purpose": "Pre-registered split of an external road survey into a CALIBRATION half (fits thresholds/scales) and a blind TEST half (the only half whose agreement is reported). Written 2026-11-08, before any survey data existed.",
+  "registered_utc": "2026-11-08T10:00:00Z",
+  "order": "survey sections in the order of the survey CSV (the survey's own chainage order); ties impossible",
+  "blocks": "consecutive runs of 3 sections form a block (the last block may be shorter)",
+  "assignment": "block index i (0-based): i % 2 == 0 -> calibration, i % 2 == 1 -> test (alternating, so both halves cover every road and the whole length; neighbouring sections of the same block never straddle the split)",
+  "exclusions": "a section is excluded (from both halves, with its reason listed) when our path finder cannot build it (no surveyed path, snap > 40 m), when our coverage is 'insufficient', or when the survey row has no value for the compared quantity. Exclusions are decided by these rules only, never after looking at agreement.",
+  "headline_metric": "MAE between our single PCI and the survey PCI on the TEST half, with a block-bootstrap 95% CI (2000 resamples of test blocks, seed 20261108), beside a constant baseline (the calibration-half mean survey PCI) and with Spearman rho, bias, Bland-Altman limits, and agreement of Table 5.5 classes (exact and within one class, quadratic-weighted kappa).",
+  "secondary": "per-parameter MAE on the test half for every parameter the survey reports; the same metrics for the PCI range midpoint when a single PCI is unavailable; equation check: survey parameters through our IRC:82-2023 equations vs the survey's own PCI (tests the transcription and the survey's software, not our model).",
+  "no_refit_after_test": "scripts/pci_survey_compare.py records every evaluate run in eval_results/pci/survey_ledger.jsonl; a fit after an evaluate on the same survey file is marked post_hoc=true and its test numbers must be reported as post hoc.",
+  "minimums": "test half with fewer than 10 sections: report the numbers but call them insufficient for a conclusion."
+}

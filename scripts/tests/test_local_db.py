@@ -262,8 +262,8 @@ def _norm_default(v):
 
 
 def test_setup_is_idempotent(env):
-    n = len(setup_local_db.SCHEMA_FILES)          # 000, db_schema, 001-009
-    assert n == 11
+    n = len(setup_local_db.SCHEMA_FILES)          # 000, db_schema, 001-010
+    assert n == 12
     assert [f["action"] for f in env.first_setup["files"]] == ["applied"] * n
     assert [f["action"] for f in env.second_setup["files"]] == ["already_applied"] * n
     # 005 is also safe to run twice as a whole file (the owner runs it in the Supabase SQL editor)

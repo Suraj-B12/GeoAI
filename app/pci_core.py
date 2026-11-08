@@ -20,9 +20,14 @@ and for runs: run_key (pass id) and k. These are the GIS properties of app/gis_r
 """
 from __future__ import annotations
 
+import json
 import math
+import os
 from decimal import ROUND_HALF_UP, Decimal
+from pathlib import Path
 from typing import Iterable, Mapping, Optional
+
+from app import pci_irc2023 as P23
 
 EPS = 1e-9
 SKIP_DISTRESS_UPPER = 0.133    # audited skips distressed 8.1 % [4.8, 13.3] (paper §8.7): upper CI
@@ -55,7 +60,8 @@ TABLES: dict[str, dict] = {
                    "patching": (5.0, 20.0), "settlement": (2.0, 5.0)},
     },
 }
-CATEGORIES = tuple(TABLES)
+TABLES["mdr"] = dict(TABLES["rural"])
+CATEGORIES = ("urban", "highway", "mdr", "rural")
 
 # Appendix 4, p. 73 (fixed multiplier factors)
 WEIGHTS = {"cracking": 1.00, "ravelling": 0.75, "potholes": 0.50, "shoving": 1.00, "patching": 0.75,
@@ -96,6 +102,244 @@ ASSESSMENT: dict[str, dict] = {
 
 def is_assessed(param: str) -> bool:
     return bool(ASSESSMENT.get(param, {}).get("assessed"))
+
+
+# ================================================================== IRC:82-2023 PCI (0-100)
+# Pothole occurrences in gate-skipped (never classified) segments: 9 of 161 audited skipped segments held a
+# pothole, 0.056 [0.030, 0.103] (Wilson 95 %), eval_results/pci/validation.md.
+POTHOLE_SKIP_POINT = 9 / 161
+POTHOLE_SKIP_UPPER = 0.1028
+SEGMENT_M = 5.0
+
+# Probe questions (scripts/stage2_probe.py) that stand for each 2023 parameter; a segment is positive when the
+# largest P(yes) over its keys reaches the calibrated threshold.
+PROBE_KEYS: dict[str, tuple] = {
+    "cracking": ("Alligator Cracking", "Longitudinal Cracking", "Transverse Cracking", "Edge Cracking",
+                 "Hairline Cracks", "Block Cracking"),
+    "potholes": ("Potholes",), "ravelling": ("Ravelling",), "patching": ("Patching",), "rut_depth": ("Rutting",),
+}
+DEFAULT_CALIBRATION = Path(__file__).resolve().parent.parent / "eval_results" / "pci" / "param_calibration.json"
+_DEFAULT = object()
+_cal_cache: dict = {"sig": None, "cal": None}
+SOURCE_NAMES = {"entered": "entered by requester (unverified)", "probe": "per-type probe, calibrated",
+                "labels": "Stage 2 labels", "labels_calibrated": "Stage 2 labels, scale calibrated",
+                "roughness": "phone accelerometer, calibrated", "not_assessed": "not assessed"}
+
+
+def validate_calibration(cal: Mapping) -> dict:
+    """Checked copy of the parameter calibration (eval_results/pci/param_calibration.json, written only by
+    scripts/pci_survey_compare.py from the survey's CALIBRATION half). Raises ValueError when malformed.
+
+    {"schema": 2, "edition": "IRC:82-2023", "probe_fp": "<16 hex>", "fitted_on": {...},
+     "params": {param: {"source": "probe", "keys": [...], "threshold": t, "a": a, "b": b, "evidence": "..."}
+                       | {"source": "labels", "b": scale, "evidence": "..."}}}
+    probe: value = max(0, a + b * f), f = fraction of the probe-scored length whose largest P(yes) over keys is
+    >= threshold (b = 100 x area factor for % parameters; per-section count factor for potholes; mm for rut
+    depth). labels: the label quantity (extent %, pothole runs) times b. IRI is calibrated separately
+    (eval_results/pci/iri/iri_calibration.json) and arrives on the segments as `iri` (m/km)."""
+    if not isinstance(cal, Mapping) or cal.get("schema") != 2 or cal.get("edition") != P23.EDITION:
+        raise ValueError("calibration: schema 2 / edition IRC:82-2023 required")
+    fp = cal.get("probe_fp")
+    if not (isinstance(fp, str) and len(fp) == 16 and all(c in "0123456789abcdef" for c in fp)):
+        raise ValueError("calibration: probe_fp must be 16 hex characters")
+    out = {"schema": 2, "edition": P23.EDITION, "probe_fp": fp, "fitted_on": dict(cal.get("fitted_on") or {}),
+           "params": {}}
+    for p, spec in (cal.get("params") or {}).items():
+        if p not in PROBE_KEYS:
+            raise ValueError(f"calibration: parameter {p!r} cannot be calibrated here")
+        src = spec.get("source")
+        b = float(spec.get("b", 1.0))
+        if not math.isfinite(b) or b < 0:
+            raise ValueError(f"calibration: {p}: b must be finite and >= 0")
+        ev = str(spec.get("evidence") or "calibrated on survey sections")
+        if src == "labels":
+            if p not in ("cracking", "potholes"):
+                raise ValueError(f"calibration: {p} has no Stage 2 label quantity")
+            out["params"][p] = {"source": "labels", "b": b, "evidence": ev}
+            continue
+        if src != "probe":
+            raise ValueError(f"calibration: {p}: source must be 'probe' or 'labels'")
+        keys = list(spec.get("keys") or PROBE_KEYS[p])
+        if not set(keys) <= set(PROBE_KEYS[p]):
+            raise ValueError(f"calibration: {p}: keys must be among {PROBE_KEYS[p]}")
+        t, a = float(spec["threshold"]), float(spec.get("a", 0.0))
+        if not (0.0 < t < 1.0) or not math.isfinite(a):
+            raise ValueError(f"calibration: {p}: threshold in (0,1) and finite a required")
+        out["params"][p] = {"source": "probe", "keys": keys, "threshold": t, "a": a, "b": b, "evidence": ev}
+    return out
+
+
+def current_calibration() -> Optional[dict]:
+    """The calibration file named by PCI_PARAM_CALIBRATION (default eval_results/pci/param_calibration.json),
+    re-read when it changes; None when absent. A malformed file raises: a report never silently changes method."""
+    path = Path(os.environ.get("PCI_PARAM_CALIBRATION") or DEFAULT_CALIBRATION)
+    try:
+        st = path.stat()
+    except OSError:
+        _cal_cache.update(sig=None, cal=None)
+        return None
+    sig = (str(path), st.st_mtime_ns, st.st_size)
+    if _cal_cache["sig"] != sig:
+        _cal_cache.update(sig=sig, cal=validate_calibration(json.loads(path.read_text(encoding="utf-8"))))
+    return _cal_cache["cal"]
+
+
+def calibration_info() -> Optional[dict]:
+    cal = current_calibration()
+    if cal is None:
+        return None
+    return {"fitted_on": cal["fitted_on"], "params": {p: {k: v for k, v in s.items() if k != "keys"}
+                                                     for p, s in cal["params"].items()}}
+
+
+def probe_value(segments: Iterable[Mapping], spec: Mapping, imaged_m: float, per_km: Optional[float] = None) -> dict:
+    """Probe-based value of one parameter over a unit's imaged segments (see validate_calibration). per_km: the
+    unit length in km for a COUNT parameter (potholes: b is potholes per km at f = 1)."""
+    scored = pos = 0.0
+    keys, t = spec["keys"], spec["threshold"]
+    for s in segments:
+        sc = s.get("probe")
+        if s.get("status") == "not_covered" or not isinstance(sc, Mapping):
+            continue
+        L = _len(s)
+        scored += L
+        if max(float(sc.get(k) or 0.0) for k in keys) >= t - EPS:
+            pos += L
+    frac = pos / scored if scored > 0 else None
+    ok = frac is not None and imaged_m > 0 and scored / imaged_m >= LOW_COVERAGE - EPS
+    scale = 1.0 if per_km is None else per_km
+    return {"value": max(0.0, spec["a"] + spec["b"] * frac * scale) if ok else None, "fraction": frac,
+            "scored_m": scored, "positive_m": pos}
+
+
+def roughness_value(segments: Iterable[Mapping], imaged_m: float) -> Optional[dict]:
+    """Length-weighted mean calibrated IRI (m/km) of the unit's segments that carry one (`iri`), when they cover
+    >= 50 % of the imaged length; None otherwise (no calibration -> segments carry no `iri`)."""
+    tot = acc = 0.0
+    for s in segments:
+        v = s.get("iri")
+        if s.get("status") == "not_covered" or v is None:
+            continue
+        try:
+            v = float(v)
+        except (TypeError, ValueError):
+            continue
+        if not math.isfinite(v) or v < 0:
+            continue
+        L = _len(s)
+        tot += L
+        acc += L * v
+    if tot <= 0 or imaged_m <= 0 or tot / imaged_m < LOW_COVERAGE - EPS:
+        return None
+    return {"value": acc / tot, "measured_m": tot}
+
+
+def band23(road_class: str, param: str, x: float, surface: Optional[str] = None) -> Optional[str]:
+    """Tables 5.1-5.3 range of one value: 'Excellent to Good' / 'Satisfactory to Fair' / 'Poor to Fail'."""
+    if param == "iri":
+        r = P23.IRI_RANGES.get(road_class, {}).get(surface or P23.DEFAULT_SURFACE[road_class])
+        if r is None:
+            return None
+        a, b = r
+        return "Excellent to Good" if x < a - EPS else ("Poor to Fail" if x > b + EPS else "Satisfactory to Fair")
+    a, b = P23.RANGES[road_class][param]
+    if param == "potholes":
+        if x <= a + EPS:
+            return "Excellent to Good"
+        return "Poor to Fail" if x > b + EPS else "Satisfactory to Fair"
+    return "Excellent to Good" if x < a - EPS else ("Poor to Fail" if x > b + EPS else "Satisfactory to Fair")
+
+
+def pci_unit(q: Mapping, road_class: str, surface: Optional[str] = None, entered: Optional[Mapping] = None,
+             calibration=_DEFAULT) -> dict:
+    """IRC:82-2023 PCI of one unit (100 m section, km row or stretch).
+
+    Per parameter the value comes from, in order: entered by the requester; calibrated probe scores; calibrated
+    accelerometer roughness (IRI); Stage 2 labels (cracking extent %, pothole number = label runs in the unit);
+    else not assessed. Label values carry the gate-skip range (lo = fewer distress = better, hi = skipped
+    segments distressed at the audited upper bound, point = audited point rate). Unknown parameters are
+    bracketed PCI_i = 0 / 100. pci.single = sum w_i PCI_i(point) when every parameter has a value, else None."""
+    cal = current_calibration() if calibration is _DEFAULT else calibration
+    cparams = (cal or {}).get("params") or {}
+    out = {"edition": P23.EDITION, "road_class": road_class,
+           "surface": surface or P23.DEFAULT_SURFACE[road_class],
+           "rated": q["coverage_status"] != "insufficient", "coverage_status": q["coverage_status"], "params": []}
+    if not out["rated"]:
+        out["pci"] = None
+        return out
+    lo_hi, point, missing = {}, {}, []
+    skip_segs = q["skip_m"] / SEGMENT_M
+    for p in P23.PARAMS:
+        row = {"param": p, "name": P23.PARAM_NAMES[p], "unit": P23.PARAM_UNITS[p], "weight": P23.WEIGHTS[p]}
+        spec = cparams.get(p)
+        v_lo = v_hi = v_pt = None
+        if entered and entered.get(p) is not None:
+            src, ev = "entered", "entered by requester for the whole stretch (unverified)"
+            v_lo = v_hi = v_pt = float(entered[p])
+        elif spec and spec["source"] == "probe" and (q.get("probe") or {}).get(p, {}).get("value") is not None:
+            pv = q["probe"][p]
+            src, ev = "probe", spec["evidence"]
+            v_lo = v_hi = v_pt = pv["value"]
+            row.update(probe_fraction=pv["fraction"], probe_threshold=spec["threshold"])
+        elif p == "iri" and q.get("roughness"):
+            src, ev = "roughness", "phone accelerometer, calibrated on survey sections (iri_calibration.json)"
+            v_lo = v_hi = v_pt = q["roughness"]["value"]
+        elif p in ("cracking", "potholes") and not (spec and spec["source"] == "probe"):
+            b = spec["b"] if spec else 1.0
+            src = "labels_calibrated" if spec else "labels"
+            if p == "cracking":
+                e = q["extent"]["cracking"]
+                v_lo, v_hi, v_pt = b * e["lo"], b * e["hi"], b * e.get("point", e["lo"])
+                ev = ASSESSMENT["cracking"]["evidence"] + "; extent = % of surveyed LENGTH (upper bound of % area)"
+            else:
+                n = q["runs"]["potholes"]
+                v_lo, v_hi = b * n, b * (n + POTHOLE_SKIP_UPPER * skip_segs)
+                v_pt = b * (n + POTHOLE_SKIP_POINT * skip_segs)
+                ev = (ASSESSMENT["potholes"]["evidence"] + "; number = runs of consecutive pothole-labelled 5 m "
+                      "segments in this unit (one run counted as one pothole)")
+            if spec:
+                ev += f"; scale {b:g} from {spec['evidence']}"
+        else:
+            src = "not_assessed"
+            ev = {"ravelling": "probe not calibrated on Bengaluru (Attain thresholds put it on 98 % of photos)",
+                  "patching": "probe not calibrated on Bengaluru",
+                  "rut_depth": "needs a straight edge or laser profiler; not measurable from one forward camera",
+                  "iri": "accelerometer roughness not yet calibrated against a reference IRI"}.get(p, "not assessed")
+        row.update(source=src, source_name=SOURCE_NAMES[src], evidence=ev)
+        if src == "not_assessed":
+            row.update(known=False)
+            missing.append(p)
+        else:
+            try:
+                pb, pw = P23.pci_param(road_class, p, v_lo, surface), P23.pci_param(road_class, p, v_hi, surface)
+                pp = P23.pci_param(road_class, p, v_pt, surface)
+            except P23.Unavailable as e:
+                row.update(known=False, value_lo=v_lo, value_hi=v_hi, value_point=v_pt, evidence=f"{ev}; {e}")
+                missing.append(p)
+                out["params"].append(row)
+                continue
+            row.update(known=True, value_lo=v_lo, value_hi=v_hi, value_point=v_pt, pci_best=max(pb, pw),
+                       pci_worst=min(pb, pw), pci_point=pp, range=band23(road_class, p, v_pt, surface))
+            lo_hi[p] = (v_lo, v_hi)
+            point[p] = v_pt
+        out["params"].append(row)
+    rng = P23.pci_range(road_class, {p: lo_hi.get(p) for p in P23.PARAMS if p not in missing}, surface)
+    lo, hi = rng["lo"], rng["hi"]
+    single = None
+    if not missing:
+        single = sum(P23.WEIGHTS[p] * r["pci_point"] for p, r in zip(P23.PARAMS, out["params"]))
+    known_w = sum(P23.WEIGHTS[p] for p in P23.PARAMS if p not in missing)
+    out["pci"] = {
+        "lo": lo, "hi": hi, "class_lo": P23.pci_class(lo), "class_hi": P23.pci_class(hi),
+        "class": (P23.pci_class(lo) if P23.pci_class(lo) == P23.pci_class(hi)
+                  else f"{P23.pci_class(lo)}–{P23.pci_class(hi)}"),
+        "single": single, "single_class": P23.pci_class(single) if single is not None else None,
+        "recommendation": P23.RECOMMENDATION[P23.pci_class(single)] if single is not None else None,
+        "missing": [P23.PARAM_NAMES[p] for p in missing], "known_weight": known_w,
+        "assessed_part": (sum(P23.WEIGHTS[p] * r["pci_point"] for p, r in zip(P23.PARAMS, out["params"])
+                              if r.get("known")) / known_w) if known_w > 0 else None,
+    }
+    return out
 
 
 # ------------------------------------------------------------------ arithmetic
@@ -247,7 +491,7 @@ def run_length_hist(rs: list[dict]) -> dict:
 
 def unit_quantities(segments: list[Mapping], length_m: float, *, gap_m: float = 0.0,
                     lane_width_m: float = DEFAULT_LANE_WIDTH_M, runs_in_unit: Optional[Mapping[str, list]] = None,
-                    pothole_runs_touching: Optional[int] = None) -> dict:
+                    pothole_runs_touching: Optional[int] = None, calibration=_DEFAULT) -> dict:
     """Summed quantities of one unit (100 m section, km row or whole stretch) from its chosen segments.
 
     length_m: the unit's length along the path (measure). gap_m: unsurveyed path length (gap edges).
@@ -314,6 +558,7 @@ def unit_quantities(segments: list[Mapping], length_m: float, *, gap_m: float = 
         if D <= 0:
             return None
         return {"lo": 100.0 * a / D, "hi": 100.0 * (a + SKIP_DISTRESS_UPPER * q["skip_m"]) / D,
+                "point": 100.0 * (a + SKIP_DISTRESS_POINT * q["skip_m"]) / D,
                 "uncorrected": (100.0 * a / q["classified_m"]) if q["classified_m"] > 0 else None,
                 "affected_m": a}
     q["extent"] = {p: est(a) for p, a in affected.items()}
@@ -335,6 +580,10 @@ def unit_quantities(segments: list[Mapping], length_m: float, *, gap_m: float = 
     n_area = len(pr) if pothole_runs_touching is None else pothole_runs_touching
     q["pothole_runs_touching"] = n_area
     q["pothole_nominal_area_pct"] = (100.0 * n_area * SMALL_POTHOLE_AREA_M2 / (D * lane_width_m)) if D > 0 else None
+    cal = current_calibration() if calibration is _DEFAULT else calibration
+    q["probe"] = {p: probe_value(segments, spec, q["imaged_m"], (length_m / 1000.0) if p == "potholes" else None)
+                  for p, spec in ((cal or {}).get("params") or {}).items() if spec["source"] == "probe"}
+    q["roughness"] = roughness_value(segments, q["imaged_m"])
     return q
 
 

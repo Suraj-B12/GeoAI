@@ -15,6 +15,7 @@ PostgreSQL does not:
     migrations/007_review_claims.sql         research.review_claims / review_skips (local only)
     migrations/008_review_idempotency_events.sql  op_id on the review log, research.expert_events (local only)
     migrations/009_pci_reports.sql           research.pci_reports: stored A->B condition-rating reports (local only)
+    migrations/010_video_probe_scores.sql    research.video_probe_scores: per-type probe P(yes) per video segment (local only)
 
 scripts/tests/test_local_db.py proves the result matches the live Supabase
 columns (PostgREST OpenAPI) table by table.
@@ -62,6 +63,7 @@ SCHEMA_FILES: tuple[Path, ...] = (
     MIGRATIONS_DIR / "007_review_claims.sql",
     MIGRATIONS_DIR / "008_review_idempotency_events.sql",
     MIGRATIONS_DIR / "009_pci_reports.sql",
+    MIGRATIONS_DIR / "010_video_probe_scores.sql",
 )
 
 LEDGER_SCHEMA = "geoai_local"   # outside `public`, so it is not part of the compared schema

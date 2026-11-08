@@ -57,7 +57,10 @@ BBOX_MARGIN_KM = 1.0
 _JSON = "application/json"
 _NO_CACHE = {"Cache-Control": "no-cache"}
 _FIELDS = {"a", "b", "via", "category", "lane_width_m", "chainage_at_a_km", "chainage_increases_towards_b",
-           "road_name", "road_number", "surface_type", "prepared_by", "title"}
+           "road_name", "road_number", "surface_type", "prepared_by", "title", "surface", "entered"}
+# values a requester may enter for the whole stretch (IRC:82-2023 parameters): (min, max)
+ENTERED_LIMITS = {"cracking": (0.0, 100.0), "ravelling": (0.0, 100.0), "patching": (0.0, 100.0),
+                  "potholes": (0.0, 1000.0), "rut_depth": (0.0, 200.0), "iri": (0.5, 30.0)}
 LIMITS = {"path": (30, 60.0), "report": (10, 60.0), "save": (10, 60.0), "read": (60, 60.0)}
 KEY_FAILURES = (5, 600.0)          # wrong operator keys per client per 10 min before 429
 
@@ -190,6 +193,28 @@ def validate_request(body: Any, bbox: Optional[list]) -> dict:
     elif inc not in (None, ""):
         if not isinstance(inc, bool):
             raise HTTPException(status_code=422, detail="chainage_increases_towards_b must be true or false")
+    surf = body.get("surface")
+    if surf not in (None, ""):
+        from app import pci_irc2023 as P23
+        if surf not in P23.SURFACES:
+            raise HTTPException(status_code=422, detail=f"surface must be one of {', '.join(P23.SURFACES)}")
+        out["surface"] = surf
+    ent = body.get("entered")
+    if ent not in (None, "", {}):
+        if not isinstance(ent, dict) or set(ent) - set(ENTERED_LIMITS):
+            raise HTTPException(status_code=422, detail="entered must be {parameter: value} with parameters among "
+                                                        + ", ".join(ENTERED_LIMITS))
+        vals = {}
+        for k, v in ent.items():
+            if v in (None, ""):
+                continue
+            x = _finite(v, f"entered.{k}")
+            lo, hi = ENTERED_LIMITS[k]
+            if not lo <= x <= hi:
+                raise HTTPException(status_code=422, detail=f"entered.{k} must be within {lo:g}-{hi:g}")
+            vals[k] = x
+        if vals:
+            out["entered"] = vals
     for f in PC.TEXT_FIELDS:
         v = body.get(f)
         if v in (None, ""):

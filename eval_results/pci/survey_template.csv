@@ -1,0 +1,2 @@
+section_id,start_lat,start_lon,end_lat,end_lon,road_class,surface,cracking_pct,ravelling_pct,potholes_number,patching_pct,rut_depth_mm,iri_m_km,pci,other_score
+S001,12.9000000,77.5800000,12.9008000,77.5809000,urban,BC,,,,,,,,
