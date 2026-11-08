@@ -147,6 +147,8 @@ def validate_calibration(cal: Mapping) -> dict:
     for p, spec in (cal.get("params") or {}).items():
         if p not in PROBE_KEYS:
             raise ValueError(f"calibration: parameter {p!r} cannot be calibrated here")
+        if not isinstance(spec, Mapping):
+            raise ValueError(f"calibration: {p}: entry must be an object")
         src = spec.get("source")
         b = float(spec.get("b", 1.0))
         if not math.isfinite(b) or b < 0:
@@ -212,26 +214,53 @@ def probe_value(segments: Iterable[Mapping], spec: Mapping, imaged_m: float, per
             "scored_m": scored, "positive_m": pos}
 
 
-def roughness_value(segments: Iterable[Mapping], imaged_m: float) -> Optional[dict]:
-    """Length-weighted mean calibrated IRI (m/km) of the unit's segments that carry one (`iri`), when they cover
-    >= 50 % of the imaged length; None otherwise (no calibration -> segments carry no `iri`)."""
-    tot = acc = 0.0
+_iri_cal_cache: dict = {"sig": None, "cal": None}
+
+
+def iri_calibration() -> Optional[dict]:
+    """eval_results/pci/iri/iri_calibration.json via app.pci_iri (re-read when it changes); None when absent."""
+    from app import pci_iri
+    path = Path(os.environ.get("PCI_IRI_CALIBRATION") or pci_iri.CALIBRATION_PATH)
+    try:
+        st = path.stat()
+    except OSError:
+        _iri_cal_cache.update(sig=None, cal=None)
+        return None
+    sig = (str(path), st.st_mtime_ns, st.st_size)
+    if _iri_cal_cache["sig"] != sig:
+        _iri_cal_cache.update(sig=sig, cal=pci_iri.load_calibration(path))
+    return _iri_cal_cache["cal"]
+
+
+def roughness_value(segments: Iterable[Mapping], imaged_m: float, cal=_DEFAULT) -> Optional[dict]:
+    """Calibrated IRI (m/km) of a unit from the phone-IMU features on its segments (`roughness`, table
+    research.segment_roughness): segments are grouped into 100 m bins by measure (the calibration's unit),
+    (bins of the calibration's unit_m) each bin -> app.pci_iri.aggregate() with the IRI calibration, and the calibrated bins are averaged by
+    length. None without a calibration, or when calibrated bins cover < 50 % of the imaged length."""
+    cal = iri_calibration() if cal is _DEFAULT else cal
+    if cal is None:
+        return None
+    from app import pci_iri
+    bins: dict[int, list] = {}
     for s in segments:
-        v = s.get("iri")
-        if s.get("status") == "not_covered" or v is None:
-            continue
-        try:
-            v = float(v)
-        except (TypeError, ValueError):
-            continue
-        if not math.isfinite(v) or v < 0:
+        r = s.get("roughness")
+        if s.get("status") == "not_covered" or not isinstance(r, Mapping):
             continue
         L = _len(s)
-        tot += L
-        acc += L * v
+        row = dict(r, s0_m=0.0, s1_m=L)
+        unit = float(cal.get("unit_m") or 100.0)
+        bins.setdefault(int(math.floor(float(s.get("measure_m") or 0.0) / unit)), []).append(row)
+    tot = acc = 0.0
+    statuses: dict[str, int] = {}
+    for rows in bins.values():
+        agg = pci_iri.aggregate(rows, calibration=cal)
+        statuses[agg["iri_status"]] = statuses.get(agg["iri_status"], 0) + 1
+        if agg["iri_status"] == "calibrated":
+            tot += agg["length_m"]
+            acc += agg["length_m"] * agg["iri"]
     if tot <= 0 or imaged_m <= 0 or tot / imaged_m < LOW_COVERAGE - EPS:
         return None
-    return {"value": acc / tot, "measured_m": tot}
+    return {"value": acc / tot, "measured_m": tot, "bins": statuses}
 
 
 def band23(road_class: str, param: str, x: float, surface: Optional[str] = None) -> Optional[str]:
@@ -291,6 +320,10 @@ def pci_unit(q: Mapping, road_class: str, surface: Optional[str] = None, entered
                 e = q["extent"]["cracking"]
                 v_lo, v_hi, v_pt = b * e["lo"], b * e["hi"], b * e.get("point", e["lo"])
                 ev = ASSESSMENT["cracking"]["evidence"] + "; extent = % of surveyed LENGTH (upper bound of % area)"
+                if not spec:
+                    # % of length only bounds the IRC % of AREA from above: the best case is no cracked area
+                    v_lo = 0.0
+                    ev += "; best case taken as 0 % area until calibrated on a survey"
             else:
                 n = q["runs"]["potholes"]
                 v_lo, v_hi = b * n, b * (n + POTHOLE_SKIP_UPPER * skip_segs)
@@ -301,17 +334,22 @@ def pci_unit(q: Mapping, road_class: str, surface: Optional[str] = None, entered
                 ev += f"; scale {b:g} from {spec['evidence']}"
         else:
             src = "not_assessed"
-            ev = {"ravelling": "probe not calibrated on Bengaluru (Attain thresholds put it on 98 % of photos)",
-                  "patching": "probe not calibrated on Bengaluru",
-                  "rut_depth": "needs a straight edge or laser profiler; not measurable from one forward camera",
-                  "iri": "accelerometer roughness not yet calibrated against a reference IRI"}.get(p, "not assessed")
+            if spec and spec["source"] == "probe":
+                pv = (q.get("probe") or {}).get(p) or {}
+                ev = ("probe calibrated, but probe scores cover less than 50 % of this unit's imaged length "
+                      f"({pv.get('scored_m', 0.0):.0f} m scored)")
+            else:
+                ev = {"ravelling": "probe not calibrated on Bengaluru (Attain thresholds put it on 98 % of photos)",
+                      "patching": "probe not calibrated on Bengaluru",
+                      "rut_depth": "needs a straight edge or laser profiler; not measurable from one forward camera",
+                      "iri": "accelerometer roughness not yet calibrated against a reference IRI"}.get(p, "not assessed")
         row.update(source=src, source_name=SOURCE_NAMES[src], evidence=ev)
         if src == "not_assessed":
             row.update(known=False)
             missing.append(p)
         else:
             try:
-                pb, pw = P23.pci_param(road_class, p, v_lo, surface), P23.pci_param(road_class, p, v_hi, surface)
+                pw, pb = P23.pci_param_bounds(road_class, p, v_lo, v_hi, surface)
                 pp = P23.pci_param(road_class, p, v_pt, surface)
             except P23.Unavailable as e:
                 row.update(known=False, value_lo=v_lo, value_hi=v_hi, value_point=v_pt, evidence=f"{ev}; {e}")
@@ -326,14 +364,22 @@ def pci_unit(q: Mapping, road_class: str, surface: Optional[str] = None, entered
     rng = P23.pci_range(road_class, {p: lo_hi.get(p) for p in P23.PARAMS if p not in missing}, surface)
     lo, hi = rng["lo"], rng["hi"]
     single = None
-    if not missing:
+    off_scale = [r["name"] for r in out["params"] if r.get("known") and r["source"] == "labels"]
+    if not missing and not off_scale:
         single = sum(P23.WEIGHTS[p] * r["pci_point"] for p, r in zip(P23.PARAMS, out["params"]))
+    single_note = None
+    if missing:
+        single_note = "no single PCI: " + ", ".join(P23.PARAM_NAMES[p] for p in missing) + " not assessed"
+    elif off_scale:
+        single_note = ("no single PCI: " + ", ".join(off_scale) + " from uncalibrated Stage 2 labels (% of length, "
+                       "pothole runs), which are not on the IRC % area / pothole-number scale until calibrated")
     known_w = sum(P23.WEIGHTS[p] for p in P23.PARAMS if p not in missing)
     out["pci"] = {
         "lo": lo, "hi": hi, "class_lo": P23.pci_class(lo), "class_hi": P23.pci_class(hi),
         "class": (P23.pci_class(lo) if P23.pci_class(lo) == P23.pci_class(hi)
                   else f"{P23.pci_class(lo)}–{P23.pci_class(hi)}"),
         "single": single, "single_class": P23.pci_class(single) if single is not None else None,
+        "single_note": single_note,
         "recommendation": P23.RECOMMENDATION[P23.pci_class(single)] if single is not None else None,
         "missing": [P23.PARAM_NAMES[p] for p in missing], "known_weight": known_w,
         "assessed_part": (sum(P23.WEIGHTS[p] * r["pci_point"] for p, r in zip(P23.PARAMS, out["params"])

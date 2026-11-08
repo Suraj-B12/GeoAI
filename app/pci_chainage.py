@@ -1223,18 +1223,23 @@ def load_graph(force: bool = False) -> Graph:
     from app import gis_routes as GR
     key, as_of = data_key()
     cal = C.current_calibration()
-    key = (key, None if cal is None else (cal["probe_fp"], json.dumps(cal["params"], sort_keys=True)))
+    ical = C.iri_calibration()
+    key = (key, None if cal is None else (cal["probe_fp"], json.dumps(cal["params"], sort_keys=True)),
+           None if ical is None else json.dumps(ical, sort_keys=True))
     with _cache_lock:
         if not force and _cache["graph"] is not None and _cache["key"] == key:
             return _cache["graph"]
         rows = GR._fetch_segment_rows(None)
         extra = {r["segment_id"]: r for r in GR._query(lambda cur: cur.execute(_EXTRA_SQL).fetchall())}
         probe = _probe_scores(cal["probe_fp"]) if cal is not None else {}
+        rough = _roughness_rows() if C.iri_calibration() is not None else {}
         recs, sessions = [], {}
         for r in rows:
             props = GR._segment_feature(r, "point")["properties"]
             if props["segment_id"] in probe:
                 props["probe"] = probe[props["segment_id"]]
+            if props["segment_id"] in rough:
+                props["roughness"] = rough[props["segment_id"]]
             e = extra.get(props["segment_id"], {})
             recs.append({"props": props, "alt": e.get("alt"), "device": e.get("device_id"),
                          "weather": e.get("weather"), "image_sha256": e.get("image_sha256")})
@@ -1256,6 +1261,22 @@ def _probe_scores(probe_fp: str) -> dict:
         return cur.execute("SELECT segment_id, scores FROM research.video_probe_scores "
                            "WHERE probe_fp = %s AND scores IS NOT NULL", (probe_fp,)).fetchall()
     return {r["segment_id"]: r["scores"] for r in GR._query(q)}
+
+
+def _roughness_rows() -> dict:
+    """{segment_id: IMU roughness features} from research.segment_roughness (migration 011) for the current
+    app.pci_iri method; {} if the table is missing."""
+    from app import gis_routes as GR
+    from app import pci_iri
+    fp = pci_iri.method_fp()
+
+    def q(cur):
+        if cur.execute("SELECT to_regclass('research.segment_roughness') AS t").fetchone()["t"] is None:
+            return []
+        return cur.execute("SELECT segment_id, duration_s, speed_mps, rms_av, rms_rot, iri_gc_uncal, flags, error "
+                           "FROM research.segment_roughness WHERE method_fp = %s", (fp,)).fetchall()
+    return {r["segment_id"]: {k: r[k] for k in ("duration_s", "speed_mps", "rms_av", "rms_rot", "iri_gc_uncal",
+                                                   "flags", "error")} for r in GR._query(q)}
 
 
 def changed_since(segment_ids: list[str], as_of: Optional[str]) -> int:

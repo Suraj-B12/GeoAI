@@ -24,8 +24,13 @@ survey, report agreement only on the blind rest (pre-registered: eval_results/pc
 | Tests + critic | test_pci_irc2023.py, test_pci_survey.py, new tests in test_pci_routes.py, fixes in pci_irc2023 / pci_core 2023 / survey script | eval_results/pci/STATUS_review_2023.md, REVIEW_2023.md |
 
 ## Steps left (coordinator)
-1. Integrate agent results; register migration 011 in scripts/setup_local_db.py (+ count in test_local_db).
-2. Hook calibrated IRI onto segments (`iri` property) in pci_chainage.load_graph once app/pci_iri exists.
+1. DONE: IRI agent finished (no IRI until survey calibration; idle-noise check FAILED, repeatability not
+   testable — eval_results/pci/iri/VALIDATION.md). Migration 011 registered; pci_core.roughness_value +
+   pci_chainage._roughness_rows hook it in (bins of the calibration unit_m).
+2. TODO after the critic agent finishes with scripts/pci_survey_compare.py: add the IRI fit to `fit`
+   (measure(): raw rows via PC._roughness_rows(); per calibration section pci_iri.aggregate() -> rms_av, speed;
+   iri_ref = survey iri_m_km; pci_iri.fit_calibration(unit_m = median section length); write
+   eval_results/pci/iri/iri_calibration.json, or OUT/iri_calibration.json + PCI_IRI_CALIBRATION with --out-dir).
 3. Full test run; restart production (see CLAUDE.md "Restarting production"); regenerate samples
    (`scripts/pci_samples.py --database geoai --regenerate`, `scripts/pci_validation.py --database geoai --redo samples`).
 4. Paper §9 -> 2023, CLAUDE.md, memory; commit + push; delete this file.
