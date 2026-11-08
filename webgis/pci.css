@@ -113,3 +113,33 @@ body.dark{--band-good:#5fbf8f;--band-fairgood:#a9c95a;--band-fair:#e1ba77;--band
 .pci-panel th,.pci-panel td,.pci-na-why,.pci-priority strong,.pci-tag,.pci-band,.pci-band small{font-size:11px}
 .pci-strip .axis,.pci-strip .axis.end{font-size:11px}.pci-strip .axis.sub,.pci-strip .axis.mid{font-size:10.5px}
 .pci-thumb span{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;line-height:1.25}
+/* ---- IRC:82-2023 PCI (2026-11-08): six Table 5.5 classes, sequential red→amber→blue (colour-blind safe, no purple) ---- */
+:root{--cls-fail:#8e1b1b;--cls-poor:#d4582a;--cls-fair:#e8a33d;--cls-satisfactory:#92c5de;--cls-good:#4393c3;--cls-excellent:#1d4e89;--cls-none:#8a8f94}
+body.dark{--cls-fail:#c9372f;--cls-poor:#ee7c48;--cls-fair:#f2b85c;--cls-satisfactory:#a8d4ea;--cls-good:#5ea9d8;--cls-excellent:#3a78c2;--cls-none:#8d9196}
+.cls-fail{--c:var(--cls-fail)}.cls-poor{--c:var(--cls-poor)}.cls-fair{--c:var(--cls-fair)}.cls-satisfactory{--c:var(--cls-satisfactory)}.cls-good{--c:var(--cls-good)}.cls-excellent{--c:var(--cls-excellent)}.cls-none{--c:var(--cls-none)}
+.pci-panel i[class*="cls-"]{background:var(--c)}.pci-panel svg rect[class*="cls-"]{fill:var(--c)}
+.pci-cls-line{stroke:var(--c)}
+.pci-casing{stroke:rgba(20,20,22,.55)}.pci-casing.selected{stroke:#111827;stroke-opacity:.95}body.dark .pci-casing{stroke:rgba(255,255,255,.5)}body.dark .pci-casing.selected{stroke:#fff}
+.pci-sw{display:inline-block;width:10px;height:10px;border-radius:2px;flex-shrink:0;box-shadow:inset 0 0 0 1px rgba(0,0,0,.18)}
+.pci-chip{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border:1px solid var(--border);border-radius:999px;background:var(--soft);font-size:12px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}.pci-chip .pci-sw+span,.pci-chip .pci-sw+.pci-sw{margin-left:-1px}.pci-chip.sm{padding:3px 8px;font-size:11px;flex-shrink:0}
+.pci-vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.pci-score{margin:4px 0 12px;padding:12px 12px 10px;border:1px solid var(--border);border-radius:14px}
+.pci-score-top{display:flex;align-items:flex-end;justify-content:space-between;gap:8px 12px;flex-wrap:wrap}
+.pci-score-label{display:block;font-size:11px;color:var(--muted);font-weight:600}.pci-score-num{display:block;font-size:30px;line-height:1.1;margin-top:2px;font-variant-numeric:tabular-nums}
+.pci-scale{display:block;width:100%;height:auto;margin:8px 0 2px}.pci-scale .axis{font:600 10px Urbanist,Arial,sans-serif;fill:var(--muted)}.pci-scale .axis.mid{text-anchor:middle}.pci-scale .axis.end{text-anchor:end}.pci-scale .axis.start{text-anchor:start}
+.pci-scale-range{fill:none;stroke:var(--ink);stroke-width:2}.pci-scale-tick{fill:var(--ink)}
+.pci-rec{margin:8px 0 0;font-size:12px;line-height:1.45}.pci-rec>span{display:block;font-size:11px;color:var(--muted);font-weight:600}.pci-rec strong{font-size:14px}.pci-rec.pending>span{color:var(--ink);font-size:12px;font-weight:700}.pci-basis{margin:6px 0 0}
+.pci-p23 col.c1{width:27%}.pci-p23 col.c2{width:22%}.pci-p23 col.c3{width:15%}.pci-p23 col.c4{width:13%}.pci-p23 col.c5{width:23%}
+.pci-params.pci-p23 td{text-align:right;font-variant-numeric:tabular-nums;white-space:normal}.pci-params.pci-p23 td:last-child{text-align:left;padding-left:8px}.pci-params.pci-p23 thead th:nth-child(n+2):nth-child(-n+4){text-align:right}.pci-params.pci-p23 thead th:last-child{padding-left:8px}
+.pci-params.pci-p23 tr.na td,.pci-params.pci-p23 tr.na th{color:var(--muted);font-style:normal}.pci-params.pci-p23 tr.na td{text-align:right}.pci-params.pci-p23 tr.na td:last-child{text-align:left}
+.pci-na-line{margin:8px 0 4px;font-size:11.5px;line-height:1.5;color:var(--muted)}.pci-na-line strong{color:var(--ink)}
+.pci-flags{margin:8px 0;font-size:12px}.pci-flags>summary{cursor:pointer;font-weight:700}
+.pci-strip .grid{stroke:var(--border);stroke-width:1;stroke-dasharray:2 3}.pci-strip rect.rng{fill:var(--muted);opacity:.3}.pci-strip g.bandcell{cursor:pointer}
+.pci-legend i[class*="cls-"]{width:10px;height:10px;border-radius:2px}.pci-legend i.cls-none{opacity:.6}
+.pci-legend-rule{flex-basis:100%;display:flex;align-items:center;gap:3px;margin:2px 0 0;font-size:11px;line-height:1.4}.pci-legend-rule i+i{margin-right:4px}
+.pci-sec-band{display:flex;flex-direction:column;background:none!important;overflow:hidden}.pci-sec-band i{display:block;flex:1}
+.pci-unit-input{display:flex;align-items:center;gap:6px}.pci-unit-input input{flex:1;min-width:0}.pci-unit-input>span{font-size:11px;color:var(--muted);min-width:30px}
+.pci-field input[aria-invalid=true]{border-color:#b3261e;box-shadow:0 0 0 1px #b3261e}.pci-field-err{font-size:11px;line-height:1.35;color:#922f24}.dark .pci-field-err{color:#ffc7b9}
+.pci-mfield>span:first-child{min-height:2.7em}
+.pci-saved-bands{display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap}
+.pci-panel details>summary{gap:6px;align-items:baseline;flex-wrap:wrap}

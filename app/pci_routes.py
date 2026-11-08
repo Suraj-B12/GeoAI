@@ -199,6 +199,10 @@ def validate_request(body: Any, bbox: Optional[list]) -> dict:
         if surf not in P23.SURFACES:
             raise HTTPException(status_code=422, detail=f"surface must be one of {', '.join(P23.SURFACES)}")
         out["surface"] = surf
+        if cat in ("mdr", "rural") and surf not in (P23.IRI_MDR if cat == "mdr" else P23.IRI_RURAL):
+            raise HTTPException(status_code=422, detail=f"IRC:82-2023 gives no roughness equation for {surf} on "
+                                                        f"{cat} roads; surface must be one of "
+                                                        + ", ".join(P23.IRI_MDR if cat == "mdr" else P23.IRI_RURAL))
     ent = body.get("entered")
     if ent not in (None, "", {}):
         if not isinstance(ent, dict) or set(ent) - set(ENTERED_LIMITS):
@@ -309,47 +313,99 @@ def csv_cell(v) -> Any:
     return "'" + v if v.startswith(_CSV_DANGER) else v
 
 
-CSV_COLUMNS = ("unit", "index", "chainage_from", "chainage_to", "from_m", "to_m", "road_chainage_from",
-               "road_chainage_to", "length_m", "coverage", "coverage_status", "classified_m", "skip_m",
-               "not_covered_m", "gap_m", "cracking_E_lo", "cracking_E_hi", "cracking_band", "alligator_E_lo",
-               "linear_E_lo", "potholes_E_lo", "potholes_E_hi", "potholes_band", "pothole_runs", "pothole_runs_per_km",
-               "bleeding_E_lo", "edge_breaking_E_lo", "final_lo", "final_hi", "final_class", "not_assessed",
-               "chosen_session", "chosen_date", "also_surveyed", "road_name_as_entered", "category")
+CSV_PARAMS = (("cracking", "cracking_pct"), ("ravelling", "ravelling_pct"), ("potholes", "potholes_no"),
+              ("patching", "patching_pct"), ("rut_depth", "rut_depth_mm"), ("iri", "iri_m_per_km"))
+CSV_COLUMNS = (("unit", "index", "chainage_from", "chainage_to", "from_m", "to_m", "road_chainage_from",
+                "road_chainage_to", "start_lat", "start_lon", "end_lat", "end_lon", "length_m", "imaged_pct",
+                "coverage_status")
+               + tuple(c for p, n in CSV_PARAMS for c in (n, n + "_lo", n + "_hi", p + "_pci_i", p + "_source"))
+               + ("pci_lo", "pci_hi", "pci_single", "pci_class", "recommendation_table_5_5", "missing_parameters"))
+
+
+def _csv_lonlat(rep: dict, m: float) -> tuple:
+    """(lat, lon) on the report path at measure m (metres from A)."""
+    v = rep["path"]["vertices"]
+    for (x1, y1, a), (x2, y2, b) in zip(v, v[1:]):
+        if a <= m <= b:
+            t = 0.0 if b == a else (m - a) / (b - a)
+            return f"{y1 + t * (y2 - y1):.7f}", f"{x1 + t * (x2 - x1):.7f}"
+    return f"{v[-1][1]:.7f}", f"{v[-1][0]:.7f}"
 
 
 def report_csv(rep: dict) -> str:
+    """IRC:82-2023 condition report as CSV: '#' comment lines (edition, road, surface, headline PCI), then one row
+    per 100 m section, per km row and for the whole stretch. Parameter values: point estimate + lo/hi (gate-skip
+    allowance), PCI_i (point) and source; a parameter that is not assessed has empty values and source
+    'not_assessed'. Whole stretch: values over the full length; PCI and PCI_i = length-weighted mean of the rated
+    km rows (the report's headline)."""
+    from app import pci_irc2023 as P23
     buf = io.StringIO()
     w = csv.writer(buf, lineterminator="\r\n")
+    h, s = rep["header"], rep["summary"]
+    hp = s.get("pci") or {}
+    head_pci = ("insufficient data" if not hp else
+                (f"{hp['single']:.1f} ({hp['single_class']})" if hp.get("single") is not None
+                 else f"{hp['lo']:.1f} to {hp['hi']:.1f} ({hp['class']}); no single PCI: not assessed "
+                      + ", ".join(hp.get("missing") or [])))
+    for k, v in (("report", "Road condition report - IRC:82-2023 Pavement Condition Index (screening estimate "
+                            "from phone video)"),
+                 ("edition", h.get("edition") or P23.EDITION), ("report_id", rep.get("report_id")),
+                 ("road_name (as entered)", h.get("road_name")), ("road_number (as entered)", h.get("road_number")),
+                 ("road_class", h.get("category")),
+                 ("surface", f"{h.get('surface')} {h.get('surface_name') or ''} ({h.get('surface_note') or ''})"),
+                 ("A lat/lon", f"{h['a']['snapped_lat']:.7f} {h['a']['snapped_lon']:.7f}"),
+                 ("B lat/lon", f"{h['b']['snapped_lat']:.7f} {h['b']['snapped_lon']:.7f}"),
+                 ("length_m", s["length_m"]), ("survey_dates", ", ".join(h.get("survey_dates_ist") or [])),
+                 ("data_as_of", rep.get("data_as_of")), ("whole-stretch PCI", head_pci),
+                 ("note", "one lane imaged; cracking % = share of surveyed LENGTH (upper bound of % area); potholes "
+                          "= runs of consecutive pothole-labelled 5 m frames; chainage measured from A"),
+                 ("columns", "<param> = best estimate (gate-skipped frames at the audited rate); _lo = classified "
+                             "frames only (potholes_no_lo = runs counted); _hi = skipped frames at the upper 95 % "
+                             "rate; <param>_pci_i at the best estimate; empty = not assessed (bracketed 0-100 in "
+                             "pci_lo / pci_hi)")):
+        w.writerow(["# " + k, csv_cell(v)])
     w.writerow(CSV_COLUMNS)
+    kms = [k for k in rep["km"] if ((k.get("pci") or {}).get("pci"))]
+    kw = sum(k["to_m"] - k["from_m"] for k in kms) or 1.0
 
-    def row(kind, idx, u):
-        q, r = u["quantities"], u["rating"]
-        ext = q["extent"]
-        prm = {p["param"]: p for p in r.get("params", [])}
-        f = r.get("final") or {}
-        ch = u.get("chosen_pass") or {}
-
-        def e(p, key):
-            x = ext.get(p)
-            return None if x is None else x.get(key)
+    def row(kind, idx, u, whole=False):
+        q = u["quantities"]
+        pb = u.get("pci") or {}
+        pc = (hp or None) if whole else pb.get("pci")
+        prm = {p["param"]: p for p in pb.get("params") or []}
+        a_lat, a_lon = _csv_lonlat(rep, u["from_m"])
+        b_lat, b_lon = _csv_lonlat(rep, u["to_m"])
         vals = [kind, idx, u["chainage_from"], u["chainage_to"], u["from_m"], u["to_m"],
                 (u.get("road_chainage_from") or {}).get("text"), (u.get("road_chainage_to") or {}).get("text"),
-                q["length_m"], q["coverage"], q["coverage_status"], q["classified_m"], q["skip_m"],
-                q["not_covered_m"], q["gap_m"], e("cracking", "lo"), e("cracking", "hi"),
-                prm.get("cracking", {}).get("band"), e("cracking_alligator", "lo"), e("cracking_linear", "lo"),
-                e("potholes", "lo"), e("potholes", "hi"), prm.get("potholes", {}).get("band"),
-                q["runs"]["potholes"], q["runs_per_km"]["potholes"],
-                (q["reported"].get("Bleeding") or {}).get("lo"), (q["reported"].get("Edge Breaking") or {}).get("lo"),
-                f.get("lo"), f.get("hi"), f.get("class") or "Insufficient data",
-                ", ".join(r.get("not_assessed") or []), ch.get("session_id"), ch.get("date_ist"),
-                ", ".join(x["session_id"] for x in u.get("also_surveyed") or []),
-                rep["header"].get("road_name"), rep["header"]["category"]]
-        w.writerow([csv_cell(v) for v in vals])
-    for s in rep["sections"]:
-        row("100m", s["index"], s)
+                a_lat, a_lon, b_lat, b_lon, q["length_m"], round(100.0 * q["coverage"], 1), q["coverage_status"]]
+        for p, _n in CSV_PARAMS:
+            r = prm.get(p) or {}
+            src = r.get("source") or ("not_assessed" if pc else None)
+            v = r.get("value_point") if r.get("value_point") is not None else r.get("value_lo")
+            if src == "not_assessed":
+                v = None
+            pci_i = r.get("pci_point") if r.get("known") else None
+            if whole:
+                ks = [((k.get("pci") or {}).get("params") or []) for k in kms]
+                rows_p = [next((x for x in ps if x["param"] == p), {}) for ps in ks]
+                pci_i = (sum(x["pci_point"] * (k["to_m"] - k["from_m"]) for x, k in zip(rows_p, kms)) / kw
+                         if kms and all(x.get("known") for x in rows_p) else None)
+            vals += [v, None if v is None else r.get("value_lo"), None if v is None else r.get("value_hi"), pci_i,
+                     src]
+        if pc:
+            single = pc.get("single")
+            cls = pc.get("single_class") if single is not None else pc.get("class")
+            vals += [pc.get("lo"), pc.get("hi"), single, cls,
+                     P23.RECOMMENDATION.get(pc.get("single_class")) if single is not None else None,
+                     ", ".join(pc.get("missing") or [])]
+        else:
+            vals += [None, None, None, "insufficient data", None, None]
+        w.writerow([csv_cell(x) for x in vals])
+    for sec in rep["sections"]:
+        row("100m", sec["index"], sec)
     for k in rep["km"]:
         row("km", k["km"], k)
-    row("stretch", "", rep["stretch"])
+    row("stretch", "", rep["stretch"], whole=True)
     return "﻿" + buf.getvalue()
 
 
@@ -473,8 +529,14 @@ def _bands(summary) -> dict:
 
 
 def headline_text(summary) -> str:
-    """F8: the list leads with the per-parameter bands; the overall class comes last, marked secondary."""
+    """Saved-report list line: IRC:82-2023 PCI (single or range) and class, then length."""
     s = summary or {}
+    pci = s.get("pci")
+    if pci:
+        v = (f"PCI {pci['single']:.0f}" if pci.get("single") is not None
+             else f"PCI {pci['lo']:.0f}–{pci['hi']:.0f}")
+        cls = pci.get("single_class") or pci.get("class")
+        return f"{v} · {cls} · {'≥ ' if s.get('gaps') else ''}{s.get('length_m', 0):.0f} m"
     hl = s.get("headline") or {}
     if not hl:
         return f"{s.get('length_m', 0):.0f} m · insufficient data"
@@ -546,7 +608,25 @@ async def pci_meta(request: Request):
                              "lane_width_m": [2, 30], "chainage_at_a_km": [0, 3000], "text_max": MAX_TEXT,
                              "stored_max": MAX_STORED,
                              "rate_per_minute": {k: v[0] for k, v in LIMITS.items()}},
-                  "assessment": C.ASSESSMENT, "fields": sorted(_FIELDS)})
+                  "assessment": C.ASSESSMENT, "fields": sorted(_FIELDS),
+                  "irc2023": _meta_2023()})
+
+
+def _meta_2023() -> dict:
+    """IRC:82-2023 facts the WebGIS form needs (classes, parameters with units/limits, surfaces per road class).
+    Surfaces per class = those with a roughness entry in Tables 5.1-5.3 / an Appendix-2 IRI equation (SMA has
+    no equation and is not offered; rural roads have no BC equation)."""
+    from app import pci_irc2023 as P23
+    surf = {"highway": ["BC", "SDBC"], "urban": ["BC", "SDBC"],
+            "mdr": [s for s in P23.SURFACES if s in P23.IRI_MDR], "rural": [s for s in P23.SURFACES if s in P23.IRI_RURAL]}
+    return {"edition": P23.EDITION, "name": P23.NAME,
+            "road_classes": [{"id": k, "name": PC.CATEGORY_NAMES[k], "surfaces": surf[k],
+                              "default_surface": P23.DEFAULT_SURFACE[k]} for k in P23.ROAD_CLASSES],
+            "surface_names": dict(P23.SURFACE_NAMES),
+            "params": [{"id": p, "name": P23.PARAM_NAMES[p], "unit": P23.PARAM_UNITS[p], "weight": P23.WEIGHTS[p],
+                        "entered_limits": list(ENTERED_LIMITS[p])} for p in P23.PARAMS],
+            "classes": [{"name": n, "above": lo, "recommendation": P23.RECOMMENDATION[n]} for lo, n in P23.CLASSES]
+                       + [{"name": "Fail", "above": None, "recommendation": P23.RECOMMENDATION["Fail"]}]}
 
 
 @router.post("/path")

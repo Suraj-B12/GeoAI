@@ -14,17 +14,21 @@ Optional per section (any subset; blanks allowed):
 Start/end positions are the section's ends on the road (GPS). Sections of 100-1000 m.
 
     python scripts/pci_survey_compare.py check    SURVEY.csv   # parse + split + which sections we can build
-    python scripts/pci_survey_compare.py fit      SURVEY.csv   # calibration half -> eval_results/pci/param_calibration.json
-    python scripts/pci_survey_compare.py evaluate SURVEY.csv   # test half -> eval_results/pci/survey_comparison.{md,json}
+    python scripts/pci_survey_compare.py fit      SURVEY.csv   # calibration half -> param_calibration_candidate.json
+    python scripts/pci_survey_compare.py evaluate SURVEY.csv   # test half, WITH the candidate -> survey_comparison.json
+    python scripts/pci_survey_compare.py promote  SURVEY.csv   # candidate -> param_calibration.json (production reads
+                                                               # it live), only after an evaluate of that candidate
 Options: --database geoai (default from DATABASE_URL), --road-class urban, --surface BC.
 
 Calibration (fit, calibration half only), per parameter the survey reports:
   - candidates: Stage 2 labels times a scale b (cracking extent, pothole runs), or the per-type probe at threshold t
     with value = a + b * f (f = fraction of the section's probe-scored length at or above t; a = 0 except rut depth);
-  - t on a grid 0.05-0.95, b on a grid; the candidate with the lowest mean absolute error IN PCI_i POINTS wins;
-  - its calibration-half MAE is written beside the MAE of a constant (the calibration-half median), so a
-    parameter the images cannot see is visible as "not better than a constant".
-  - IRI: app.pci_iri.fit_calibration (when the roughness workstream provides it) on the same half.
+  - t on a grid 0.05-0.95, b on a log grid 0.01-1000; the candidate with the lowest mean absolute error IN PCI_i
+    POINTS wins (in native units for a parameter whose equation is unavailable for some section, e.g. MDR potholes);
+  - its calibration-half MAE is written beside the MAE of a constant (the calibration-half median). Both are
+    IN-SAMPLE (thousands of candidates are tried on the same half); a parameter whose best candidate is not
+    better than the constant is NOT written to the calibration (it stays "not assessed").
+  - IRI is NOT fitted here (the roughness workstream, app/pci_iri.py, owns iri_calibration.json).
 Evaluate (test half only): our single PCI vs the survey PCI (MAE, bias, RMSE, Spearman, Bland-Altman, Table 5.5
 classes exact / within one / quadratic kappa) with block-bootstrap 95 % CIs, beside the constant baseline; per
 parameter MAE; and an equation check (survey parameters through our equations vs the survey's own PCI).
@@ -53,12 +57,17 @@ from app import pci_irc2023 as P23  # noqa: E402
 OUT = PROJECT_ROOT / "eval_results" / "pci"
 RULE = OUT / "survey_split_rule.json"
 LEDGER = OUT / "survey_ledger.jsonl"
-CAL_PATH = OUT / "param_calibration.json"
+IRI_CAL_PATH = OUT / "iri" / "iri_calibration_candidate.json"   # fit writes; production never reads it
+IRI_LIVE_PATH = OUT / "iri" / "iri_calibration.json"
+CAL_PATH = OUT / "param_calibration_candidate.json"      # written by fit; never read by production
+LIVE_PATH = OUT / "param_calibration.json"               # read live by app/pci_core.current_calibration()
 COLS = {"cracking": "cracking_pct", "ravelling": "ravelling_pct", "potholes": "potholes_number",
         "patching": "patching_pct", "rut_depth": "rut_depth_mm", "iri": "iri_m_km"}
 BLOCK = 3
 T_GRID = [round(0.05 + 0.025 * i, 3) for i in range(37)]                      # 0.05 .. 0.95
-B_GRID = sorted({round(x, 4) for x in [0.05 * i for i in range(1, 61)] + [0.25 * i for i in range(13, 81)]})
+# b: % parameters need b up to 100 (b = 100 x area factor), probe potholes hundreds per km at f = 1
+B_GRID = sorted({float(f"{10 ** (-2 + 5 * i / 240):.4g}") for i in range(241)}
+                | {round(0.05 * i, 4) for i in range(1, 61)})
 SEED = 20261108
 N_BOOT = 2000
 
@@ -82,6 +91,7 @@ def _num(v) -> Optional[float]:
 
 def read_survey(path: Path) -> list[dict]:
     rows = []
+    pct = {"cracking", "ravelling", "patching"}
     with open(path, newline="", encoding="utf-8-sig") as fh:
         rd = csv.DictReader(fh)
         hdr = {h.strip().lower() for h in (rd.fieldnames or [])}
@@ -113,10 +123,31 @@ def read_survey(path: Path) -> list[dict]:
                 raise SystemExit(f"line {i}: surface must be one of {P23.SURFACES}")
             if row["pci"] is not None and not 0 <= row["pci"] <= 100:
                 raise SystemExit(f"line {i}: pci must be within 0-100 (IRC:82-2023); put other scales in other_score")
+            for end in ("a", "b"):
+                if not (-90 <= row[end]["lat"] <= 90 and -180 <= row[end]["lon"] <= 180):
+                    raise SystemExit(f"line {i}: start/end position is not a latitude/longitude")
+            for p, v in row["survey"].items():
+                if v is not None and (v < 0 or (p in pct and v > 100)):
+                    raise SystemExit(f"line {i}: {COLS[p]} must be >= 0" + (" and <= 100" if p in pct else ""))
+            rc, sf = row["road_class"], row["surface"]
+            if rc in ("mdr", "rural") and sf and sf not in P23.EQUATIONS[rc]["iri"]:
+                raise SystemExit(f"line {i}: IRC:82-2023 gives no roughness equation for surface {sf} on {rc} roads")
             rows.append(row)
     if not rows:
         raise SystemExit("survey CSV has no sections")
     return rows
+
+
+def test_half_sha(rows: list[dict]) -> str:
+    """Hash of the test half's section ids: survives edits of the CSV (an extra column, a corrected value), so a
+    fit after an evaluate is still recognised as post hoc."""
+    ids = sorted(r["section_id"] for r in rows if r.get("half") == "test")
+    return hashlib.sha256("\n".join(ids).encode("utf-8")).hexdigest()
+
+
+def is_post_hoc(ledger: list[dict], file_sha: str, test_sha: str) -> bool:
+    return any(e.get("cmd") == "evaluate" and (e.get("survey_sha256") == file_sha or e.get("test_half_sha256") == test_sha)
+               for e in ledger)
 
 
 def split(rows: list[dict]) -> list[dict]:
@@ -135,6 +166,7 @@ def measure(rows: list[dict], road_class: str, surface: Optional[str], probe_fp:
     g = PC.load_graph(force=True)
     by_id = {n.segment_id: n.props for n in g.nodes}
     probe = PC._probe_scores(probe_fp) if probe_fp else {}
+    rough = PC._roughness_rows()
     for r in rows:
         req = {"a": r["a"], "b": r["b"], "category": r["road_class"] or road_class}
         s = r["surface"] or surface
@@ -153,10 +185,10 @@ def measure(rows: list[dict], road_class: str, surface: Optional[str], probe_fp:
         for sid in rep["segment_ids"]:
             pr = by_id.get(sid) or {}
             segs.append({"segment_id": sid, "length_m": float(pr.get("length_m") or 0.0), "status": pr.get("status"),
-                         "probe": probe.get(sid), "roughness": pr.get("roughness")})
+                         "probe": probe.get(sid), "roughness": rough.get(sid)})
         q = st["quantities"]
         km = rep["km"]
-        params = ({x["param"]: x.get("value_point") for x in km[0]["pci"]["params"]}
+        params = ({x["param"]: x.get("value_point") for x in km[0]["pci"]["params"] if x.get("known")}
                   if len(km) == 1 and km[0]["pci"].get("pci") else None)
         r["ours"] = {"params": params, "report_length_m": rep["summary"]["length_m"], "segments": segs,
                      "cracking_point": q["extent"]["cracking"]["point"] if q["extent"]["cracking"] else None,
@@ -176,24 +208,34 @@ def probe_fraction(segs: list[dict], keys, t: float) -> Optional[float]:
 
 
 # ============================================================ fit
-def _pci_err(rc, surf, p, pred, truth) -> float:
+def _pci_err(rc, surf, p, pred, truth) -> Optional[float]:
+    """|error| in PCI_i points; None when the parameter's equation is unavailable for this section."""
     try:
         return abs(P23.pci_param(rc, p, max(0.0, pred), surf) - P23.pci_param(rc, p, truth, surf))
     except P23.Unavailable:
-        return abs(pred - truth)
+        return None
+
+
+def _errs(rcs, surfs, p, preds, truths) -> tuple:
+    """(mean |error|, unit): in PCI_i points when every section has a usable equation, else in the parameter's
+    own unit for ALL sections (never a mix of the two)."""
+    e = [_pci_err(rc, s, p, a, y) for a, y, rc, s in zip(preds, truths, rcs, surfs)]
+    if all(x is not None for x in e):
+        return sum(e) / len(e), "PCI points"
+    return sum(abs(max(0.0, a) - y) for a, y in zip(preds, truths)) / len(preds), P23.PARAM_UNITS[p]
 
 
 def _fit_scale(xs, ys, rcs, surfs, p, a_free=False):
-    """(a, b, MAE in PCI points) minimising MAE over the b grid (a = 0, or a from the median residual)."""
+    """(a, b, MAE, unit) minimising MAE over the b grid (a = 0, or a from the median residual)."""
     best = None
     for b in B_GRID:
         a = 0.0
         if a_free:
             res = sorted(y - b * x for x, y in zip(xs, ys))
             a = res[len(res) // 2]
-        mae = sum(_pci_err(rc, s, p, a + b * x, y) for x, y, rc, s in zip(xs, ys, rcs, surfs)) / len(xs)
+        mae, unit = _errs(rcs, surfs, p, [a + b * x for x in xs], ys)
         if best is None or mae < best[2] - 1e-12:
-            best = (a, b, mae)
+            best = (a, b, mae, unit)
     return best
 
 
@@ -210,13 +252,13 @@ def fit(rows: list[dict], probe_fp: str) -> dict:
         rcs = [r["ours"]["road_class"] for r in rs]
         sfs = [r["ours"]["surface"] for r in rs]
         med = sorted(ys)[len(ys) // 2]
-        const = sum(_pci_err(rc, s, p, med, y) for y, rc, s in zip(ys, rcs, sfs)) / len(ys)
+        const, unit = _errs(rcs, sfs, p, [med] * len(ys), ys)
         cands = []
         if p in ("cracking", "potholes"):
             xs = [r["ours"]["cracking_point"] if p == "cracking" else
                   r["ours"]["pothole_runs"] + C.POTHOLE_SKIP_POINT * r["ours"]["skip_m"] / C.SEGMENT_M for r in rs]
             if all(x is not None for x in xs):
-                a, b, mae = _fit_scale(xs, ys, rcs, sfs, p)
+                a, b, mae, _u = _fit_scale(xs, ys, rcs, sfs, p)
                 cands.append({"source": "labels", "b": b, "mae": mae})
         keys = C.PROBE_KEYS[p]
         for t in T_GRID:
@@ -229,22 +271,26 @@ def fit(rows: list[dict], probe_fp: str) -> dict:
                 # f is a length fraction; the survey reports a NUMBER per section: scale by section length
                 lens = [r["ours"]["report_length_m"] / 1000.0 for r in rs]
                 f_ = tuple(fi * li for fi, li in zip(f_, lens))
-            a, b, mae = _fit_scale(list(f_), list(y_), rc_, s_, p, a_free=(p == "rut_depth"))
+            a, b, mae, _u = _fit_scale(list(f_), list(y_), rc_, s_, p, a_free=(p == "rut_depth"))
             cands.append({"source": "probe", "keys": list(keys), "threshold": t, "a": a, "b": b, "mae": mae})
         if not cands:
             report[p] = {"n": len(rs), "fitted": False, "reason": "no usable candidate (missing probe scores?)"}
             continue
         best = min(cands, key=lambda c: (c["mae"], c["source"] != "labels"))
-        ev = (f"fitted on {len(rs)} calibration sections of the survey: MAE {best['mae']:.1f} PCI points vs "
-              f"{const:.1f} for a constant" + ("" if best["mae"] < const else " (NOT better than a constant)"))
+        better = best["mae"] < const - 1e-9
+        ev = (f"fitted on {len(rs)} calibration sections of the survey (in-sample, best of {len(cands)} candidates): "
+              f"MAE {best['mae']:.1f} {unit} vs {const:.1f} for a constant")
         spec = {k: v for k, v in best.items() if k != "mae"}
         spec["evidence"] = ev
         if p == "potholes" and spec["source"] == "probe":
             spec["evidence"] += "; b per km of section"
-        params[p] = spec
-        report[p] = {"n": len(rs), "fitted": True, "mae_pci": round(best["mae"], 3), "constant_mae_pci": round(const, 3),
-                     "better_than_constant": best["mae"] < const, "chosen": spec,
-                     "candidates_tried": len(cands)}
+        report[p] = {"n": len(rs), "fitted": better, "mae": round(best["mae"], 3), "constant_mae": round(const, 3),
+                     "error_unit": unit, "better_than_constant": better, "chosen": spec if better else None,
+                     "best_candidate": spec, "candidates_tried": len(cands)}
+        if better:
+            params[p] = spec
+        else:
+            report[p]["reason"] = "best candidate not better than a constant (in-sample): not written"
     return {"params": params, "report": report}
 
 
@@ -325,7 +371,8 @@ def metrics(pairs: list[tuple], const: float) -> dict:
 def evaluate(rows: list[dict]) -> dict:
     test = [r for r in rows if r["half"] == "test" and "ours" in r]
     calib_pci = [r["pci"] for r in rows if r["half"] == "calibration" and r["pci"] is not None]
-    const = (sorted(calib_pci)[len(calib_pci) // 2]) if calib_pci else None
+    # pre-registered (survey_split_rule.json): the calibration-half MEAN survey PCI
+    const = (sum(calib_pci) / len(calib_pci)) if calib_pci else None
     res = {"n_test_sections": len(test), "constant_from_calibration_half": const}
     single = [(r["ours"]["pci_report"]["single"], r["pci"], r["block"]) for r in test
               if r["pci"] is not None and r["ours"]["pci_report"] and r["ours"]["pci_report"]["single"] is not None]
@@ -338,6 +385,39 @@ def evaluate(rows: list[dict]) -> dict:
     res["range_midpoint"] = metrics(mid, const) if (mid and const is not None) else None
     res["survey_pci_inside_our_range"] = (sum(inside) / len(inside)) if inside else None
     res["insufficient"] = len(single) < 10
+    # addendum 1 (survey_split_rule.json, registered before any survey data): partial PCI over the parameters
+    # that have a value in BOTH our report and the survey, sum w_i PCI_i / sum w_i, same equations both sides
+    part = []
+    for r in test:
+        ours = r["ours"].get("params") or {}
+        common = [p for p in P23.PARAMS if ours.get(p) is not None and r["survey"][p] is not None]
+        if not common:
+            continue
+        try:
+            o = [P23.pci_param(r["ours"]["road_class"], p, ours[p], r["ours"]["surface"]) for p in common]
+            y = [P23.pci_param(r["ours"]["road_class"], p, r["survey"][p], r["ours"]["surface"]) for p in common]
+        except (P23.Unavailable, ValueError):
+            continue
+        w = [P23.WEIGHTS[p] for p in common]
+        part.append((sum(a * b for a, b in zip(w, o)) / sum(w), sum(a * b for a, b in zip(w, y)) / sum(w),
+                     r["block"], tuple(common)))
+    if part:
+        sets: dict = {}
+        for *_, c in part:
+            sets[",".join(c)] = sets.get(",".join(c), 0) + 1
+        cpart = []
+        for r in rows:
+            if r["half"] != "calibration":
+                continue
+            vals = [(P23.WEIGHTS[p], r["survey"][p], p) for p in P23.PARAMS if r["survey"][p] is not None]
+            try:
+                cpart.append(sum(w * P23.pci_param(r["road_class"] or "urban", p, v, r["surface"]) for w, v, p in vals)
+                             / sum(w for w, _, _ in vals))
+            except (P23.Unavailable, ValueError, ZeroDivisionError):
+                continue
+        pconst = (sum(cpart) / len(cpart)) if cpart else None
+        res["partial_pci"] = metrics([(a, b, c) for a, b, c, _ in part], pconst) if pconst is not None else None
+        res["partial_pci_parameter_sets"] = sets
     res["per_parameter"] = {}
     for p in P23.PARAMS:
         prs = [(r["ours"]["params"][p], r["survey"][p], r) for r in test
@@ -348,9 +428,11 @@ def evaluate(rows: list[dict]) -> dict:
             continue
         e_nat = [abs(o - y) for o, y, _ in prs]
         e_pci = [_pci_err(r["ours"]["road_class"], r["ours"]["surface"], p, o, y) for o, y, r in prs]
+        e_pci = [x for x in e_pci if x is not None]
         res["per_parameter"][p] = {"n_survey_values": n_sv, "n_compared": len(prs),
                                    "mae": sum(e_nat) / len(e_nat), "unit": P23.PARAM_UNITS[p],
-                                   "mae_pci_points": sum(e_pci) / len(e_pci),
+                                   "mae_pci_points": (sum(e_pci) / len(e_pci)) if e_pci else None,
+                                   "n_pci_points": len(e_pci),
                                    "spearman": _spearman([o for o, _, _ in prs], [y for _, y, _ in prs])}
     rows_eq = [r for r in rows if r["pci"] is not None and all(r["survey"][p] is not None for p in P23.PARAMS)]
     if rows_eq:
@@ -388,9 +470,91 @@ def _load_env(database: Optional[str]):
         os.environ["DATABASE_URL"] = re.sub(r"/[^/?]+(\?|$)", f"/{database}\\1", os.environ["DATABASE_URL"], count=1)
 
 
+def fit_iri(rows: list[dict], file_sha: str, rule_sha: str, post_hoc: bool) -> dict:
+    """IRI calibration candidate from the calibration half: per section, app.pci_iri.aggregate() of its segments'
+    IMU features vs the survey IRI; app.pci_iri.fit_calibration (log-linear). Written only when, in-sample, it
+    beats a constant (calibration-half mean IRI) in PCI_roughness points."""
+    from app import pci_iri
+    rs = [r for r in rows if r["half"] == "calibration" and "ours" in r and r["survey"]["iri"] is not None]
+    data = []
+    for r in rs:
+        segrows = [dict(s["roughness"], s0_m=0.0, s1_m=s["length_m"]) for s in r["ours"]["segments"]
+                   if s.get("roughness") and s["status"] != "not_covered"]
+        agg = pci_iri.aggregate(segrows)
+        if agg.get("rms_av") and agg.get("speed_mps"):
+            data.append(dict(agg, iri_ref=r["survey"]["iri"], section_length_m=r["ours"]["report_length_m"],
+                             road_class=r["ours"]["road_class"], surface=r["ours"]["surface"]))
+    if len(data) < 7:
+        return {"n": len(data), "fitted": False, "reason": "fewer than 7 calibration sections with IRI and IMU data"}
+    lens = sorted(d["section_length_m"] for d in data)
+    unit = lens[len(lens) // 2]
+    try:
+        cal = pci_iri.fit_calibration(data, unit_m=unit, source={
+            "survey_file_sha256": file_sha, "split_rule_sha256": rule_sha, "half": "calibration",
+            "sections": len(data), "post_hoc": post_hoc})
+    except ValueError as e:
+        return {"n": len(data), "fitted": False, "reason": str(e)}
+    mean_ref = sum(d["iri_ref"] for d in data) / len(data)
+
+    def err(pred, d):
+        try:
+            return abs(P23.pci_param(d["road_class"], "iri", pred, d["surface"])
+                       - P23.pci_param(d["road_class"], "iri", d["iri_ref"], d["surface"]))
+        except (P23.Unavailable, ValueError):
+            return None
+    e_fit, e_const = [], []
+    for d in data:
+        pred, _ = pci_iri.calibrated_iri(d, cal)
+        a, b = err(pred, d) if pred is not None else None, err(mean_ref, d)
+        if a is not None and b is not None:
+            e_fit.append(a)
+            e_const.append(b)
+    if not e_fit:
+        return {"n": len(data), "fitted": False, "reason": "IRI PCI not computable for these sections"}
+    mf, mc = sum(e_fit) / len(e_fit), sum(e_const) / len(e_const)
+    rep = {"n": len(data), "unit_m": unit, "mae_pci_in_sample": mf, "constant_mae_pci": mc,
+           "r2_log": cal.get("r2_log"), "residual_sd_log": cal.get("residual_sd_log")}
+    if mf >= mc:
+        rep.update(fitted=False, reason="not better than a constant (in-sample): not written")
+        return rep
+    tmp = IRI_CAL_PATH.with_suffix(".tmp")
+    tmp.write_text(json.dumps(cal, indent=2), encoding="utf-8")
+    os.replace(tmp, IRI_CAL_PATH)
+    rep.update(fitted=True, written=str(IRI_CAL_PATH))
+    return rep
+
+
+def promote(file_sha: str) -> int:
+    """Copy the candidate calibration to the live path, only when the ledger holds an evaluate of exactly this
+    candidate (same fitted_on) on this survey file."""
+    if not CAL_PATH.exists():
+        raise SystemExit(f"no candidate calibration at {CAL_PATH}: run fit first")
+    cand = json.loads(CAL_PATH.read_text(encoding="utf-8"))
+    from app import pci_core as C
+    C.validate_calibration(cand)
+    ledger = [json.loads(x) for x in LEDGER.read_text(encoding="utf-8").splitlines() if x.strip()] \
+        if LEDGER.exists() else []
+    if not any(e.get("cmd") == "evaluate" and e.get("survey_sha256") == file_sha
+               and e.get("calibration") == cand.get("fitted_on") for e in ledger):
+        raise SystemExit("refused: this candidate was never evaluated on the test half of this survey file")
+    tmp = LIVE_PATH.with_suffix(".tmp")
+    tmp.write_text(json.dumps(cand, indent=2), encoding="utf-8")
+    os.replace(tmp, LIVE_PATH)
+    if IRI_CAL_PATH.exists():
+        ic = json.loads(IRI_CAL_PATH.read_text(encoding="utf-8"))
+        if (ic.get("source") or {}).get("survey_file_sha256") == file_sha:
+            IRI_LIVE_PATH.parent.mkdir(parents=True, exist_ok=True)
+            tmp = IRI_LIVE_PATH.with_suffix(".tmp")
+            tmp.write_text(json.dumps(ic, indent=2), encoding="utf-8")
+            os.replace(tmp, IRI_LIVE_PATH)
+            print(f"[promote] {IRI_CAL_PATH.name} -> {IRI_LIVE_PATH}")
+    print(f"[promote] {CAL_PATH.name} -> {LIVE_PATH} (production reads it on the next report)")
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["check", "fit", "evaluate"])
+    ap.add_argument("cmd", choices=["check", "fit", "evaluate", "promote"])
     ap.add_argument("survey", type=Path)
     ap.add_argument("--database", default=None)
     ap.add_argument("--road-class", default="urban", choices=list(P23.ROAD_CLASSES))
@@ -398,19 +562,30 @@ def main() -> int:
     ap.add_argument("--out-dir", type=Path, default=None,
                     help="write calibration / comparison / ledger here instead of eval_results/pci (tests)")
     args = ap.parse_args()
-    global OUT, LEDGER, CAL_PATH
+    global OUT, LEDGER, CAL_PATH, LIVE_PATH, IRI_CAL_PATH, IRI_LIVE_PATH
     if args.out_dir:
         OUT = args.out_dir
         OUT.mkdir(parents=True, exist_ok=True)
-        LEDGER, CAL_PATH = OUT / "survey_ledger.jsonl", OUT / "param_calibration.json"
-        os.environ["PCI_PARAM_CALIBRATION"] = str(CAL_PATH)
+        LEDGER = OUT / "survey_ledger.jsonl"
+        CAL_PATH, LIVE_PATH = OUT / "param_calibration_candidate.json", OUT / "param_calibration.json"
+        IRI_CAL_PATH, IRI_LIVE_PATH = OUT / "iri_calibration_candidate.json", OUT / "iri_calibration.json"
+    if args.cmd == "promote":
+        return promote(sha256_file(args.survey))
+    # evaluate measures our reports WITH the candidate calibration (never whatever production has live)
+    os.environ["PCI_PARAM_CALIBRATION"] = str(CAL_PATH)
+    os.environ["PCI_IRI_CALIBRATION"] = str(IRI_CAL_PATH)
     _load_env(args.database)
     rule_sha = sha256_file(RULE)
     file_sha = sha256_file(args.survey)
     rows = split(read_survey(args.survey))
     fp = _probe_fp()
-    if args.cmd == "fit":
-        os.environ["PCI_PARAM_CALIBRATION"] = str(OUT / "__no_calibration_while_fitting__.json")
+    none = str(OUT / "__no_calibration__.json")
+    cand = json.loads(CAL_PATH.read_text(encoding="utf-8")) if CAL_PATH.exists() else None
+    if args.cmd == "fit" or cand is None or cand["fitted_on"].get("survey_file_sha256") != file_sha:
+        os.environ["PCI_PARAM_CALIBRATION"] = none          # fit: uncalibrated; evaluate: never another file's fit
+    icand = json.loads(IRI_CAL_PATH.read_text(encoding="utf-8")) if IRI_CAL_PATH.exists() else None
+    if args.cmd == "fit" or icand is None or (icand.get("source") or {}).get("survey_file_sha256") != file_sha:
+        os.environ["PCI_IRI_CALIBRATION"] = none
     measure(rows, args.road_class, args.surface, fp)
     excl = [{"section_id": r["section_id"], "half": r["half"], "reason": r["excluded"]} for r in rows if "excluded" in r]
     n_c = sum(1 for r in rows if r["half"] == "calibration" and "ours" in r)
@@ -424,7 +599,7 @@ def main() -> int:
     ledger = [json.loads(x) for x in LEDGER.read_text(encoding="utf-8").splitlines() if x.strip()] \
         if LEDGER.exists() else []
     if args.cmd == "fit":
-        post_hoc = any(e["survey_sha256"] == file_sha and e["cmd"] == "evaluate" for e in ledger)
+        post_hoc = is_post_hoc(ledger, file_sha, test_half_sha(rows))
         f = fit(rows, fp)
         cal = {"schema": 2, "edition": P23.EDITION, "probe_fp": fp,
                "fitted_on": {"survey_file_sha256": file_sha, "split_rule_sha256": rule_sha, "half": "calibration",
@@ -436,21 +611,23 @@ def main() -> int:
         tmp = CAL_PATH.with_suffix(".tmp")
         tmp.write_text(json.dumps(cal, indent=2), encoding="utf-8")
         os.replace(tmp, CAL_PATH)
+        iri_rep = fit_iri(rows, file_sha, rule_sha, post_hoc)
+        f["report"]["iri"] = iri_rep
         (OUT / "param_calibration_report.json").write_text(json.dumps(f["report"], indent=2), encoding="utf-8")
         print(json.dumps(f["report"], indent=1))
         print(f"[fit] wrote {CAL_PATH}" + (" (POST HOC: this survey was already evaluated)" if post_hoc else ""))
         return 0
-    cal = json.loads(CAL_PATH.read_text(encoding="utf-8")) if CAL_PATH.exists() else None
-    if cal is None or cal["fitted_on"].get("survey_file_sha256") != file_sha:
-        print("[evaluate] WARNING: no calibration fitted on this survey file; evaluating uncalibrated")
+    cal = cand if (cand is not None and cand["fitted_on"].get("survey_file_sha256") == file_sha) else None
+    if cal is None:
+        print("[evaluate] WARNING: no candidate calibration fitted on this survey file; evaluating uncalibrated")
     res = evaluate(rows)
     res.update(survey_file_sha256=file_sha, split_rule_sha256=rule_sha, excluded=excl,
                calibration=(cal or {}).get("fitted_on"), evaluated_utc=datetime.now(timezone.utc).isoformat(
                    timespec="seconds"))
     (OUT / "survey_comparison.json").write_text(json.dumps(res, indent=2), encoding="utf-8")
     with open(LEDGER, "a", encoding="utf-8") as fh:
-        fh.write(json.dumps({"cmd": "evaluate", "survey_sha256": file_sha, "utc": res["evaluated_utc"],
-                             "calibration": res["calibration"]}) + "\n")
+        fh.write(json.dumps({"cmd": "evaluate", "survey_sha256": file_sha, "test_half_sha256": test_half_sha(rows),
+                             "utc": res["evaluated_utc"], "calibration": res["calibration"]}) + "\n")
     print(json.dumps({k: v for k, v in res.items() if k != "excluded"}, indent=1, default=str))
     return 0
 

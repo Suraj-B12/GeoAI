@@ -1,4 +1,4 @@
-/* A→B condition report: chainage + IRC:82-2015 distress-based condition rating (screening estimate).
+/* A→B condition report: chainage + IRC:82-2023 Pavement Condition Index (PCI 0–100, screening estimate).
    Talks to geoai.pci.v1 (/gis/pci/*). Shares the map and helpers through window.GeoAIApp. */
 (() => {
   'use strict';
@@ -8,21 +8,43 @@
   const fmtM = m => D.formatDistance(Number(m));
   const num = v => (v === null || v === undefined || v === '' || !Number.isFinite(Number(v))) ? null : Number(v);
   const pct = v => num(v) === null ? '—' : `${Number(v).toFixed(1)} %`;
-  const range = (lo, hi, unit = ' %') => {
-    if (num(lo) === null && num(hi) === null) return '—';
-    if (num(hi) === null || Math.abs(lo - hi) < 0.05) return `${Number(lo ?? hi).toFixed(1)}${unit}`;
-    return `${Number(lo).toFixed(1)}–${Number(hi).toFixed(1)}${unit}`;
-  };
   const chain = m => { const v = Math.max(0, Math.round(Number(m) || 0)); return `${Math.floor(v / 1000)}+${String(v % 1000).padStart(3, '0')}`; };
-  const BAND_ORDER = ['Good', 'Fair', 'Poor'];
-  const bandKey = b => String(b || '').toLowerCase().replace(/[^a-z]/g, '') || 'none';
   const KEY_STORE = 'geoaiPciOperatorKey';
-  const CATEGORY = [
-    { value: 'urban', label: 'Urban road — IRC:82 Table 5.3' },
-    { value: 'highway', label: 'Highway — Table 5.1' },
-    { value: 'rural', label: 'MDR / rural road — Table 5.2' }];
+  // IRC:82-2023 facts used by the form and the result card. GET /gis/pci/meta → irc2023 replaces them when the
+  // server provides it (same values; app/pci_irc2023.py is the source).
+  const P23 = {
+    classes: [['Excellent', 90], ['Good', 80], ['Satisfactory', 60], ['Fair', 40], ['Poor', 20], ['Fail', -Infinity]],
+    rec: { Excellent: 'Routine maintenance', Good: 'Preventive maintenance', Satisfactory: 'Renewal (as per section 9.5)',
+      Fair: 'Minor rehabilitation (based on structural evaluation)', Poor: 'Major rehabilitation / structural overlay', Fail: 'Reconstruction' },
+    roads: [
+      { id: 'urban', name: 'Urban road', surfaces: ['BC', 'SDBC'], def: 'BC' },
+      { id: 'highway', name: 'Highway (NH/SH)', surfaces: ['BC', 'SDBC'], def: 'BC' },
+      { id: 'mdr', name: 'Major District Road (MDR)', surfaces: ['SD', 'OGPC', 'MSS', 'SDBC', 'BC'], def: 'BC' },
+      { id: 'rural', name: 'Rural road (ODR, VR)', surfaces: ['SD', 'OGPC', 'MSS', 'SDBC'], def: 'SDBC' }],
+    surfaceNames: { SD: 'Surface Dressing', OGPC: 'Open Graded Premix Carpet', MSS: 'Mix Seal Surfacing', SDBC: 'Semi Dense Bituminous Concrete', BC: 'Bituminous Concrete' },
+    params: [
+      { id: 'cracking', name: 'Cracking', unit: '%', hint: '% of carriageway area', w: .12, lim: [0, 100], step: '0.1' },
+      { id: 'ravelling', name: 'Ravelling', unit: '%', hint: '% of carriageway area', w: .10, lim: [0, 100], step: '0.1' },
+      { id: 'potholes', name: 'Potholes', unit: 'number', hint: 'number (area ÷ 0.1 m²)', w: .16, lim: [0, 1000], step: '1' },
+      { id: 'patching', name: 'Patching', unit: '%', hint: '% of carriageway area', w: .08, lim: [0, 100], step: '0.1' },
+      { id: 'rut_depth', name: 'Rut depth', unit: 'mm', hint: 'mm, mean of lanes', w: .14, lim: [0, 200], step: '0.5' },
+      { id: 'iri', name: 'Roughness (IRI)', unit: 'm/km', hint: 'm/km, mean of lanes', w: .40, lim: [0.5, 30], step: '0.01' }] };
+  const CLASS_KEYS = P23.classes.map(c => c[0].toLowerCase());
+  const classOf = v => num(v) === null ? null : P23.classes.find(([, lo]) => Number(v) > lo)[0];
+  const ckey = c => (c && CLASS_KEYS.includes(String(c).toLowerCase())) ? String(c).toLowerCase() : 'none';
+  const road = id => P23.roads.find(r => r.id === id) || P23.roads[0];
+  const paramDef = id => P23.params.find(p => p.id === id) || { id, name: id, unit: '', w: 0 };
+  async function loadMeta() {
+    if (S.metaLoaded) return; S.metaLoaded = true;
+    try {
+      const m = (await get('/gis/pci/meta'))?.irc2023; if (!m) return;
+      if (Array.isArray(m.road_classes)) for (const rc of m.road_classes) { const r = P23.roads.find(x => x.id === rc.id); if (r && Array.isArray(rc.surfaces) && rc.surfaces.length) { r.surfaces = rc.surfaces; r.def = rc.default_surface || r.def; } }
+      if (Array.isArray(m.params)) for (const p of m.params) { const d = P23.params.find(x => x.id === p.id); if (d && Array.isArray(p.entered_limits)) d.lim = p.entered_limits.map(Number); }
+      if (S.open && S.view === 'build') render();
+    } catch { /* fallback constants stay */ }
+  }
 
-  const S = { colorBy: 'potholes', open: false, view: 'build', tab: 'new', pick: null, points: { a: null, b: null, via: [] },
+  const S = { colorBy: 'pci', open: false, view: 'build', tab: 'new', pick: null, points: { a: null, b: null, via: [] },
     path: null, pathError: '', pathLoading: false, report: null, reportSource: null, savedId: null,
     error: '', loading: false, section: null, frame: null, saved: [], savedLoaded: false, controller: null,
     features: new Map(), minimized: false, savedError: '' };
@@ -59,7 +81,7 @@
     panel.setAttribute('role', 'region'); panel.setAttribute('aria-labelledby', 'pciTitle');
     panel.innerHTML = `
       <div class="pci-head">
-        <div><p class="eyebrow">A→B CONDITION REPORT · IRC:82-2015</p><h2 id="pciTitle">Report a stretch</h2><p class="pci-minsum" id="pciMinSum" hidden></p></div>
+        <div><p class="eyebrow">A→B REPORT · IRC:82-2023 PCI</p><h2 id="pciTitle">Report a stretch</h2><p class="pci-minsum" id="pciMinSum" hidden></p></div>
         <div class="pci-head-actions"><button type="button" class="pci-min pci-expand" id="pciExpand" aria-pressed="false" aria-label="Make the report panel taller">▴ Taller</button><button type="button" class="pci-min" id="pciMinimize" aria-label="Minimise the report panel" aria-expanded="true"></button><button type="button" class="icon-button" id="pciClose" aria-label="Close the condition report">×</button></div>
       </div>
       <div class="pci-tabs" role="tablist" aria-label="Condition report">
@@ -106,6 +128,7 @@
     S.open = true; $('pciPanel').hidden = false; document.body.classList.add('pci-open');
     $('pciButton').setAttribute('aria-expanded', 'true'); $('pciButton').classList.add('active');
     if (!S.points.a && !S.report) S.pick = 'a';
+    loadMeta();
     showLayers(true); setMinimized(false); layout(); render(); drawPoints(); drawPath(); drawReport();
     G.syncFloatingGeometry?.();
     requestAnimationFrame(() => $('pciPanel').querySelector('.pci-tabs [aria-selected=true]')?.focus({ preventScroll: true }));
@@ -133,7 +156,7 @@
   function updateMinSummary() {
     const el = $('pciMinSum'); if (!el) return;
     const r = S.report, len = lengthOf(r || S.path);
-    el.textContent = !S.minimized ? '' : S.pick ? PROMPTS[S.pick] : r ? `${bandsLine(r.summary)} · ${fmtM(len)}` : S.path ? `Path ${fmtM(len)} · panel hidden` : 'Panel hidden — pick A on the map';
+    el.textContent = !S.minimized ? '' : S.pick ? PROMPTS[S.pick] : r ? `${pciLine(r.summary)} · ${fmtM(len)}` : S.path ? `Path ${fmtM(len)} · panel hidden` : 'Panel hidden — pick A on the map';
     el.hidden = !S.minimized;
   }
   const phone = () => innerWidth <= 820;
@@ -340,30 +363,63 @@
   const passesOf = r => r?.passes || r?.path?.passes || [];
   const summaryOf = r => r?.summary || {};
   const sectionsOf = r => r?.sections || [];
-  // One shape for a parameter, whatever the source (stretch/section rating params of geoai.pci.v1).
-  function normParam(p) {
-    if (!p) return {};
-    const key = p.param || p.key;
-    return { key, name: p.name || String(key || '').replace(/_/g, ' ').replace(/^./, c => c.toUpperCase()), assessed: p.assessed !== false,
-      band: p.band, band_lo: p.band_lo, band_hi: p.band_hi, e_lo: num(p.E_lo ?? p.e_lo), e_hi: num(p.E_hi ?? p.e_hi), unit: p.unit || '%',
-      evidence: p.evidence, weight: p.weight, band_note: p.band_note, resolution_note: p.resolution_note };
+  // ---- IRC:82-2023 PCI of a unit (100 m section, km row, stretch): unit.pci = {rated, params[], pci{lo, hi, single…}}
+  const has2023 = r => Boolean(summaryOf(r).pci || r?.stretch?.pci?.edition);
+  const unitPci = u => (u?.pci && typeof u.pci === 'object' && 'rated' in u.pci) ? u.pci : null;
+  const sectionRated = s => Boolean(unitPci(s)?.rated && unitPci(s)?.pci);
+  const unitParam = (u, id) => (unitPci(u)?.params || []).find(p => p.param === id) || null;
+  // A measure = {lo, hi, single} on the 0–100 PCI scale: the PCI itself, or one parameter's PCI_i.
+  function pciMeasure(u, by = 'pci') {
+    const P = unitPci(u); if (!P?.rated || !P.pci) return null;
+    if (by === 'pci') return { lo: num(P.pci.lo), hi: num(P.pci.hi), single: num(P.pci.single) };
+    const p = unitParam(u, by); if (!p) return null;
+    if (!p.known) return { lo: 0, hi: 100, single: null, unknown: true };
+    return { lo: num(p.pci_worst), hi: num(p.pci_best), single: num(p.pci_point) };
   }
-  const paramsOf = r => (r?.stretch?.rating?.params || summaryOf(r).parameters || []).map(normParam);
-  const pName = p => p.name;
-  const assessed = p => p.assessed !== false;
-  function bandText(lo, hi) { if (!lo && !hi) return '—'; if (!hi || lo === hi) return lo || hi; return `${lo}–${hi}`; }
-  const pBand = p => p.band && p.band !== 'not assessed' ? p.band : bandText(p.band_lo, p.band_hi);
-  function finalOf(r) {
-    const f = summaryOf(r).final || r?.stretch?.rating?.final || {};
-    return { ...f, cls: f.class || bandText(f.class_lo, f.class_hi) };
+  // Colour rule (map, strip, list): a single value → its class; a range inside one class → that class;
+  // a range across classes → two colours (worst and best possible class); no data → grey.
+  function colourOf(m) {
+    if (!m || m.lo === null) return { a: null, b: null };
+    if (m.single !== null && m.single !== undefined) return { a: classOf(m.single), b: null };
+    const a = classOf(m.lo), b = classOf(m.hi);
+    return { a, b: a === b ? null : b };
   }
-  // Worst of several bands ("Poor–Fair" counts by its worse end, then its better end).
-  const RANK = { good: 0, fair: 1, poor: 2 };
-  function bandRank(b) { const parts = String(b || '').toLowerCase().split(/[^a-z]+/).filter(x => x in RANK).map(x => RANK[x]); return parts.length ? [Math.max(...parts), Math.min(...parts)] : [-1, -1]; }
-  function worstBand(list) { const ok = list.filter(b => b && b !== '—' && b !== 'not assessed'); if (!ok.length) return null; return ok.sort((a, b) => { const x = bandRank(a), y = bandRank(b); return y[0] - x[0] || y[1] - x[1]; })[0]; }
-  const isPoorish = b => /poor/i.test(String(b || ''));
-  const sectionRated = s => s.rating ? s.rating.rated !== false : s.status === 'rated';
-  const sectionParam = (s, key) => normParam((s.rating?.params || []).find(p => (p.param || p.key) === key));
+  const r0 = v => String(Math.round(Number(v)));
+  function measureText(m) {
+    if (!m || m.lo === null) return '—';
+    if (m.single !== null && m.single !== undefined) return r0(m.single);
+    return r0(m.lo) === r0(m.hi) ? r0(m.lo) : `${r0(m.lo)}–${r0(m.hi)}`;
+  }
+  const colourText = c => !c.a ? 'No data' : c.b ? `${c.a}–${c.b}` : c.a;
+  function fmtVal(v, unit) {
+    const x = num(v); if (x === null) return '—';
+    if (unit === 'number') return x >= 10 || Math.abs(x - Math.round(x)) < .05 ? String(Math.round(x)) : x.toFixed(1);
+    if (unit === 'm/km') return x.toFixed(2);
+    if (unit === 'mm') return Math.abs(x - Math.round(x)) < .05 ? String(Math.round(x)) : x.toFixed(1);
+    return x.toFixed(1);
+  }
+  const unitSuffix = u => u === '%' ? ' %' : u === 'number' ? '' : ` ${u}`;
+  function valueText(p) {
+    if (num(p.value_lo) === null && num(p.value_hi) === null) return '—';
+    const a = fmtVal(p.value_lo ?? p.value_hi, p.unit), b = fmtVal(p.value_hi ?? p.value_lo, p.unit);
+    return (a === b ? a : `${a}–${b}`) + unitSuffix(p.unit);
+  }
+  const SOURCE = { labels: 'Image labels', labels_calibrated: 'Image labels, calibrated', probe: 'Probe, calibrated', roughness: 'Phone IRI, calibrated', entered: 'Entered', not_assessed: 'Not assessed' };
+  const WHY = { ravelling: 'probe not yet calibrated on Bengaluru', patching: 'probe not yet calibrated on Bengaluru', rut_depth: 'needs a straight edge or laser profiler', iri: 'phone roughness not yet calibrated against a reference IRI' };
+  // "Not assessed: Ravelling, Patching (probe not yet calibrated…) · Rut depth (…)" — one line, grouped by reason.
+  function notAssessedLine(params) {
+    const groups = new Map();
+    for (const p of params.filter(x => !x.known)) {
+      const why = p.source !== 'not_assessed' ? 'printed IRC equation not usable for this road class' : (WHY[p.param] || p.evidence || 'not assessed');
+      if (!groups.has(why)) groups.set(why, []); groups.get(why).push(p.name || paramDef(p.param).name);
+    }
+    return [...groups].map(([why, names]) => `${names.join(', ')} (${why})`).join(' · ');
+  }
+  function pciLine(s) {
+    const P = s?.pci; if (!P) return 'Saved before the PCI update — no PCI';
+    const m = { lo: num(P.lo), hi: num(P.hi), single: num(P.single) };
+    return `PCI ${measureText(m)} · ${colourText(colourOf(m))}`;
+  }
   const sectionRuns = s => num(s.quantities?.runs?.potholes ?? s.pothole_runs);
   const sectionCoverage = s => { const c = num(s.quantities?.coverage ?? s.coverage_pct); return c === null ? null : (c <= 1.0001 ? c * 100 : c); };
   const coverageStatus = s => s.quantities?.coverage_status || s.rating?.coverage_status || '';
@@ -442,17 +498,20 @@
     drawPath();
     if (!S.report) return;
     const pieces = linePieces();
-    sectionsOf(S.report).forEach((s, i) => {
-      const col = sectionColor(s), band = col.band, selected = S.section === i;
+    if (has2023(S.report)) sectionsOf(S.report).forEach((s, i) => {
+      const m = pciMeasure(s, S.colorBy), col = colourOf(m), selected = S.section === i;
       const coords = s.geometry?.type === 'LineString' ? [s.geometry.coordinates.map(c => [c[1], c[0]])]
         : s.geometry?.type === 'MultiLineString' ? s.geometry.coordinates.map(l => l.map(c => [c[1], c[0]])) : cut(pieces, num(s.from_m), num(s.to_m));
+      const tip = `${chain(s.from_m)} – ${chain(s.to_m)} · ${col.a ? `${colorByName()} ${measureText(m)} (${colourText(col)})` : 'Insufficient data'}`;
       for (const line of coords) {
-        if (selected) layers.sections.addLayer(L.polyline(line, { pane: 'pci', renderer: layers.renderer, color: document.body.classList.contains('dark') ? '#fff' : '#111827', weight: 13, opacity: .9, interactive: false }));
-        const layer = L.polyline(line, { pane: 'pci', renderer: layers.renderer, className: `pci-band-line band-${bandKey(band)}`, weight: selected ? 8 : 7, opacity: 1, dashArray: band ? null : '5 6', lineCap: 'butt' });
-        layer.bindTooltip(`${chain(s.from_m)} – ${chain(s.to_m)} · ${band || 'Insufficient data'}${col.upper ? ` (${col.upper} if the skipped frames hold it)` : ''}`, { sticky: true, className: 'survey-tooltip' });
+        // casing keeps the light classes (Fair, Satisfactory) readable on any basemap; the selection is a wider casing
+        layers.sections.addLayer(L.polyline(line, { pane: 'pci', renderer: layers.renderer, className: selected ? 'pci-casing selected' : 'pci-casing', weight: selected ? 14 : 10, opacity: 1, lineCap: 'butt', interactive: false }));
+        const layer = L.polyline(line, { pane: 'pci', renderer: layers.renderer, className: `pci-cls-line cls-${ckey(col.a)}`, weight: selected ? 8 : 7, opacity: 1, dashArray: col.a ? null : '5 6', lineCap: 'butt' });
+        layer.bindTooltip(tip, { sticky: true, className: 'survey-tooltip' });
         layer.on('click', event => { L.DomEvent.stop(event); selectSection(i, { fly: false }); });
         layers.sections.addLayer(layer);
-        if (col.upper) layers.sections.addLayer(L.polyline(line, { pane: 'pci', renderer: layers.renderer, className: `pci-band-line band-${bandKey(col.upper)}`, weight: 3, opacity: 1, dashArray: '3 7', lineCap: 'butt', interactive: false }));
+        // a range across classes: stripes of the best possible class over the worst
+        if (col.b) layers.sections.addLayer(L.polyline(line, { pane: 'pci', renderer: layers.renderer, className: `pci-cls-line cls-${ckey(col.b)}`, weight: selected ? 8 : 7, opacity: 1, dashArray: '7 7', lineCap: 'butt', interactive: false }));
       }
     });
     const total = lengthOf(S.report) || 0, step = total > 3000 ? 500 : 100;
@@ -516,7 +575,28 @@
         : `<button type="button" class="pci-mini" data-act="pick-${kind}" aria-pressed="${picking}">${p ? 'Move' : 'Pick'}</button>`}</li>`;
   }
   function field(name, label, input, note = '') { return `<label class="pci-field" for="pci_${name}"><span>${label}${note ? ` <em>${note}</em>` : ''}</span>${input}</label>`; }
-  const form = { lane_touched: false, road_name: '', road_number: '', category: 'urban', lane_width_m: '3.5', surface_type: '', chainage_at_a_km: '', chainage_increases: 'yes', prepared_by: '' };
+  const form = { lane_touched: false, road_name: '', road_number: '', category: 'urban', surface: '', lane_width_m: '3.5', chainage_at_a_km: '', chainage_increases: 'yes', prepared_by: '',
+    entered: Object.fromEntries(P23.params.map(p => [p.id, ''])) };
+  const surfaceOf = () => { const r = road(form.category); return r.surfaces.includes(form.surface) ? form.surface : r.def; };
+  const enteredCount = () => P23.params.filter(p => String(form.entered[p.id]).trim() !== '').length;
+  function enteredIssue(p) {
+    const v = String(form.entered[p.id]).trim(); if (v === '') return '';
+    const x = num(v);
+    if (x === null || x < p.lim[0] || x > p.lim[1]) return `${p.name}: enter ${p.lim[0]}–${p.lim[1]}${unitSuffix(p.unit)}, or leave it empty.`;
+    return '';
+  }
+  function measuredGroup() {
+    const n = enteredCount();
+    const inputs = P23.params.map(p => {
+      const issue = enteredIssue(p), id = `pci_e_${p.id}`;
+      return `<label class="pci-field pci-mfield" for="${id}"><span>${esc(p.name)} <em>${esc(p.hint)} · ${p.lim[0]}–${p.lim[1]}</em></span>
+        <span class="pci-unit-input"><input id="${id}" name="entered.${p.id}" type="number" inputmode="decimal" min="${p.lim[0]}" max="${p.lim[1]}" step="${p.step}" value="${esc(form.entered[p.id])}" placeholder="not entered"${issue ? ` aria-invalid="true" aria-describedby="${id}_err"` : ''}><span aria-hidden="true">${esc(p.unit === 'number' ? 'no.' : p.unit)}</span></span>
+        ${issue ? `<span class="pci-field-err" id="${id}_err">${esc(issue)}</span>` : ''}</label>`;
+    }).join('');
+    return `<details class="pci-calib" data-details="measured" ${S.measuredOpen ?? n ? 'open' : ''}><summary>Values measured on site <em>optional${n ? ` · ${n} entered` : ''}</em></summary>
+      <p class="pci-note">For the whole stretch. An entered value replaces the image estimate in every section; empty = not entered. Extents are % of the area of all lanes of the carriageway (IRC:82-2023 eq. 1).</p>
+      <div class="pci-grid">${inputs}</div></details>`;
+  }
   function renderBuild() {
     const path = S.path, gaps = gapsOf(path);
     const pathInfo = S.pathError ? `<div class="pci-error" role="alert"><strong>No path</strong><span>${esc(S.pathError)}</span></div>`
@@ -537,31 +617,40 @@
           ${field('road_name', 'Road name', textInput('road_name', 'e.g. 100 Feet Road'), 'as entered')}
           ${field('road_number', 'Road number', textInput('road_number', 'optional'), 'as entered')}
         </div>
-        ${field('category', 'Road category', `<select id="pci_category" name="category">${CATEGORY.map(c => `<option value="${c.value}" ${form.category === c.value ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}</select>`)}
         <div class="pci-grid">
-          ${field('lane_width_m', 'Surveyed lane width (m)', `<input id="pci_lane_width_m" name="lane_width_m" type="number" inputmode="decimal" min="2" max="30" step="0.1" value="${esc(form.lane_width_m)}">`)}
-          ${field('surface_type', 'Surface type', textInput('surface_type', 'e.g. bituminous'), 'as entered')}
+          ${field('category', 'Road class', `<select id="pci_category" name="category">${P23.roads.map(c => `<option value="${c.id}" ${form.category === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select>`)}
+          ${field('surface', 'Surface', `<select id="pci_surface" name="surface" aria-describedby="pciSurfNote">${road(form.category).surfaces.map(s => `<option value="${s}" ${surfaceOf() === s ? 'selected' : ''}>${esc(s)} · ${esc(P23.surfaceNames[s] || s)}${s === road(form.category).def ? ' (default)' : ''}</option>`).join('')}</select>`)}
         </div>
-        <details class="pci-calib" ${form.chainage_at_a_km ? 'open' : ''}><summary>Road chainage calibration <em>optional</em></summary>
-          <p class="pci-note">Without a km-stone reference the report gives relative chainage only (Km 0+000 at A).</p>
+        <p class="pci-note" id="pciSurfNote">${['mdr', 'rural'].includes(form.category) ? 'The surface selects the roughness (IRI) equation for this road class.' : 'For this road class the surface does not change the PCI (one roughness equation).'}</p>
+        ${field('lane_width_m', 'Surveyed lane width (m)', `<input id="pci_lane_width_m" name="lane_width_m" type="number" inputmode="decimal" min="2" max="30" step="0.1" value="${esc(form.lane_width_m)}">`)}
+        ${measuredGroup()}
+        <details class="pci-calib" data-details="chainage" ${form.chainage_at_a_km ? 'open' : ''}><summary>Road km-stone chainage <em>optional</em></summary>
+          <p class="pci-note">Without it: chainage measured by GPS from A (Km 0+000); road km-stone chainage not entered.</p>
           <div class="pci-grid">
             ${field('chainage_at_a_km', 'Km-stone chainage at A (km)', `<input id="pci_chainage_at_a_km" name="chainage_at_a_km" type="number" inputmode="decimal" min="0" max="3000" step="0.001" value="${esc(form.chainage_at_a_km)}" placeholder="e.g. 12.350">`)}
             ${field('chainage_increases', 'Road chainage increases towards B?', `<select id="pci_chainage_increases" name="chainage_increases"><option value="yes" ${form.chainage_increases === 'yes' ? 'selected' : ''}>Yes</option><option value="no" ${form.chainage_increases === 'no' ? 'selected' : ''}>No (decreases)</option></select>`)}
           </div></details>
         ${field('prepared_by', 'Prepared by', textInput('prepared_by', 'name'), 'as entered')}
       </section>
-      ${S.error ? `<div class="pci-error" id="pciGenError" tabindex="-1"><strong>Report not generated</strong><span>${esc(S.error)}</span></div>` : ''}`;
+      ${S.error && !P23.params.some(p => enteredIssue(p) === S.error) ? `<div class="pci-error" id="pciGenError" tabindex="-1"><strong>Report not generated</strong><span>${esc(S.error)}</span></div>` : ''}`;
+    $('pciNew').querySelector('[data-details=measured]')?.addEventListener('toggle', e => { S.measuredOpen = e.currentTarget.open; });
   }
   function formIssues() {
     const w = num(form.lane_width_m);
     if (w === null || w < 2 || w > 30) return 'Lane width must be between 2 and 30 m.';
     if (form.chainage_at_a_km !== '' && (num(form.chainage_at_a_km) === null || form.chainage_at_a_km < 0 || form.chainage_at_a_km > 3000)) return 'Km-stone chainage must be between 0 and 3000 km.';
+    for (const p of P23.params) { const issue = enteredIssue(p); if (issue) return issue; }
     return '';
   }
   function reportBody() {
     const body = { ...pathBody(), road_name: form.road_name.trim() || null, road_number: form.road_number.trim() || null,
-      category: form.category, ...(form.lane_touched ? { lane_width_m: num(form.lane_width_m) } : {}), surface_type: form.surface_type.trim() || null,
+      category: form.category, ...(form.lane_touched ? { lane_width_m: num(form.lane_width_m) } : {}),
       prepared_by: form.prepared_by.trim() || null };
+    // surface: sent only when it is not the class default (so the report says "entered by requester" only then)
+    if (surfaceOf() !== road(form.category).def) body.surface = surfaceOf();
+    const entered = {};
+    for (const p of P23.params) { const v = String(form.entered[p.id]).trim(); if (v !== '' && num(v) !== null) entered[p.id] = num(v); }
+    if (Object.keys(entered).length) body.entered = entered;
     if (form.chainage_at_a_km !== '' && num(form.chainage_at_a_km) !== null) {
       body.chainage_at_a_km = num(form.chainage_at_a_km); body.chainage_increases_towards_b = form.chainage_increases === 'yes';
     }
@@ -577,20 +666,10 @@
       foot.innerHTML = `<button type="button" class="button" data-act="edit">${S.reportSource === 'saved' ? '← New report' : '← Edit stretch'}</button><div class="pci-downloads" role="group" aria-label="Download the report"><button type="button" class="button primary" data-act="dl-pdf">PDF</button><button type="button" class="button" data-act="dl-csv">CSV</button><button type="button" class="button" data-act="dl-json">JSON</button></div>`;
     }
   }
-  // ---- colour model (critic F2/F11): default = pothole band as the labels show it (E_lo), like the PDF.
-  // The worse band that skipped frames could add is drawn as a dashed edge, never as the main colour.
-  const COLOR_BY = [['potholes', 'Potholes band (as the PDF)'], ['cracking', 'Cracking band'], ['worst', 'Worst assessed parameter'], ['final', 'Overall (App. 4, secondary)']];
-  const observedBand = p => p.band_lo || (p.band && p.band !== 'not assessed' ? p.band : null);
-  function upperOf(observed, hi) { return hi && bandRank(hi)[0] > bandRank(observed)[0] ? hi : null; }
-  function sectionColor(s) {
-    if (!sectionRated(s)) return { band: null, upper: null, note: '' };
-    if (S.colorBy === 'final') { const f = s.rating?.final || {}; return { band: f.class || bandText(f.class_lo, f.class_hi) || null, upper: null, note: '' }; }
-    const params = S.colorBy === 'worst' ? (s.rating?.params || []).map(normParam).filter(assessed) : [sectionParam(s, S.colorBy)];
-    const band = worstBand(params.map(observedBand));
-    const hi = worstBand(params.map(p => p.band_hi || observedBand(p)));
-    return { band, upper: upperOf(band, hi), note: params.map(p => p.band_note).filter(Boolean).join(' · ') };
-  }
-  function sectionBand(s) { return sectionColor(s).band; }
+  // ---- what colours the map, the strip and the section list: the PCI, or one parameter's PCI_i (same 0–100 scale)
+  const COLOR_BY = [['pci', 'PCI'], ['potholes', 'Potholes (PCI_i)'], ['cracking', 'Cracking (PCI_i)']];
+  const colorByName = () => (COLOR_BY.find(c => c[0] === S.colorBy) || COLOR_BY[0])[1];
+  const swatches = c => `<i class="pci-sw cls-${ckey(c.a)}" aria-hidden="true"></i>${c.b ? `<i class="pci-sw cls-${ckey(c.b)}" aria-hidden="true"></i>` : ''}`;
   const SKIP = s => num(s.quantities?.skip_m) || 0;
   // ---- evidence behind the pothole band: runs (backend list, else consecutive used pothole frames per pass)
   function attrRows(r) {
@@ -621,114 +700,133 @@
     const v = a + (inc ? 1 : -1) * m / 1000; return v < 0 ? '' : `road Km ${chain(v * 1000)}`;
   }
   const cleanRoad = t => String(t || '').replace(/\s*\(\d+(\.\d+)?\)\s*$/, '');
+  // 0–100 bar with the six Table 5.5 classes; the outlined box is the PCI range, the black tick the single value.
+  function scaleBar(m) {
+    const segs = [[0, 20, 'fail'], [20, 40, 'poor'], [40, 60, 'fair'], [60, 80, 'satisfactory'], [80, 90, 'good'], [90, 100, 'excellent']];
+    const W = 300, x = v => 1 + Math.max(0, Math.min(100, Number(v))) * (W - 2) / 100;
+    const label = m.single !== null ? `PCI ${r0(m.single)}` : `PCI between ${r0(m.lo)} and ${r0(m.hi)}`;
+    let svg = `<svg class="pci-scale" viewBox="0 0 ${W} 36" role="img" aria-label="${esc(label)} on the 0–100 scale (classes: Fail up to 20, Poor to 40, Fair to 60, Satisfactory to 80, Good to 90, Excellent above 90)">`;
+    for (const [a, b, k] of segs) svg += `<rect x="${x(a)}" y="7" width="${Math.max(0, x(b) - x(a) - 1)}" height="10" class="cls-${k}"/>`;
+    if (m.lo !== null && m.hi !== null && (m.single === null || x(m.hi) - x(m.lo) > 2)) svg += `<rect x="${x(m.lo)}" y="3" width="${Math.max(2, x(m.hi) - x(m.lo))}" height="18" rx="2" class="pci-scale-range"/>`;
+    if (m.single !== null) svg += `<rect x="${x(m.single) - 1.5}" y="0" width="3" height="24" class="pci-scale-tick"/>`;
+    for (const v of [0, 20, 40, 60, 80, 90, 100]) svg += `<text x="${Math.min(W - 1, Math.max(1, x(v)))}" y="34" class="axis ${v === 0 ? 'start' : v === 100 ? 'end' : 'mid'}">${v}</text>`;
+    return `${svg}</svg>`;
+  }
   function headline(r) {
-    const params = paramsOf(r), final = finalOf(r), s = summaryOf(r), h = s.headline || {}, na = params.filter(p => !assessed(p));
-    const runsKm = num(h.pothole_runs_per_km), nRuns = num(h.pothole_runs);
+    const s = summaryOf(r), P = s.pci || unitPci(r.stretch)?.pci, params = unitPci(r.stretch)?.params || [];
     const cov = num(s.coverage), covPct = cov === null ? null : cov <= 1.0001 ? cov * 100 : cov;
     const ge = (s.gaps || gapsOf(r).length) ? '≥ ' : '';
-    const potH = h.potholes || {};
-    const potParam = params.find(p => p.key === 'potholes') || {};
-    const resolution = potParam.resolution_note || potH.resolution_note || s.resolution_note || s.pothole_resolution_note ||
-      'With 5 m segments one flagged segment is 5 % of a 100 m section, so the pothole band reads Poor whenever any pothole is flagged: read it as "potholes flagged: yes/no" and use runs per km for the amount.';
-    const rows = params.map(p => {
-      if (!assessed(p)) return `<tr class="na"><th scope="row">${esc(pName(p))}</th><td colspan="2">not assessed<span class="pci-na-why"> · ${esc(p.evidence || 'no validated label')}</span></td></tr>`;
-      const extra = [];
-      if (p.band_note) extra.push(esc(p.band_note));
-      if (p.key === 'potholes') {
-        if (h.pothole_nominal_area_band) extra.push(`Nominal pothole area band: <strong>${esc(h.pothole_nominal_area_band)}</strong>${num(h.pothole_nominal_area_pct) !== null ? ` (${Number(h.pothole_nominal_area_pct).toFixed(3)} % of lane area, sensitivity only)` : ''}`);
-        extra.push(esc(resolution));
-      }
-      return `<tr><th scope="row">${esc(pName(p))} <em>labels unvalidated${p.evidence ? ` · ${esc(p.evidence.replace(/\s*\(Attain test\)/, ''))} (Attain)` : ''} · ${num(s.segments_expert_reviewed) ?? 0} Bengaluru expert labels</em></th><td><span class="pci-band band-${bandKey(pBand(p))}">${esc(pBand(p))}</span></td><td>${range(p.e_lo, p.e_hi, p.unit === '%' ? ' %' : ' ' + p.unit)}</td></tr>${extra.length ? `<tr class="pci-bandnote"><td colspan="3">${extra.map(x => `<span>${x}</span>`).join('')}</td></tr>` : ''}`;
-    }).join('');
-    const tableNo = r.header?.table || r.stretch?.rating?.table || '5.3';
-    const pot = params.find(p => p.key === 'potholes'), potPoor = pot && assessed(pot) && isPoorish(pBand(pot));
-    const notes = (Array.isArray(s.priority_notes) ? s.priority_notes : []).map(n => typeof n === 'string' ? n : n.text || n.note || '').filter(Boolean);
-    if (potPoor && !notes.some(n => /pothole/i.test(n))) notes.unshift(`Potholes: ${pBand(pot)}. IRC:82-2015 §5.3 — potholes affect riding quality and should be rectified straightway.`);
-    let evidence = '';
-    if (notes.length && potPoor) {
-      const runs = potholeRuns(r);
-      if (!runs) evidence = '<p class="pci-note">Loading the frames behind this…</p>';
-      else {
-        const frames = runs.reduce((t, x) => t + x.ids.length, 0);
-        evidence = `<p class="pci-priority-ev">${runs.length <= 2 && !notes.some(n => /possible pothole/i.test(n)) ? '<strong>Possible pothole — check the frame' + (frames === 1 ? '' : 's') + ' before acting.</strong> ' : ''}Rests on ${runs.length} run${runs.length === 1 ? '' : 's'}, ${frames} frame${frames === 1 ? '' : 's'}:</p>
-          <div class="pci-runs">${runs.slice(0, 24).map((x, i) => `<button type="button" class="pci-run" data-act="run" data-index="${i}" data-id="${esc(x.ids[0])}">${esc(x.chainage || kmText(x.from_m))}${x.ids.length > 1 ? ` · ${x.ids.length} frames` : ''}</button>`).join('')}${runs.length > 24 ? `<span class="pci-note">+ ${runs.length - 24} more (see sections)</span>` : ''}</div>`;
-      }
-    }
-    const priority = notes.length ? `<div class="pci-priority" role="note"><strong>Priority</strong>${notes.map(n => `<p>${esc(n)}</p>`).join('')}${evidence}</div>` : '';
-    const backendNotes = Array.isArray(s.priority_notes) && s.priority_notes.length;
-    const finalNote = final.note ? `<p class="pci-note pci-final-note">${esc(final.note)}</p>` : potPoor && !backendNotes ? `<p class="pci-note pci-final-note">Under IRC:82 Appendix 4 potholes weigh only 0.50 in the overall value; read the parameter bands first.</p>` : '';
-    return `<div class="pci-headline">
-      <table class="pci-params"><colgroup><col class="c1"><col class="c2"><col class="c3"></colgroup><caption>Per IRC parameter · Table ${esc(tableNo)} · % of surveyed length (est.)</caption><thead><tr><th scope="col">Parameter</th><th scope="col">Band</th><th scope="col">Extent (est.)</th></tr></thead><tbody>${rows}</tbody></table>
-      ${priority}
-      <div class="pci-kpis final-muted">
-        <div><span>Pothole runs (primary)</span><strong>${runsKm === null ? '—' : runsKm.toFixed(1)}<small> per km</small></strong>${nRuns !== null ? `<small>${nRuns} run${nRuns === 1 ? '' : 's'} in the stretch</small>` : ''}</div>
-        <div><span>Overall (App. 4, secondary)</span><strong class="pci-final">${esc(final.cls || '—')}</strong>${num(final.lo) !== null ? `<small>rating ${Number(final.lo).toFixed(1)} – ${Number(final.hi).toFixed(1)}</small>` : ''}</div>
+    const kpis = `<div class="pci-kpis">
         <div><span>Length A→B</span><strong>${ge}${fmtM(lengthOf(r))}</strong><small>${esc(s.chainage_a || 'Km 0+000')} → ${ge}${esc(s.chainage_b || '')}</small></div>
         <div><span>Coverage</span><strong>${pct(covPct)}</strong><small>${esc(String(s.coverage_status || '').replace(/_/g, ' '))}</small></div>
-        <div><span>Gaps</span><strong>${num(s.gaps) ? `${s.gaps}` : 'None'}</strong>${num(s.gaps) ? `<small>≥ ${fmtM(num(s.gap_m))} straight line, not rated; chainage after a gap is a lower bound</small>` : ''}</div>
+        <div><span>Gaps</span><strong>${num(s.gaps) ? `${s.gaps}` : 'None'}</strong>${num(s.gaps) ? `<small>≥ ${fmtM(num(s.gap_m))} straight line, not rated</small>` : ''}</div>
         <div><span>Expert-reviewed</span><strong>${num(s.segments_expert_reviewed) ?? '—'}<small> of ${num(s.segments_used) ?? '—'}</small></strong><small>segments used</small></div>
+      </div>`;
+    const callout = `<p class="pci-callout"><strong>Screening estimate</strong> from images of one lane and the values entered. Confirm by field inspection before deciding on maintenance.</p>`;
+    if (!P || num(P.lo) === null) return `<div class="pci-headline"><div class="pci-error" role="note"><strong>No PCI</strong><span>No 100 m section has enough imaged length to be rated.</span></div>${kpis}${callout}</div>`;
+    const m = { lo: num(P.lo), hi: num(P.hi), single: num(P.single) }, col = colourOf(m);
+    const cls = m.single !== null ? (P.single_class || classOf(m.single)) : null, rec = cls ? (P.recommendation || P23.rec[cls]) : null;
+    // why there is no single PCI: parameters without a PCI_i, and/or the backend's note (e.g. uncalibrated label scale)
+    const why = String(P.single_note || unitPci(r.stretch)?.pci?.single_note || '').replace(/^no single PCI:\s*/i, '');
+    const missing = (P.missing || []).map(n => P23.params.find(p => p.name === n) || { name: n, w: 0 });
+    const missW = Math.round(missing.reduce((t, p) => t + (p.w || 0), 0) * 100);
+    const listNames = a => a.length <= 1 ? a.join('') : `${a.slice(0, -1).join(', ')} and ${a[a.length - 1]}`;
+    const nU = num(P.units), nR = num(P.units_rated);
+    const basis = nU ? `Stretch value = length-weighted mean of ${nR !== null && nR !== nU ? `${nR} rated of ${nU}` : nU} km row${nU === 1 ? '' : 's'}` : '';
+    const skipNote = m.single !== null && r0(m.lo) !== r0(m.hi) ? `${r0(m.lo)}–${r0(m.hi)} with the gate-skipped frames at their audited range` : '';
+    const rows = params.map(p => {
+      const d = paramDef(p.param), w = num(p.weight) ?? d.w;
+      if (!p.known) return `<tr class="na"><th scope="row">${esc(p.name || d.name)}</th><td>${p.value_lo !== undefined ? esc(valueText(p)) : '—'}</td><td>0–100</td><td>${w.toFixed(2)}</td><td>${p.source === 'not_assessed' ? 'Not assessed' : 'Not computable'}</td></tr>`;
+      const pm = { lo: num(p.pci_worst), hi: num(p.pci_best), single: null };
+      return `<tr><th scope="row">${esc(p.name || d.name)}</th><td>${esc(valueText(p))}</td><td>${esc(measureText(pm))}</td><td>${w.toFixed(2)}</td><td>${esc(SOURCE[p.source] || p.source_name || p.source || '—')}</td></tr>`;
+    }).join('');
+    const na = notAssessedLine(params);
+    const usesLabels = params.some(p => p.known && /^labels/.test(p.source));
+    const runs = potholeRuns(r), h = s.headline || {};
+    const rpk = num(h.pothole_runs_per_km) ?? (runs && lengthOf(r) ? runs.length / (lengthOf(r) / 1000) : null);
+    const potLabels = params.some(p => p.param === 'potholes' && /^labels/.test(p.source));
+    const flags = potLabels && runs && runs.length ? `<details class="pci-flags" data-details="flags" ${S.flagsOpen ? 'open' : ''}><summary>Pothole flags · ${runs.length} run${runs.length === 1 ? '' : 's'}${rpk !== null ? ` (${rpk.toFixed(1)} per km)` : ''}</summary>
+        <p class="pci-note">Image labels, not validated; shadows are often labelled as potholes. Open a frame and check it before acting.</p>
+        <div class="pci-runs">${runs.slice(0, 24).map((x, i) => `<button type="button" class="pci-run" data-act="run" data-index="${i}" data-id="${esc(x.ids[0])}">${esc(x.chainage || kmText(x.from_m))}${x.ids.length > 1 ? ` · ${x.ids.length} frames` : ''}</button>`).join('')}${runs.length > 24 ? `<span class="pci-note">+ ${runs.length - 24} more (see sections)</span>` : ''}</div></details>`
+      : potLabels && runs === null && sectionsOf(r).some(x => sectionRuns(x)) ? '<p class="pci-note">Loading the pothole frames…</p>' : '';
+    return `<div class="pci-headline">
+      <div class="pci-score">
+        <div class="pci-score-top"><div><span class="pci-score-label">PCI · IRC:82-2023 (0–100)</span><strong class="pci-score-num">${esc(measureText(m))}</strong></div>
+          <span class="pci-chip">${swatches(col)}${esc(cls || colourText(col))}</span></div>
+        ${scaleBar(m)}
+        ${rec ? `<p class="pci-rec"><span>Maintenance (Table 5.5)</span><strong>${esc(rec)}</strong></p>`
+          : `<p class="pci-rec pending"><span>Not yet a single PCI</span>${missing.length ? `${esc(listNames(missing.map(p => p.name)))} (${missW} % of the weight) ${missing.length === 1 ? 'has' : 'have'} no PCI<sub>i</sub> yet, so each is taken as 0 and as 100. ` : ''}${why ? `${esc(why.charAt(0).toUpperCase() + why.slice(1))}${/[.]$/.test(why) ? '' : '.'} ` : ''}A maintenance recommendation needs a single PCI.</p>`}
+        ${basis || skipNote ? `<p class="pci-note pci-basis">${esc([basis, skipNote].filter(Boolean).join(' · '))}.</p>` : ''}
       </div>
-      ${finalNote}
-      ${na.length ? `<p class="pci-note">${esc(na.map(pName).join(', '))}: not assessed. The overall class is a bracket — low end with them rated Poor, high end with them rated Good; never counted as 0 %.</p>` : ''}
-      <p class="pci-callout"><strong>Screening estimate</strong> from automated image classification of one lane of drive video. No label is validated against Bengaluru expert labels; % of length is an upper bound on % area. Confirm by field inspection.</p>
+      <table class="pci-params pci-p23"><colgroup><col class="c1"><col class="c2"><col class="c3"><col class="c4"><col class="c5"></colgroup>
+        <caption>Whole stretch · PCI = Σ weight × PCI<sub>i</sub></caption>
+        <thead><tr><th scope="col">Parameter</th><th scope="col">Value</th><th scope="col">PCI<sub>i</sub></th><th scope="col">Weight</th><th scope="col">Source</th></tr></thead><tbody>${rows}</tbody></table>
+      ${na ? `<p class="pci-na-line"><strong>Not assessed:</strong> ${esc(na)}.</p>` : ''}
+      ${usesLabels ? `<p class="pci-note">Image labels: cracking = % of surveyed length (upper bound of % area); potholes = runs of flagged 5 m segments. Not yet validated on Bengaluru (${num(s.segments_expert_reviewed) ?? 0} expert-reviewed segments).</p>` : ''}
+      ${flags}
+      ${kpis}
+      ${callout}
     </div>`;
   }
   function stripChart(r) {
     const secs = sectionsOf(r); if (!secs.length) return '';
     const total = lengthOf(r) || num(secs[secs.length - 1].to_m) || 1;
-    const W = 360, left = 68, right = 8, plot = W - left - right, x = m => left + plot * (num(m) || 0) / total;
-    const crackMax = Math.max(10, ...secs.map(s => sectionParam(s, 'cracking').e_hi || 0));
-    const potMax = Math.max(1, ...secs.map(s => sectionRuns(s) || 0));
-    const H1 = 46, top1 = 8, top2 = 66, H2 = 24, top3 = 100;
-    const label = COLOR_BY.find(c => c[0] === S.colorBy)?.[1] || '';
-    let svg = `<svg class="pci-strip" viewBox="0 0 ${W} 134" role="img" aria-labelledby="pciStripT pciStripD"><title id="pciStripT">Condition along the stretch, per 100 m</title><desc id="pciStripD">Cracking extent (estimate range), pothole runs and ${esc(label)} for each 100 m section from A to B.</desc>`;
-    svg += `<defs><pattern id="pciHatch" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="2" height="4" class="hatch"/></pattern></defs>`;
-    svg += `<text x="0" y="${top1 + 9}" class="axis">Cracking</text><text x="0" y="${top1 + 22}" class="axis sub">% (est.)</text><text x="${left - 4}" y="${top1 + 4}" class="axis end">${Math.round(crackMax)}</text><text x="${left - 4}" y="${top1 + H1}" class="axis end">0</text>`;
-    svg += `<line x1="${left}" x2="${W - right}" y1="${top1 + H1}" y2="${top1 + H1}" class="base"/>`;
-    svg += `<text x="0" y="${top2 + 9}" class="axis">Potholes</text><text x="0" y="${top2 + 22}" class="axis sub">runs</text><text x="${left - 4}" y="${top2 + 4}" class="axis end">${potMax}</text><text x="${left - 4}" y="${top2 + H2}" class="axis end">0</text>`;
-    svg += `<line x1="${left}" x2="${W - right}" y1="${top2 + H2}" y2="${top2 + H2}" class="base"/>`;
-    svg += `<text x="0" y="${top3 + 11}" class="axis">${S.colorBy === 'final' ? 'Overall' : S.colorBy === 'worst' ? 'Worst' : S.colorBy === 'cracking' ? 'Cracking' : 'Pothole'}</text>`;
+    const W = 360, left = 30, right = 8, plot = W - left - right, x = m => left + plot * (num(m) || 0) / total;
+    const top = 6, H = 80, y = v => top + H - H * Math.max(0, Math.min(100, v)) / 100, cellY = top + H + 6;
+    let svg = `<svg class="pci-strip" viewBox="0 0 ${W} ${cellY + 34}" role="img" aria-labelledby="pciStripT pciStripD"><title id="pciStripT">${esc(colorByName())} along the stretch, per 100 m</title><desc id="pciStripD">For each 100 m section from A to B: grey bar = possible range, coloured line = single value when known, on the 0–100 scale with lines at the class limits 20, 40, 60, 80 and 90. The row below has the map colours; select a cell to open the section.</desc>`;
+    for (const v of [20, 40, 60, 80, 90]) svg += `<line x1="${left}" x2="${W - right}" y1="${y(v)}" y2="${y(v)}" class="grid"/>`;
+    svg += `<line x1="${left}" x2="${W - right}" y1="${y(0)}" y2="${y(0)}" class="base"/>`;
+    for (const v of [0, 20, 40, 60, 80, 100]) svg += `<text x="${left - 4}" y="${y(v) + 3.5}" class="axis end">${v}</text>`;
     secs.forEach((s, i) => {
-      const x0 = x(s.from_m), w = Math.max(1, x(s.to_m) - x0 - .6), c = sectionParam(s, 'cracking'), col = sectionColor(s), rated = sectionRated(s);
-      const lo = c.e_lo, hi = c.e_hi, runs = sectionRuns(s) || 0;
-      const sel = S.section === i ? ' sel' : '';
-      if (rated && hi !== null) svg += `<rect x="${x0}" y="${top1 + H1 - H1 * hi / crackMax}" width="${w}" height="${H1 * hi / crackMax}" class="hi band-${bandKey(c.band_hi || c.band)}"/>`;
-      if (rated && lo !== null) svg += `<rect x="${x0}" y="${top1 + H1 - H1 * lo / crackMax}" width="${w}" height="${H1 * lo / crackMax}" class="lo band-${bandKey(c.band_lo || c.band)}"/>`;
-      if (rated && runs) svg += `<rect x="${x0}" y="${top2 + H2 - H2 * runs / potMax}" width="${w}" height="${H2 * runs / potMax}" class="pot"/>`;
-      svg += `<rect x="${x0}" y="${top3}" width="${w}" height="14" class="bandcell band-${bandKey(col.band)}${sel}" data-section="${i}"><title>${esc(s.chainage_from || chain(s.from_m))} – ${esc(s.chainage_to || chain(s.to_m))}: ${esc(col.band || 'Insufficient data')}${col.upper ? ` (${col.upper} if the skipped frames hold it)` : ''}</title></rect>`;
-      if (col.upper) svg += `<rect x="${x0}" y="${top3 + 10}" width="${w}" height="4" class="upper band-${bandKey(col.upper)}" pointer-events="none"/>`;
-      if (sel) svg += `<rect x="${x0 - 1}" y="${top1 - 2}" width="${w + 2}" height="${top3 + 16 - top1}" class="selbox"/>`;
+      const x0 = x(s.from_m), w = Math.max(1, x(s.to_m) - x0 - .6), m = pciMeasure(s, S.colorBy), col = colourOf(m), sel = S.section === i;
+      if (m && m.lo !== null) {
+        svg += `<rect x="${x0}" y="${y(m.hi)}" width="${w}" height="${Math.max(1.5, y(m.lo) - y(m.hi))}" class="rng"/>`;
+        if (m.single !== null) svg += `<rect x="${x0}" y="${y(m.single) - 1.5}" width="${w}" height="3" class="pt cls-${ckey(col.a)}"/>`;
+      }
+      const tip = `${esc(s.chainage_from || chain(s.from_m))} – ${esc(s.chainage_to || chain(s.to_m))}: ${col.a ? `${esc(measureText(m))} (${esc(colourText(col))})` : 'Insufficient data'}`;
+      svg += `<g class="bandcell${sel ? ' sel' : ''}" data-section="${i}"><title>${tip}</title>${col.b
+        ? `<rect x="${x0}" y="${cellY}" width="${w}" height="7" class="cls-${ckey(col.a)}"/><rect x="${x0}" y="${cellY + 7}" width="${w}" height="7" class="cls-${ckey(col.b)}"/>`
+        : `<rect x="${x0}" y="${cellY}" width="${w}" height="14" class="cls-${ckey(col.a)}"/>`}</g>`;
+      if (sel) svg += `<rect x="${x0 - 1}" y="${top - 2}" width="${w + 2}" height="${cellY + 16 - top}" class="selbox"/>`;
     });
     const step = total > 5000 ? 1000 : total > 1500 ? 500 : total > 600 ? 200 : 100;
-    for (let m = 0; m <= total + .01; m += step) { if (m > 0 && total - m < step * .45) continue; svg += `<line x1="${x(m)}" x2="${x(m)}" y1="${top3 + 15}" y2="${top3 + 19}" class="base"/><text x="${x(m)}" y="${top3 + 30}" class="axis mid">${chain(m)}</text>`; }
+    for (let m = 0; m <= total + .01; m += step) { if (m > 0 && total - m < step * .45) continue; svg += `<line x1="${x(m)}" x2="${x(m)}" y1="${cellY + 15}" y2="${cellY + 19}" class="base"/><text x="${x(m)}" y="${cellY + 30}" class="axis mid">${chain(m)}</text>`; }
     return `${svg}</svg>`;
   }
-  const BAND_NAMES = { good: 'Good', fairgood: 'Fair–Good', fair: 'Fair', poorfair: 'Poor–Fair', poor: 'Poor', poorgood: 'Poor–Good (undecided)', none: 'Insufficient data' };
-  // Legend = every colour actually drawn (plus Good/Fair/Poor), and the dashed "could be worse" edge if used.
+  // Legend: the six Table 5.5 classes, grey if a section has no data, and the two-colour rule when it is used.
   function legendHTML() {
-    const secs = sectionsOf(S.report), used = new Set(['good', 'fair', 'poor']), uppers = new Set();
-    for (const s of secs) { const c = sectionColor(s); used.add(bandKey(c.band)); if (c.upper) uppers.add(c.upper); }
-    const order = ['good', 'fairgood', 'fair', 'poorfair', 'poor', 'poorgood', 'none'].filter(k => used.has(k));
-    return `<div class="pci-legend" aria-label="Legend">${order.map(k => `<span><i class="band-${k}"></i>${esc(BAND_NAMES[k])}</span>`).join('')}${uppers.size ? `<span><i class="upper-key"></i>dashed edge / thin bar = could be ${esc([...uppers].join(' or '))} if the skipped (unclassified) frames hold it</span>` : ''}<span><i class="lo-hi"></i>lighter cracking bar = skip-corrected upper estimate</span><span>Map: survey layer dimmed while the report is open</span></div>`;
+    const secs = sectionsOf(S.report); let two = false, none = false;
+    for (const s of secs) { const c = colourOf(pciMeasure(s, S.colorBy)); if (c.b) two = true; if (!c.a) none = true; }
+    const cls = [['fail', 'Fail ≤ 20'], ['poor', 'Poor'], ['fair', 'Fair'], ['satisfactory', 'Satisfactory'], ['good', 'Good'], ['excellent', 'Excellent > 90']];
+    return `<div class="pci-legend" role="group" aria-label="Map legend">${cls.map(([k, t]) => `<span><i class="cls-${k}"></i>${t}</span>`).join('')}${none ? '<span><i class="cls-none"></i>No data (dashed)</span>' : ''}
+      ${two ? '<p class="pci-legend-rule"><i class="cls-poor"></i><i class="cls-excellent"></i>Two colours (striped on the map) = still a range: worst and best possible class.</p>' : ''}</div>`;
+  }
+  function sectionFacts(s) {
+    if (!sectionRated(s)) return 'Insufficient data';
+    const c = unitParam(s, 'cracking'), p = unitParam(s, 'potholes'), parts = [];
+    if (c?.known) parts.push(`Cracking ${valueText(c)}`);
+    if (p && p.value_lo !== undefined) parts.push(`Potholes ${valueText(p)}`);
+    return parts.join(' · ');
   }
   function sectionsList(r) {
     const secs = sectionsOf(r);
     return `<ul class="pci-sections">${secs.map((s, i) => {
-      const col = sectionColor(s), c = sectionParam(s, 'cracking'), runs = sectionRuns(s), cov = sectionCoverage(s), st = coverageStatus(s), skip = SKIP(s);
-      const open = S.section === i;
-      const notes = (s.rating?.params || []).map(normParam).filter(p => assessed(p) && p.band_note).map(p => `${p.name}: ${p.band_note}`);
+      const m = pciMeasure(s, S.colorBy), col = colourOf(m), cov = sectionCoverage(s), st = coverageStatus(s), skip = SKIP(s);
+      const open = S.section === i, facts = sectionFacts(s);
       return `<li class="${open ? 'open' : ''}"><button type="button" class="pci-sec" data-act="section" data-index="${i}" aria-expanded="${open}">
-        <span class="pci-sec-band band-${bandKey(col.band)}${col.upper ? ' has-upper' : ''}" aria-hidden="true"></span>
-        <span class="pci-sec-main"><strong>${esc(s.chainage_from || chain(s.from_m))} – ${esc(s.chainage_to || chain(s.to_m))}</strong><span>${sectionRated(s) ? `Cracking ${range(c.e_lo, c.e_hi)} · potholes ${runs ?? '—'} run${runs === 1 ? '' : 's'}` : 'Insufficient data'} · coverage ${pct(cov)}${st === 'low_coverage' ? ' (low)' : ''}${skip ? ` · ${fmtM(skip)} skipped` : ''}${s.road_chainage_from?.text ? ` · road ${esc(cleanRoad(s.road_chainage_from.text))}` : ''}</span>${notes.length ? `<span class="pci-sec-note">${esc(notes.join(' · '))}</span>` : ''}</span>
-        <span class="pci-band band-${bandKey(col.band)}">${esc(col.band || 'n/a')}${col.upper ? `<small> / ${esc(col.upper)}?</small>` : ''}</span></button>
+        <span class="pci-sec-band" aria-hidden="true"><i class="cls-${ckey(col.a)}"></i>${col.b ? `<i class="cls-${ckey(col.b)}"></i>` : ''}</span>
+        <span class="pci-sec-main"><strong>${esc(s.chainage_from || chain(s.from_m))} – ${esc(s.chainage_to || chain(s.to_m))}</strong><span>${[col.a ? `${S.colorBy === 'pci' ? '' : `${paramDef(S.colorBy).name}: `}${colourText(col)}` : '', facts, `coverage ${pct(cov)}${st === 'low_coverage' ? ' (low)' : ''}`, skip ? `${fmtM(skip)} skipped` : '', s.road_chainage_from?.text ? `road ${cleanRoad(s.road_chainage_from.text)}` : ''].filter(Boolean).map(esc).join(' · ')}</span></span>
+        <span class="pci-chip sm"><span class="pci-vh">${esc(colorByName())} </span>${swatches(col)}${esc(col.a ? measureText(m) : 'n/a')}</span></button>
         ${open ? `<div class="pci-frames" id="pciFrames">${sectionDetail(s)}${framesHTML(s, i)}</div>` : ''}</li>`;
     }).join('')}</ul>`;
   }
   function sectionDetail(s) {
-    const t = s.treatment || {}, parts = [];
-    const cls = typeof t.class === 'string' ? t.class : t.class?.text || t.class?.treatment || '';
-    const line = d => typeof d === 'string' ? d : [d.distress || d.type, d.text || d.treatment, d.clause ? `(IRC:82 ${d.clause})` : ''].filter(Boolean).join(': ').replace(/: \(IRC/, ' (IRC');
-    if (cls) parts.push(`<details class="pci-treat"><summary>Candidate treatment per IRC:82 — confirm in the field</summary><p class="pci-note">${esc(cls)}</p>${(t.distress || []).map(d => `<p class="pci-note">${esc(line(d))}</p>`).join('')}</details>`);
+    const parts = [], P = unitPci(s);
+    if (P?.pci) {
+      const m = { lo: num(P.pci.lo), hi: num(P.pci.hi), single: num(P.pci.single) }, cls = m.single !== null ? (P.pci.single_class || classOf(m.single)) : null;
+      const known = (P.params || []).filter(p => p.known).map(p => `${p.name} ${measureText({ lo: num(p.pci_worst), hi: num(p.pci_best), single: null })}`);
+      parts.push(`<p class="pci-note"><strong>PCI ${esc(measureText(m))}</strong> (${esc(cls || colourText(colourOf(m)))})${cls ? ` · ${esc(P.pci.recommendation || P23.rec[cls])}` : ''}${known.length ? ` · PCI<sub>i</sub>: ${esc(known.join(', '))}` : ''}.</p>`);
+    }
     const also = (s.also_surveyed || []).map(p => p.date_ist).filter(Boolean), other = (s.other_direction || []).map(p => p.date_ist).filter(Boolean);
     if (s.chosen_pass?.date_ist) parts.push(`<p class="pci-note">Rated from the pass of ${esc(s.chosen_pass.date_ist)}${also.length ? `; also surveyed on ${esc(also.join(', '))} (not averaged)` : ''}${other.length ? `; other direction on ${esc(other.join(', '))} (not rated)` : ''}.</p>`);
     return parts.join('');
@@ -798,19 +896,23 @@
     </figcaption></figure>`;
   }
   function headerBlock(r) {
-    const h = r.header || {}, rc = h.road_chainage_from?.text ? `${h.road_chainage_from.text} → ${h.road_chainage_to?.text || ''} · ${h.road_chainage_note || 'calibrated by requester, unverified'}` : (h.road_chainage_note || 'Road chainage not calibrated');
+    const h = r.header || {}, rc = h.road_chainage_from?.text ? `${h.road_chainage_from.text} → ${h.road_chainage_to?.text || ''} · calibrated by requester at A (unverified)` : 'Chainage measured by GPS from A; road km-stone chainage not entered';
+    const ent = h.entered && typeof h.entered === 'object' ? Object.entries(h.entered) : [];
+    const cal = h.calibration && typeof h.calibration === 'object' ? `fitted on ${h.calibration.fitted_on || '—'} (${Object.keys(h.calibration.params || {}).map(p => paramDef(p).name).join(', ') || 'no parameter'})` : 'None (image values not calibrated against a survey)';
     const items = [
       ['Road name / number', [h.road_name, h.road_number].filter(Boolean).join(' · ') || 'Not entered', Boolean(h.road_name || h.road_number)],
-      ['Category', [h.category_name, h.table_title].filter(Boolean).join(' · ') || h.category || '—'],
-      ['Relative chainage', `${h.km_from || 'Km 0+000'} (A) → ${h.km_to || ''} (B)`],
-      ['Road chainage', rc],
+      ['Road class', h.category_name || road(h.category).name || '—'],
+      ['Surface', h.surface ? `${h.surface_name || P23.surfaceNames[h.surface] || ''} (${h.surface}) · ${h.surface_note || ''}` : '—'],
+      ['Values entered on site', ent.length ? ent.map(([k, v]) => `${paramDef(k).name} ${fmtVal(v, paramDef(k).unit)}${unitSuffix(paramDef(k).unit)}`).join(', ') : 'None', ent.length > 0],
+      ['Survey calibration', cal],
+      ['Chainage', `${h.km_from || 'Km 0+000'} (A) → ${h.km_to || ''} (B), measured by GPS along the drives`],
+      ['Road km-stone chainage', rc],
       ['Survey dates (IST)', (h.survey_dates_ist || []).join(', ') || '—'],
       ['Season', (h.season || []).join('; ') || '—'],
       ['Weather (survey form, as entered)', (h.weather_as_entered_on_survey_form || []).join(', ') || '—'],
       ['Lane', `${h.lane_imaged || 'one lane'} · width ${num(h.lane_width_m) ?? '—'} m${h.lane_width_note ? ` · ${h.lane_width_note}` : ''}`],
-      ['Surface type', h.surface_type || 'Not entered', Boolean(h.surface_type)],
       ['Direction', (h.directions || []).map(d => d.direction).filter(Boolean).join('; ') || '—'],
-      ['Method', h.method || '—'],
+      ['Method', [h.pci_name, h.method].filter(Boolean).join('. ') || '—'],
       ['Device · model', [(h.devices || []).join(', '), h.model?.pipeline, h.model?.model, h.model?.prompts].filter(Boolean).join(' · ') || '—'],
       ['Prepared by', h.prepared_by || 'Not entered', Boolean(h.prepared_by)],
       ['Report', `${r.report_id ?? r.id ?? 'preview'} · generated ${r.generated_at_ist || '—'} · data as of ${r.data_as_of ? D.localTime(r.data_as_of) : '—'}`]];
@@ -828,14 +930,17 @@
         ${r.sample ? '<span class="pci-tag sample">Sample</span>' : ''}${stale ? `<span class="pci-tag stale">Stale${num(r.changed_segments) ? ` · ${r.changed_segments} segments changed` : ''}</span>` : ''}${r.mock ? '<span class="pci-tag">Mock API</span>' : ''}</div>
       ${stale ? `<p class="pci-note pci-stale-note">${esc(r.stale_note || 'Labels or reviews of segments in this report changed after it was generated. The stored report is a frozen snapshot.')}</p>` : ''}
       ${r.sample && r.sample_rule ? `<p class="pci-note">Sample chosen by a rule fixed before any rating was seen: ${esc(ruleText(r.sample_rule, lengthOf(r)))}. Regenerated, never edited.</p>` : ''}
-      ${headline(r)}
+      ${has2023(r) ? `${headline(r)}
       <section class="pci-section" aria-labelledby="pciStripH"><div class="pci-section-head"><h3 id="pciStripH">Along the stretch · 100 m</h3>
-        <label class="pci-colorby">Colour by <select data-act-change="color-by" aria-label="Colour sections by">${COLOR_BY.map(([v, t]) => `<option value="${v}" ${S.colorBy === v ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label></div>
+        <label class="pci-colorby">Colour by <select data-act-change="color-by" aria-label="Colour the map and sections by">${COLOR_BY.map(([v, t]) => `<option value="${v}" ${S.colorBy === v ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label></div>
         ${stripChart(r)}${legendHTML()}</section>
-      <section class="pci-section" aria-labelledby="pciSecH"><h3 id="pciSecH">Sections</h3><p class="pci-note">Select a section to highlight it on the map and see its frames.</p>${sectionsList(r)}</section>
+      <section class="pci-section" aria-labelledby="pciSecH"><h3 id="pciSecH">Sections</h3><p class="pci-note">Select a section to highlight it on the map and see its frames.</p>${sectionsList(r)}</section>`
+      : `<div class="pci-error" role="note"><strong>No PCI in this saved report</strong><span>It was saved before the IRC:82-2023 PCI was added. Generate it again from the same points to get the PCI; the saved copy stays as it is.</span></div>
+        <button type="button" class="button primary" data-act="regenerate" ${r.input?.a && r.input?.b ? '' : 'disabled'}>Generate again with the PCI</button>`}
       <details class="pci-section pci-more" data-details="header" ${S.headerOpen ? 'open' : ''}><summary>Report header, accuracy and limitations</summary>${headerBlock(r)}</details>
       ${S.reportSource === 'saved' ? '' : saveBlock()}`;
     $('pciNew').querySelector('[data-details=header]')?.addEventListener('toggle', e => { S.headerOpen = e.currentTarget.open; });
+    $('pciNew').querySelector('[data-details=flags]')?.addEventListener('toggle', e => { S.flagsOpen = e.currentTarget.open; });
   }
   function saveBlock() {
     let key = S.keyDraft || ''; try { key = key || sessionStorage.getItem(KEY_STORE) || ''; } catch {}
@@ -847,11 +952,6 @@
       <button type="button" class="button" data-act="save" ${S.saving ? 'disabled' : ''}>${S.saving ? 'Saving…' : 'Save report'}</button>`}</section>`;
   }
   // Sample rule labels from scripts/pci_samples.py (rule fixed before any rating was seen).
-  // "Potholes Poor · 3.1 runs/km · Cracking Fair": the per-parameter bands lead (the overall class is secondary).
-  function bandsLine(s) {
-    const h = s?.headline || {}, pot = h.potholes?.band, crk = h.cracking?.band, rk = num(h.pothole_runs_per_km);
-    return [pot ? `Potholes ${pot}` : '', rk !== null ? `${rk.toFixed(1)} runs/km` : '', crk ? `Cracking ${crk}` : ''].filter(Boolean).join(' · ') || 'Bands not available';
-  }
   function ruleText(code, routed) {
     const c = String(code || ''); let m;
     if (c === 'longest_drive') return 'the longest drive, end to end';
@@ -866,8 +966,8 @@
       : !list.length ? '<p class="pci-note">No saved reports yet.</p>'
       : `<ul class="pci-saved">${list.map(x => `<li><button type="button" class="pci-saved-item" data-act="open-saved" data-id="${esc(x.id ?? x.report_id)}">
           <span class="pci-saved-title"><strong>${esc(x.title || 'Condition report')}</strong>${x.sample ? '<span class="pci-tag sample">Sample</span>' : ''}${x.stale ? '<span class="pci-tag stale">Stale</span>' : ''}</span>
-          <span class="pci-saved-bands">${esc(x.headline_text || bandsLine(x.summary))}</span>
-          ${x.sample && x.sample_rule ? `<span class="pci-saved-meta">Rule: ${esc(ruleText(x.sample_rule, x.summary?.length_m))}</span>` : ''}<span class="pci-saved-meta">${esc([num(x.summary?.length_m ?? x.length_m) !== null ? fmtM(Number(x.summary?.length_m ?? x.length_m)) : '', x.category || '', x.created_at ? D.localTime(x.created_at) : '', !x.headline_text && x.summary?.final?.class ? `overall (secondary) ${x.summary.final.class}` : ''].filter(Boolean).join(' · '))}</span></button></li>`).join('')}</ul>`;
+          <span class="pci-saved-bands">${x.summary?.pci ? `${swatches(colourOf({ lo: num(x.summary.pci.lo), hi: num(x.summary.pci.hi), single: num(x.summary.pci.single) }))}` : ''}${esc(pciLine(x.summary))}</span>
+          ${x.sample && x.sample_rule ? `<span class="pci-saved-meta">Rule: ${esc(ruleText(x.sample_rule, x.summary?.length_m))}</span>` : ''}<span class="pci-saved-meta">${esc([num(x.summary?.length_m ?? x.length_m) !== null ? fmtM(Number(x.summary?.length_m ?? x.length_m)) : '', x.category ? road(x.category).name : '', x.created_at ? D.localTime(x.created_at) : ''].filter(Boolean).join(' · '))}</span></button></li>`).join('')}</ul>`;
   }
 
   /* ---------- actions ---------- */
@@ -875,7 +975,17 @@
     const t = event.target;
     if (t.id === 'pciKey') { S.keyDraft = t.value; return; }
     if (t.dataset?.actChange === 'color-by' && event.type === 'change') { S.colorBy = t.value; drawReport(); render(); return; }
-    if (t.name && t.name in form) { form[t.name] = t.value; if (t.name === 'lane_width_m') form.lane_touched = true; if (S.error) { S.error = ''; } }
+    if (t.name?.startsWith('entered.')) {
+      const id = t.name.slice(8); if (!(id in form.entered)) return;
+      form.entered[id] = t.value;
+      if (event.type === 'change') { if (S.error && !formIssues()) S.error = ''; render(); }
+      return;
+    }
+    if (t.name && t.name in form) {
+      form[t.name] = t.value; if (t.name === 'lane_width_m') form.lane_touched = true; if (S.error) { S.error = ''; }
+      if (t.name === 'category' && event.type === 'change') { if (!road(form.category).surfaces.includes(form.surface)) form.surface = ''; render(); }
+      if (t.name === 'surface' && event.type === 'change') render();
+    }
   }
   function onPanelClick(event) {
     const b = event.target.closest('[data-act]');
@@ -894,11 +1004,21 @@
     else if (act === 'all-frames') { S.allFrames = Number(b.dataset.index); render(); }
     else if (act === 'dl-pdf') download('pdf', b); else if (act === 'dl-csv') download('csv', b); else if (act === 'dl-json') download('json', b);
     else if (act === 'save') save();
+    else if (act === 'regenerate') regenerate();
     else if (act === 'open-saved') openSaved(b.dataset.id);
     else if (act === 'reload-saved') loadSaved();
   }
   async function generate() {
-    const issue = formIssues(); if (issue) { S.error = issue; render(); $('pciGenError')?.scrollIntoView({ block: 'nearest' }); return; }
+    const issue = formIssues();
+    if (issue) {
+      S.error = issue; if (P23.params.some(enteredIssue)) S.measuredOpen = true; render();
+      const bad = $('pciNew').querySelector('[aria-invalid=true]');
+      const el = bad || $('pciGenError'), B = $('pciBody');
+      // scroll only the card's body (scrollIntoView could also move the fixed card itself)
+      if (el && B) B.scrollTop += el.getBoundingClientRect().top - B.getBoundingClientRect().top - B.clientHeight / 3;
+      bad?.focus({ preventScroll: true });
+      return;
+    }
     S.loading = true; S.error = ''; render();
     try {
       const body = reportBody(); const r = await post('/gis/pci/report', body); S.lastBody = body;
@@ -911,6 +1031,18 @@
       S.loading = false; render();
       if (S.error && S.view === 'build') { $('pciGenError')?.scrollIntoView({ block: 'nearest' }); $('pciFoot').querySelector('[data-act=generate]')?.focus({ preventScroll: true }); }
     }
+  }
+  // A report saved before the PCI update: same points and details, generated again (a new preview; the saved copy stays).
+  function regenerate() {
+    const inp = S.report?.input || {}; if (!inp.a || !inp.b) return;
+    S.points = { a: inp.a, b: inp.b, via: Array.isArray(inp.via) ? inp.via : [] };
+    form.category = P23.roads.some(x => x.id === inp.category) ? inp.category : 'urban';
+    form.surface = inp.surface || '';
+    for (const k of ['road_name', 'road_number', 'prepared_by']) form[k] = inp[k] || '';
+    if (num(inp.lane_width_m) !== null) { form.lane_width_m = String(inp.lane_width_m); form.lane_touched = true; }
+    if (num(inp.chainage_at_a_km) !== null) { form.chainage_at_a_km = String(inp.chainage_at_a_km); form.chainage_increases = inp.chainage_increases_towards_b === false ? 'no' : 'yes'; }
+    S.report = null; S.reportSource = null; S.savedId = null; S.view = 'build'; S.section = null; S.frame = null;
+    drawPoints(); drawReport(); generate();
   }
   async function loadFeatures(r) {
     const sessions = new Set(passesOf(r).map(p => p.session_id).filter(Boolean));
@@ -955,7 +1087,7 @@
   function filename(ext) {
     const r = S.report || {}, h = r.header || {};
     const date = String(r.generated_at_ist || r.created_at || new Date().toISOString()).slice(0, 10);
-    const no = r.report_id ?? r.id; return ['IRC82-condition', slug(h.road_name || r.input?.road_name) || 'stretch', `${Math.round(lengthOf(r) || 0)}m`, date, no !== undefined && no !== null ? `no${slug(no)}` : 'preview'].filter(Boolean).join('_') + '.' + ext;
+    const no = r.report_id ?? r.id; return ['IRC82-2023-PCI', slug(h.road_name || r.input?.road_name) || 'stretch', `${Math.round(lengthOf(r) || 0)}m`, date, no !== undefined && no !== null ? `no${slug(no)}` : 'preview'].filter(Boolean).join('_') + '.' + ext;
   }
   function saveBlob(blob, name) {
     const url = URL.createObjectURL(blob), a = document.createElement('a');

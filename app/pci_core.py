@@ -305,6 +305,9 @@ def pci_unit(q: Mapping, road_class: str, surface: Optional[str] = None, entered
         if entered and entered.get(p) is not None:
             src, ev = "entered", "entered by requester for the whole stretch (unverified)"
             v_lo = v_hi = v_pt = float(entered[p])
+            if p == "potholes":          # entered as potholes per km; a unit's number scales with its length
+                v_lo = v_hi = v_pt = float(entered[p]) * q["length_m"] / 1000.0
+                ev = "entered by requester as potholes per km (unverified), scaled to this unit's length"
         elif spec and spec["source"] == "probe" and (q.get("probe") or {}).get(p, {}).get("value") is not None:
             pv = q["probe"][p]
             src, ev = "probe", spec["evidence"]
@@ -742,6 +745,7 @@ _RENEWAL = {
     "urban": "periodic renewal: 30-40 BC/SDBC/2 Coat Micro Surfacing (Table 9.1, urban; roughness trigger 2600 mm/km)",
     "highway": "periodic renewal: NH 30-40 BC, SH 30 BC/30 SDBC (Table 9.1)",
     "rural": "periodic renewal 'when condition rating reaches 2 to 1': SD/PC/MSS/SDBC (20-25) (Table 9.1, MDR/RR)",
+    "mdr": "periodic renewal 'when condition rating reaches 2 to 1': SD/PC/MSS/SDBC (20-25) (Table 9.1, MDR/RR)",
 }
 CLASS_TEXT = {
     "Good": ("Routine maintenance (pothole filling, crack repair, patching, markings); consider preventive "

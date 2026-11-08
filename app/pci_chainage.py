@@ -856,6 +856,11 @@ def build_report(g: Graph, req: Mapping, *, generated_at: Optional[datetime] = N
                         {"km": kmi, "part_km": (m1 - m0) < 1000.0 - 1e-6, "sections": sis}))
     stretch = unit(0.0, L, all_chosen, True, {"part_km": L < 1000.0 - 1e-6})
     stretch.pop("geometry", None)          # = the path geometry
+    if L > 1000.0 + 1e-6 and (stretch.get("pci") or {}).get("pci"):
+        # IRC:82-2023 analyses 100-1000 m units; a pothole count over a longer stretch is off the PCI curves' scale
+        stretch["pci"]["pci"] = None
+        stretch["pci"]["note"] = ("stretch longer than 1 km: the PCI is the length-weighted mean of the km rows "
+                                  "(summary.pci), not computed over the whole stretch")
 
     # survey facts of the used passes
     used_ids = sorted({s["segment_id"] for s in all_chosen})
@@ -893,7 +898,7 @@ def build_report(g: Graph, req: Mapping, *, generated_at: Optional[datetime] = N
         "coverage": stretch["quantities"]["coverage"], "coverage_status": stretch["quantities"]["coverage_status"],
         "gap_m": round(sum(gp["straight_m"] for gp in path["gaps"]), 1), "gaps": len(path["gaps"]),
         "pci": pci_mean(kms),
-        "pci_sections": pci_mean(sections),
+        "pci_sections": pci_mean(sections, "100 m sections"),
         "headline": sh.get("headline"), "final": (dict(sh["final"], note=final_note) if sh.get("final") else None),
         "priority_notes": priority,
         "resolution_note": resolution_note,
@@ -1020,7 +1025,7 @@ def priority_notes(rating: Mapping, cat: str, q: Mapping, runs_list: Optional[li
     return notes, final_note
 
 
-def pci_mean(units: list[dict]) -> Optional[dict]:
+def pci_mean(units: list[dict], kind: str = "km rows") -> Optional[dict]:
     """Stretch PCI = length-weighted mean of the km rows' PCI (IRC:82-2023 §5.1: analyse 100-1000 m; pothole
     numbers are per section, so a stretch-long count would not be on the PCI curves' scale). Units without a PCI
     (insufficient coverage) are left out and counted."""
@@ -1035,13 +1040,15 @@ def pci_mean(units: list[dict]) -> Optional[dict]:
     singles = [u["pci"]["pci"]["single"] for u in rated]
     single = (sum(wi * v for wi, v in zip(w, singles)) / W) if all(v is not None for v in singles) else None
     missing = sorted({m for u in rated for m in u["pci"]["pci"]["missing"]})
+    notes = sorted({u["pci"]["pci"].get("single_note") for u in rated if u["pci"]["pci"].get("single_note")})
     cl, ch = P23.pci_class(lo), P23.pci_class(hi)
     return {"lo": round(lo, 2), "hi": round(hi, 2), "class_lo": cl, "class_hi": ch,
             "class": cl if cl == ch else f"{cl}–{ch}", "single": None if single is None else round(single, 2),
             "single_class": P23.pci_class(single) if single is not None else None,
             "recommendation": P23.RECOMMENDATION[P23.pci_class(single)] if single is not None else None,
-            "missing": missing, "units_rated": len(rated), "units": len(units),
-            "length_rated_m": round(W, 1), "basis": "length-weighted mean of the km rows (each 100-1000 m)"}
+            "missing": missing, "single_note": "; ".join(notes) if single is None and notes else None,
+            "units_rated": len(rated), "units": len(units), "length_rated_m": round(W, 1),
+            "basis": f"length-weighted mean of the {len(rated)} rated {kind} (of {len(units)})"}
 
 
 def _count_classes(units: list[dict]) -> dict:
@@ -1055,9 +1062,10 @@ def _count_classes(units: list[dict]) -> dict:
 
 def _annex(g: Graph, sections: list[dict], chosen_segs: list[list], run_lists: dict, canon: Mapping,
            pinfo: Mapping) -> list[dict]:
-    """<= 24 frames from the USED segments (the attribution table): one per pothole run and one per section whose
-    assessed pothole / cracking band can be Poor (the most confident distress frame of the section), in chainage
-    order; more than 24 are thinned evenly. Every caption carries the pictured segment's OWN chainage."""
+    """<= 24 frames from the USED segments (the attribution table): one per pothole run and one per 100 m section
+    with a measured parameter in the IRC:82-2023 Tables 5.1-5.3 range 'Poor to Fail' (the most confident distress
+    frame of the section), in chainage order; more than 24 are thinned evenly. Every caption carries the
+    pictured segment's OWN chainage."""
     picks: dict[str, dict] = {}
     used = {x["segment_id"]: x for segs in chosen_segs for x in segs}
     by_id = {n.segment_id: n for n in g.nodes}
@@ -1087,17 +1095,17 @@ def _annex(g: Graph, sections: list[dict], chosen_segs: list[list], run_lists: d
                 add(sid, f"pothole run ({r['n']} segment{'s' if r['n'] > 1 else ''})")
                 break
     for sec, segs in zip(sections, chosen_segs):
-        rt = sec["rating"]
+        rt = sec.get("pci") or {}
         if not rt.get("rated"):
             continue
-        poor = [p for p in rt["params"] if p.get("assessed") and p.get("band_hi") == "Poor"
-                and (p.get("E_lo") or 0) > 0]           # a band that is Poor only via skips has nothing to picture
+        poor = [p for p in rt.get("params", []) if p.get("known") and p.get("range") == "Poor to Fail"
+                and p.get("source") != "entered"]       # an entered site value has nothing to picture
         if not poor:
             continue
         dis = [x for x in segs if x.get("vlm_class") == "distress" and x.get("has_image")]
         if dis:
             best = max(dis, key=lambda x: (x.get("confidence") or 0.0, -x["measure_m"]))
-            what = "; ".join(f"{p['name'].lower()} band {p['band']}" for p in poor)
+            what = "; ".join(f"{p['name'].lower()} Poor to Fail" for p in poor)
             add(best["segment_id"], f"{what} in {sec['chainage_from']}–{sec['chainage_to']}")
     out = sorted(picks.values(), key=lambda x: x["measure_m"])
     if len(out) > ANNEX_MAX:
@@ -1142,31 +1150,21 @@ def _method_text(cat: str) -> list[str]:
 
 
 LIMITATIONS = [
-    "Not an IRC:82 survey: IRC §5.3 asks for visual surveys by experienced engineers, at least twice a year on "
-    "urban roads (pre- and post-monsoon). This report is a screening / prioritisation aid only.",
-    "Area vs length: IRC % inputs are distress area / pavement area (implied by Proforma 2). This report measures "
-    "the fraction of 5 m segments in which the model saw the distress: an UPPER BOUND on % area for localised "
-    "distress, cracks included (one transverse crack flags a whole 5 m segment).",
-    "Look-ahead: the camera sees about 1.4-33 m ahead; a distress may be labelled on several consecutive segments "
-    "and up to ~30 m behind its true position. Runs (consecutive positives) are reported for this reason.",
-    "Not assessed (never printed as 0 %): ravelling, settlement/depression, shoving, patching, rut depth (3 m "
-    "straight edge), drainage and shoulder condition, roughness and skid resistance (Tables 5.4/5.5), crack width "
-    "and pothole depth (severity is visually judged).",
-    "Model validity (Attain dataset, Tehran; not Bengaluru): Stage 1 recall on distress frames 51.8 %; linear "
-    "crack P 0.89 / R 0.82, MCC 0.257; alligator cracking recall 0.08; pothole P 0.43 / R 0.25, MCC 0.219; "
-    "ravelling never named.",
-    "0 expert labels on the video segments: no label in this report (including Bleeding and Edge Breaking) has "
-    "been validated against Bengaluru expert labels.",
-    "Frame gate: segments the gate skipped were not classified (audited skips distressed 8.1 % [4.8, 13.3] vs "
-    "19.7 % of sent segments); E_lo / E_hi bracket this.",
-    "GNSS: phone position, receiver latency not corrected; ±10 m on surveyed runs, more after gaps. One lane, "
-    "one direction per pass; distress outside the camera's view or in other lanes is not seen.",
-    "Survey-form fields (road name, direction, weather) on the drives are form defaults or entries by the "
-    "operator and are printed only as 'as entered'.",
-    "Known failure mode seen on the annex frames: dappled tree shade and vehicle shadows on smooth asphalt are often "
-    "labelled Potholes. Check the frames before acting on a pothole finding.",
-    "Resolution: with 5 m segments one flagged segment is 5 % of a 100 m section, so the urban pothole band per "
-    "section is in effect 'flagged / not flagged' (Fair cannot occur); runs per km carry the amount.",
+    "Screening aid, not an IRC:82-2023 survey: §5.3 asks for instrumented (Network Survey Vehicle) or engineers' "
+    "visual surveys, twice a year on urban roads (pre- and post-monsoon). Confirm on site before ordering work.",
+    "One lane, one direction per pass: IRC extents are over all lanes of the carriageway; distress outside the "
+    "camera's view or in other lanes is not seen.",
+    "Extent = % of surveyed LENGTH whose 5 m frame shows the distress — an upper bound on % area (one crack flags "
+    "a whole 5 m segment). Pothole number = runs of consecutive pothole frames (one run counted as one pothole).",
+    "Label accuracy (Attain test set, not Bengaluru): linear cracks P 0.89 / R 0.82, alligator recall 0.08; potholes "
+    "P 0.43 / R 0.25. Tree shade and vehicle shadows are often labelled Potholes — check the frames. No label is "
+    "yet validated against Bengaluru expert labels.",
+    "Ravelling, patching, rut depth and roughness (IRI) need calibration against a reference survey (or values "
+    "entered from site); until then they are bracketed and the PCI is a range.",
+    "Gate-skipped frames were not classified (audited: 8.1 % distressed, 5.6 % with a pothole); the range includes "
+    "them at the upper bound.",
+    "Chainage from phone GPS: ±10 m on surveyed runs, more after gaps; a distress may be up to ~30 m behind its "
+    "true position (forward camera).",
 ]
 
 

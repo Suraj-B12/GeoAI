@@ -122,12 +122,36 @@ IRI_MDR = {
     "SDBC": lambda x: _rat(x, (-4.468, 106.2, -694.7, 1507.0), (1.0, -6.778, 14.51)),
     "BC": lambda x: _rat(x, (-2.52, 55.18, -292.4, 476.4, -5.565), (1.0, -7.458, 17.77, -12.09)),
 }
-IRI_RURAL = {
-    # printed denominator "IRI^2 - 9.272 IRI^2 + 21.13 IRI + 3.037" read as IRI^3 - 9.272 IRI^2 ... (typo: two
-    # IRI^2 terms; the cubic reading is the only one that follows the printed curve) — see IRC82_2023.md
+
+
+def _unusable(msg):
+    def f(_x):
+        raise Unavailable(msg)
+    f.unusable = msg
+    return f
+
+
+# Rural SD and MSS as printed are NOT used (REVIEW_2023.md R1/R2). Every other roughness equation gives PCI ~80 at
+# the Table 5.1-5.3 "Excellent to Good" IRI limit and ~40 at the "Satisfactory to Fair" limit (75-82 / 36-45 for
+# all 8 usable curves); these two do not, and the rural roughness curve in our copy (p. 85) does not render, so
+# no reading can be checked against a curve. The candidate readings are kept for the record only.
+IRI_RURAL_CANDIDATES = {
+    # printed denominator "IRI^2 - 9.272 IRI^2 + 21.13 IRI + 3.037" (two IRI^2 terms). Read as IRI^3: PCI 60.8 at
+    # the EG limit 4.27 and 14.7 at the SF limit 4.98, and it dips to 14.5 at IRI 4.9 then rises to 27.8 at 6.
     "SD": lambda x: _rat(x, (-25.68, 646.2, -4465.0, 9408.0), (1.0, -9.272, 21.13, 3.037)),
+    # printed "IRI^3 + 7.173 IRI^2 - 9.017 IRI + 15.43": PCI 48 at IRI 2 and 0.6 at the EG limit 3.79 (contradicts
+    # Table 5.2). With both middle signs flipped ("- 7.173 IRI^2 + 9.017 IRI", the alternating pattern of every
+    # other denominator) it gives 79.0 / 38.4 at 3.79 / 4.27 like every other curve -- two sign errors, unconfirmed.
+    "MSS_printed": lambda x: _rat(x, (-24.69, 593.2, -3663.0, 6786.0), (1.0, 7.173, -9.017, 15.43)),
+    "MSS_signs_flipped": lambda x: _rat(x, (-24.69, 593.2, -3663.0, 6786.0), (1.0, -7.173, 9.017, 15.43)),
+}
+IRI_RURAL = {
+    "SD": _unusable("the printed rural SD roughness equation (Table A2.2 B) has a garbled denominator "
+                    "('IRI^2 - 9.272 IRI^2 ...'); no reading fits Table 5.2 and the curve is not legible; "
+                    "roughness PCI not computed"),
     "OGPC": lambda x: _rat(x, (-4.02, 98.33, -670.6, 1444.0), (1.0, -8.215, 17.79)),
-    "MSS": lambda x: _rat(x, (-24.69, 593.2, -3663.0, 6786.0), (1.0, 7.173, -9.017, 15.43)),
+    "MSS": _unusable("the printed rural MSS roughness equation (Table A2.2 B) gives PCI 48 at IRI 2 and 0.6 at "
+                     "the Table 5.2 Excellent-to-Good limit (3.79); likely sign errors; roughness PCI not computed"),
     "SDBC": lambda x: _rat(x, (25.16, 48.45), (1.0, -5.079, 7.595)),
 }
 
@@ -143,10 +167,56 @@ EQUATIONS = {
 }
 DEFAULT_SURFACE = {"highway": "BC", "urban": "BC", "mdr": "BC", "rural": "SDBC"}
 
+# Largest value any equation is evaluated at (beyond these every curve is 0 or ~0; avoids float overflow of
+# IRI^5 etc. for absurd inputs). Extents are percentages and cannot exceed 100.
+X_MAX = {"cracking": 100.0, "ravelling": 100.0, "patching": 100.0, "potholes": 1.0e4, "rut_depth": 1.0e4,
+         "iri": 1.0e3}
+IRI_LEFT = 2.0      # left end of every printed roughness curve
+
+
+def _iri_peak(f) -> float:
+    """IRI (>= 2) at which a roughness equation is largest on [2, 20]. A smoother road must not score lower than a
+    rougher one, so IRI below the peak is scored as the peak (rural OGPC rises 86.6 -> 100.3 from IRI 2 to 3.4,
+    rural SDBC 68.7 -> 98.0 from 2 to 2.8; every other curve falls from IRI 2, where the peak is 2)."""
+    if getattr(f, "unusable", None):
+        return IRI_LEFT
+    best_x, best_v = IRI_LEFT, -math.inf
+    for i in range(18001):
+        x = IRI_LEFT + i * 0.001
+        try:
+            v = f(x)
+        except ZeroDivisionError:
+            continue
+        if math.isfinite(v) and v > best_v + 1e-12:
+            best_x, best_v = x, v
+    return best_x
+
+
+IRI_PEAK = {(rc, s): _iri_peak(f) for rc, d in (("mdr", IRI_MDR), ("rural", IRI_RURAL)) for s, f in d.items()}
+
+
+def _equation(road_class: str, param: str, surface: Optional[str]):
+    f = EQUATIONS[road_class][param]
+    left = None
+    if param == "iri":
+        left = IRI_LEFT
+        if isinstance(f, dict):
+            s = surface or DEFAULT_SURFACE[road_class]
+            if s not in f:
+                if s in SURFACES:
+                    raise Unavailable(f"IRC:82-2023 gives no roughness equation for {SURFACE_NAMES[s]} ({s}) on "
+                                      f"{road_class} roads; roughness PCI not computed")
+                raise ValueError(f"surface must be one of {', '.join(SURFACES)}")
+            left = IRI_PEAK[(road_class, s)]
+            f = f[s]
+    return f, left
+
 
 def pci_param(road_class: str, param: str, x: float, surface: Optional[str] = None) -> float:
-    """PCI_i (0-100) of one parameter value. IRI below 2 m/km (the left end of every printed curve) is scored as
-    2 m/km would be; any equation result is clamped to [0, 100] (the curves are only drawn inside it)."""
+    """PCI_i (0-100) of one parameter value. IRI below 2 m/km (the left end of every printed curve), or below the
+    peak of a curve that first rises, is scored as the peak; extents above 100 % as 100 %; any equation result
+    is clamped to [0, 100] (the curves are only drawn inside it). Raises Unavailable for an equation that
+    cannot be used as printed (MDR/rural potholes, rural SD/MSS roughness, rural BC roughness)."""
     if road_class not in EQUATIONS:
         raise ValueError(f"road class must be one of {', '.join(ROAD_CLASSES)}")
     if param not in WEIGHTS:
@@ -154,21 +224,28 @@ def pci_param(road_class: str, param: str, x: float, surface: Optional[str] = No
     x = float(x)
     if not math.isfinite(x) or x < 0:
         raise ValueError(f"{param}: value must be a finite number >= 0")
-    f = EQUATIONS[road_class][param]
-    if param == "iri":
-        if isinstance(f, dict):
-            s = surface or DEFAULT_SURFACE[road_class]
-            if s not in f:
-                raise ValueError(f"IRI equation for {s} not given for {road_class} roads")
-            f = f[s]
-        x = max(x, 2.0)
+    f, left = _equation(road_class, param, surface)
+    if left is not None:
+        x = max(x, left)
+    x = min(x, X_MAX[param])
     try:
         v = f(x)
-    except ZeroDivisionError:
-        v = 0.0
+    except ZeroDivisionError:           # no pole lies inside the evaluated domain (REVIEW_2023.md, grid scan)
+        raise ValueError(f"{param}: equation undefined at {x}") from None
     if not math.isfinite(v):
-        v = 0.0
+        raise ValueError(f"{param}: equation not finite at {x}")
     return max(0.0, min(100.0, v))
+
+
+def pci_param_bounds(road_class: str, param: str, a: float, b: float, surface: Optional[str] = None) -> tuple:
+    """(worst, best) PCI_i over every value in [a, b] (not only the ends: several printed curves are not
+    monotone, e.g. MDR SD roughness rises 36.3 -> 37.4 between IRI 4.86 and 5.31)."""
+    a, b = (a, b) if a <= b else (b, a)
+    vals = [pci_param(road_class, param, a, surface), pci_param(road_class, param, b, surface)]
+    if b > a:
+        n = 400
+        vals += [pci_param(road_class, param, a + (b - a) * i / n, surface) for i in range(1, n)]
+    return min(vals), max(vals)
 
 
 def pci_class(v: float) -> str:
@@ -204,13 +281,12 @@ def pci_range(road_class: str, known: Mapping[str, Optional[float]], surface: Op
             continue
         a, b = (v, v) if not isinstance(v, (tuple, list)) else (v[0], v[1])
         try:
-            pa, pb = pci_param(road_class, p, a, surface), pci_param(road_class, p, b, surface)
+            worst, best = pci_param_bounds(road_class, p, a, b, surface)
         except Unavailable as e:
             missing.append(p)
             hi += 100.0 * w
             rows.append({"param": p, "known": False, "weight": w, "reason": str(e)})
             continue
-        best, worst = max(pa, pb), min(pa, pb)
         lo += w * worst
         hi += w * best
         rows.append({"param": p, "known": True, "weight": w, "value_lo": a, "value_hi": b, "pci_best": best,

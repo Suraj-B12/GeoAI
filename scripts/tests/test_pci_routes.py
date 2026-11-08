@@ -153,9 +153,50 @@ def test_csv_formula_guard():
     assert r.status_code == 200, r.text
     text = r.content.decode("utf-8-sig")
     assert "'=HYPERLINK" in text and "\n=HYPERLINK" not in text and ",=HYPERLINK" not in text
-    assert text.splitlines()[0].startswith("unit,index,chainage_from")
+    lines = text.splitlines()
+    assert lines[0].startswith("# report,") and lines[[i for i, x in enumerate(lines)
+                                                          if not x.startswith("#")][0]].startswith(
+        "unit,index,chainage_from")
     assert R.csv_cell("-1+2") == "'-1+2" and R.csv_cell("@x") == "'@x" and R.csv_cell(-1.5) == "-1.5"
     assert R.csv_cell("Km 0+000") == "Km 0+000"
+
+
+def test_csv_irc2023_columns():
+    """report.csv (IRC:82-2023): '#' header lines (edition, road class, surface, whole-stretch PCI), then one row
+    per 100 m section, per km row and for the stretch; per parameter value / lo / hi / PCI_i / source; PCI lo/hi
+    bracket the single PCI; not-assessed parameters are empty with source 'not_assessed'; ends have 7-decimal
+    positions; the stretch row carries the headline (summary.pci)."""
+    import csv as _csv
+    r = post("/gis/pci/report.csv", body(road_name="CSV test road", surface="SDBC", entered={"rut_depth": 4}))
+    assert r.status_code == 200, r.text
+    text = r.content.decode("utf-8-sig")
+    meta = {row[0][2:]: (row[1] if len(row) > 1 else "") for row in _csv.reader(
+        [x for x in text.splitlines() if x.startswith("# ")])}
+    assert meta["edition"] == "IRC:82-2023" and meta["road_class"] == "urban"
+    assert meta["surface"].startswith("SDBC") and meta["road_name (as entered)"] == "CSV test road"
+    assert "whole-stretch PCI" in meta and "columns" in meta
+    rows = list(_csv.DictReader([x for x in text.splitlines() if not x.startswith("#")]))
+    assert tuple(rows[0].keys()) == R.CSV_COLUMNS
+    rep = post("/gis/pci/report", body(road_name="CSV test road", surface="SDBC", entered={"rut_depth": 4})).json()
+    kinds = [x["unit"] for x in rows]
+    assert kinds.count("100m") == len(rep["sections"]) and kinds.count("km") == len(rep["km"])
+    assert kinds[-1] == "stretch"
+    for x in rows:
+        assert len(x["start_lat"].split(".")[1]) == 7 and len(x["end_lon"].split(".")[1]) == 7, x
+        if x["pci_class"] == "insufficient data":
+            continue
+        lo, hi = float(x["pci_lo"]), float(x["pci_hi"])
+        assert 0 <= lo <= hi <= 100, x
+        if x["pci_single"]:
+            assert lo - 1e-6 <= float(x["pci_single"]) <= hi + 1e-6
+        assert x["rut_depth_mm"] == "4" and x["rut_depth_source"] == "entered", x
+        for p in ("ravelling", "patching"):
+            if x[f"{p}_source"] == "not_assessed":
+                assert x[f"{p}_pct"] == "" and x[f"{p}_pci_i"] == "", x
+        assert x["cracking_source"].startswith("labels") and x["potholes_source"].startswith("labels"), x
+    st = rows[-1]
+    hp = rep["summary"]["pci"]
+    assert abs(float(st["pci_lo"]) - hp["lo"]) < 0.01 and abs(float(st["pci_hi"]) - hp["hi"]) < 0.01
 
 
 def test_rate_limit_per_client():
@@ -225,9 +266,7 @@ def test_save_dedupe_cap_stored_and_stale():
         R.limiter.reset()
         lst = c.get("/gis/pci/reports").json()
         mine = next(x for x in lst["reports"] if x["id"] == rid)
-        assert mine["headline_text"].startswith("Potholes ") and "Cracking " in mine["headline_text"]
-        assert mine["headline_text"].index("Potholes") < mine["headline_text"].find("overall") or \
-            "overall" not in mine["headline_text"]
+        assert mine["headline_text"].startswith("PCI ") and " m" in mine["headline_text"]
         assert set(mine["bands"]) == {"potholes", "cracking"}
         got = c.get(f"/gis/pci/reports/{rid}").json()
         assert got["report"]["report_id"] == rid and got["stale"] is False and got["sample"] is False
@@ -274,6 +313,61 @@ def test_save_dedupe_cap_stored_and_stale():
         security.VALID_API_KEYS.update(old)
         with _conn() as conn:
             conn.execute("DELETE FROM research.pci_reports WHERE title = %s AND NOT sample", (TITLE,))
+
+
+def test_validation_irc2023_inputs():
+    """IRC:82-2023 request fields: surface, entered {parameter: value}, category mdr (critic, 2026-11-08)."""
+    cases = [
+        (body(surface="XYZ"), 422, "surface must be one of"),
+        (body(surface=5), 422, "surface must be one of"),
+        (body(entered=[1, 2]), 422, "entered must be"),
+        (body(entered={"shoving": 1}), 422, "entered must be"),
+        (body(entered={"iri": 0.1}), 422, "entered.iri must be within"),
+        (body(entered={"iri": 31}), 422, "entered.iri must be within"),
+        (body(entered={"cracking": 100.5}), 422, "entered.cracking must be within"),
+        (body(entered={"potholes": -1}), 422, "entered.potholes must be within"),
+        (body(entered={"rut_depth": "x"}), 422, "number"),
+        (body(entered={"rut_depth": "1e400"}), 422, "finite"),
+        (body(entered={"rut_depth": True}), 422, "number"),
+    ]
+    for js, code, text in cases:
+        r = post("/gis/pci/report", js)
+        assert r.status_code == code and text in r.text, (js, r.status_code, r.text)
+    # blanks are ignored, not errors
+    r = post("/gis/pci/report", body(surface="", entered={"iri": None, "cracking": ""}))
+    assert r.status_code == 200, r.text
+    assert "entered" not in r.json()["input"] and "surface" not in r.json()["input"]
+    # all six entered: every rated unit's single PCI = the Appendix-2 equations on the entered values
+    from app import pci_irc2023 as P23
+    ent = {"cracking": 5, "ravelling": 2, "potholes": 3, "patching": 3.5, "rut_depth": 4, "iri": 6}
+    r = post("/gis/pci/report", body(category="urban", surface="BC", entered=ent))
+    assert r.status_code == 200, r.text
+    rep = r.json()
+    rated = [u for u in rep["km"] if u["pci"].get("pci")]
+    assert rated
+    for u in rated:                       # entered potholes are per km, scaled to the unit's length
+        km = (u["to_m"] - u["from_m"]) / 1000.0
+        want = P23.pci("urban", {**ent, "potholes": ent["potholes"] * km})["pci"]
+        assert abs(u["pci"]["pci"]["single"] - want) < 0.05, (u["pci"]["pci"]["single"], want)
+    full = [u for u in rated if not u.get("part_km")]
+    if full:
+        assert abs(full[0]["pci"]["pci"]["single"] - P23.pci("urban", ent)["pci"]) < 0.05
+    # a surface the road class has no roughness equation for (rural + BC) must not crash the report
+    r = post("/gis/pci/report", body(category="rural", surface="BC", entered={"iri": 3.0}))
+    assert r.status_code in (200, 422), r.text
+    if r.status_code == 200:
+        km = next(u for u in r.json()["km"] if u["pci"].get("pci"))
+        assert "Roughness (IRI)" in km["pci"]["pci"]["missing"]
+
+
+def test_report_mdr_category():
+    """MDR is its own category (2023 Table 5.2 / A2.2 Part A); pothole PCI not computable for MDR -> bracketed."""
+    r = post("/gis/pci/report", body(category="mdr", surface="SD"))
+    assert r.status_code == 200, r.text[:300]
+    rep = r.json()
+    assert rep["header"]["category"] == "mdr" and rep["header"]["surface"] == "SD"
+    km = next(u for u in rep["km"] if u["pci"].get("pci"))
+    assert "Potholes" in km["pci"]["pci"]["missing"]
 
 
 TESTS = [v for k, v in dict(globals()).items() if k.startswith("test_") and callable(v)]

@@ -8,5 +8,15 @@
   "headline_metric": "MAE between our single PCI and the survey PCI on the TEST half, with a block-bootstrap 95% CI (2000 resamples of test blocks, seed 20261108), beside a constant baseline (the calibration-half mean survey PCI) and with Spearman rho, bias, Bland-Altman limits, and agreement of Table 5.5 classes (exact and within one class, quadratic-weighted kappa).",
   "secondary": "per-parameter MAE on the test half for every parameter the survey reports; the same metrics for the PCI range midpoint when a single PCI is unavailable; equation check: survey parameters through our IRC:82-2023 equations vs the survey's own PCI (tests the transcription and the survey's software, not our model).",
   "no_refit_after_test": "scripts/pci_survey_compare.py records every evaluate run in eval_results/pci/survey_ledger.jsonl; a fit after an evaluate on the same survey file is marked post_hoc=true and its test numbers must be reported as post hoc.",
-  "minimums": "test half with fewer than 10 sections: report the numbers but call them insufficient for a conclusion."
+  "minimums": "test half with fewer than 10 sections: report the numbers but call them insufficient for a conclusion.",
+  "addenda": [
+    {
+      "registered_utc": "2026-11-08T10:15:00Z",
+      "before_any_survey_data": true,
+      "reason": "a single PCI needs all six parameters; rut depth has no image source and may stay unassessed, so the headline metric could be unreachable (critic finding, REVIEW_2023.md)",
+      "added_headline": "partial PCI: per test section, over the parameters that have a value in BOTH our report and the survey, sum w_i PCI_i / sum w_i with the same IRC:82-2023 equations on both sides; MAE with block-bootstrap CI beside a constant (the calibration-half mean of the survey's partial PCI over its own reported parameters). Reported together with the single-PCI metric whenever that one is available; neither replaces the other.",
+      "iri": "the IRI calibration (app.pci_iri.fit_calibration, log-linear) is fitted on the same calibration half and written only when, in-sample, it beats a constant IRI in PCI_roughness points; evaluate uses it only when it was fitted on the same survey file.",
+      "note": "the interleaved split puts sections of the same roads in both halves: the test measures transfer within the surveyed roads, not to new roads."
+    }
+  ]
 }
