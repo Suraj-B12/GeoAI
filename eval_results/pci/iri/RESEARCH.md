@@ -1,5 +1,10 @@
 # Roughness (IRI, m/km) from the drive phone's IMU — method research
 
+> **Correction 2026-11-09 (owner):** the drives were recorded on a **scooter** with the phone on the
+> handlebar/front, not in a car with a windshield mount. §1–§5 below were written assuming a car; §6 says
+> what changes. The code, the features and the stored numbers are unchanged; their interpretation and the
+> uncertainty are in §6 and UNCERTAINTY.md.
+
 Written 2026-11-08 for the IRC:82-2023 condition report (PCI weight of roughness = 0.40). Every source
 below was opened in this session unless marked "(not opened)"; where a page could not be fetched the claim
 is attributed to the page that was read.
@@ -151,3 +156,24 @@ Golden Car's wheel-hop mode (~10.5 Hz) is inside it, and the band filter is part
 uncalibrated index stays consistent. The raw accelerometer has per-axis SD of 3–6 m/s² while driving —
 almost all of it above 20 Hz (engine, mount) — which is why an unfiltered RMS (as in eIRI-style apps) would
 mostly measure the engine.
+
+## 6. The vehicle is a scooter (owner, 2026-11-09) — what changes
+
+- **Physics.** A scooter is single-track (front and rear wheel in one line, ~1.25 m apart), with a stiffer,
+  lighter suspension relative to its sprung mass (frame + rider), small 10–12 in wheels with stiff tyres
+  (higher wheel-hop frequency, less tyre enveloping of short bumps), a heavy unsprung engine/swing-arm unit,
+  a rider who is a second sprung mass, steering-induced roll, and a handlebar/holder with its own modes. The
+  Golden-Car index (`iri_gc_uncal`) therefore does not measure IRI even under ideal conditions;
+  `eval_results/pci/iri/sensitivity.py` puts its ratio to the true IRI at 0.66–3.4 (90 % of plausible
+  scooters, median ~1.6) — UNCERTAINTY.md §3.
+- **Band.** The moving spectra of every drive show a fixed ~24–25 Hz line (handlebar/holder/frame mode — it
+  does not follow speed) and engine lines at ~64–70 Hz; at stops ~26–31 and ~54–64 Hz (NOISE_FLOOR.md D1).
+  All are outside 0.5–15 Hz, so the band stays. (The §5 reading of 25 Hz as a car engine at idle was wrong.)
+- **Speed normalisation.** rms/sqrt(v) follows from a white-slope road for any linear vehicle, so it holds
+  for a scooter in the same sense as for a car; the wheelbase filter (front and rear wheel hitting the same
+  bump L/v apart) adds speed dependence. The within-location speed exponent is still unmeasured (VALIDATION V4).
+- **Literature.** The one direct scooter-vs-car comparison found (Setiawan & Nurdin 2019, Yamaha Mio vs a
+  car on the same Bandung route) reads ~1.9× the car's IRI from the scooter and agrees much worse with visual
+  ratings; no calibrated motorcycle IRI model with error bands was found (UNCERTAINTY.md §1).
+- **Rut depth** cannot come from a single-track vehicle's roll (eval_results/pci/rut/RUT_PRIOR.md).
+- Every output now carries `vehicle` (pci_iri.VEHICLE).

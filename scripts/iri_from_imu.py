@@ -103,7 +103,7 @@ def process(conn, session_id: str, fp: str, p: P.Params) -> dict:
         gnss = read_gnss(d / "gnss_fixes.csv")
         res = P.run_session(imu, gnss, segs, p)
         summary.update(idle=res["idle"], acc_one_g=res["acc_one_g"], gravity_source=res["gravity_source"],
-                       n_anchors=res["n_anchors"], time_s=round(time.time() - t, 2),
+                       n_anchors=res["n_anchors"], vehicle=res["vehicle"], time_s=round(time.time() - t, 2),
                        n_features=sum(1 for e in res["segments"] if e.get("rms_av") is not None),
                        n_iri_gc=sum(1 for e in res["segments"] if e.get("iri_gc_uncal") is not None))
         rows = [_row(e, fp, session_id, imu_sha) for e in res["segments"]]

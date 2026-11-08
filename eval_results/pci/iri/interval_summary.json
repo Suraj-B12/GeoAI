@@ -1,0 +1,54 @@
+{
+ "100m": {
+  "n": 383,
+  "point_p5_50_95": [
+   3.31,
+   5.4,
+   10.34
+  ],
+  "lo90_p5_50_95": [
+   0.97,
+   1.69,
+   3.31
+  ],
+  "hi90_p5_50_95": [
+   10.35,
+   17.57,
+   35.68
+  ],
+  "hi_over_lo_median": 10.64,
+  "pci_iri_urban_at_median_section": [
+   0.6,
+   9.7,
+   101.1
+  ],
+  "share_lo90_below_IRC_good_2.55": 0.872,
+  "share_hi90_above_IRC_fair_3.30": 1.0
+ },
+ "1000m": {
+  "n": 28,
+  "point_p5_50_95": [
+   4.61,
+   5.88,
+   8.12
+  ],
+  "lo90_p5_50_95": [
+   1.92,
+   2.51,
+   3.55
+  ],
+  "hi90_p5_50_95": [
+   10.78,
+   13.73,
+   19.31
+  ],
+  "hi_over_lo_median": 5.57,
+  "pci_iri_urban_at_median_section": [
+   1.0,
+   7.7,
+   81.7
+  ],
+  "share_lo90_below_IRC_good_2.55": 0.536,
+  "share_hi90_above_IRC_fair_3.30": 1.0
+ }
+}

@@ -279,6 +279,113 @@ def band23(road_class: str, param: str, x: float, surface: Optional[str] = None)
     return "Excellent to Good" if x < a - EPS else ("Poor to Fail" if x > b + EPS else "Satisfactory to Fair")
 
 
+# ------------------------------------------------------------------ PCI ESTIMATE with a 90 % interval (2026-11-09)
+# Evidence behind each input (eval_results/pci/ESTIMATE.md):
+#  cracking / patching / ravelling: Attain-calibrated % area per frame (app.pci_extent; TEST 90 % coverage 27/28,
+#    26/28, 22/28 blocks; Bengaluru domain widening x2 / x1.5 declared in advance). Ravelling FAILED its coverage
+#    criterion (0.79 < 0.80): its interval is widened a further x2 here and flagged.
+#  potholes (number per unit, IRC eq. 2 unit = one run of pothole frames): label runs, of which those confirmed by an
+#    IMU jolt are the lower bound; point = POTHOLE_LABEL_PRECISION x runs (Attain test precision 0.43; the scooter
+#    jolt rate implies 0.36-0.58); upper = runs x POTHOLE_RUN_UPPER (Attain precision / recall = 0.43 / 0.25) + the
+#    gate-skip allowance.
+#  IRI: app.pci_iri.iri_interval (scooter; uncalibrated physics + stated sensitivity, or the survey calibration).
+#  rut depth: app.pci_rut.rut_prior (literature prior 0-25 mm, uniform) unless calibrated or entered.
+POTHOLE_LABEL_PRECISION = 0.43
+POTHOLE_RUN_UPPER = 0.43 / 0.25
+RAVELLING_EXTRA_WIDEN = 2.0
+
+
+def _extent_inputs(segments: Iterable[Mapping], lane_width_m: float) -> dict:
+    from app import pci_extent as PE
+    segs = [s for s in segments if s.get("status") != "not_covered"]
+    if not segs:
+        return {}
+    try:
+        res = PE.estimate_extents([s.get("probe") for s in segs], [_len(s) for s in segs], lane_width_m=lane_width_m,
+                                  params=["cracking", "ravelling", "patching"], domain="bengaluru")
+    except (OSError, ValueError, KeyError):
+        return {}
+    out = {}
+    for p in ("cracking", "ravelling", "patching"):
+        r = res.get(p) or {}
+        if r.get("mean") is None:
+            continue
+        lo, mid, hi = r["lo90"], r["mean"], r["hi90"]
+        note = "Attain-calibrated % of road area (interval only: does not beat a constant on Attain)"
+        if p == "cracking":
+            note = "Attain-calibrated % of road area (ranks stretches on Attain, rho 0.59; interval held 27/28)"
+        if p == "ravelling":
+            hi = mid + (hi - mid) * RAVELLING_EXTRA_WIDEN
+            lo = max(0.0, mid - (mid - lo) * RAVELLING_EXTRA_WIDEN)
+            note = "Attain-calibrated, FAILED its coverage test (0.79) - interval widened x2"
+        out[p] = {"point": mid, "lo90": lo, "hi90": hi, "basis": note}
+    return out
+
+
+def pci_estimate_unit(segments: list[Mapping], q: Mapping, road_class: str, surface: Optional[str] = None,
+                      entered: Optional[Mapping] = None, lane_width_m: float = DEFAULT_LANE_WIDTH_M,
+                      impact_runs: int = 0) -> Optional[dict]:
+    """PCI estimate + 90 % interval of one 100 m section (see the evidence block above). Precedence per parameter:
+    entered > survey calibration (param_calibration.json / iri_calibration.json) > the estimates above.
+    Returns None when coverage is insufficient."""
+    from app import pci_iri, pci_rut
+    if q["coverage_status"] == "insufficient":
+        return None
+    L = q["length_m"]
+    inputs, basis = {}, {}
+    ext = _extent_inputs(segments, lane_width_m)
+    for p in ("cracking", "ravelling", "patching"):
+        if p in ext:
+            inputs[p] = {k: ext[p][k] for k in ("point", "lo90", "hi90")}
+            basis[p] = ext[p]["basis"]
+    # potholes: runs of pothole frames in this unit
+    n = q["runs"]["potholes"]
+    skip_segs = q["skip_m"] / SEGMENT_M
+    conf = min(int(impact_runs), n)
+    inputs["potholes"] = {"point": max(conf, POTHOLE_LABEL_PRECISION * n), "lo90": float(conf),
+                          "hi90": POTHOLE_RUN_UPPER * n + POTHOLE_SKIP_UPPER * skip_segs}
+    basis["potholes"] = (f"{n} run(s) of pothole frames, {conf} confirmed by a jolt; point = 0.43 x runs (label "
+                         "precision), upper = runs x 1.7 (precision/recall) + skipped frames")
+    # IRI
+    rows = [dict(s["roughness"], s0_m=0.0, s1_m=_len(s)) for s in segments
+            if isinstance(s.get("roughness"), Mapping) and s.get("status") != "not_covered"]
+    if rows:
+        agg = pci_iri.aggregate(rows)
+        iv = pci_iri.iri_interval(agg, calibration=iri_calibration())
+        if iv.get("point") is not None:
+            inputs["iri"] = {"point": iv["point"], "lo90": iv["lo90"], "hi90": iv["hi90"]}
+            basis["iri"] = f"{iv['basis']}: {iv.get('detail', '')}".strip()
+    # rut depth
+    stats = pci_rut.score_stats([(s.get("probe") or {}).get("Rutting") for s in segments])
+    rp = pci_rut.rut_prior(stats)
+    if rp.get("point") is None:
+        inputs["rut_depth"] = {"point": (rp["lo90"] + rp["hi90"]) / 2, "lo90": rp["lo90"], "hi90": rp["hi90"],
+                               "dist": "uniform"}
+    else:
+        inputs["rut_depth"] = {"point": rp["point"], "lo90": rp["lo90"], "hi90": rp["hi90"]}
+    basis["rut_depth"] = rp["basis"] + (f"; {rp['flag']}" if rp.get("flag") else "")
+    # survey calibration (probe parameters) and entered values override
+    cal = current_calibration()
+    for p, spec in ((cal or {}).get("params") or {}).items():
+        pv = (q.get("probe") or {}).get(p)
+        if spec["source"] == "probe" and pv and pv.get("value") is not None:
+            inputs[p] = {"point": pv["value"], "lo90": pv["value"], "hi90": pv["value"]}
+            basis[p] = spec["evidence"]
+    for p, v in (entered or {}).items():
+        if p in P23.WEIGHTS and v is not None:
+            x = float(v) * (L / 1000.0 if p == "potholes" else 1.0)
+            inputs[p] = {"point": x, "lo90": x, "hi90": x}
+            basis[p] = "entered by requester (unverified)"
+    missing = [p for p in P23.PARAMS if p not in inputs]
+    if missing:
+        return {"estimate": None, "missing": [P23.PARAM_NAMES[p] for p in missing], "inputs": inputs, "basis": basis}
+    try:
+        est = P23.pci_estimate(road_class, inputs, surface, n=1500)
+    except P23.Unavailable as e:
+        return {"estimate": None, "missing": [], "unavailable": str(e), "inputs": inputs, "basis": basis}
+    return {"estimate": est, "inputs": inputs, "basis": basis}
+
+
 def pci_unit(q: Mapping, road_class: str, surface: Optional[str] = None, entered: Optional[Mapping] = None,
              calibration=_DEFAULT) -> dict:
     """IRC:82-2023 PCI of one unit (100 m section, km row or stretch).

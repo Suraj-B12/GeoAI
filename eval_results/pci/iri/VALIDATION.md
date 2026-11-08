@@ -1,5 +1,10 @@
 # Roughness from the phone IMU — validation without a reference IRI
 
+> **Correction 2026-11-09:** the survey vehicle is a **scooter** (phone on the handlebar), not a car. The
+> synthetic checks below simulate a car-like quarter car; their arithmetic checks stand, but S3 ("other car")
+> says nothing about a scooter — see UNCERTAINTY.md §3 for the scooter sensitivity analysis. The idle noise
+> floor is re-examined in NOISE_FLOOR.md.
+
 Method: app/pci_iri.py (method_fp printed by scripts/iri_from_imu.py), reasoning in RESEARCH.md.
 Script: eval_results/pci/iri/validate_iri.py -> validation.json. There is **no reference IRI** for any
 Bengaluru road yet; nothing below measures accuracy. It measures whether the feature is physically sane,

@@ -808,6 +808,8 @@ def build_report(g: Graph, req: Mapping, *, generated_at: Optional[datetime] = N
     all_chosen = [s for segs in chosen_segs for s in segs]
     run_lists = {"potholes": C.runs(all_chosen, C.PARAM_LABELS["potholes"]),
                  "cracking": C.runs(all_chosen, C.PARAM_LABELS["cracking"])}
+    for r in run_lists["potholes"]:
+        r["impact_felt"], r["jolt"] = _run_impact(g, r["segment_ids"])
 
     def runs_in(m0, m1, last):
         return {t: [r for r in rs if r["measure_m"] is not None and m0 <= r["measure_m"] and
@@ -823,6 +825,10 @@ def build_report(g: Graph, req: Mapping, *, generated_at: Optional[datetime] = N
                               runs_in_unit=runs_in(m0, m1, last), pothole_runs_touching=touching)
         r = C.rate_unit(q, cat)
         pci = C.pci_unit(q, cat, canon.get("surface"), canon.get("entered"))
+        if extra and "index" in extra:            # 100 m section: the PCI estimate with a 90 % interval
+            ru = runs_in(m0, m1, last)["potholes"]
+            pci["estimate"] = C.pci_estimate_unit(segs, q, cat, canon.get("surface"), canon.get("entered"), width,
+                                                  impact_runs=sum(1 for r in ru if r.get("impact_felt")))
         u = {"from_m": round(m0, 1), "to_m": round(m1, 1), "chainage_from": fmt_chainage(m0),
              "chainage_to": fmt_chainage(m1),
              "road_chainage_from": road_chainage(m0, canon["chainage_at_a_km"], canon["chainage_increases_towards_b"]),
@@ -856,6 +862,8 @@ def build_report(g: Graph, req: Mapping, *, generated_at: Optional[datetime] = N
         m0, m1 = secs[sis[0]][0], secs[sis[-1]][1]
         kms.append(unit(m0, m1, [s for si in sis for s in chosen_segs[si]], sis[-1] == len(secs) - 1,
                         {"km": kmi, "part_km": (m1 - m0) < 1000.0 - 1e-6, "sections": sis}))
+    for k in kms:
+        k["pci"]["estimate"] = estimate_mean(sections, (k["from_m"], k["to_m"]))
     stretch = unit(0.0, L, all_chosen, True, {"part_km": L < 1000.0 - 1e-6})
     stretch.pop("geometry", None)          # = the path geometry
     if L > 1000.0 + 1e-6 and (stretch.get("pci") or {}).get("pci"):
@@ -880,27 +888,13 @@ def build_report(g: Graph, req: Mapping, *, generated_at: Optional[datetime] = N
     sh = stretch["rating"]
     used_m = {x["segment_id"]: x["measure_m"] for x in all_chosen}
     runs_list = []
-    jthr = g.jolt_threshold
-    if not g.by_id:
-        g.by_id = {n.segment_id: i for i, n in enumerate(g.nodes)}
     for r in run_lists["potholes"]:
         ms = [used_m[sid] for sid in r["segment_ids"] if sid in used_m]
         if ms:
-            jolts = []
-            for sid in r["segment_ids"]:
-                n0 = g.nodes[g.by_id[sid]] if sid in g.by_id else None
-                if n0 is None:
-                    continue
-                for dk in (-1, 0, 1):
-                    j = g.by_sk.get((n0.session_id, n0.k + dk))
-                    rj = (g.nodes[j].props.get("roughness") or {}) if j is not None else {}
-                    if rj.get("jolt") is not None:
-                        jolts.append(rj["jolt"])
-            impact = None if (jthr is None or not jolts) else max(jolts) > jthr
             runs_list.append({"from_m": round(min(ms), 1), "to_m": round(max(ms), 1),
                               "chainage": fmt_chainage(min(ms)), "segments": r["n"],
-                              "segment_ids": list(r["segment_ids"]), "impact_felt": impact,
-                              "jolt": round(max(jolts), 2) if jolts else None})
+                              "segment_ids": list(r["segment_ids"]), "impact_felt": r.get("impact_felt"),
+                              "jolt": r.get("jolt")})
     runs_list.sort(key=lambda r: r["from_m"])
     priority, final_note = priority_notes(sh, cat, stretch["quantities"], runs_list)
     pot_row = next((p for p in (sh.get("params") or []) if p["param"] == "potholes"), None)
@@ -914,6 +908,7 @@ def build_report(g: Graph, req: Mapping, *, generated_at: Optional[datetime] = N
         "length_m": round(L, 1), "chainage_a": fmt_chainage(0), "chainage_b": fmt_chainage(L),
         "coverage": stretch["quantities"]["coverage"], "coverage_status": stretch["quantities"]["coverage_status"],
         "gap_m": round(sum(gp["straight_m"] for gp in path["gaps"]), 1), "gaps": len(path["gaps"]),
+        "pci_estimate": estimate_mean(sections, (0.0, L)),
         "pci": pci_mean(kms),
         "pci_sections": pci_mean(sections, "100 m sections"),
         "headline": sh.get("headline"), "final": (dict(sh["final"], note=final_note) if sh.get("final") else None),
@@ -1040,6 +1035,49 @@ def priority_notes(rating: Mapping, cat: str, q: Mapping, runs_list: Optional[li
                       f"parameters, {na_w:g} of {wsum:g} weight). The bracket is about one class wide on every 100 m "
                       f"block measured so far; use the per-parameter bands.")
     return notes, final_note
+
+
+def _run_impact(g: Graph, segment_ids) -> tuple:
+    """(impact felt?, max jolt) of a pothole run: the largest IMU jolt on its segments and their neighbours (k +- 1)
+    against g.jolt_threshold (JOLT_PCTL). (None, None) without IMU data."""
+    if not g.by_id:
+        g.by_id = {n.segment_id: i for i, n in enumerate(g.nodes)}
+    jolts = []
+    for sid in segment_ids:
+        if sid not in g.by_id:
+            continue
+        n0 = g.nodes[g.by_id[sid]]
+        for dk in (-1, 0, 1):
+            j = g.by_sk.get((n0.session_id, n0.k + dk))
+            rj = (g.nodes[j].props.get("roughness") or {}) if j is not None else {}
+            if rj.get("jolt") is not None:
+                jolts.append(rj["jolt"])
+    if g.jolt_threshold is None or not jolts:
+        return None, None
+    return bool(max(jolts) > g.jolt_threshold), round(max(jolts), 2)
+
+
+def estimate_mean(sections: list[dict], window: tuple) -> Optional[dict]:
+    """PCI estimate of a km row / the stretch = length-weighted mean of its 100 m sections' estimates (median, and
+    the 5 % / 95 % ends averaged the same way, i.e. section errors taken as fully correlated - conservative)."""
+    from app import pci_irc2023 as P23
+    m0, m1 = window
+    use = [s for s in sections if s["from_m"] >= m0 - 1e-6 and s["to_m"] <= m1 + 1e-6
+           and ((s.get("pci") or {}).get("estimate") or {}).get("estimate")]
+    n_all = sum(1 for s in sections if s["from_m"] >= m0 - 1e-6 and s["to_m"] <= m1 + 1e-6)
+    if not use:
+        return None
+    w = [s["to_m"] - s["from_m"] for s in use]
+    W = sum(w)
+
+    def avg(k):
+        return sum(wi * s["pci"]["estimate"]["estimate"][k] for wi, s in zip(w, use)) / W
+    med, lo, hi = avg("median"), avg("lo90"), avg("hi90")
+    return {"median": round(med, 1), "lo90": round(lo, 1), "hi90": round(hi, 1), "class": P23.pci_class(med),
+            "class_lo": P23.pci_class(lo), "class_hi": P23.pci_class(hi),
+            "recommendation": P23.RECOMMENDATION[P23.pci_class(med)], "sections_used": len(use), "sections": n_all,
+            "length_m": round(W, 1),
+            "basis": "length-weighted mean of the 100 m sections' estimates (IRC:82-2023 §5.1 project level)"}
 
 
 def pci_mean(units: list[dict], kind: str = "km rows") -> Optional[dict]:

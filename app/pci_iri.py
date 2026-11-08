@@ -1,6 +1,11 @@
 """
 Road roughness from the drive phone's IMU: features per 5 m video segment and per 100 m, an UNCALIBRATED
-Golden-Car-equivalent IRI, and a calibrated IRI only when a calibration file exists.
+Golden-Car-equivalent IRI, an IRI estimate with a 90 % interval (iri_interval), and a calibrated IRI only
+when a calibration file exists.
+
+Survey vehicle: a SCOOTER with the phone on the handlebar/front (owner, 2026-11-09; survey.vehicle is empty
+in the records). The Golden-Car index assumes a car; sensitivity.py quantifies what that costs (VEHICLE,
+SENS_R, UNCERTAINTY.md).
 
 Method and sources: eval_results/pci/iri/RESEARCH.md. Validation: eval_results/pci/iri/VALIDATION.md.
 
@@ -49,12 +54,31 @@ GOLDEN_CAR = {"k1": 653.2, "k2": 63.3, "c": 6.0, "mu": 0.15}
 IRI_SPEED_MPS = 80.0 / 3.6
 IRI_BASE_M = 0.25
 
+VEHICLE = ("scooter (two-wheeler), phone on the handlebar/front - owner's statement 2026-11-09; the drive "
+           "records' survey.vehicle field is empty")
+
 UNCAL_ASSUMPTIONS = (
-    "Golden-Car-equivalent index, NOT a measured IRI. Assumes: (1) the survey car's body responds like the "
-    "Golden Car sprung mass; (2) the phone is rigid on the sprung mass (no mount resonance, no pitch lever "
-    "arm); (3) the road's profile-slope spectrum is white and Gaussian over the band (ISO 8608 w = 2); "
-    "(4) one wheel path; (5) the accelerometer scale is exact. None of these is verified for the survey car "
-    "and windshield mount.")
+    "Golden-Car-equivalent index, NOT a measured IRI. It assumes (1) the vehicle body responds like the Golden "
+    "Car sprung mass, (2) the phone is rigid on that mass (no mount resonance, no pitch lever arm), (3) the "
+    "road's profile-slope spectrum is white and Gaussian (ISO 8608 w = 2), (4) one wheel path, (5) exact "
+    "accelerometer scale. The survey vehicle is a SCOOTER with the phone on the handlebar: (1), (2) and (4) are "
+    "known to be false (single track, stiffer/lighter suspension, small wheels, rider, ~25 Hz handlebar mode); "
+    "eval_results/pci/iri/sensitivity.py puts this index at 0.66-3.4x the true IRI (90 % of plausible scooters).")
+
+# R = iri_gc_uncal / IRI_true for plausible scooters (eval_results/pci/iri/sensitivity.json, 3000 draws per
+# speed, uniform priors on 10 assumptions; UNCERTAINTY.md §3): speed (m/s) -> (p05, p50, p95).
+# scripts/tests/test_pci_iri.py checks these against sensitivity.json.
+SENS_R = {3.0: (0.6623, 1.5203, 3.3585), 4.0: (0.6807, 1.5534, 3.2259), 5.0: (0.7119, 1.5613, 3.1338),
+          6.0: (0.7479, 1.5719, 3.0775), 7.0: (0.7840, 1.5762, 3.0286), 8.0: (0.8311, 1.5994, 3.0012),
+          10.0: (0.8967, 1.6249, 2.9471), 12.0: (0.9385, 1.6716, 2.9282)}
+# Pass-to-pass scatter of a single 100 m value, ln units (UNCERTAINTY.md §4): from the only repeated blocks
+# (explore.json: median |ln A/B| 0.18-0.27 over 5-6 blocks) -> sigma = 0.27 / (0.6745 sqrt 2) = 0.28; the
+# larger end is used because 6 blocks cannot pin it down. Scales as sqrt(100 m / length).
+REPEAT_SIGMA_LN_100M = 0.28
+# Median idle (standing) RMS in the band over 13 drives (NOISE_FLOOR.md): the lower end of the interval
+# treats this much of the signal as non-road noise.
+NOISE_FLOOR_RMS = 0.257
+Z90 = 1.6449
 
 
 @dataclass(frozen=True)
@@ -490,7 +514,7 @@ def run_session(imu, gnss, segments, p: Params = DEFAULT, calibration: Optional[
     tmap = build_track_map(at, as_, gnss, sig.t0_ns)
     est = segment_estimates(sig, tmap, segments, p, calibration)
     return {"segments": est, "idle": idle_noise_floor(sig, tmap, p), "gravity_source": sig.gravity_source,
-            "acc_one_g": sig.av_raw_mean, "n_anchors": len(at)}
+            "acc_one_g": sig.av_raw_mean, "n_anchors": len(at), "vehicle": VEHICLE}
 
 
 # ============================================================ features
@@ -600,7 +624,7 @@ def aggregate(rows: Sequence[Mapping], p: Params = DEFAULT, calibration: Optiona
     Rows with error, no rms or low speed are left out (counted)."""
     use = [r for r in rows if not r.get("error") and r.get("rms_av") is not None
            and "low_speed" not in (r.get("flags") or [])]
-    res: dict[str, Any] = {"n_segments": len(rows), "n_used": len(use)}
+    res: dict[str, Any] = {"n_segments": len(rows), "n_used": len(use), "vehicle": VEHICLE}
     if not use:
         res.update(length_m=0.0, duration_s=0.0, speed_mps=None, rms_av=None, rms_rot=None, rms_av_norm=None,
                    iri_gc_uncal=None, iri=None, iri_status="no_data")
@@ -741,13 +765,63 @@ def fit_calibration(rows: Sequence[Mapping], *, terms: Sequence[str] = ("log_rms
     return cal
 
 
-def report_field(agg: Mapping) -> dict:
-    """What the condition report shows for roughness. Without calibration: no IRI, says uncalibrated."""
-    if agg.get("iri_status") == "calibrated":
-        return {"iri_m_per_km": round(agg["iri"], 2), "status": "calibrated",
+def _sens_at(v: float) -> tuple[float, float, float]:
+    vs = sorted(SENS_R)
+    v = min(max(float(v), vs[0]), vs[-1])
+    return tuple(float(np.interp(v, vs, [SENS_R[x][i] for x in vs])) for i in range(3))
+
+
+def iri_interval(agg: Mapping, calibration: Optional[Mapping] = None, p: Params = DEFAULT) -> dict:
+    """IRI estimate (m/km) with a 90 % interval for an aggregate (aggregate() output: a 100 m section, a km).
+
+    Calibrated (a calibration applies to this aggregate): point = calibrated IRI, interval = log-normal
+    prediction interval from the calibration's residual sd (t quantile, sqrt(1 + 1/n)).
+    Otherwise UNCALIBRATED: point = iri_gc_uncal / R50(v); lo90 = noise-floor-corrected iri_gc_uncal / R95(v)
+    shrunk by the pass-to-pass scatter; hi90 = iri_gc_uncal / R05(v) grown by it. R = the scooter
+    sensitivity ratios (SENS_R). The interval covers vehicle/mount physics within the stated ranges, the
+    noise floor and pass-to-pass scatter; it does NOT cover a vehicle outside those ranges, wheel-path
+    position, GNSS distance errors, non-Gaussian roads (potholes, speed breakers) or a phone that moved in
+    its holder (UNCERTAINTY.md §5)."""
+    base = {"vehicle": VEHICLE, "unit": "m/km"}
+    rms, v, L = agg.get("rms_av"), agg.get("speed_mps"), agg.get("length_m") or 0.0
+    if calibration is not None:
+        val, st = calibrated_iri(agg, calibration, unit_m=L or None, p=p)
+        if st == "calibrated":
+            from scipy import stats as _st
+            n = int(calibration["n"])
+            dof = max(n - 1 - len(calibration["terms"]), 1)
+            half = float(_st.t.ppf(0.95, dof)) * calibration["residual_sd_log"] * math.sqrt(1 + 1 / n)
+            return {**base, "point": val, "lo90": val * math.exp(-half), "hi90": val * math.exp(half),
+                    "basis": "calibrated", "detail": f"log-linear calibration (n = {n}, residual sd "
+                    f"{calibration['residual_sd_log']:.3f} ln), source {calibration.get('source')}"}
+    if rms is None or v is None or v < p.min_speed_mps or rms <= 0:
+        return {**base, "point": None, "lo90": None, "hi90": None, "basis": "no_data",
+                "detail": "no usable roughness samples at >= %.1f m/s" % p.min_speed_mps}
+    est = gc_iri_factor(p) * rms / math.sqrt(v)
+    est_nf = gc_iri_factor(p) * math.sqrt(max(rms * rms - NOISE_FLOOR_RMS ** 2, (0.1 * rms) ** 2)) / math.sqrt(v)
+    r05, r50, r95 = _sens_at(v)
+    sig = REPEAT_SIGMA_LN_100M * math.sqrt(100.0 / max(L, 100.0)) if L else REPEAT_SIGMA_LN_100M
+    k = math.exp(Z90 * sig)
+    return {**base, "point": est / r50, "lo90": est_nf / r95 / k, "hi90": est / r05 * k,
+            "basis": "uncalibrated_scooter", "iri_gc_uncal": est,
+            "detail": (f"Golden-Car-equivalent {est:.2f} divided by the scooter response ratio R "
+                       f"(p05/p50/p95 = {r05:.2f}/{r50:.2f}/{r95:.2f} at {v:.1f} m/s), noise floor "
+                       f"{NOISE_FLOOR_RMS} m/s2 at the low end, pass-to-pass scatter x/{k:.2f}. Not a measured "
+                       "IRI; replaced by the calibrated value once the survey calibration exists.")}
+
+
+def report_field(agg: Mapping, calibration: Optional[Mapping] = None) -> dict:
+    """What the condition report shows for roughness: the calibrated IRI, or the uncalibrated estimate with
+    its interval, always with the vehicle and the basis."""
+    iv = iri_interval(agg, calibration)
+    if iv["basis"] == "calibrated":
+        return {"iri_m_per_km": round(iv["point"], 2), "lo90": round(iv["lo90"], 2), "hi90": round(iv["hi90"], 2),
+                "status": "calibrated", "vehicle": VEHICLE, "detail": iv["detail"],
                 "rms_av": agg.get("rms_av"), "speed_mps": agg.get("speed_mps")}
     return {"iri_m_per_km": None, "status": agg.get("iri_status") or "uncalibrated",
-            "note": "Roughness not rated: the phone's IMU index has no IRI calibration for this survey car "
-                    "(eval_results/pci/iri/iri_calibration.json missing or not applicable).",
-            "rms_av": agg.get("rms_av"), "speed_mps": agg.get("speed_mps"),
+            "estimate": None if iv["point"] is None else {k: round(iv[k], 2) for k in ("point", "lo90", "hi90")},
+            "estimate_basis": iv["basis"], "vehicle": VEHICLE,
+            "note": "Roughness not measured: uncalibrated phone-IMU estimate from a scooter, shown as a range "
+                    "(eval_results/pci/iri/UNCERTAINTY.md); the calibrated value replaces it after the survey.",
+            "detail": iv["detail"], "rms_av": agg.get("rms_av"), "speed_mps": agg.get("speed_mps"),
             "iri_gc_uncal": agg.get("iri_gc_uncal"), "iri_gc_uncal_assumptions": UNCAL_ASSUMPTIONS}

@@ -309,7 +309,8 @@ def pci_estimate(road_class: str, inputs: Mapping[str, Mapping[str, float]], sur
                  n: int = 4000, seed: int = 20261109) -> dict:
     """PCI estimate with a 90 % interval from per-parameter estimates.
 
-    inputs: {param: {"point": x, "lo90": a, "hi90": b}} for EVERY parameter (a parameter without an estimate must be
+    inputs: {param: {"point": x, "lo90": a, "hi90": b[, "dist": "uniform"]}} for EVERY parameter ("uniform": a
+    prior range drawn uniformly between lo90 and hi90, point = its middle) (a parameter without an estimate must be
     passed with its widest defensible bounds by the caller, or this returns None). Each parameter is drawn
     independently from a split-normal with those 5/50/95 % quantiles (independence is an assumption: in reality
     distresses co-occur, which would widen the interval somewhat); PCI = sum w_i PCI_i per draw; the result is the
@@ -325,7 +326,10 @@ def pci_estimate(road_class: str, inputs: Mapping[str, Mapping[str, float]], sur
         tot = 0.0
         for p in PARAMS:
             q = inputs[p]
-            x = _split_normal_quantile(rnd.random(), q["lo90"], q["point"], q["hi90"])
+            if q.get("dist") == "uniform":            # a prior range without a typical value
+                x = q["lo90"] + rnd.random() * (q["hi90"] - q["lo90"])
+            else:
+                x = _split_normal_quantile(rnd.random(), q["lo90"], q["point"], q["hi90"])
             tot += WEIGHTS[p] * pci_param(road_class, p, x, surface)
         draws.append(tot)
     draws.sort()

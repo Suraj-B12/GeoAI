@@ -1,0 +1,143 @@
+{
+ "cracking": {
+  "trapezoid": {
+   "mean_pct": 7.694305711476361,
+   "median_pct": 6.252394126409874,
+   "p90_pct": 15.768031158026526,
+   "frames_gt0": 742
+  },
+  "full_image": {
+   "mean_pct": 6.471614770740688,
+   "median_pct": 5.08618855075548,
+   "p90_pct": 14.476271547137689,
+   "frames_gt0": 742
+  },
+  "box_hull": {
+   "mean_pct": 22.531081235459308,
+   "median_pct": 17.303574904301563,
+   "p90_pct": 49.586751549064545,
+   "frames_gt0": 742
+  },
+  "trapezoid_near_half": {
+   "mean_pct": 9.670667154108001,
+   "median_pct": 6.822793371660467,
+   "p90_pct": 22.29561610562202,
+   "frames_gt0": 705
+  }
+ },
+ "ravelling": {
+  "trapezoid": {
+   "mean_pct": 0.459160519834082,
+   "median_pct": 0.0,
+   "p90_pct": 1.282826133219833,
+   "frames_gt0": 106
+  },
+  "full_image": {
+   "mean_pct": 0.44408219839202895,
+   "median_pct": 0.0,
+   "p90_pct": 1.2348061644321477,
+   "frames_gt0": 107
+  },
+  "box_hull": {
+   "mean_pct": 1.6377008825302013,
+   "median_pct": 0.0,
+   "p90_pct": 2.876574001688094,
+   "frames_gt0": 107
+  },
+  "trapezoid_near_half": {
+   "mean_pct": 0.7712373229026707,
+   "median_pct": 0.0,
+   "p90_pct": 1.393869479235323,
+   "frames_gt0": 93
+  }
+ },
+ "ravelling_incl_weathering": {
+  "trapezoid": {
+   "mean_pct": 3.7181189485864072,
+   "median_pct": 0.0,
+   "p90_pct": 8.744413705043621,
+   "frames_gt0": 261
+  },
+  "full_image": {
+   "mean_pct": 3.5277750016000513,
+   "median_pct": 0.0,
+   "p90_pct": 8.677966056607788,
+   "frames_gt0": 262
+  },
+  "box_hull": {
+   "mean_pct": 7.446097353488884,
+   "median_pct": 0.0,
+   "p90_pct": 38.961832040784614,
+   "frames_gt0": 262
+  },
+  "trapezoid_near_half": {
+   "mean_pct": 6.343110691385985,
+   "median_pct": 0.0,
+   "p90_pct": 16.28355071337824,
+   "frames_gt0": 243
+  }
+ },
+ "patching": {
+  "trapezoid": {
+   "mean_pct": 0.6900664411764064,
+   "median_pct": 0.0,
+   "p90_pct": 2.3978345546972997,
+   "frames_gt0": 166
+  },
+  "full_image": {
+   "mean_pct": 0.6778338965894889,
+   "median_pct": 0.0,
+   "p90_pct": 2.439668014471164,
+   "frames_gt0": 167
+  },
+  "box_hull": {
+   "mean_pct": 1.4513593547677068,
+   "median_pct": 0.0,
+   "p90_pct": 4.895498698633267,
+   "frames_gt0": 167
+  },
+  "trapezoid_near_half": {
+   "mean_pct": 0.4086138447789955,
+   "median_pct": 0.0,
+   "p90_pct": 0.0,
+   "frames_gt0": 63
+  }
+ },
+ "potholes": {
+  "trapezoid": {
+   "mean_pct": 0.13360035432674566,
+   "median_pct": 0.0,
+   "p90_pct": 0.43969102792632186,
+   "frames_gt0": 162
+  },
+  "full_image": {
+   "mean_pct": 0.1278932721365166,
+   "median_pct": 0.0,
+   "p90_pct": 0.4215277777777778,
+   "frames_gt0": 163
+  },
+  "box_hull": {
+   "mean_pct": 0.8012613665571422,
+   "median_pct": 0.0,
+   "p90_pct": 1.0600696344860168,
+   "frames_gt0": 163
+  },
+  "trapezoid_near_half": {
+   "mean_pct": 0.12231357934058806,
+   "median_pct": 0.0,
+   "p90_pct": 0.0,
+   "frames_gt0": 68
+  }
+ },
+ "pothole_counts": {
+  "frames_with_pothole": 163,
+  "boxes": 315,
+  "components": 279
+ },
+ "roi_area_frac_mean": {
+  "trapezoid": 0.805380571133412,
+  "full_image": 1.0,
+  "box_hull": 0.3290767905106481,
+  "trapezoid_near_half": 0.4110492410290713
+ }
+}

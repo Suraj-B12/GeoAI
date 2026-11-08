@@ -13,6 +13,9 @@ Tests for app/pci_iri.py (roughness from the phone IMU; pure, synthetic data, CP
   5. No calibration file -> iri None, status "uncalibrated"; report_field never shows a number.
   6. fit_calibration recovers known coefficients; method / unit / range mismatches refuse; a malformed file
      raises; read_imu_csv parses the recorder's format.
+  7. iri_interval: uncalibrated scooter interval = the stated formula, never narrower than the vehicle term,
+     scatter shrinks with length; calibrated = log-normal prediction interval; no extrapolation; the SENS_R
+     table equals sensitivity.json; rut_prior (app/pci_rut.py) prior / flag / calibration bins.
 
 Usage:
     CUDA_VISIBLE_DEVICES=-1 venv/Scripts/python.exe scripts/tests/test_pci_iri.py
@@ -183,6 +186,74 @@ def test_read_imu_csv():
         imu = P.read_imu_csv(f)
         assert list(imu["acc"]["t_ns"]) == [100, 300] and imu["acc"]["xyz"][0, 2] == 9.7
         assert set(imu) == {"acc", "gravity", "game_rv"}
+
+
+def test_iri_interval_uncalibrated():
+    agg = {"rms_av": 0.8, "speed_mps": 6.0, "length_m": 100.0, "iri_status": "uncalibrated"}
+    iv = P.iri_interval(agg)
+    est = P.gc_iri_factor() * 0.8 / math.sqrt(6.0)
+    r05, r50, r95 = P.SENS_R[6.0]
+    assert iv["basis"] == "uncalibrated_scooter" and "scooter" in iv["vehicle"]
+    assert abs(iv["point"] - est / r50) < 1e-9
+    assert iv["lo90"] < iv["point"] < iv["hi90"] and iv["hi90"] / iv["lo90"] > 4
+    k = math.exp(P.Z90 * P.REPEAT_SIGMA_LN_100M)
+    assert abs(iv["hi90"] - est / r05 * k) < 1e-9
+    km = P.iri_interval({**agg, "length_m": 1000.0})
+    assert km["hi90"] / km["lo90"] < iv["hi90"] / iv["lo90"]          # scatter shrinks, bias does not
+    assert km["hi90"] / km["lo90"] > (r95 / r05)                       # never narrower than the vehicle term
+    assert P.iri_interval({"rms_av": None, "speed_mps": 6})["basis"] == "no_data"
+    assert P.iri_interval({"rms_av": 0.5, "speed_mps": 1.0})["basis"] == "no_data"
+    f = P.report_field(agg)
+    assert f["iri_m_per_km"] is None and f["estimate"]["lo90"] < f["estimate"]["hi90"] and "scooter" in f["vehicle"]
+
+
+def test_iri_interval_calibrated():
+    rng = np.random.default_rng(11)
+    rows = []
+    for _ in range(30):
+        rms, v = rng.uniform(0.3, 1.5), rng.uniform(3, 10)
+        rows.append({"rms_av": rms, "speed_mps": v, "iri_ref": math.exp(0.5 + 0.8 * math.log(rms) + rng.normal(0, 0.2))})
+    cal = P.fit_calibration(rows, terms=("log_rms_av",), source={"survey": "synthetic"})
+    agg = {"rms_av": 0.8, "speed_mps": 6.0, "length_m": 100.0}
+    iv = P.iri_interval(agg, cal)
+    assert iv["basis"] == "calibrated"
+    from scipy import stats
+    want = math.exp(stats.t.ppf(0.95, cal["n"] - 2) * cal["residual_sd_log"] * math.sqrt(1 + 1 / cal["n"]))
+    assert abs(iv["hi90"] / iv["point"] - want) < 1e-9 and abs(iv["point"] * iv["point"] - iv["lo90"] * iv["hi90"]) < 1e-6
+    assert 0.1 < cal["residual_sd_log"] < 0.3
+    # out of the fitted range -> falls back to the uncalibrated interval, never extrapolates
+    assert P.iri_interval({**agg, "rms_av": 5.0}, cal)["basis"] == "uncalibrated_scooter"
+    assert P.report_field(agg, cal)["status"] == "calibrated"
+
+
+def test_sens_table_matches_sensitivity_json():
+    f = PROJECT_ROOT / "eval_results" / "pci" / "iri" / "sensitivity.json"
+    d = json.loads(f.read_text(encoding="utf-8"))
+    assert {float(k) for k in d["by_speed"]} == set(P.SENS_R)
+    for k, b in d["by_speed"].items():
+        assert np.allclose(P.SENS_R[float(k)], (b["p05"], b["p50"], b["p95"]), atol=1e-4), k
+    assert all(abs(v - 1.0) < 1e-3 for v in d["control_golden_car_R"].values())
+    lo, mid, hi = P._sens_at(100.0)
+    assert (lo, mid, hi) == P.SENS_R[12.0]
+
+
+def test_rut_prior():
+    from app import pci_rut as R
+    pr = R.rut_prior(None)
+    assert pr["is_prior"] and pr["point"] is None and (pr["lo90"], pr["hi90"]) == (0.0, 25.0) and pr["flag"] is None
+    st = R.score_stats([0.1, 0.2, None, 0.9, float("nan"), 0.6])
+    assert st["n"] == 4 and abs(st["max"] - 0.9) < 1e-12 and 0.6 < st["p90"] <= 0.9
+    pr = R.rut_prior(st)
+    assert pr["flag"] and (pr["lo90"], pr["hi90"]) == (0.0, 25.0) and not pr["conditioned_on_score"]
+    cal = {"schema": R.CALIBRATION_SCHEMA, "stat": "p90", "probe_fp": "x", "source": {"survey": "synthetic"},
+           "bins": [{"lo": 0.0, "hi": 0.3, "lo90": 0, "point": 3, "hi90": 8, "n": 12},
+                    {"lo": 0.3, "hi": 1.0, "lo90": 4, "point": 12, "hi90": 22, "n": 9}]}
+    assert R.validate_calibration(cal) == []
+    assert R.rut_prior({"n": 5, "p90": 0.1}, cal)["hi90"] == 8 and R.rut_prior({"n": 5, "p90": 1.0}, cal)["point"] == 12
+    assert R.rut_prior({"n": 0, "p90": None}, cal)["is_prior"]
+    bad = {**cal, "bins": [{"lo": 0.0, "hi": 0.5, "lo90": 0, "point": 3, "hi90": 8, "n": 1}]}
+    assert R.validate_calibration(bad)
+    assert R.load_calibration(Path(tempfile.gettempdir()) / "no_such_rut_cal.json") is None
 
 
 TESTS = [v for k, v in dict(globals()).items() if k.startswith("test_") and callable(v)]
