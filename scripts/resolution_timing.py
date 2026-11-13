@@ -28,6 +28,7 @@ import gc
 import glob
 import importlib.util
 import json
+import statistics
 import os
 import sys
 import time
@@ -118,13 +119,15 @@ def main() -> int:
         rs = sorted((r for r in rows if r["cap"] == name), key=lambda r: r["total_s"])
         if not rs:
             continue
+        # true median (mean of the two middle runs when n is even; the upper-middle run was used before
+        # 2026-11-14 and reported 271.75 s instead of 270.515 s for the two full-resolution runs)
         med = rs[len(rs) // 2]
-        peak = sorted(r["peak_reserved_gb"] for r in rs)[len(rs) // 2]
+        peak = statistics.median(r["peak_reserved_gb"] for r in rs)
         summary[name] = {"n": len(rs), "tokens": med["tokens"],
-                         "median_total_s": med["total_s"],
+                         "median_total_s": round(statistics.median(r["total_s"] for r in rs), 3),
                          "median_peak_reserved_gb": peak,
                          "fits_in_vram": peak < total_gb * 0.95}
-        print(f"{name:>7}{len(rs):>4}{med['tokens']:>8}{med['total_s']:>13.1f}s"
+        print(f"{name:>7}{len(rs):>4}{med['tokens']:>8}{summary[name]['median_total_s']:>13.1f}s"
               f"{peak:>15.1f}{'yes' if summary[name]['fits_in_vram'] else 'NO':>14}")
 
     out = ra.EVAL_DIR / "resolution_timing.json"

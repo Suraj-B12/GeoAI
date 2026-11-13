@@ -102,7 +102,7 @@ for everything below.
 | Field-confidence gate AUC | 0.744 (no-FP rule); sequence 0.373 (inverted) | Attain, 407 | §6.5 |
 | Probe confidence AUC on its own errors | 0.78 exact set, 0.87 no-FP (OOF) | Attain | §6.8 |
 | Tiles vs full photo (probe) | test AUROC +0.020 (CI incl. 0); CV MCC 0.248 → 0.308 | Attain | §6.9 |
-| Worker time per upload | ~11 s at 1024² (272 s uncapped), + ~1.5 s shadow probe, + ~6.5 s recorded tiles | A5000 | §6.6, T7 |
+| Worker time per upload | ~11 s at 1024² (270.5 s uncapped), + ~1.5 s shadow probe, + ~6.5 s recorded tiles | A5000 | §6.6, T7 |
 | Production review load | 213 of 361 uploads in expert_review | Bengaluru | T7.2 |
 | Grad-CAM of the probe vs location prior | pointing hit 0.258 vs 0.226, Δ +0.032 [−0.042, +0.130] — FAIL; pothole +0.31, suggested boxes IoU≥0.5 on ≤2% | Attain, 1,884 pairs | §6.10 |
 | IRC:82-2023 PCI (0–100), A→B (drive video, **scooter**) | **estimate with 90 % interval** (§9.9): samples PCI ≈ 47–55 Fair, intervals ~30–90 (strict range 3–97). Inputs: Attain-calibrated % area (cracking ρ 0.59, intervals held 27/28; ravelling FAILED 22/28; the old % of length overstated area ~10×); potholes = runs × P(real) from accelerometer jolts (52 % at pothole frames vs 24 % elsewhere → 0.74 with jolt, 0.09 without); scooter IRI uncalibrated (largest width); rut prior 0–25 mm. Strip-only probe not better (AUC 0.697 vs 0.711). Equation problems (MDR/rural pothole, rural SD/MSS IRI; urban examples off) in §9.8 | 43 drives, 8 samples (ids 49–56) | §9.8–9.9 |
@@ -112,7 +112,7 @@ for everything below.
 | Decision | Evidence | Paper |
 |---|---|---|
 | Base model, no LoRA adapter | adapter lost on Attain (zero on pothole/block/ravelling) | §6.3, `attain_3way_comparison.md` |
-| 1024² cap | 272 s → 11 s per photo, no accuracy change down to 512² | §6.6, Fig 6.6 |
+| 1024² cap | 270.5 s → 11.1 s per photo (true median of 2 runs; 271.8 was an upper-middle bug, fixed 2026-11-14), no accuracy change down to 512² | §6.6, Fig 6.6 |
 | Field confidence gate at 0.80 | AUC 0.744 (no-FP rule); sequence inverted 0.373 | §6.5, Fig 6.5 |
 | NOT gating on first label | AUC 0.468; no review-load gain on 68 uploads | §6.7, Fig 6.7 |
 | NOT "most prominent first" prompt | first label unchanged, false positives up (p = 0.021) | §6.7 |
@@ -390,7 +390,7 @@ Capstone/
 | `STAGE1_SAFETY_NET` | `true` in production `.env` | When Stage 1 says Normal, the probe checks headline types; if one reaches the configured threshold the image goes to expert review. Never changes a label. Stage 1 recall on Attain distress is only 51.8%; the net catches 313/371 misses (22/78 clean frames flagged). Recorded in `raw_response.stage1_safety_net`. |
 | `STAGE2_PROBE_CONFIG` | `configs/stage2_probe.json` | Probe thresholds/Platt/eligibility (schema 1, validated at load). Copied from `eval_results/stage2_probe_config_final.json`. Missing/invalid config or failed parity self-test ⇒ probe disabled, reason on `/health`, pipeline unchanged. |
 | `PROBE_BATCH_BUDGET_GB` | `1.5` | GPU memory the probe's suffix batch may use for copies of the prefix KV cache. Unbounded batches paged to RAM on the shared 24 GB card (1.1 s → 23–111 s/image). |
-| `MAX_IMAGE_PIXELS` | `1048576` (1024²) in production `.env`; code default 4,840,000 | Input resolution cap. Full-res 1736² photos need a 47.8 GB peak on the 24 GB card and page to system RAM (~272 s/image); at 1024² the peak is 19.8 GB and the whole worker takes ~11 s. No measured accuracy loss on 200 labelled Attain images down to 512². Measured at 4-bit only. See paper §6.6. |
+| `MAX_IMAGE_PIXELS` | `1048576` (1024²) in production `.env`; code default 4,840,000 | Input resolution cap. Full-res 1736² photos need a 47.8 GB peak on the 24 GB card and page to system RAM (~270 s/image); at 1024² the peak is 19.8 GB and the whole worker takes ~11 s. No measured accuracy loss on 200 labelled Attain images down to 512². Measured at 4-bit only. See paper §6.6. |
 | `STAGE1_MAX_NEW_TOKENS` | `12` | Stage 1 answers with one word. Was 200, which cost ~4x the time for identical output. |
 | `SKIP_MODEL_SELFTEST` | Unset (self-test ON) | Skips the 2s load-time synthetic-image check. Leave ON in production. |
 | `API_KEYS` | Empty (auth disabled) | Comma-separated API keys |
@@ -432,7 +432,7 @@ passes): **~11 s per phone photo at the production 1024² cap**. Mixing image SH
 the allocator: on Attain, Stage 2 took 8 / 24 / 84 s on 1479×508 / 640×640 / 1920×1080 frames
 without clearing the cache between images, and ~8 s for all three with it. The worker and
 `calibrate_confidence.py` now release the cache after every image. Uncapped 1736² photos took
-~272 s because they overflow the 24 GB card. Earlier figures in this table (including the
+~270 s because they overflow the 24 GB card. Earlier figures in this table (including the
 "8x IRC prompt cost") were measured without clearing the allocator between images and may be
 inflated by the same overflow; re-measure before relying on them.
 

@@ -831,10 +831,10 @@ Two findings follow. First, the whole-sequence score used before this revision i
 
 | Cap | Visual tokens | Worker time, median | Peak reserved GPU memory | Fits in 24 GB | n |
 |---|---:|---:|---:|---|---:|
-| Full | 3,844 | 271.8 s | 47.8 GB | No | 2 |
+| Full | 3,844 | 270.5 s | 47.8 GB | No | 2 |
 | 1280² | 2,025 | 30.3 s | 26.2 GB | No | 6 |
 | **1024²** | **1,296** | **11.1 s** | **19.8 GB** | **Yes** | 6 |
-| 768² | 729 | 9.2 s | 16.1 GB | Yes | 6 |
+| 768² | 729 | 9.1 s | 16.1 GB | Yes | 6 |
 
 *Pavement pre-filter + detection + classification. Source: `eval_results/resolution_timing.json`.*
 
@@ -1224,7 +1224,7 @@ We therefore recommend a cap of 1024² — the largest that fits in GPU memory (
 
 ### 7.7 GPU Memory, Not Compute, Sets Production Throughput
 
-At full resolution a single worker pass reserves a peak of 47.8 GB of GPU memory on a 24 GB card. The classification stage accounts for it: On Windows the display driver (WDDM) does not raise an out-of-memory error in this case: it pages the overflow to system memory over PCIe, and the pass continues an order of magnitude more slowly. on the same full-size image the pavement pre-filter and detection stages, which encode the same image but generate only a few tokens, take 3.9 s and 5.8 s, while classification takes about 260 s. At the 1024² cap the whole worker runs in 11.1 s against 271.8 s, a 24× reduction, with peak memory at 19.8 GB.
+At full resolution a single worker pass reserves a peak of 47.8 GB of GPU memory on a 24 GB card. The classification stage accounts for it: On Windows the display driver (WDDM) does not raise an out-of-memory error in this case: it pages the overflow to system memory over PCIe, and the pass continues an order of magnitude more slowly. on the same full-size image the pavement pre-filter and detection stages, which encode the same image but generate only a few tokens, take 3.9 s and 5.8 s, while classification takes about 260 s. At the 1024² cap the whole worker runs in 11.1 s against 270.5 s, a 24× reduction, with peak memory at 19.8 GB.
 
 This also affects measurement. The PyTorch caching allocator keeps a pass's peak memory reserved after the pass ends, so any timing taken after a full-resolution image without clearing the cache inherits the overflowed state. In the first resolution run, the 1024² cap measured 109 s when timed immediately after a full-resolution pass and 10 s once the cache was cleared between passes. Throughput figures elsewhere in this project that were measured without this precaution should be re-measured.
 
@@ -1829,7 +1829,7 @@ The figures above were measured on small dataset images. Production smartphone p
 
 | Input | Visual tokens | Worker time (median) |
 |---|---:|---:|
-| 1736² photograph, full resolution | 3,844 | 271.8 s |
+| 1736² photograph, full resolution | 3,844 | 270.5 s |
 | Same photograph, 1024² cap | 1,296 | 11.1 s |
 | Same photograph, 768² cap | 729 | 9.2 s |
 

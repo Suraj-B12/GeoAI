@@ -5,28 +5,28 @@
     "native": {
       "n": 2,
       "tokens": 3844,
-      "median_total_s": 271.75,
+      "median_total_s": 270.515,
       "median_peak_reserved_gb": 47.82,
       "fits_in_vram": false
     },
     "1280": {
       "n": 6,
       "tokens": 2025,
-      "median_total_s": 30.31,
+      "median_total_s": 30.28,
       "median_peak_reserved_gb": 26.2,
       "fits_in_vram": false
     },
     "1024": {
       "n": 6,
       "tokens": 1296,
-      "median_total_s": 11.12,
+      "median_total_s": 11.065,
       "median_peak_reserved_gb": 19.76,
       "fits_in_vram": true
     },
     "768": {
       "n": 6,
       "tokens": 729,
-      "median_total_s": 9.17,
+      "median_total_s": 9.125,
       "median_peak_reserved_gb": 16.07,
       "fits_in_vram": true
     }
@@ -252,5 +252,6 @@
       "cap": "1024",
       "tokens": 1296
     }
-  ]
+  ],
+  "summary_note": "medians recomputed 2026-11-14 from the stored rows (true median; the earlier summary took the upper-middle run)"
 }
