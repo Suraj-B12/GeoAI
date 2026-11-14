@@ -76,6 +76,34 @@ try {
         exit 0   # start.ps1 brings PostgreSQL and the tunnel too; check again next run
     }
 
+    # 1b. Hung server: the process exists but /health has not answered for 3 checks (~6 min,
+    # far longer than the ~70 s model load). Kill the python process; the watchdog relaunches it.
+    $HangFile = Join-Path $TmpDir 'keepalive_server_fails.txt'
+    if ($uv) {
+        $up = $false
+        try { $up = ((Invoke-WebRequest -Uri 'http://127.0.0.1:8000/health' -UseBasicParsing -TimeoutSec 20).StatusCode -eq 200) } catch {}
+        if ($up) { Remove-Item $HangFile -ErrorAction SilentlyContinue }
+        else {
+            $n = 1; if (Test-Path $HangFile) { $n = [int](Get-Content $HangFile) + 1 }
+            Set-Content $HangFile $n
+            Log "server process present but /health not answering ($n in a row)"
+            if ($n -ge 3) {
+                Remove-Item $HangFile -ErrorAction SilentlyContinue
+                if ($wd) {
+                    Log 'killing the hung uvicorn; the watchdog will relaunch it'
+                    $uv | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+                } else {
+                    Log 'hung uvicorn without a watchdog -> kill and start.ps1 -Detach'
+                    $uv | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+                    Start-Sleep -Seconds 5
+                    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File (Join-Path $ProjectRoot 'start.ps1') `
+                        -AutoStart -Tunnel -Watchdog -Detach 2>&1 | ForEach-Object { Log "  $_" }
+                }
+                exit 0
+            }
+        }
+    }
+
     # 2. PostgreSQL.
     $pgBin = Get-EnvSetting 'PG_BIN' 'C:\GeoAI\pgsql\bin'
     $pgData = Get-EnvSetting 'PG_DATA' 'C:\GeoAI\pgdata'
@@ -128,7 +156,13 @@ try {
                 if ($m) { $new = $m.Matches[0].Value }
             }
         }
-        if ($new) { Set-Content -Path $urlFile -Value $new -Encoding ascii; Log "new tunnel: $new" }
+        if ($new) {
+            Set-Content -Path $urlFile -Value $new -Encoding ascii; Log "new tunnel: $new"
+            $paths = [ordered]@{ 'Map + condition reports' = '/gis/app/'; 'Expert review' = '/expert/'; 'Try a photo' = '/try/'; 'Operator (API key)' = '/operator'; 'Dashboard (API key)' = '/dashboard' }
+            $lines = @("GeoAI links, $(Get-Date -Format 'yyyy-MM-dd HH:mm') (tunnel restarted by keep-alive)")
+            foreach ($k in $paths.Keys) { $lines += ("{0,-25} {1}{2}" -f $k, $new, $paths[$k]) }
+            Set-Content -Path (Join-Path $TmpDir 'links.txt') -Value $lines -Encoding utf8
+        }
         else { Log 'cloudflared started but no URL within 60 s' }
     }
 } finally {
