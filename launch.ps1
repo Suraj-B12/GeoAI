@@ -130,4 +130,30 @@ else {
 Say ''
 if ($allOk) { Say 'ALL UP. You can close this window - the services keep running and restart themselves.' 'Green' }
 else { Say 'Something is not up yet. Logs: eval_results\launcher.log, keepalive.log, production_final.log' 'Yellow' }
-Say 'Operator key: C:\GeoAI\operator_api_key.txt   |   stop everything: .\stop.ps1 -StopTunnel' 'Gray'
+Say 'Operator key: C:\GeoAI\operator_api_key.txt   |   stop everything: double-click GeoAI_Stop.bat' 'Gray'
+
+# 6. Stay open as a live monitor. Closing this window does NOT stop the services
+# (they run under the scheduled task); GeoAI_Stop.bat does.
+Write-Host ''
+Write-Host 'Live status every 60 s below. Closing this window leaves the services running.' -ForegroundColor Cyan
+$lastUrl = $url
+while ($true) {
+    Start-Sleep -Seconds 60
+    if (Test-Path 'C:\GeoAI\tmp\keepalive.off') {
+        Write-Host "$(Get-Date -Format 'HH:mm:ss')  services stopped (GeoAI_Stop.bat). You can close this window." -ForegroundColor Yellow
+        break
+    }
+    $hh = Get-Health
+    $cur = if (Test-Path $UrlFile) { (Get-Content $UrlFile -TotalCount 1).Trim() } else { $null }
+    $pub = $false
+    if ($cur) { try { $pub = ((Invoke-WebRequest -Uri "$cur/health" -UseBasicParsing -TimeoutSec 15).StatusCode -eq 200) } catch {} }
+    $srv = if ($hh) { 'server OK' } else { 'server DOWN (keep-alive will restart it)' }
+    $tun = if ($pub) { 'public link OK' } else { 'public link DOWN (keep-alive will fix it)' }
+    $col = if ($hh -and $pub) { 'Green' } else { 'Yellow' }
+    Write-Host "$(Get-Date -Format 'HH:mm:ss')  $srv | $tun" -ForegroundColor $col
+    if ($cur -and $cur -ne $lastUrl) {
+        Say "NEW LINKS (the tunnel restarted):" 'Cyan'
+        foreach ($name in $pages.Keys) { Say ("      {0,-25} {1}{2}" -f $name, $cur, $pages[$name]) 'Cyan' }
+        $lastUrl = $cur
+    }
+}
