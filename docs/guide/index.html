@@ -1,0 +1,815 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GeoAI Project Guide</title>
+<meta name="description" content="A plain-English guide to GeoAI: how phone photos and scooter video become checked, mapped road-condition records, and how to explain it in a viva.">
+<style>
+:root{
+  color-scheme: dark;
+  --bg:#161615; --bg2:#1f1f1d; --ink:#ecebe7; --ink2:#b9b7b0; --rule:#3a3936; --link:#8fb8ea;
+  --model:#8fb8ea; --model-bg:#1d2a3b;      /* blue: AI model steps */
+  --code:#7fcf9d;  --code-bg:#17291f;       /* green: fixed code / rules */
+  --store:#bdbdb8; --store-bg:#2a2a28;      /* grey: storage */
+  --warn:#f0b65a;  --warn-bg:#33270f;       /* amber: warnings, design vs build */
+  --human:#e6a4c4; --human-bg:#33202a;      /* rose: people */
+  --ok:#7fcf9d; --bad:#f08f80;
+  --mono: ui-monospace, "SF Mono", Consolas, "Liberation Mono", monospace;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font:18px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;}
+a{color:var(--link)}
+a:focus-visible,summary:focus-visible{outline:3px solid var(--link);outline-offset:2px}
+.layout{display:grid;grid-template-columns:270px minmax(0,1fr);max-width:1240px;margin:0 auto}
+nav.toc{position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;padding:28px 18px 28px 22px;border-right:1px solid var(--rule);font-size:15px;line-height:1.45}
+nav.toc .tt{font-weight:650;margin:0 0 10px;font-size:15px;letter-spacing:.02em;text-transform:uppercase;color:var(--ink2)}
+nav.toc ol{list-style:none;margin:0;padding:0;counter-reset:t}
+nav.toc li{margin:0 0 6px}
+nav.toc a{color:var(--ink);text-decoration:none;display:block;padding:2px 6px;border-radius:4px}
+nav.toc a:hover{background:var(--bg2)}
+main{padding:32px 40px 80px;min-width:0}
+.prose{max-width:72ch}
+h1{font-size:2.1rem;line-height:1.2;margin:.2em 0 .3em;font-weight:700}
+h2{font-size:1.55rem;line-height:1.25;margin:2.6em 0 .6em;padding-top:.4em;border-top:1px solid var(--rule);font-weight:700}
+h2 .n{color:var(--ink2);font-weight:500;margin-right:.35em}
+h3{font-size:1.18rem;margin:1.8em 0 .4em;font-weight:650}
+p{margin:0 0 1em}
+.lede{font-size:1.08rem;color:var(--ink)}
+.sub{color:var(--ink2);font-size:.95rem}
+code,.mono{font-family:var(--mono);font-size:.88em;background:var(--bg2);padding:.08em .3em;border-radius:3px}
+.box{border:1px solid var(--rule);border-radius:8px;padding:14px 18px;margin:1.2em 0;max-width:72ch}
+.box .lab{display:inline-block;font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px}
+.box p:last-child{margin-bottom:0}
+.key{background:var(--model-bg);border-color:transparent}.key .lab{color:var(--model)}
+.dvb{background:var(--warn-bg);border-color:transparent}.dvb .lab{color:var(--warn)}
+.why{background:var(--code-bg);border-color:transparent}.why .lab{color:var(--code)}
+.watch{background:var(--human-bg);border-color:transparent}.watch .lab{color:var(--human)}
+.fig{margin:1.4em 0;border:1px solid var(--rule);border-radius:8px;background:var(--bg);overflow-x:auto;padding:12px}
+.fig svg{display:block;height:auto}
+.fig figcaption{font-size:.88rem;color:var(--ink2);margin-top:8px;max-width:72ch}
+.tbl{overflow-x:auto;margin:1em 0 1.4em;border:1px solid var(--rule);border-radius:8px;max-width:100%}
+table{border-collapse:collapse;font-size:.92rem;width:100%;min-width:520px}
+th,td{text-align:left;vertical-align:top;padding:8px 12px;border-bottom:1px solid var(--rule)}
+th{background:var(--bg2);font-weight:650}
+tr:last-child td{border-bottom:0}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:12px;margin:1.2em 0;max-width:900px}
+.tile{border:1px solid var(--rule);border-radius:8px;padding:12px 14px}
+.tile .big{font-size:1.7rem;font-weight:700;line-height:1.1}
+.tile .lbl{font-size:.9rem;margin-top:4px}
+.tile .src{font-size:.75rem;color:var(--ink2);margin-top:6px;font-family:var(--mono);word-break:break-word}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;max-width:900px;margin:1em 0}
+.card{border:1px solid var(--rule);border-radius:8px;padding:12px 14px;font-size:.93rem}
+.card h4{margin:0 0 6px;font-size:1rem}
+.card .ba{display:grid;grid-template-columns:auto 1fr;gap:4px 10px}
+.card .ba b{font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;color:var(--ink2);padding-top:2px}
+.strip{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(220px,1fr);gap:10px;overflow-x:auto;padding:4px 2px 10px;margin:1em 0}
+.step{border:1px solid var(--rule);border-radius:8px;padding:10px 12px;font-size:.88rem;background:var(--bg)}
+.step .h{font-weight:700;font-size:.82rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.step.m{border-top:4px solid var(--model)} .step.c{border-top:4px solid var(--code)} .step.s{border-top:4px solid var(--store)} .step.p{border-top:4px solid var(--human)}
+details{border:1px solid var(--rule);border-radius:8px;padding:10px 14px;margin:.6em 0;max-width:80ch}
+details summary{cursor:pointer;font-weight:650}
+details[open] summary{margin-bottom:.5em}
+.qa details summary{font-weight:600}
+.legend{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:.88rem;margin:.6em 0 1em}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:14px;height:14px;border-radius:3px;display:inline-block;border:1px solid var(--rule)}
+.path{counter-reset:p;list-style:none;padding:0;max-width:72ch}
+.path li{counter-increment:p;padding:6px 0 6px 40px;position:relative}
+.path li::before{content:counter(p);position:absolute;left:0;top:6px;width:28px;height:28px;border-radius:50%;background:var(--bg2);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.9rem}
+dl.gloss{max-width:80ch}
+dl.gloss dt{font-weight:650;margin-top:.7em}
+dl.gloss dd{margin:0 0 0 0;color:var(--ink)}
+/* SVG palette */
+svg text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;fill:var(--ink)}
+svg .t{font-size:14px} svg .ts{font-size:12px;fill:var(--ink2)} svg .tb{font-size:14px;font-weight:700}
+svg .bm{fill:var(--model-bg);stroke:var(--model);stroke-width:1.5}
+svg .bc{fill:var(--code-bg);stroke:var(--code);stroke-width:1.5}
+svg .bs{fill:var(--store-bg);stroke:var(--store);stroke-width:1.5}
+svg .bw{fill:var(--warn-bg);stroke:var(--warn);stroke-width:1.5}
+svg .bh{fill:var(--human-bg);stroke:var(--human);stroke-width:1.5}
+svg .bn{fill:var(--bg);stroke:var(--rule);stroke-width:1.5}
+svg .ar{stroke:var(--ink2);stroke-width:1.6;fill:none}
+svg .ad{stroke:var(--ink2);stroke-width:1.6;fill:none;stroke-dasharray:5 4}
+svg .ah{fill:var(--ink2)}
+svg .gok{fill:var(--ok)} svg .gbad{fill:var(--bad)}
+@media print{
+  nav.toc{display:none}
+  .layout{display:block}
+  main{padding:0}
+  .fig,.tbl,.box,details,.card,.tile{break-inside:avoid}
+  details{display:block}
+  details>*{display:block}
+  .fig{overflow:visible}
+  a{color:inherit}
+}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="toc" aria-label="Table of contents">
+<p class="tt">Contents</p>
+<ol>
+<li><a href="#start">0. Start here</a></li>
+<li><a href="#problem">1. The problem</a></li>
+<li><a href="#architecture">2. Architecture</a></li>
+<li><a href="#data">3. Getting the data</a></li>
+<li><a href="#cleaning">4. Parsing and cleaning</a></li>
+<li><a href="#photo">5. Photo pipeline</a></li>
+<li><a href="#video">6. Video pipeline</a></li>
+<li><a href="#pci">7. Condition report (PCI)</a></li>
+<li><a href="#example">8. One segment, start to finish</a></li>
+<li><a href="#thinks">9. How the system decides</a></li>
+<li><a href="#human">10. Human in the loop</a></li>
+<li><a href="#safety">11. Safety checks</a></li>
+<li><a href="#memory">12. Memory and feedback</a></li>
+<li><a href="#eval">13. Testing and evaluation</a></li>
+<li><a href="#why">14. Why this and not that</a></li>
+<li><a href="#viva">15. Viva cheat-sheet</a></li>
+<li><a href="#glossary">16. Glossary</a></li>
+</ol>
+</nav>
+
+<main>
+<!-- ================================================================ START -->
+<section id="start" class="prose">
+<p class="sub">Project guide for the team &middot; final review and viva &middot; written from the repository as of 14 November 2026</p>
+<h1>GeoAI: how phone photos and scooter video become checked, mapped road-condition records</h1>
+<p class="lede">GeoAI is a capstone project from B.M.S. College of Engineering, Bengaluru. Citizens photograph damaged roads, and a phone on a scooter records video of whole streets. A vision-language model, an AI that reads an image and answers in words, decides whether each image shows damage, which kinds and how bad. Results it is unsure about go to a human expert. Everything ends up on a map, and for any stretch of road the system can write a condition report with a road-condition score under the Indian Roads Congress code IRC:82-2023.</p>
+<p>This page explains every part in plain English: what it does, why it exists, what the real numbers are, and where it is weak. Every number comes from a file in the repository; the sources are listed in a comment at the end of the page.</p>
+
+<div class="box key"><span class="lab">Read this in 10 minutes</span>
+<ol class="path">
+<li><a href="#problem">1. The problem</a>: what goes in, what comes out.</li>
+<li><a href="#architecture">2. Architecture</a>: the one diagram to draw on the board.</li>
+<li><a href="#example">8. One segment, start to finish</a>: a real 5 m of road through every stage.</li>
+<li><a href="#eval">13. Testing and evaluation</a>: the real results, good and bad.</li>
+<li><a href="#viva">15. Viva cheat-sheet</a>: the questions you are likely to get.</li>
+</ol>
+</div>
+
+<div class="tiles" aria-label="Headline numbers">
+<div class="tile"><div class="big">76.5%</div><div class="lbl">accuracy, damaged vs normal, 10,000 GAPs test photos</div><div class="src">eval_results/baseline_results.json</div></div>
+<div class="tile"><div class="big">96.5%</div><div class="lbl">of its "damaged" calls were right (1,715 of 1,777)</div><div class="src">baseline_results.json</div></div>
+<div class="tile"><div class="big">43</div><div class="lbl">scooter drives, about 42 km, 8,402 road segments</div><div class="src">paper/baseline_evaluation.md §8.8</div></div>
+<div class="tile"><div class="big">7,050</div><div class="lbl">segments answered by the model, each linked to its frame</div><div class="src">video_evals.md</div></div>
+<div class="tile"><div class="big">24&times;</div><div class="lbl">faster per photo after capping image size (270.5 s to 11.1 s)</div><div class="src">resolution_timing.json</div></div>
+<div class="tile"><div class="big">1</div><div class="lbl">citizen upload reviewed by an expert so far, the main open gap</div><div class="src">CLAUDE.md, production data</div></div>
+</div>
+</section>
+
+<!-- ================================================================ 1 PROBLEM -->
+<section id="problem" class="prose">
+<h2><span class="n">1</span>The problem in one picture</h2>
+<p>Bengaluru has thousands of kilometres of road and too few engineers to walk them. Today a road is inspected by eye, the notes stay on paper, and a complaint from a citizen arrives as a sentence with no photo or location. Repairs wait because nobody knows exactly where the damage is or how bad it is.</p>
+<p>GeoAI makes every observation a record with three parts that stay together: the image, the model's answer with how sure it is, and the place on the map.</p>
+</section>
+
+<figure class="fig" aria-labelledby="f1t">
+<svg width="900" height="300" viewBox="0 0 900 300" role="img" aria-labelledby="f1t f1d">
+<title id="f1t">Before and after GeoAI</title>
+<desc id="f1d">Before: complaints without location, manual surveys on paper. After: every photo or video segment becomes a record with image, answer, confidence and location on a map, with uncertain cases sent to an expert.</desc>
+<text x="20" y="28" class="tb">Before</text>
+<rect x="20" y="42" width="200" height="56" rx="6" class="bn"/><text x="32" y="66" class="t">Citizen complaint</text><text x="32" y="86" class="ts">"bad road near my house"</text>
+<rect x="20" y="114" width="200" height="56" rx="6" class="bn"/><text x="32" y="138" class="t">Engineer walks the road</text><text x="32" y="158" class="ts">slow, notes on paper</text>
+<rect x="20" y="186" width="200" height="56" rx="6" class="bw"/><text x="32" y="210" class="t">No shared record</text><text x="32" y="230" class="ts">where? how bad? how sure?</text>
+<path d="M240 140 L300 140" class="ar"/><polygon points="300,134 312,140 300,146" class="ah"/>
+<text x="330" y="28" class="tb">After</text>
+<rect x="330" y="42" width="160" height="56" rx="6" class="bh"/><text x="342" y="66" class="t">Phone photo</text><text x="342" y="86" class="ts">citizen app + GPS</text>
+<rect x="330" y="186" width="160" height="56" rx="6" class="bh"/><text x="342" y="210" class="t">Scooter video</text><text x="342" y="230" class="ts">video + GNSS + motion</text>
+<rect x="530" y="114" width="150" height="56" rx="6" class="bm"/><text x="542" y="138" class="t">AI model</text><text x="542" y="158" class="ts">damage? type? sure?</text>
+<path d="M490 70 L560 112" class="ar"/><polygon points="555,104 566,116 551,114" class="ah"/>
+<path d="M490 214 L560 172" class="ar"/><polygon points="551,166 566,168 557,178" class="ah"/>
+<rect x="720" y="42" width="160" height="56" rx="6" class="bs"/><text x="732" y="66" class="t">Map record</text><text x="732" y="86" class="ts">image + answer + place</text>
+<rect x="720" y="186" width="160" height="56" rx="6" class="bh"/><text x="732" y="210" class="t">Expert review</text><text x="732" y="230" class="ts">only when unsure</text>
+<path d="M680 130 L716 84" class="ar"/><polygon points="710,82 722,78 718,90" class="ah"/>
+<path d="M680 154 L716 200" class="ad"/><polygon points="718,194 722,206 710,202" class="ah"/>
+<text x="560" y="280" class="ts">Solid line: normal path. Dashed: only when the model is less than 80% sure.</text>
+</svg>
+<figcaption>Figure 1. The before and after. Pink boxes are people or their devices, blue is the AI model, grey is stored data, amber is a problem.</figcaption>
+</figure>
+
+<div class="legend" aria-label="Colour legend used in every diagram">
+<span><i class="sw" style="background:var(--model-bg);border-color:var(--model)"></i>AI model</span>
+<span><i class="sw" style="background:var(--code-bg);border-color:var(--code)"></i>fixed code and rules</span>
+<span><i class="sw" style="background:var(--store-bg);border-color:var(--store)"></i>storage</span>
+<span><i class="sw" style="background:var(--human-bg);border-color:var(--human)"></i>people and their devices</span>
+<span><i class="sw" style="background:var(--warn-bg);border-color:var(--warn)"></i>warning or weakness</span>
+</div>
+
+<section class="prose">
+<h3>The only outputs the system can give</h3>
+<p>For one photo or one 5 m video segment, the answer is always one of these:</p>
+<div class="tbl"><table>
+<thead><tr><th>Output</th><th>When</th></tr></thead>
+<tbody>
+<tr><td><b>Rejected: not a road</b> (<code>rejected_non_pavement</code>)</td><td>Citizen photo only. The pre-check is sure the image is not pavement.</td></tr>
+<tr><td><b>Normal</b></td><td>The model sees no damage, and is at least 80% sure.</td></tr>
+<tr><td><b>Distress</b> with types, severity and a description</td><td>Types come from 18 named IRC:82 damage types; severity is Low, Medium or High (or none where the code gives none).</td></tr>
+<tr><td><b>Sent to expert review</b></td><td>Any answer the model is less than 80% sure of, an unreadable answer, or a confident "Normal" that a second check disagrees with.</td></tr>
+<tr><td><b>Skipped</b> or <b>not covered</b></td><td>Video only. A skipped segment was judged uninformative by a cheap filter; a not-covered segment had no usable frame. Neither is ever counted as Normal.</td></tr>
+</tbody></table></div>
+<p>On top of these, a <b>condition report</b> for a chosen stretch gives chainage (distance along the road) and a road-condition score from 0 to 100 with a 90% interval (<a href="#pci">section 7</a>).</p>
+</section>
+
+<!-- ================================================================ 2 ARCHITECTURE -->
+<section id="architecture" class="prose">
+<h2><span class="n">2</span>Big-picture architecture</h2>
+<p>There are two ways in (photos and video), one shared AI model on one college GPU, two kinds of storage, and three ways out (two maps and an expert review page). The condition report sits on top of the video map.</p>
+</section>
+
+<figure class="fig">
+<svg width="1000" height="440" viewBox="0 0 1000 440" role="img" aria-labelledby="f2t f2d">
+<title id="f2t">GeoAI architecture</title>
+<desc id="f2d">Citizen photos go through Cloudinary and Supabase to a worker that calls the shared model. Scooter video goes through the extraction pipeline to the same model and is stored in local PostgreSQL. Outputs: citizen map, video GIS with condition reports, and the expert review page.</desc>
+<text x="20" y="24" class="tb">Citizen path</text>
+<rect x="20" y="36" width="150" height="62" rx="6" class="bh"/><text x="32" y="60" class="t">RoadSide app</text><text x="32" y="80" class="ts">Android / iOS + GPS</text>
+<rect x="210" y="36" width="160" height="62" rx="6" class="bs"/><text x="222" y="60" class="t">Cloudinary</text><text x="222" y="80" class="ts">stores the photo</text>
+<rect x="410" y="36" width="170" height="62" rx="6" class="bs"/><text x="422" y="60" class="t">Supabase database</text><text x="422" y="80" class="ts">photos + assessments</text>
+<rect x="410" y="128" width="170" height="62" rx="6" class="bc"/><text x="422" y="152" class="t">Worker</text><text x="422" y="172" class="ts">claims 5 jobs at a time</text>
+<path d="M170 67 L206 67" class="ar"/><polygon points="204,61 216,67 204,73" class="ah"/>
+<path d="M370 67 L406 67" class="ar"/><polygon points="404,61 416,67 404,73" class="ah"/>
+<path d="M495 98 L495 124" class="ar"/><polygon points="489,122 495,134 501,122" class="ah"/>
+<rect x="640" y="128" width="200" height="90" rx="6" class="bm"/><text x="652" y="152" class="tb">Qwen2.5-VL-7B</text><text x="652" y="172" class="ts">one GPU, RTX A5000 24 GB</text><text x="652" y="192" class="ts">4-bit weights, 1024 px cap</text>
+<path d="M580 159 L636 159" class="ar"/><polygon points="634,153 646,159 634,165" class="ah"/>
+<text x="20" y="262" class="tb">Video path</text>
+<rect x="20" y="274" width="150" height="62" rx="6" class="bh"/><text x="32" y="298" class="t">Phone on scooter</text><text x="32" y="318" class="ts">video, GNSS, IMU</text>
+<rect x="210" y="274" width="160" height="62" rx="6" class="bc"/><text x="222" y="298" class="t">Extraction</text><text x="222" y="318" class="ts">5 m segments, best frame</text>
+<rect x="410" y="274" width="170" height="62" rx="6" class="bc"/><text x="422" y="298" class="t">Gate + batch runner</text><text x="422" y="318" class="ts">sends useful frames</text>
+<rect x="640" y="274" width="200" height="62" rx="6" class="bs"/><text x="652" y="298" class="t">Local PostgreSQL</text><text x="652" y="318" class="ts">segments, answers, scores</text>
+<path d="M170 305 L206 305" class="ar"/><polygon points="204,299 216,305 204,311" class="ah"/>
+<path d="M370 305 L406 305" class="ar"/><polygon points="404,299 416,305 404,311" class="ah"/>
+<path d="M540 274 L690 222" class="ar"/><polygon points="684,218 698,219 688,229" class="ah"/>
+<path d="M740 218 L740 270" class="ar"/><polygon points="734,268 740,280 746,268" class="ah"/>
+<rect x="870" y="36" width="120" height="62" rx="6" class="bh"/><text x="880" y="60" class="t">Citizen map</text><text x="880" y="80" class="ts">WebGIS</text>
+<rect x="870" y="186" width="120" height="62" rx="6" class="bh"/><text x="880" y="210" class="t">Expert page</text><text x="880" y="230" class="ts">review + fix</text>
+<rect x="870" y="330" width="120" height="80" rx="6" class="bh"/><text x="880" y="354" class="t">Video GIS</text><text x="880" y="374" class="ts">+ condition</text><text x="880" y="392" class="ts">report (PCI)</text>
+<path d="M580 60 L866 60" class="ar"/><polygon points="864,54 876,60 864,66" class="ah"/>
+<path d="M840 186 L866 210" class="ar"/><polygon points="860,205 873,215 860,217" class="ah"/>
+<path d="M840 320 L866 350" class="ar"/><polygon points="860,346 873,355 860,358" class="ah"/>
+<text x="20" y="430" class="ts">The same model serves both paths. Photos and video never share a database table: the video path keeps its own local store.</text>
+</svg>
+<figcaption>Figure 2. Every component and how data moves between them.</figcaption>
+</figure>
+
+<section class="prose">
+<div class="tbl"><table>
+<thead><tr><th>Component</th><th>What it does, in one line</th><th>Main file</th></tr></thead>
+<tbody>
+<tr><td>RoadSide app</td><td>Takes a road photo with its GPS position and uploads it.</td><td>mobile repo (richikchaudhuri/geoai)</td></tr>
+<tr><td>Cloudinary + Supabase</td><td>Store the image file and the database row; a trigger creates a pending assessment.</td><td><code>migrations/001-004</code></td></tr>
+<tr><td>Worker</td><td>Takes pending jobs five at a time, runs the model, writes the answer.</td><td><code>app/worker.py</code></td></tr>
+<tr><td>Model server</td><td>Loads Qwen2.5-VL once and answers <code>/classify</code> calls.</td><td><code>app/model.py</code>, <code>app/main.py</code></td></tr>
+<tr><td>Video extraction</td><td>Turns a drive into timed 5 m segments, each with its sharpest frame.</td><td>GeoAI_Video <code>pipeline/geoai/</code></td></tr>
+<tr><td>Gate</td><td>A cheap filter that decides which frames are worth the model's time.</td><td>GeoAI_Video <code>gate.py</code></td></tr>
+<tr><td>Local PostgreSQL</td><td>Holds video segments, answers, probe and motion scores, reports.</td><td><code>app/video_store.py</code></td></tr>
+<tr><td>Expert page</td><td>Lets several experts review and correct answers safely at once.</td><td><code>expert_ui/index.html</code>, <code>app/expert_routes.py</code></td></tr>
+<tr><td>Video GIS + condition report</td><td>Map of segments; pick A and B to get chainage and a PCI report as PDF/CSV.</td><td><code>webgis/</code>, <code>app/pci_*.py</code></td></tr>
+</tbody></table></div>
+<div class="box key"><span class="lab">Key idea</span><p>The image, the answer and the location are never separated. Every map marker opens the exact frame or photo the model looked at, with its confidence and review state.</p></div>
+</section>
+
+<!-- ================================================================ 3 DATA -->
+<section id="data" class="prose">
+<h2><span class="n">3</span>Getting the data</h2>
+<p>The project uses four kinds of data. Three public datasets are used only to measure accuracy; the project's own photos and drives are the real input.</p>
+<div class="tbl"><table>
+<thead><tr><th>Data</th><th>What it is</th><th>Size</th><th>Used for</th></tr></thead>
+<tbody>
+<tr><td>GAPs</td><td>German road photos labelled Normal or Distress</td><td class="num">10,000 test</td><td>Measuring damaged-vs-normal accuracy</td></tr>
+<tr><td>RDD</td><td>Road Damage Detection photos with four crack/pothole codes</td><td class="num">5,758 test</td><td>Measuring type labels; training the adapter that was later dropped</td></tr>
+<tr><td>Attain</td><td>Iranian road frames from phones on car windshields, with damage boxes</td><td class="num">847 frames</td><td>Testing on new damage types; calibrating damage area for the PCI</td></tr>
+<tr><td>Citizen photos</td><td>Uploads from the RoadSide app, Bengaluru</td><td class="num">361</td><td>Real operation (no expert labels yet)</td></tr>
+<tr><td>Scooter drives</td><td>Phone on a scooter: 4K video, satellite position, motion sensors</td><td class="num">43 drives</td><td>Real operation, maps and condition reports</td></tr>
+</tbody></table></div>
+
+<h3>How a citizen photo arrives</h3>
+<p>The app uploads the photo to Cloudinary and a row to Supabase. A database trigger creates an <em>assessment</em> row marked pending. The worker claims pending rows in arrival order, five at a time, using a database lock (<code>FOR UPDATE SKIP LOCKED</code>) so two workers never take the same job. If a download or the database fails, it retries up to 3 times with a growing wait, then marks the row failed. Uploads are capped at 10 MB and 4,096 pixels a side.</p>
+
+<h3>How a drive arrives</h3>
+<p>The capture app records compressed video, a timestamp for every frame, the satellite position about once a second (GNSS, the general name for GPS-type systems) and the phone's motion sensors 200 times a second (IMU: accelerometer and gyroscope). It also writes a manifest with a checksum of every file, so a damaged upload is caught before processing. The phone was mounted on a <b>scooter</b>, not a car; this matters for the roughness estimate later.</p>
+</section>
+
+<figure class="fig">
+<svg width="900" height="230" viewBox="0 0 900 230" role="img" aria-labelledby="f3t f3d">
+<title id="f3t">What one drive records</title>
+<desc id="f3d">Three time-aligned streams: video frames at camera rate, GNSS position about once per second, IMU motion 200 times per second, all on the same phone clock.</desc>
+<text x="20" y="30" class="tb">One phone clock, three streams</text>
+<text x="20" y="72" class="t">Video frames</text>
+<g>
+<rect x="160" y="58" width="10" height="22" class="bm"/><rect x="190" y="58" width="10" height="22" class="bm"/><rect x="220" y="58" width="10" height="22" class="bm"/><rect x="250" y="58" width="10" height="22" class="bm"/><rect x="280" y="58" width="10" height="22" class="bm"/><rect x="310" y="58" width="10" height="22" class="bm"/><rect x="340" y="58" width="10" height="22" class="bm"/><rect x="370" y="58" width="10" height="22" class="bm"/><rect x="400" y="58" width="10" height="22" class="bm"/><rect x="430" y="58" width="10" height="22" class="bm"/><rect x="460" y="58" width="10" height="22" class="bm"/><rect x="490" y="58" width="10" height="22" class="bm"/><rect x="520" y="58" width="10" height="22" class="bm"/><rect x="550" y="58" width="10" height="22" class="bm"/><rect x="580" y="58" width="10" height="22" class="bm"/><rect x="610" y="58" width="10" height="22" class="bm"/><rect x="640" y="58" width="10" height="22" class="bm"/><rect x="670" y="58" width="10" height="22" class="bm"/><rect x="700" y="58" width="10" height="22" class="bm"/><rect x="730" y="58" width="10" height="22" class="bm"/>
+</g>
+<text x="760" y="74" class="ts">each frame timed</text>
+<text x="20" y="122" class="t">GNSS position</text>
+<circle cx="170" cy="117" r="7" class="bc"/><circle cx="370" cy="117" r="7" class="bc"/><circle cx="570" cy="117" r="7" class="bc"/><circle cx="770" cy="117" r="7" class="bc"/>
+<text x="790" y="122" class="ts">about 1 per s</text>
+<text x="20" y="172" class="t">IMU motion</text>
+<path d="M160 167 L170 160 L180 172 L190 162 L200 170 L210 158 L220 175 L230 163 L240 168 L250 150 L260 182 L270 165 L280 168 L290 162 L300 171 L310 164 L320 169 L330 161 L340 170 L350 165 L360 168 L370 163 L380 171 L390 166 L400 169 L410 160 L420 173 L430 164 L440 168 L450 163 L460 170 L470 165 L480 168 L490 162 L500 171 L510 165 L520 168 L530 163 L540 170 L550 166 L560 169 L570 161 L580 172 L590 165 L600 168 L610 163 L620 170 L630 166 L640 168 L650 162 L660 171 L670 165 L680 168 L690 163 L700 170 L710 166 L720 168 L730 164 L740 169" class="ar"/>
+<text x="760" y="172" class="ts">200 per s</text>
+<text x="20" y="214" class="ts">Positions between GNSS fixes are filled in using position and speed (a smooth curve), so every frame gets a place on the route.</text>
+</svg>
+<figcaption>Figure 3. A drive is three streams on one clock. Matching them is what lets a frame land on the right 5 m of road.</figcaption>
+</figure>
+
+<section class="prose">
+<div class="box why"><span class="lab">Why it matters</span><p>Without one shared clock, a frame could be placed tens of metres away from where it was taken. The pipeline uses the sensor clock of each frame, not the frame number, because phones drop and repeat frames.</p></div>
+</section>
+
+<!-- ================================================================ 4 CLEANING -->
+<section id="cleaning" class="prose">
+<h2><span class="n">4</span>Parsing and cleaning</h2>
+<p>Raw inputs and raw model text are messy. These rules turn them into clean records. Each card shows a real before and after.</p>
+</section>
+<div class="cards">
+<div class="card"><h4>Cap the image size</h4><div class="ba"><b>Before</b><span>1736 &times; 1736 photo, 270.5 s, needs 47.8 GB of GPU memory on a 24 GB card</span><b>After</b><span>scaled to fit 1024 &times; 1024, 11.1 s, 19.8 GB</span></div><p class="sub">No measured accuracy loss down to 512 px on 200 labelled frames.</p></div>
+<div class="card"><h4>Unreadable Stage 1 answer</h4><div class="ba"><b>Before</b><span>model text that is not "Normal" or "Distress"</span><b>After</b><span>Distress, confidence 0, sent to review</span></div><p class="sub">The safe default: never call a road healthy by accident.</p></div>
+<div class="card"><h4>Parse the Stage 2 text</h4><div class="ba"><b>Before</b><span><code>DISTRESS_TYPES: Potholes, Longitudinal Cracking</code> <code>SEVERITY: Medium</code></span><b>After</b><span>labels list, severity field, description, each stored separately</span></div></div>
+<div class="card"><h4>Old names to IRC names</h4><div class="ba"><b>Before</b><span>older or loose label names</span><b>After</b><span>one of 18 IRC:82 types from <code>scripts/irc82_taxonomy.py</code></span></div></div>
+<div class="card"><h4>Patching is not damage</h4><div class="ba"><b>Before</b><span>"Patching" in the damage list</span><b>After</b><span>kept as a condition indicator, never as a distress type</span></div><p class="sub">IRC treats a patch as a repair, not a defect.</p></div>
+<div class="card"><h4>Attain class-name trap</h4><div class="ba"><b>Before</b><span><code>Patch and utility cut- Low</code> (no space before the dash) was not split, so every patch box was lost</span><b>After</b><span>parser fixed; earlier score corrected from 5.88% to 3.81%</span></div></div>
+<div class="card"><h4>Phone mounted the wrong way</h4><div class="ba"><b>Before</b><span>2 drives recorded in portrait</span><b>After</b><span>refused at extraction, not processed</span></div></div>
+<div class="card"><h4>Missing is not Normal</h4><div class="ba"><b>Before</b><span>a segment the filter skipped or no frame covered</span><b>After</b><span>stored as <code>skip</code> or <code>not_covered</code>, shown grey on the map</span></div></div>
+</div>
+<section class="prose">
+<div class="box watch"><span class="lab">Watch out</span><p>Skipped segments are not perfectly safe: in an audit of 161 skipped segments, 13 (8.1%) were damaged. The condition report widens its range to allow for this.</p></div>
+</section>
+
+<!-- ================================================================ 5 PHOTO PIPELINE -->
+<section id="photo" class="prose">
+<h2><span class="n">5</span>The photo pipeline, step by step</h2>
+<p>Each citizen photo passes through three questions to the model and one fixed rule. The video segments use the same model questions (from <a href="#video">section 6</a> onward).</p>
+</section>
+<figure class="fig">
+<svg width="980" height="250" viewBox="0 0 980 250" role="img" aria-labelledby="f5t f5d">
+<title id="f5t">Stages of the photo pipeline</title>
+<desc id="f5d">Stage 0 is this a road, Stage 1 normal or distress, Stage 2 types severity and description with a shadow probe, then the confidence gate routes to classified or expert review.</desc>
+<rect x="20" y="40" width="160" height="80" rx="6" class="bm"/><text x="32" y="64" class="tb">Stage 0</text><text x="32" y="86" class="t">Is this a road?</text><text x="32" y="106" class="ts">only a clear "no" rejects</text>
+<rect x="220" y="40" width="170" height="80" rx="6" class="bm"/><text x="232" y="64" class="tb">Stage 1</text><text x="232" y="86" class="t">Normal or Distress?</text><text x="232" y="106" class="ts">+ confidence c1</text>
+<rect x="430" y="40" width="200" height="80" rx="6" class="bm"/><text x="442" y="64" class="tb">Stage 2</text><text x="442" y="86" class="t">Types, severity, text</text><text x="442" y="106" class="ts">+ field confidence</text>
+<rect x="430" y="150" width="200" height="66" rx="6" class="bw"/><text x="442" y="174" class="t">Per-type probe</text><text x="442" y="194" class="ts">20 yes/no scores, shadow only</text>
+<rect x="670" y="40" width="150" height="80" rx="6" class="bc"/><text x="682" y="64" class="tb">Gate rule</text><text x="682" y="86" class="t">both &ge; 0.80?</text><text x="682" y="106" class="ts">fixed threshold</text>
+<rect x="860" y="22" width="110" height="50" rx="6" class="bs"/><text x="870" y="52" class="t">classified</text>
+<rect x="860" y="96" width="110" height="50" rx="6" class="bh"/><text x="870" y="118" class="t">expert</text><text x="870" y="136" class="t">review</text>
+<path d="M180 80 L216 80" class="ar"/><polygon points="214,74 226,80 214,86" class="ah"/>
+<path d="M390 80 L426 80" class="ar"/><polygon points="424,74 436,80 424,86" class="ah"/>
+<path d="M630 80 L666 80" class="ar"/><polygon points="664,74 676,80 664,86" class="ah"/>
+<path d="M530 120 L530 146" class="ad"/><polygon points="524,144 530,156 536,144" class="ah"/>
+<path d="M820 66 L856 50" class="ar"/><polygon points="852,44 864,47 856,56" class="ah"/>
+<path d="M820 96 L856 116" class="ar"/><polygon points="851,111 864,120 850,122" class="ah"/>
+<path d="M305 120 L305 232 L915 232 L915 150" class="ad"/><polygon points="909,152 915,140 921,152" class="ah"/>
+<text x="320" y="226" class="ts">Stage 1 says Normal but the probe sees damage: review (safety net). Stage 1 Normal and sure: stops here.</text>
+</svg>
+<figcaption>Figure 4. The four steps for one photo. Blue boxes ask the model; the green box is a fixed rule; the amber probe records scores but does not change labels.</figcaption>
+</figure>
+<section class="prose">
+<h3>Rules in the order they fire</h3>
+<ol>
+<li><b>Stage 0, pre-filter.</b> The model is asked if the photo shows pavement. Only a clear "no" rejects it (17 of 361 uploads). Anything unclear goes on, because wrongly throwing away a road photo is worse than processing a non-road one.</li>
+<li><b>Stage 1, damaged or not.</b> The model answers with one word. Its confidence c1 is the softmax of the two first-token scores, Normal against Distress. Softmax turns two raw scores into two probabilities that add up to 1. Stage 1 is allowed only 12 new tokens, because it needs one word; 200 tokens took about four times as long for the same answer.</li>
+<li><b>Stage 2, what kind.</b> Only for Distress. The model returns a list of damage types, a severity and a short description. Its confidence is the geometric mean of the probabilities of the tokens in the type list only, not the description.</li>
+<li><b>Per-type probe (shadow).</b> 20 yes/no questions, one per type, scored from the model's own yes/no probabilities in about 1.4 seconds. The scores are stored but do not change the labels yet.</li>
+<li><b>Safety net.</b> If Stage 1 said Normal but the probe sees likely damage, the photo goes to review. The label is not changed.</li>
+<li><b>Gate.</b> If Stage 1 and Stage 2 confidence are both at least 0.80, the result is <code>classified</code>; otherwise <code>expert_review</code>.</li>
+</ol>
+<div class="box key"><span class="lab">Key idea</span><p>The confidence that decides review uses only the tokens of the damage list. When it included the free-text description, confidently written prose scored as "sure" and the score ranked wrong answers above right ones (AUROC 0.373 against 0.744 for the field-only score on 407 labelled frames).</p></div>
+<p>The field confidence, for the probabilities p<sub>i</sub> of the type-list tokens S, is</p>
+<p class="mono" style="display:block;padding:8px 12px">c_field = exp( (1/|S|) &middot; &Sigma;<sub>i&isin;S</sub> log p<sub>i</sub> )</p>
+<p>that is, the typical probability of a token in the list. A long list does not get a lower score just for being long.</p>
+<div class="box dvb"><span class="lab">Design vs build</span><p><b>Planned:</b> once experts correct answers, inject corrections as examples into the prompt and retrain the model with LoRA periodically ("Phase 3"). <b>Built:</b> the expert page and the review log exist, but the prompt injection and retraining are not built, and the Retrain button is switched off (<code>RETRAIN_ENABLED=false</code>). The team later ruled out LoRA entirely.</p></div>
+</section>
+
+<!-- ================================================================ 6 VIDEO -->
+<section id="video" class="prose">
+<h2><span class="n">6</span>The video pipeline, step by step</h2>
+<p>Video gives far more coverage than citizen photos: a whole street, every 5 metres. The pipeline turns a drive into a list of segments, each with one frame and one answer.</p>
+</section>
+<figure class="fig">
+<svg width="1000" height="230" viewBox="0 0 1000 230" role="img" aria-labelledby="f6t f6d">
+<title id="f6t">Stages of the video pipeline</title>
+<desc id="f6d">Validate the package, reconstruct the trajectory, cut 5 metre segments, pick the sharpest frame, gate decides send or skip with a 10 percent audit, model answers, store and verify, then delete the temporary files.</desc>
+<rect x="15" y="40" width="110" height="74" rx="6" class="bc"/><text x="25" y="64" class="t">Validate</text><text x="25" y="84" class="ts">checksums,</text><text x="25" y="100" class="ts">orientation</text>
+<rect x="140" y="40" width="120" height="74" rx="6" class="bc"/><text x="150" y="64" class="t">Trajectory</text><text x="150" y="84" class="ts">GNSS + speed,</text><text x="150" y="100" class="ts">smooth curve</text>
+<rect x="275" y="40" width="110" height="74" rx="6" class="bc"/><text x="285" y="64" class="t">5 m cuts</text><text x="285" y="84" class="ts">by distance</text><text x="285" y="100" class="ts">travelled</text>
+<rect x="400" y="40" width="120" height="74" rx="6" class="bc"/><text x="410" y="64" class="t">Best frame</text><text x="410" y="84" class="ts">sharpest of</text><text x="410" y="100" class="ts">the candidates</text>
+<rect x="535" y="40" width="120" height="74" rx="6" class="bm"/><text x="545" y="64" class="t">Gate</text><text x="545" y="84" class="ts">DINOv2 + crack</text><text x="545" y="100" class="ts">evidence</text>
+<rect x="670" y="40" width="110" height="74" rx="6" class="bm"/><text x="680" y="64" class="t">Model</text><text x="680" y="84" class="ts">Stages 1-2,</text><text x="680" y="100" class="ts">video profile</text>
+<rect x="795" y="40" width="190" height="74" rx="6" class="bs"/><text x="805" y="64" class="t">Store + verify</text><text x="805" y="84" class="ts">count and checksum,</text><text x="805" y="100" class="ts">then clean up</text>
+<path d="M125 77 L136 77" class="ar"/><polygon points="134,71 146,77 134,83" class="ah"/>
+<path d="M260 77 L271 77" class="ar"/><polygon points="269,71 281,77 269,83" class="ah"/>
+<path d="M385 77 L396 77" class="ar"/><polygon points="394,71 406,77 394,83" class="ah"/>
+<path d="M520 77 L531 77" class="ar"/><polygon points="529,71 541,77 529,83" class="ah"/>
+<path d="M655 77 L666 77" class="ar"/><polygon points="664,71 676,77 664,83" class="ah"/>
+<path d="M780 77 L791 77" class="ar"/><polygon points="789,71 801,77 789,83" class="ah"/>
+<rect x="535" y="140" width="245" height="60" rx="6" class="bw"/><text x="545" y="164" class="t">Skipped: not sent (10% audited)</text><text x="545" y="184" class="ts">stored as skip, never as Normal</text>
+<path d="M595 114 L595 136" class="ad"/><polygon points="589,134 595,146 601,134" class="ah"/>
+</svg>
+<figcaption>Figure 5. From a drive to stored, verified segments. Files are deleted only after the stored counts and checksums match.</figcaption>
+</figure>
+<section class="prose">
+<h3>Rules in the order they fire</h3>
+<ol>
+<li><b>Validate.</b> Check every file's checksum and the phone's orientation. A drive filmed in portrait is refused.</li>
+<li><b>Trajectory.</b> Fit satellite time to real time, convert positions to local metres, and draw a smooth curve through them using position and speed.</li>
+<li><b>Segment.</b> Walk along the curve and cut every 5 m of distance travelled. A last piece is kept only if it is at least 2.5 m.</li>
+<li><b>Pick a frame.</b> Among the frames that show that 5 m, keep the sharpest, judged by blur from motion and rotation.</li>
+<li><b>Gate.</b> A cheap filter scores the frame with DINOv2 (a general image-feature model), a small probe trained on Attain, and the length of crack-like lines. If the scores are low the segment is skipped, except a 10% random audit sample that is sent anyway.</li>
+<li><b>Model.</b> Stage 1 and Stage 2 as for photos, with a "video profile" that skips record-only work.</li>
+<li><b>Store and verify.</b> Write rows, compare counts and checksums, then delete temporary files.</li>
+</ol>
+<div class="box watch"><span class="lab">Watch out</span><p>The gate barely filters. On the first three drives, where every segment was sent so it could be checked, the gate kept 92.1% of the model's damaged segments but also sent 90.9% of all segments. A stricter probe-only gate reached only 87.8% recall on held-out drives, below its 90% target, so it was not adopted.</p></div>
+<div class="box why"><span class="lab">Why it matters</span><p>A segment always has a state. If the gate skipped it, the map shows grey, not green. A road the system did not look at is never reported as healthy.</p></div>
+</section>
+
+<!-- ================================================================ 7 PCI -->
+<section id="pci" class="prose">
+<h2><span class="n">7</span>The condition report: chainage and PCI</h2>
+<p>Engineers plan repairs by stretch and by kilometre, not by photo. In the video map a user clicks a start point A and an end point B. The server finds the path, measures distance along it, and scores the road.</p>
+<p><b>Chainage</b> is the distance along a road from a reference point, written like Km 0+260 (0 km and 260 m). GeoAI measures it from A, using the GPS track. The official road chainage, counted from the road's own start and marked on km-stones, is printed only if the user enters the km-stone value at A.</p>
+<p><b>PCI</b> (Pavement Condition Index) is a score from 0 (failed) to 100 (excellent). GeoAI follows IRC:82-2023, which computes it as a weighted sum of six per-parameter scores:</p>
+<p class="mono" style="display:block;padding:8px 12px">PCI = 0.40&middot;roughness + 0.16&middot;potholes + 0.14&middot;rut depth + 0.12&middot;cracking + 0.10&middot;ravelling + 0.08&middot;patching</p>
+<p>Each term is that parameter's own 0-100 score, read off a curve printed in the code. The classes are Excellent above 90, Good above 80, Satisfactory above 60, Fair above 40, Poor above 20, and Fail at 20 or below.</p>
+</section>
+<figure class="fig">
+<svg width="980" height="320" viewBox="0 0 980 320" role="img" aria-labelledby="f7t f7d">
+<title id="f7t">How a condition report is built</title>
+<desc id="f7d">Pick A and B, find the path through the survey graph, cut 100 metre sections, estimate six parameters with intervals from images, accelerometer and priors, Monte Carlo combination, then the report.</desc>
+<rect x="20" y="30" width="140" height="64" rx="6" class="bh"/><text x="30" y="56" class="t">User picks</text><text x="30" y="76" class="t">A and B</text>
+<rect x="190" y="30" width="170" height="64" rx="6" class="bc"/><text x="200" y="56" class="t">Path through all</text><text x="200" y="76" class="ts">drives; chainage from A</text>
+<rect x="390" y="30" width="150" height="64" rx="6" class="bc"/><text x="400" y="56" class="t">100 m sections</text><text x="400" y="76" class="ts">+ km rows</text>
+<path d="M160 62 L186 62" class="ar"/><polygon points="184,56 196,62 184,68" class="ah"/>
+<path d="M360 62 L386 62" class="ar"/><polygon points="384,56 396,62 384,68" class="ah"/>
+<text x="580" y="24" class="tb">Six inputs per section, each with a 90% range</text>
+<rect x="580" y="36" width="190" height="44" rx="6" class="bm"/><text x="590" y="63" class="ts">cracking, ravelling, patching</text>
+<rect x="580" y="88" width="190" height="44" rx="6" class="bm"/><text x="590" y="115" class="ts">potholes: runs &times; P(real)</text>
+<rect x="580" y="140" width="190" height="44" rx="6" class="bw"/><text x="590" y="167" class="ts">roughness: phone, uncalibrated</text>
+<rect x="580" y="192" width="190" height="44" rx="6" class="bw"/><text x="590" y="219" class="ts">rut depth: range 0-25 mm</text>
+<text x="785" y="63" class="ts">image scores,</text><text x="785" y="78" class="ts">area from Attain</text>
+<text x="785" y="115" class="ts">labels + jolts</text>
+<text x="785" y="167" class="ts">accelerometer</text>
+<text x="785" y="219" class="ts">published values</text>
+<path d="M540 62 L576 58" class="ar"/><polygon points="574,52 586,57 575,64" class="ah"/>
+<rect x="190" y="200" width="170" height="64" rx="6" class="bc"/><text x="200" y="226" class="t">Monte Carlo</text><text x="200" y="246" class="ts">1,500 draws per section</text>
+<rect x="20" y="200" width="140" height="64" rx="6" class="bs"/><text x="30" y="226" class="t">Report</text><text x="30" y="246" class="ts">PDF + CSV + map</text>
+<path d="M576 214 L364 232" class="ar"/><polygon points="366,226 354,233 367,238" class="ah"/>
+<path d="M190 232 L164 232" class="ar"/><polygon points="166,226 154,232 166,238" class="ah"/>
+<text x="20" y="300" class="ts">Result per section and stretch: median PCI, its 5-95% range, the class, and which input caused most of the range.</text>
+</svg>
+<figcaption>Figure 6. From two clicks to a report. Amber inputs are the weakest: they are not measured, so their ranges are wide.</figcaption>
+</figure>
+<section class="prose">
+<h3>Where each input comes from</h3>
+<div class="tbl"><table>
+<thead><tr><th>Parameter (weight)</th><th>Source</th><th>How good it is</th></tr></thead>
+<tbody>
+<tr><td>Cracking (0.12)</td><td>Probe scores turned into % of road area, calibrated on Attain's labelled boxes</td><td>Ranks stretches on Attain (Spearman 0.59); 90% range held on 27 of 28 test blocks</td></tr>
+<tr><td>Ravelling (0.10)</td><td>Same method</td><td>Failed its coverage test (22 of 28), so its range is doubled</td></tr>
+<tr><td>Patching (0.08)</td><td>Same method</td><td>Range only (26 of 28); no better than a constant</td></tr>
+<tr><td>Potholes (0.16)</td><td>Runs of pothole frames, each weighted by whether the scooter felt a jolt there</td><td>A jolt at 52% of pothole frames vs 24% elsewhere</td></tr>
+<tr><td>Roughness, IRI (0.40)</td><td>Vertical acceleration from the phone</td><td>Uncalibrated: a 100 m range is typically about 2 to 13 m/km</td></tr>
+<tr><td>Rut depth (0.14)</td><td>Published Bengaluru measurements, 0 to 25 mm</td><td>Not measured; the camera cannot see ruts</td></tr>
+</tbody></table></div>
+<p>Monte Carlo means drawing each input many times from its range, computing the PCI each time, and reporting the middle value and the 5% and 95% points of all the results.</p>
+<div class="box key"><span class="lab">Key idea</span><p>The report gives an estimate with an honest range, not a single number it cannot back up. For the eight sample stretches the median PCI is 46.5 to 54.7 (Fair) and the 90% ranges are about 29 to 93, against strict ranges of 3 to 97 when unknown inputs are counted as 0 and 100. About half of the remaining range is roughness.</p></div>
+<div class="box dvb"><span class="lab">Design vs build</span><p><b>Planned:</b> a PCI following ASTM D6433, with field-measured sample units and deduct values. <b>Built:</b> a PCI following IRC:82-2023, the Indian code, chosen because the comparison survey will follow it. It is an estimate until calibrated on a reference survey. Also, the photo labels still use the IRC:82-2015 type list, while the PCI uses the 2023 formula.</p></div>
+<div class="box watch"><span class="lab">Watch out</span><p>Three equations printed in IRC:82-2023 cannot be used as printed (the major-district and rural pothole curve and two rural roughness curves); those terms are reported as "not computable". The code's urban worked examples also do not reproduce (off by up to 10 points), while the highway examples match within 0.53. The copy used was a third-party PDF; an official copy should be checked.</p></div>
+</section>
+
+<!-- ================================================================ 8 EXAMPLE -->
+<section id="example" class="prose">
+<h2><span class="n">8</span>One segment, start to finish</h2>
+<p>This is a real 5 m of road: segment 123 of a drive recorded on 27 October 2026 (<code>20261027T103525Z_SM-G991B-F0D1_35fd_seg00123</code>). Every value below is copied from the database.</p>
+</section>
+<div class="strip" role="list" aria-label="Worked example, stage by stage">
+<div class="step c" role="listitem"><div class="h">1. Capture</div>Scooter at 2.52 m/s heading 197&deg;. Phone position uncertainty 4.0 m.</div>
+<div class="step c" role="listitem"><div class="h">2. Segment</div>Distance 631.9 to 636.9 m along the drive; length 5.0 m; centre 12.970056, 77.606657.</div>
+<div class="step c" role="listitem"><div class="h">3. Best frame</div>12 candidate frames; the sharpest kept (blur 1.11 px).</div>
+<div class="step m" role="listitem"><div class="h">4. Gate</div>Crack length score 45,660 vs threshold 300; evidence 4,474 vs 30. Decision: send.</div>
+<div class="step m" role="listitem"><div class="h">5. Stage 1</div>Distress, confidence 0.767. Below 0.80.</div>
+<div class="step m" role="listitem"><div class="h">6. Stage 2</div>Potholes, Longitudinal Cracking; severity Medium; confidence 0.757.</div>
+<div class="step p" role="listitem"><div class="h">7. Route</div>Both below 0.80, so <code>expert_review</code>. Model time 13.9 s.</div>
+<div class="step m" role="listitem"><div class="h">8. Probe</div>Patching 0.92, Potholes 0.76, Shallow Depression 0.33.</div>
+<div class="step c" role="listitem"><div class="h">9. Motion</div>Speed 2.5 m/s; vertical RMS 0.374 m/s&sup2;; peak 1.157 m/s&sup2;.</div>
+<div class="step s" role="listitem"><div class="h">10. Report</div>In sample report 50: pothole at Km 0+260 from A, "impact felt: yes".</div>
+</div>
+<figure class="fig">
+<svg width="900" height="210" viewBox="0 0 900 210" role="img" aria-labelledby="f8t f8d">
+<title id="f8t">Confidence of the example against the 0.80 threshold</title>
+<desc id="f8d">Bar chart: Stage 1 confidence 0.767 and Stage 2 confidence 0.757 both fall short of the 0.80 threshold line, so the segment goes to expert review.</desc>
+<text x="20" y="28" class="tb">Why segment 123 went to an expert</text>
+<line x1="160" y1="50" x2="160" y2="160" class="ar"/>
+<text x="20" y="84" class="t">Stage 1</text><rect x="160" y="66" width="537" height="26" class="bm"/><text x="705" y="84" class="t">0.767</text>
+<text x="20" y="134" class="t">Stage 2</text><rect x="160" y="116" width="530" height="26" class="bm"/><text x="698" y="134" class="t">0.757</text>
+<line x1="720" y1="50" x2="720" y2="160" stroke="var(--bad)" stroke-width="2" stroke-dasharray="6 4"/>
+<text x="728" y="62" class="ts">threshold 0.80</text>
+<text x="160" y="186" class="ts">0</text><text x="690" y="186" class="ts">bar length = confidence; the axis runs 0 to 1</text>
+</svg>
+<figcaption>Figure 7. Both confidences fall just short of 0.80, so the segment waits for an expert even though the model's answer looks right.</figcaption>
+</figure>
+<section class="prose">
+<div class="box watch"><span class="lab">Watch out</span><p>The probe scores this frame 0.92 for Patching, higher than for Potholes. The frame may show a patched area beside the pothole, or the probe may be confused. This is exactly why probe scores stay in shadow mode until experts label Bengaluru data.</p></div>
+</section>
+
+<!-- ================================================================ 9 THINKS -->
+<section id="thinks" class="prose">
+<h2><span class="n">9</span>How the system decides</h2>
+<p>GeoAI is not an agent that plans its own steps. It is a fixed pipeline: the order of questions is set in code, the model answers each one once, and fixed rules decide what happens with the answers. This makes every run finish and makes every decision traceable.</p>
+</section>
+<figure class="fig">
+<svg width="900" height="470" viewBox="0 0 900 470" role="img" aria-labelledby="f9t f9d">
+<title id="f9t">Decision flowchart for one image</title>
+<desc id="f9d">Is it a road? If no, rejected. Stage 1 normal or distress. If normal and sure and probe agrees, classified normal; if probe disagrees, review. If distress, Stage 2. If both confidences at least 0.80, classified; else expert review.</desc>
+<rect x="320" y="14" width="240" height="44" rx="22" class="bn"/><text x="372" y="42" class="t">image arrives</text>
+<polygon points="440,78 560,118 440,158 320,118" class="bm"/><text x="388" y="123" class="t">Is it a road?</text>
+<rect x="640" y="96" width="210" height="44" rx="6" class="bs"/><text x="652" y="123" class="t">rejected_non_pavement</text>
+<polygon points="440,186 560,226 440,266 320,226" class="bm"/><text x="372" y="231" class="t">Normal or Distress?</text>
+<polygon points="160,276 280,316 160,356 40,316" class="bc"/><text x="80" y="312" class="t">sure and probe</text><text x="100" y="330" class="t">agrees?</text>
+<polygon points="680,276 800,316 680,356 560,316" class="bm"/><text x="610" y="312" class="t">Stage 2 types</text><text x="606" y="330" class="ts">+ field confidence</text>
+<rect x="20" y="400" width="140" height="44" rx="6" class="bs"/><text x="32" y="427" class="t">Normal, done</text>
+<rect x="340" y="400" width="200" height="44" rx="6" class="bh"/><text x="352" y="427" class="t">expert_review</text>
+<rect x="720" y="400" width="160" height="44" rx="6" class="bs"/><text x="732" y="427" class="t">classified</text>
+<path d="M440 58 L440 74" class="ar"/><polygon points="434,72 440,84 446,72" class="ah"/>
+<path d="M560 118 L636 118" class="ar"/><polygon points="634,112 646,118 634,124" class="ah"/><text x="576" y="110" class="ts">clear "no"</text>
+<path d="M440 158 L440 182" class="ar"/><polygon points="434,180 440,192 446,180" class="ah"/><text x="448" y="176" class="ts">yes or unsure</text>
+<path d="M320 226 L160 226 L160 272" class="ar"/><polygon points="154,270 160,282 166,270" class="ah"/><text x="200" y="218" class="ts">Normal</text>
+<path d="M560 226 L680 226 L680 272" class="ar"/><polygon points="674,270 680,282 686,270" class="ah"/><text x="590" y="218" class="ts">Distress or unreadable</text>
+<path d="M120 342 L90 396" class="ar"/><polygon points="84,392 88,404 96,396" class="ah"/><text x="30" y="380" class="ts">yes</text>
+<path d="M230 334 L360 396" class="ar"/><polygon points="354,398 368,400 360,389" class="ah"/><text x="250" y="380" class="ts">no: safety net</text>
+<path d="M630 340 L520 396" class="ar"/><polygon points="519,388 512,400 526,399" class="ah"/><text x="520" y="372" class="ts">any score &lt; 0.80</text>
+<path d="M730 340 L790 396" class="ar"/><polygon points="782,397 796,400 791,390" class="ah"/><text x="770" y="372" class="ts">both &ge; 0.80</text>
+</svg>
+<figcaption>Figure 8. The decision flowchart. Blue diamonds are questions to the model; the green diamond and the threshold checks are fixed rules.</figcaption>
+</figure>
+<section class="prose">
+<div class="tbl"><table>
+<thead><tr><th>The model decides</th><th>Fixed rules decide</th></tr></thead>
+<tbody>
+<tr><td>Is it a road; Normal or Distress; which types; severity; description; yes/no per type</td><td>The order of questions; the 0.80 threshold; when to send to review; the safety net; segment length; gate thresholds; what counts as the stretch PCI</td></tr>
+</tbody></table></div>
+<h3>Bounds that make it finish</h3>
+<ul>
+<li>Stage 1 may generate at most 12 tokens; each stage is asked once per image.</li>
+<li>The worker retries a failed image at most 3 times, then marks it failed.</li>
+<li>A video batch is resumable: completed segments are skipped on restart.</li>
+<li>The condition report draws a fixed 1,500 samples per section and refuses paths longer than 25 km.</li>
+</ul>
+</section>
+
+<!-- ================================================================ 10 HUMAN -->
+<section id="human" class="prose">
+<h2><span class="n">10</span>The human in the loop</h2>
+<p>The system asks a person when it is unsure, not at random. Every answer below 0.80 confidence, and every confident "Normal" that the probe disagrees with, goes to the expert page. The expert sees the photo, the model's types, severity, description and scores, and can correct them.</p>
+</section>
+<figure class="fig">
+<svg width="900" height="230" viewBox="0 0 900 230" role="img" aria-labelledby="f10t f10d">
+<title id="f10t">How an expert review is saved</title>
+<desc id="f10d">The expert page hands each browser tab a batch of 12 items on a 10 minute lease. A save goes into a local outbox with an id, is sent to the server, and leaves the outbox only when the server confirms. The server writes the correction and an entry in the review log.</desc>
+<rect x="20" y="40" width="170" height="70" rx="6" class="bh"/><text x="32" y="66" class="t">Expert's browser</text><text x="32" y="88" class="ts">12 items, 10-min lease</text>
+<rect x="230" y="40" width="170" height="70" rx="6" class="bc"/><text x="242" y="66" class="t">Outbox</text><text x="242" y="88" class="ts">save waits here with an id</text>
+<rect x="440" y="40" width="190" height="70" rx="6" class="bc"/><text x="452" y="66" class="t">Server</text><text x="452" y="88" class="ts">same id twice = same result</text>
+<rect x="670" y="20" width="210" height="50" rx="6" class="bs"/><text x="682" y="50" class="t">correction stored</text>
+<rect x="670" y="86" width="210" height="50" rx="6" class="bs"/><text x="682" y="116" class="t">review log entry</text>
+<path d="M190 75 L226 75" class="ar"/><polygon points="224,69 236,75 224,81" class="ah"/>
+<path d="M400 75 L436 75" class="ar"/><polygon points="434,69 446,75 434,81" class="ah"/>
+<path d="M630 64 L666 48" class="ar"/><polygon points="661,42 673,45 666,54" class="ah"/>
+<path d="M630 86 L666 104" class="ar"/><polygon points="660,108 673,108 666,98" class="ah"/>
+<path d="M535 110 L535 160 L315 160 L315 114" class="ad"/><polygon points="309,116 315,104 321,116" class="ah"/>
+<text x="330" y="186" class="ts">Confirmation comes back; only then does the save leave the outbox. Network errors retry with growing waits.</text>
+</svg>
+<figcaption>Figure 9. Saves cannot get lost, and two experts cannot review the same item at the same time.</figcaption>
+</figure>
+<section class="prose">
+<h3>Why the page is designed this way</h3>
+<ul>
+<li><b>Leases.</b> Each browser tab gets 12 items for 10 minutes, renewed every minute. Two experts never review the same item, so no work is wasted and no answer overwrites another. In a test with 8 sessions racing for items, no item was handed out twice.</li>
+<li><b>Outbox.</b> A save is kept in the browser with an id until the server confirms it, so a bad connection cannot lose a review. If the same save arrives twice, the server returns the first result.</li>
+<li><b>Real names.</b> Reviewers must enter a real name and agree that it appears in the paper's acknowledgements. Placeholder names are rejected, because a review log is only evidence if we know who reviewed.</li>
+<li><b>Guided tour.</b> A 17-step tour on an example card that never saves anything, so new reviewers can learn without touching real data.</li>
+</ul>
+<div class="box watch"><span class="lab">Watch out</span><p>Only one citizen upload has been reviewed so far, and no video segment. Without expert labels from Bengaluru, there is no local accuracy figure. This is the project's biggest open gap.</p></div>
+</section>
+
+<!-- ================================================================ 11 SAFETY -->
+<section id="safety" class="prose">
+<h2><span class="n">11</span>Safety checks and failsafes</h2>
+<div class="tbl"><table>
+<thead><tr><th>If this is missing or fails</th><th>Then this happens</th></tr></thead>
+<tbody>
+<tr><td>Model answer cannot be read</td><td>Treated as Distress with confidence 0 and sent to review; never silently Normal.</td></tr>
+<tr><td>Model fails to load or fails its 2-second self-test at start-up</td><td>The server reports it on <code>/health</code> instead of writing failed rows for real photos.</td></tr>
+<tr><td>GPU memory runs short at load time</td><td>The loader falls back from 16-bit to 4-bit weights, then stops with a clear error.</td></tr>
+<tr><td>Probe configuration missing or its parity check fails</td><td>Probe switched off, reason shown on <code>/health</code>, pipeline unchanged.</td></tr>
+<tr><td>Network or database error in the worker</td><td>Retry up to 3 times with growing waits; stale claims are reset on restart.</td></tr>
+<tr><td>Upload too big or not an image</td><td>Refused: over 10 MB or over 4,096 px; format and pixel mode both checked.</td></tr>
+<tr><td>Too many requests</td><td>Rate limits: <code>/classify</code> 10 per minute; condition reports 10 per minute; five wrong operator keys lock a client out for 10 minutes.</td></tr>
+<tr><td>A video file damaged in transfer</td><td>Checksum mismatch, drive refused before processing.</td></tr>
+<tr><td>Segment skipped or not covered</td><td>Stored as such and shown grey; the PCI widens its range for skipped frames.</td></tr>
+<tr><td>Storage counts do not match after a batch</td><td>Temporary files are not deleted until the counts and checksums match.</td></tr>
+<tr><td>A point picked on the map is far from any surveyed road</td><td>Report refused (more than 40 m from a segment).</td></tr>
+<tr><td>Expert save lost on the network</td><td>Kept in the browser outbox and retried; duplicates answered once.</td></tr>
+<tr><td>Street-map tiles unreachable</td><td>The report is drawn without a background and says so.</td></tr>
+</tbody></table></div>
+</section>
+
+<!-- ================================================================ 12 MEMORY -->
+<section id="memory" class="prose">
+<h2><span class="n">12</span>Memory and feedback</h2>
+<p>The system does not learn on its own. It stores everything that would let people improve it later, and it is never allowed to change its own thresholds or weights.</p>
+<div class="tbl"><table>
+<thead><tr><th>Stored</th><th>Where</th><th>Used for</th></tr></thead>
+<tbody>
+<tr><td>Every model answer with all three confidence versions</td><td><code>assessments.raw_response</code></td><td>Re-tuning the 0.80 threshold later without re-running the model</td></tr>
+<tr><td>All 20 probe scores per image</td><td>same, and <code>research.video_probe_scores</code></td><td>Fitting Bengaluru probe thresholds once experts label data</td></tr>
+<tr><td>Every expert save, with the model's answer beside it</td><td><code>research.expert_review_log</code></td><td>Measuring accuracy on local data</td></tr>
+<tr><td>Motion features per segment</td><td><code>research.segment_roughness</code></td><td>Calibrating roughness against a reference survey</td></tr>
+</tbody></table></div>
+<div class="box key"><span class="lab">Key idea</span><p>Calibration files reach production only through a script that tests them first. The probe goes live only if it beats the current labels on held-out expert labels; a PCI calibration goes live only after a logged blind test on survey sections it never saw.</p></div>
+</section>
+
+<!-- ================================================================ 13 EVAL -->
+<section id="eval" class="prose">
+<h2><span class="n">13</span>Testing and evaluation</h2>
+<h3>Metrics in plain words</h3>
+<div class="tbl"><table>
+<thead><tr><th>Metric</th><th>Plain meaning</th><th>Formula</th></tr></thead>
+<tbody>
+<tr><td>Accuracy</td><td>Share of all answers that were right</td><td>(TP + TN) / all</td></tr>
+<tr><td>Precision</td><td>When it says "damaged", how often it is right</td><td>TP / (TP + FP)</td></tr>
+<tr><td>Recall</td><td>Of all damaged roads, how many it found</td><td>TP / (TP + FN)</td></tr>
+<tr><td>F1</td><td>One number balancing precision and recall</td><td>2PR / (P + R)</td></tr>
+<tr><td>MCC</td><td>Correlation between answers and truth, 0 for a constant guess, 1 perfect</td><td>(TP&middot;TN &minus; FP&middot;FN) / &radic;((TP+FP)(TP+FN)(TN+FP)(TN+FN))</td></tr>
+<tr><td>AUROC</td><td>Chance that a random right answer gets a higher score than a random wrong one; 0.5 is a coin flip</td><td>area under the ROC curve</td></tr>
+</tbody></table></div>
+<p>TP, TN, FP and FN are true positives, true negatives, false positives and false negatives. The team reports MCC beside a constant baseline because on Attain a model that always says "linear crack" already scores a high F1.</p>
+
+<h3>Damaged or normal: GAPs, 10,000 photos</h3>
+</section>
+<figure class="fig">
+<svg width="620" height="260" viewBox="0 0 620 260" role="img" aria-labelledby="f11t f11d">
+<title id="f11t">GAPs confusion matrix</title>
+<desc id="f11d">Actual Normal: 5,938 called Normal, 62 called Damaged. Actual Damaged: 2,285 called Normal, 1,715 called Damaged.</desc>
+<text x="210" y="28" class="tb">Model says Normal</text><text x="410" y="28" class="tb">Model says Damaged</text>
+<text x="20" y="96" class="tb">Actually Normal</text><text x="20" y="196" class="tb">Actually Damaged</text>
+<rect x="200" y="44" width="180" height="90" class="bc"/><text x="250" y="86" class="tb">5,938</text><text x="226" y="110" class="ts">right (98.97%)</text>
+<rect x="400" y="44" width="180" height="90" class="bw"/><text x="466" y="86" class="tb">62</text><text x="432" y="110" class="ts">false alarms</text>
+<rect x="200" y="144" width="180" height="90" class="bw"/><text x="250" y="186" class="tb">2,285</text><text x="232" y="210" class="ts">missed damage</text>
+<rect x="400" y="144" width="180" height="90" class="bc"/><text x="450" y="186" class="tb">1,715</text><text x="440" y="210" class="ts">found (42.9%)</text>
+</svg>
+<figcaption>Figure 10. Very few false alarms, but more than half of the damaged photos are called Normal. That is why Normal answers below 0.80 confidence, and Normal answers the probe doubts, go to review.</figcaption>
+</figure>
+<section class="prose">
+<h3>Main result tables</h3>
+<div class="tbl"><table>
+<thead><tr><th>Experiment</th><th>Result</th><th>What it shows</th></tr></thead>
+<tbody>
+<tr><td>Base model on GAPs (10,000)</td><td>Accuracy 76.53%; damaged-call precision 96.5%; recall 42.9%</td><td>Careful but misses subtle damage</td></tr>
+<tr><td>Fine-tuned adapter (QLoRA) on GAPs and RDD</td><td>GAPs 76.53% to 88.39%; RDD first label 48.66% to 66.06%</td><td>Training helps on the data it was trained for</td></tr>
+<tr><td>Same adapter on Attain (769, new country)</td><td>Pothole F1 0.196 (base) / 0.265 (better prompts) / 0 (adapter)</td><td>It forgot potholes on new data, so it was dropped</td></tr>
+<tr><td>Confidence on 407 Attain frames</td><td>Field score AUROC 0.744; whole-text score 0.373</td><td>Score the label tokens only</td></tr>
+<tr><td>Per-type probe on Attain test (547)</td><td>Macro MCC 0.111 to 0.223, 95% CI of the gain [0.033, 0.183]</td><td>Better ranking, but not ready to replace labels</td></tr>
+<tr><td>Probe thresholds on Bengaluru uploads</td><td>Would add ravelling to 200 of 204 images</td><td>Thresholds from Attain do not transfer</td></tr>
+<tr><td>Stage 1 recall on Attain damaged frames</td><td>51.8%; the safety net catches 313 of 371 misses</td><td>The net matters</td></tr>
+<tr><td>Image-size cap</td><td>270.5 s to 11.1 s per photo</td><td>Memory overflow, not the model, caused the slowness</td></tr>
+<tr><td>40 gated drives</td><td>37.92 km, 7,589 segments, 6,237 answered, 18.0% damaged, 19.4 min per km</td><td>The pipeline runs without manual steps</td></tr>
+<tr><td>Condition reports, 8 stretches</td><td>Median PCI 46.5 to 54.7 (Fair), 90% ranges about 29 to 93</td><td>Usable estimate; roughness is the main unknown</td></tr>
+</tbody></table></div>
+<p><b>A/B comparisons.</b> Each change was compared against the previous setting on the same saved data: base model against adapter, two prompt versions, field against whole-text confidence, full photo against tiles and crops, full frame against a 5 m strip, and a weight edit against a recalibrated threshold. Test splits were fixed in advance, and results come with block bootstrap intervals, which resample groups of 20 neighbouring frames so that near-duplicate frames do not make the interval look tighter than it is.</p>
+<h3>Software tests</h3>
+<ul>
+<li>18 static checks (<code>scripts/validate_all.py</code>) and 96 condition-report tests, all passing.</li>
+<li>Video pipeline: 256 tests passing, 12 GPU-only tests skipped.</li>
+<li>Video GIS: 69 automated tests, 19 live API checks and 58 sample checks.</li>
+<li>Expert page: 8 simultaneous sessions with no item handed out twice; replays, outages and a real database deadlock with no lost save.</li>
+</ul>
+<div class="box why"><span class="lab">What the results prove and do not prove</span><p>They prove the pipeline works end to end and that each design choice was tested against an alternative. They do not prove accuracy on Bengaluru roads: all accuracy numbers come from public datasets from Germany, Japan and other countries, and Iran. Local accuracy needs expert labels, and the PCI needs a reference survey.</p></div>
+</section>
+
+<!-- ================================================================ 14 WHY -->
+<section id="why" class="prose">
+<h2><span class="n">14</span>Why this and not that</h2>
+<div class="tbl"><table>
+<thead><tr><th>Choice</th><th>Alternative</th><th>Why ours</th><th>What we gave up</th></tr></thead>
+<tbody>
+<tr><td>Vision-language model with prompts</td><td>A box detector such as YOLO</td><td>Names any of 18 types and explains in words without thousands of hand-drawn boxes</td><td>No exact box around the damage; slower per image</td></tr>
+<tr><td>Base model, no adapter</td><td>The fine-tuned QLoRA adapter</td><td>The adapter scored 0 on potholes on new data</td><td>Its gains on GAPs and RDD</td></tr>
+<tr><td>Field confidence at 0.80</td><td>Whole-text confidence</td><td>AUROC 0.744 against 0.373</td><td>A score that also measures the description</td></tr>
+<tr><td>Probe in shadow mode</td><td>Let the probe set labels</td><td>Its thresholds flag ravelling on 98% of Bengaluru photos</td><td>Its better ranking on Attain, for now</td></tr>
+<tr><td>Full photo</td><td>Tiles or model-chosen crops</td><td>Tiles gave +0.020 AUROC with an interval including 0; crops missed damage</td><td>A possible small gain, at 6.5 s more per photo</td></tr>
+<tr><td>1024 px cap, 4-bit weights</td><td>Full size, 16-bit</td><td>Fits one 24 GB GPU, 24&times; faster, no measured loss</td><td>Detail that the tests could not show mattered</td></tr>
+<tr><td>IRC:82-2023 PCI with a range</td><td>ASTM D6433, or a single number</td><td>The Indian code, and a single number would claim more than we measure</td><td>A simple headline figure</td></tr>
+<tr><td>Grad-CAM only as an optional overlay</td><td>Use it to draw damage boxes</td><td>It pointed no better than a simple location prior</td><td>Automatic boxes</td></tr>
+<tr><td>No weight editing in production</td><td>Edit one attention head</td><td>A recalibrated threshold did as well</td><td>A research result to showcase</td></tr>
+</tbody></table></div>
+</section>
+
+<!-- ================================================================ 15 VIVA -->
+<section id="viva" class="prose qa">
+<h2><span class="n">15</span>Viva cheat-sheet</h2>
+<details><summary>1. What does GeoAI do, in two sentences?</summary><p>It takes road photos from citizens and video from a phone on a scooter, and an AI model says whether the road is damaged, what kind, and how sure it is. Uncertain results go to an expert, everything appears on a map with its source image, and for any stretch it writes a condition report with chainage and an IRC:82-2023 PCI estimate.</p></details>
+<details><summary>2. Why a vision-language model and not YOLO?</summary><p>A detector needs thousands of boxed examples per class and can only name classes it was trained on. Our model names 18 IRC damage types from a prompt and gives a description. The cost is that we get image-level labels, not boxes, and each image takes seconds. We say this openly and compare with detectors by what each delivers, not by their published box scores, because the tasks differ.</p></details>
+<details><summary>3. You fine-tuned a model. Why is it not used?</summary><p>The QLoRA adapter raised GAPs accuracy from 76.53% to 88.39% and RDD first-label accuracy from 48.66% to 66.06%. On Attain, from a different country, it scored 0 on potholes, while the base model with improved prompts scored 0.265. A model for Bengaluru must work on unseen roads, so we kept the base model.</p></details>
+<details><summary>4. How do you know when the model is unsure?</summary><p>We read the model's own token probabilities. Stage 1 uses the two first-token probabilities for Normal and Distress. Stage 2 uses the geometric mean of the probabilities of the damage-list tokens only. Anything below 0.80 goes to an expert.</p></details>
+<details><summary>5. Why only the damage-list tokens?</summary><p>When the description was included, fluent text looked confident even when the labels were wrong. On 407 labelled frames the whole-text score had AUROC 0.373, worse than a coin flip, and the list-only score had 0.744.</p></details>
+<details><summary>6. Is 0.80 the right threshold?</summary><p>Not proven. At 0.80 only 4 of 60 outputs with a false-positive type were routed to review on Attain, so the threshold is loose for that error type. It must be recalibrated on Bengaluru expert labels, and every answer stores its scores so this can be done without re-running the model.</p></details>
+<details><summary>7. The model misses more than half of damaged GAPs photos. Is that acceptable?</summary><p>On its own, no: recall is 42.9%, while precision is 96.5%. That is why a confident Normal is checked again by the per-type probe, the safety net, which caught 313 of 371 missed damaged frames on Attain. The weakness is real and we report it.</p></details>
+<details><summary>8. What is the per-type probe?</summary><p>For each of 20 types we ask the model a yes/no question and read the probability of "yes". It doubled macro MCC on Attain, but its thresholds flagged ravelling on 200 of 204 Bengaluru photos. So it runs in shadow mode: scores are stored and used for review routing, but labels are unchanged.</p></details>
+<details><summary>9. How is a video frame placed on the map?</summary><p>All sensors share the phone clock. We fit satellite time to real time, draw a smooth path through the positions using speed, cut every 5 m of distance, and give each segment its sharpest frame. Each segment stores its position uncertainty; the median was about 6 m.</p></details>
+<details><summary>10. What does the gate do, and does it work?</summary><p>It is a cheap filter that decides which frames to send to the model, with a 10% random audit of the rest. On the first three drives it kept 92.1% of damaged segments but sent 90.9% of all segments, so it saves little. A stricter version reached only 87.8% recall, below our 90% target, so it was not adopted.</p></details>
+<details><summary>11. How is the PCI calculated?</summary><p>We follow IRC:82-2023: a weighted sum of six scores, with roughness 0.40, potholes 0.16, rut depth 0.14, cracking 0.12, ravelling 0.10 and patching 0.08. Each 100 m section gets an estimate with a 90% range for every input, and a Monte Carlo draw gives the median and range of the PCI. The eight sample stretches came out Fair, 46.5 to 54.7.</p></details>
+<details><summary>12. Why is the PCI range so wide?</summary><p>Roughness carries 40% of the weight, and a phone on a scooter cannot give an absolute roughness without a reference measurement. Rut depth cannot be seen by a camera. We show the range rather than invent a number. A reference survey would narrow the roughness range about threefold.</p></details>
+<details><summary>13. How do you know a detected pothole is real?</summary><p>The scooter's accelerometer: a jolt above a speed-matched threshold appears at 52% of pothole-labelled segments and 24% of others. With a label precision of 0.43 measured on Attain, a labelled run is real with a probability of about 0.74 with a jolt and 0.09 without. This is an estimate, and riders steer around potholes, so a missing jolt does not rule one out.</p></details>
+<details><summary>14. What is your biggest weakness?</summary><p>No local ground truth. Only one citizen upload and no video segment has an expert label, so every accuracy number comes from public datasets from other countries. The expert page is built for this, and it is the first next step.</p></details>
+<details><summary>15. Why IRC:82-2023 and not ASTM D6433?</summary><p>The roads are Indian and the planned comparison survey will follow the Indian code. We started with IRC:82-2015 and moved to 2023 when we found it replaced the 1-3 rating with a 0-100 PCI. ASTM's full procedure also needs measured sample units we do not have.</p></details>
+<details><summary>16. How did you make the system fast enough?</summary><p>Full-size photos needed 47.8 GB of GPU memory on a 24 GB card; Windows quietly moved memory to system RAM, taking 270.5 s per photo. Capping images at 1024 px brought it to 11.1 s with no measured accuracy loss. A video profile that skips record-only work cut normal frames from 13.7 s to 3.8 s with identical answers.</p></details>
+<details><summary>17. How do you avoid fooling yourselves?</summary><p>Test splits and pass rules were written down before running tests, splits keep neighbouring frames together, and intervals use block bootstrap. Results are always compared with a constant baseline. Several ideas failed and are reported, including tiles, crops, Grad-CAM and a weight edit.</p></details>
+<details><summary>18. What about privacy?</summary><p>Photos carry GPS and may show faces or number plates. Images stay on our storage services and no field imagery is released. Faces and plates must be redacted, and consent and licensing written down, before any public dataset.</p></details>
+<details><summary>19. What would you do with three more months?</summary><p>Collect expert labels on Bengaluru photos and video, then measure local accuracy and calibrate the probe and the 0.80 threshold. Run the reference survey and calibrate the PCI with the comparison tool, which is already built and keeps a blind test half. Check chainage length against km-stones.</p></details>
+</section>
+
+<!-- ================================================================ 16 GLOSSARY -->
+<section id="glossary" class="prose">
+<h2><span class="n">16</span>Glossary</h2>
+<dl class="gloss">
+<dt>4-bit (NF4) weights</dt><dd>Storing the model's numbers in 4 bits instead of 16 so it fits one GPU; computation still runs in 16-bit.</dd>
+<dt>Adapter (LoRA, QLoRA)</dt><dd>A small set of extra trainable weights added to a large model; QLoRA trains it on a 4-bit model.</dd>
+<dt>Attain</dt><dd>A public Iranian dataset of road frames from phones on car windshields, with damage boxes and severity.</dd>
+<dt>AUROC</dt><dd>The chance that a random correct case gets a higher score than a random wrong one; 0.5 is a coin flip.</dd>
+<dt>Block bootstrap</dt><dd>Estimating an interval by resampling groups of neighbouring frames, so near-duplicates do not shrink it.</dd>
+<dt>Chainage</dt><dd>Distance along a road from a reference point, written like Km 0+260.</dd>
+<dt>Cloudflare tunnel</dt><dd>A service that gives the local server a temporary public web address.</dd>
+<dt>Cloudinary</dt><dd>A cloud service that stores the citizen photos.</dd>
+<dt>Confidence (field)</dt><dd>The geometric mean of the token probabilities of the damage list in the model's answer.</dd>
+<dt>Confusion matrix</dt><dd>A table of right and wrong answers per true class.</dd>
+<dt>DINOv2</dt><dd>A general image-feature model from Meta, used by the video gate.</dd>
+<dt>Expert review</dt><dd>The state of a result waiting for a human to check it.</dd>
+<dt>F1</dt><dd>The harmonic mean of precision and recall.</dd>
+<dt>GAPs</dt><dd>A public German road-photo dataset labelled Normal or Distress.</dd>
+<dt>Gate</dt><dd>The cheap filter that decides which video frames the model sees.</dd>
+<dt>GIS</dt><dd>Geographic information system: software that shows data on a map.</dd>
+<dt>GNSS</dt><dd>Satellite positioning in general (GPS and similar systems).</dd>
+<dt>Grad-CAM</dt><dd>A method that shows which image regions most influenced a model's answer.</dd>
+<dt>IMU</dt><dd>Inertial measurement unit: the phone's accelerometer and gyroscope.</dd>
+<dt>IRC:82</dt><dd>The Indian Roads Congress code for maintaining bituminous roads; the 2015 edition gives our damage types, the 2023 edition our PCI.</dd>
+<dt>IRI</dt><dd>International Roughness Index, in metres of vertical movement per kilometre; higher means rougher.</dd>
+<dt>Lease</dt><dd>A short-term claim on a review item by one browser tab, so two experts never review the same item.</dd>
+<dt>MCC</dt><dd>Matthews correlation coefficient: agreement between predictions and truth, 0 for a constant guess.</dd>
+<dt>Monte Carlo</dt><dd>Estimating a result by drawing random inputs many times and looking at the spread of outputs.</dd>
+<dt>Outbox</dt><dd>A queue in the browser that holds an expert's save until the server confirms it.</dd>
+<dt>PCI</dt><dd>Pavement Condition Index, 0 (failed) to 100 (excellent).</dd>
+<dt>Precision</dt><dd>Of the cases called positive, the share that are positive.</dd>
+<dt>Probe (per-type)</dt><dd>A yes/no question per damage type, scored from the model's probability of "yes".</dd>
+<dt>Prompt</dt><dd>The instructions and question given to the model with the image.</dd>
+<dt>Qwen2.5-VL-7B</dt><dd>The open vision-language model GeoAI runs, with 7 billion parameters.</dd>
+<dt>RDD</dt><dd>Road Damage Detection: a public dataset with four crack and pothole codes.</dd>
+<dt>Recall</dt><dd>Of the truly positive cases, the share the model found.</dd>
+<dt>Segment</dt><dd>A 5 m piece of a drive with one chosen frame and one answer.</dd>
+<dt>Shadow mode</dt><dd>Running a component and storing its output without letting it change results.</dd>
+<dt>Softmax</dt><dd>A function that turns raw scores into probabilities that add up to 1.</dd>
+<dt>Stage 0 / 1 / 2</dt><dd>Is it a road; is it damaged; which types, how severe.</dd>
+<dt>Supabase</dt><dd>A hosted PostgreSQL database for the citizen path.</dd>
+<dt>Token</dt><dd>A piece of text, roughly a word or part of a word, that the model reads or writes.</dd>
+<dt>VLM</dt><dd>Vision-language model: an AI that reads an image and answers in text.</dd>
+<dt>WDDM paging</dt><dd>Windows moving GPU memory into system RAM when the card is full, which makes the model 10 to 30 times slower without an error.</dd>
+<dt>Worker</dt><dd>The background process that takes pending photos and runs the model on them.</dd>
+</dl>
+<p class="sub" style="margin-top:3em">End of guide. Built from the repository on 14 November 2026.</p>
+</section>
+</main>
+</div>
+<!--
+SOURCES (every number on this page)
+- GAPs 76.53%, confusion matrix 5938/62/2285/1715, precision 0.9651, recall 0.42875: eval_results/baseline_results.json
+- Adapter 88.39% GAPs, RDD 48.66% -> 66.06%: eval_results/finetuned_results.json; paper/baseline_evaluation.md
+- Attain tier-1 17.51/26.93/31.11%, pothole F1 0.196/0.265/0: eval_results/attain_3way_comparison.md
+- Field confidence AUROC 0.744 vs 0.373 (407 frames), 4 of 60 FP routed: paper §6.5; thesis Ch.6
+- Probe macro MCC 0.111 -> 0.223, CI [0.033, 0.183]: eval_results/stage2_probe_report.md
+- Ravelling on 200 of 204 Bengaluru uploads; Stage 1 recall 51.8%; safety net 313/371: CLAUDE.md, paper §6.8
+- 270.5 s -> 11.1 s, 47.8 GB / 19.8 GB: eval_results/resolution_timing.json (true median of the stored rows)
+- Video profile 13.72 -> 3.76 s, 24.41 -> 14.43 s, 60/60: GeoAI_Video docs/research/METRICS.md; paper §8
+- 43 drives, 8,402 segments, 7,050 answers: paper §8.8, eval_results/video_evals.md
+- 40-drive run 37.92 km, 7,589 segments, 6,076/161/1,259/93, 6,237 answered, 18.0%, 19.4 min/km, 13/161 skips: eval_results/video_survey.json/.md
+- Gate 92.1% recall / 90.9% pass, probe-only 87.8%: paper §8.4-8.6
+- Median position sigma 6.01 m: paper §8.4
+- Production 361 uploads, 131/213/17, 1 expert review: CLAUDE.md "Production data"
+- Worker batch 5, max retries 3: app/worker.py (BATCH_SIZE, MAX_RETRIES)
+- Upload 10 MB, 4096 px: app/security.py (MAX_UPLOAD_BYTES, MAX_DIMENSION)
+- /classify 10/minute: app/main.py (CLASSIFY_RATE_LIMIT); report 10/60 s, key lockout 5/600 s: app/pci_routes.py (LIMITS, KEY_FAILURES)
+- Stage 1 max 12 tokens: CLAUDE.md (STAGE1_MAX_NEW_TOKENS)
+- PCI weights, classes, equation problems, worked-example check: app/pci_irc2023.py, eval_results/pci/IRC82_2023.md
+- PCI inputs, coverage 27/28, 22/28, 26/28, Spearman 0.59: eval_results/pci/extent/REPORT.md
+- Jolt 52% vs 24%, P(real) 0.74 / 0.09: app/pci_core.py (REAL_IF_JOLT), paper §9.9
+- IRI interval ~2-13 m/km: eval_results/pci/iri/UNCERTAINTY.md; ESTIMATE.md
+- Rut range 0-25 mm: eval_results/pci/rut/RUT_PRIOR.md
+- Sample reports 46.5-54.7, ranges 28.7-93.2, strict 3-97: research.pci_reports ids 49-56; paper §9.9
+- Worked example segment 20261027T103525Z_SM-G991B-F0D1_35fd_seg00123: video_segments.record, assessments,
+  research.video_probe_scores, research.segment_roughness (local PostgreSQL, read 14 Nov 2026); report 50 pothole table
+- Expert page: leases 12 items / 10 min, outbox, real-name screen, 17-step tour, 8-session test: CLAUDE.md, expert_ui/index.html,
+  scripts/tests/test_expert_concurrency.py
+- Tests: 18 static checks, 96 PCI tests (scripts/tests/test_pci_*.py); video pipeline 256 passed / 12 skipped (GeoAI_Video PROGRESS.md);
+  video GIS 69 + 19 + 58 (GeoAI_Video_GIS README.md)
+- Path limit 25 km, snap 40 m: app/pci_chainage.py (MAX_PATH_M, SNAP_MAX_M)
+- Design vs build (Phase 3 not built, Retrain disabled; ASTM planned vs IRC 2023 built; 2015 labels vs 2023 PCI): CLAUDE.md, paper §9
+-->
+</body>
+</html>

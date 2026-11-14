@@ -1,0 +1,100 @@
+{
+ "part": "synthetic",
+ "database": "geoai",
+ "data_as_of": "2026-10-30T15:05:00.064449Z",
+ "command": "venv/Scripts/python.exe scripts/pci_validation.py --database geoai --only arithmetic synthetic retest runs sensitivity samples",
+ "finished_at": "2026-11-06T20:36:14+00:00",
+ "seconds": 1.3,
+ "result": {
+  "shapes": {
+   "straight_1000": {
+    "true_m": 1000.0,
+    "measured_m": 1000.0,
+    "error_m": -0.0
+   },
+   "arc_r100_90deg": {
+    "true_m": 157.08,
+    "measured_m": 157.06,
+    "error_m": -0.02
+   },
+   "turn90_r15": {
+    "true_m": 623.56,
+    "measured_m": 623.45,
+    "error_m": -0.12
+   },
+   "turn180_r8": {
+    "true_m": 625.13,
+    "measured_m": 624.7,
+    "error_m": -0.44
+   }
+  },
+  "ar1_noise_length_error_m_per_1000m": {
+   "sigma4_corr50m": {
+    "n": 50,
+    "mean": 63.36,
+    "sd": 7.0,
+    "min": 45.88,
+    "p50": 62.54,
+    "p90": 69.47,
+    "max": 84.36
+   },
+   "sigma4_corr100m": {
+    "n": 50,
+    "mean": 31.96,
+    "sd": 5.62,
+    "min": 15.19,
+    "p50": 32.08,
+    "p90": 38.41,
+    "max": 43.53
+   },
+   "sigma4_corr200m": {
+    "n": 50,
+    "mean": 16.78,
+    "sd": 5.15,
+    "min": 2.09,
+    "p50": 16.87,
+    "p90": 23.42,
+    "max": 24.69
+   },
+   "sigma6_corr50m": {
+    "n": 50,
+    "mean": 151.36,
+    "sd": 12.41,
+    "min": 122.43,
+    "p50": 149.85,
+    "p90": 166.78,
+    "max": 196.48
+   },
+   "sigma6_corr100m": {
+    "n": 50,
+    "mean": 73.88,
+    "sd": 9.06,
+    "min": 51.56,
+    "p50": 74.32,
+    "p90": 83.38,
+    "max": 98.2
+   },
+   "sigma6_corr200m": {
+    "n": 50,
+    "mean": 37.45,
+    "sd": 7.91,
+    "min": 15.32,
+    "p50": 37.48,
+    "p90": 47.4,
+    "max": 50.87
+   }
+  },
+  "swap": {
+   "length_diff_m": 0.0,
+   "pothole_E_lo_diff": 0.0
+  },
+  "rule_tests": {
+   "test_refusals": "pass",
+   "test_via_points_and_swap_symmetry": "pass",
+   "test_gap_rules": "pass",
+   "test_parallel_road_not_joined": "pass",
+   "test_flyover_refused_level_crossing_used": "pass",
+   "test_u_turn_and_loop_attribution": "pass"
+  }
+ }
+}

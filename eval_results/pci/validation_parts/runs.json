@@ -1,0 +1,174 @@
+{
+ "part": "runs",
+ "database": "geoai",
+ "data_as_of": "2026-10-30T15:05:00.064449Z",
+ "command": "venv/Scripts/python.exe scripts/pci_validation.py --database geoai --only arithmetic synthetic retest runs sensitivity samples",
+ "finished_at": "2026-11-06T20:36:15+00:00",
+ "seconds": 0.1,
+ "result": {
+  "Potholes": {
+   "positive_segments": 770,
+   "runs": 502,
+   "segments_per_run": {
+    "n": 502,
+    "mean": 1.53,
+    "sd": 1.08,
+    "min": 1,
+    "p50": 1.0,
+    "p90": 3.0,
+    "max": 11
+   },
+   "hist": {
+    "1": 345,
+    "2": 99,
+    "3": 34,
+    "4": 11,
+    "5": 7,
+    "6": 2,
+    "7": 1,
+    "8": 2,
+    "11": 1
+   },
+   "share_of_positives_in_runs_ge3": 0.2948
+  },
+  "Cracking (any)": {
+   "positive_segments": 761,
+   "runs": 428,
+   "segments_per_run": {
+    "n": 428,
+    "mean": 1.78,
+    "sd": 1.91,
+    "min": 1,
+    "p50": 1.0,
+    "p90": 3.0,
+    "max": 26
+   },
+   "hist": {
+    "1": 278,
+    "2": 80,
+    "3": 34,
+    "4": 16,
+    "5": 6,
+    "6": 5,
+    "7": 5,
+    "8": 1,
+    "9": 1,
+    "19": 1,
+    "26": 1
+   },
+   "share_of_positives_in_runs_ge3": 0.4244
+  },
+  "Alligator Cracking": {
+   "positive_segments": 148,
+   "runs": 108,
+   "segments_per_run": {
+    "n": 108,
+    "mean": 1.37,
+    "sd": 0.88,
+    "min": 1,
+    "p50": 1.0,
+    "p90": 3.0,
+    "max": 6
+   },
+   "hist": {
+    "1": 87,
+    "2": 9,
+    "3": 7,
+    "4": 4,
+    "6": 1
+   },
+   "share_of_positives_in_runs_ge3": 0.2905
+  },
+  "Longitudinal Cracking": {
+   "positive_segments": 720,
+   "runs": 405,
+   "segments_per_run": {
+    "n": 405,
+    "mean": 1.78,
+    "sd": 1.94,
+    "min": 1,
+    "p50": 1.0,
+    "p90": 3.0,
+    "max": 26
+   },
+   "hist": {
+    "1": 263,
+    "2": 79,
+    "3": 28,
+    "4": 15,
+    "5": 7,
+    "6": 5,
+    "7": 4,
+    "8": 1,
+    "9": 1,
+    "19": 1,
+    "26": 1
+   },
+   "share_of_positives_in_runs_ge3": 0.4153
+  },
+  "Transverse Cracking": {
+   "positive_segments": 275,
+   "runs": 195,
+   "segments_per_run": {
+    "n": 195,
+    "mean": 1.41,
+    "sd": 0.96,
+    "min": 1,
+    "p50": 1.0,
+    "p90": 2.0,
+    "max": 7
+   },
+   "hist": {
+    "1": 151,
+    "2": 26,
+    "3": 8,
+    "4": 6,
+    "5": 1,
+    "6": 2,
+    "7": 1
+   },
+   "share_of_positives_in_runs_ge3": 0.2618
+  },
+  "Bleeding": {
+   "positive_segments": 355,
+   "runs": 282,
+   "segments_per_run": {
+    "n": 282,
+    "mean": 1.26,
+    "sd": 0.73,
+    "min": 1,
+    "p50": 1.0,
+    "p90": 2.0,
+    "max": 8
+   },
+   "hist": {
+    "1": 235,
+    "2": 32,
+    "3": 9,
+    "4": 4,
+    "5": 1,
+    "8": 1
+   },
+   "share_of_positives_in_runs_ge3": 0.1577
+  },
+  "Edge Breaking": {
+   "positive_segments": 81,
+   "runs": 67,
+   "segments_per_run": {
+    "n": 67,
+    "mean": 1.21,
+    "sd": 0.44,
+    "min": 1,
+    "p50": 1.0,
+    "p90": 2.0,
+    "max": 3
+   },
+   "hist": {
+    "1": 54,
+    "2": 12,
+    "3": 1
+   },
+   "share_of_positives_in_runs_ge3": 0.037
+  }
+ }
+}

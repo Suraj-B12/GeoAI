@@ -1,0 +1,225 @@
+{
+ "part": "retest",
+ "database": "geoai",
+ "data_as_of": "2026-10-30T15:05:00.064449Z",
+ "command": "venv/Scripts/python.exe scripts/pci_validation.py --database geoai --redo retest sensitivity samples",
+ "finished_at": "2026-11-07T01:45:58+00:00",
+ "seconds": 0.3,
+ "result": {
+  "rule": "nearest segment of each later drive within 6 m, |dheading| < 30 deg, |d alt| <= 4 m",
+  "matched_pairs": 84,
+  "drive_pairs": 4,
+  "pairs_both_classified": 67,
+  "status_pairs": {
+   "send/send": 67,
+   "send/skip": 15,
+   "skip/send": 2
+  },
+  "kappa": {
+   "Distress": {
+    "n": 67,
+    "agreement": 0.9254,
+    "kappa": 0.7564,
+    "positive_a": 15,
+    "positive_b": 10,
+    "both_positive": 10,
+    "bootstrap_share_positives_in_one_drive_only": 0.103,
+    "later_positive_given_earlier_positive": {
+     "k": 10,
+     "n": 15,
+     "p": 0.6667,
+     "lo": 0.4171,
+     "hi": 0.8482
+    },
+    "earlier_positive_given_later_positive": {
+     "k": 10,
+     "n": 10,
+     "p": 1.0,
+     "lo": 0.7225,
+     "hi": 1.0
+    },
+    "ci95_block_bootstrap": [
+     0.0,
+     0.962
+    ],
+    "bootstrap_blocks": 8,
+    "bootstrap_valid": 1997
+   },
+   "Potholes": {
+    "n": 67,
+    "agreement": 0.9104,
+    "kappa": 0.6742,
+    "positive_a": 12,
+    "positive_b": 10,
+    "both_positive": 8,
+    "bootstrap_share_positives_in_one_drive_only": 0.098,
+    "later_positive_given_earlier_positive": {
+     "k": 8,
+     "n": 12,
+     "p": 0.6667,
+     "lo": 0.3906,
+     "hi": 0.8619
+    },
+    "earlier_positive_given_later_positive": {
+     "k": 8,
+     "n": 10,
+     "p": 0.8,
+     "lo": 0.4902,
+     "hi": 0.9433
+    },
+    "ci95_block_bootstrap": [
+     0.0,
+     0.908
+    ],
+    "bootstrap_blocks": 8,
+    "bootstrap_valid": 1999
+   },
+   "Cracking": {
+    "n": 67,
+    "agreement": 0.9254,
+    "kappa": 0.5052,
+    "positive_a": 6,
+    "positive_b": 5,
+    "both_positive": 3,
+    "bootstrap_share_positives_in_one_drive_only": 0.098,
+    "later_positive_given_earlier_positive": {
+     "k": 3,
+     "n": 6,
+     "p": 0.5,
+     "lo": 0.1876,
+     "hi": 0.8124
+    },
+    "earlier_positive_given_later_positive": {
+     "k": 3,
+     "n": 5,
+     "p": 0.6,
+     "lo": 0.2307,
+     "hi": 0.8824
+    },
+    "ci95_block_bootstrap": [
+     0.0,
+     0.848
+    ],
+    "bootstrap_blocks": 8,
+    "bootstrap_valid": 1996
+   }
+  },
+  "drive_pairs_time": [
+   {
+    "earlier": "20261027T103050Z_SM-G991B-F0D1_eaf1",
+    "later": "20261027T112443Z_SM-G991B-F0D1_2fb1",
+    "pairs": 37,
+    "hours_apart": 0.9
+   },
+   {
+    "earlier": "20261027T050257Z_SM-G991B-F0D1_d47c",
+    "later": "20261027T095431Z_SM-G991B-F0D1_b81d",
+    "pairs": 29,
+    "hours_apart": 4.86
+   },
+   {
+    "earlier": "20261029T113633Z_SM-G991B-F0D1_bc80",
+    "later": "20261029T114942Z_SM-G991B-F0D1_d94c",
+    "pairs": 15,
+    "hours_apart": 0.22
+   },
+   {
+    "earlier": "20261026T114332Z_SM-G991B-F0D1_f428",
+    "later": "20261027T050257Z_SM-G991B-F0D1_d47c",
+    "pairs": 3,
+    "hours_apart": 17.32
+   }
+  ],
+  "offset_m": {
+   "distance": {
+    "n": 84,
+    "mean": 2.03,
+    "sd": 1.34,
+    "min": 0.23,
+    "p50": 1.8,
+    "p90": 4.7,
+    "max": 5.7
+   },
+   "along_track_abs": {
+    "n": 84,
+    "mean": 1.05,
+    "sd": 1.12,
+    "min": 0.06,
+    "p50": 0.76,
+    "p90": 2.02,
+    "max": 5.28
+   },
+   "cross_track_abs": {
+    "n": 84,
+    "mean": 1.52,
+    "sd": 1.12,
+    "min": 0.02,
+    "p50": 1.58,
+    "p90": 2.24,
+    "max": 5.56
+   },
+   "note": "nearest-neighbour matches inside the 6 m link radius: offsets are bounded by the matching rule, so they describe the link geometry, not an independent chainage error"
+  },
+  "blocks_100m": {
+   "n_blocks": 2,
+   "drive_pairs_with_blocks": 2,
+   "cracking": {
+    "band_agreement": 1.0,
+    "mean_abs_diff_E_lo_pct": 0.0,
+    "E_lo_earlier": {
+     "n": 2,
+     "mean": 0.0,
+     "sd": 0.0,
+     "min": 0.0,
+     "p50": 0.0,
+     "p90": 0.0,
+     "max": 0.0
+    },
+    "E_lo_later": {
+     "n": 2,
+     "mean": 0.0,
+     "sd": 0.0,
+     "min": 0.0,
+     "p50": 0.0,
+     "p90": 0.0,
+     "max": 0.0
+    }
+   },
+   "potholes": {
+    "band_agreement": 0.5,
+    "mean_abs_diff_E_lo_pct": 5.0,
+    "E_lo_earlier": {
+     "n": 2,
+     "mean": 5.0,
+     "sd": 5.0,
+     "min": 0.0,
+     "p50": 5.0,
+     "p90": 9.0,
+     "max": 10.0
+    },
+    "E_lo_later": {
+     "n": 2,
+     "mean": 0.0,
+     "sd": 0.0,
+     "min": 0.0,
+     "p50": 0.0,
+     "p90": 0.0,
+     "max": 0.0
+    }
+   },
+   "final_class_agreement": 1.0,
+   "final_class_pairs": {
+    "Fair–Good / Fair–Good": 2
+   }
+  },
+  "centre_path_over_s_path": {
+   "n": 42,
+   "mean": 0.9986,
+   "sd": 0.0047,
+   "min": 0.9774,
+   "p50": 0.999,
+   "p90": 1.0024,
+   "max": 1.0043
+  }
+ }
+}

@@ -1,0 +1,110 @@
+{
+ "part": "sensitivity",
+ "database": "geoai",
+ "data_as_of": "2026-10-30T15:05:00.064449Z",
+ "command": "venv/Scripts/python.exe scripts/pci_validation.py --database geoai --redo retest sensitivity samples",
+ "finished_at": "2026-11-07T01:45:58+00:00",
+ "seconds": 0.1,
+ "result": {
+  "blocks": 411,
+  "coverage_status": {
+   "rated": 404,
+   "low_coverage": 4,
+   "insufficient": 3
+  },
+  "rated_under_80_rule": 404,
+  "rated_under_50_rule": 408,
+  "final_class_bracket": {
+   "Poor–Fair": 189,
+   "Fair–Good": 144,
+   "Poor–Good": 75
+  },
+  "final_class_lo": {
+   "Poor": 264,
+   "Fair": 144
+  },
+  "final_class_hi": {
+   "Good": 219,
+   "Fair": 189
+  },
+  "bracket_width": {
+   "n": 408,
+   "mean": 1.1,
+   "sd": 0.14,
+   "min": 1.0,
+   "p50": 1.0,
+   "p90": 1.4,
+   "max": 1.5
+  },
+  "single_class": 0,
+  "cracking_band": {
+   "Good": 164,
+   "Fair": 90,
+   "Poor": 77,
+   "Fair–Good": 60,
+   "Poor–Fair": 17
+  },
+  "cracking_band_lo_differs_from_hi": 77,
+  "potholes_band": {
+   "Poor": 240,
+   "Poor–Good": 118,
+   "Good": 50
+  },
+  "potholes_band_lo_differs_from_hi": 118,
+  "sum_wr_over_sum_w_class": {
+   "Fair–Good": 317,
+   "Poor–Good": 91
+  },
+  "assessed_only_class": {
+   "Fair": 139,
+   "Poor": 110,
+   "Fair–Good": 78,
+   "Good": 40,
+   "Poor–Fair": 36,
+   "Poor–Good": 5
+  },
+  "uncorrected_class": {
+   "Fair–Good": 215,
+   "Poor–Fair": 193
+  },
+  "poor_reachable_lo_end": 264,
+  "pothole_runs_per_km_per_block": {
+   "n": 408,
+   "mean": 12.2,
+   "sd": 14.08,
+   "min": 0.0,
+   "p50": 10.0,
+   "p90": 30.3,
+   "max": 70.0
+  },
+  "blocks_with_pothole_runs": 240,
+  "pothole_band_fair_blocks": 0,
+  "pothole_poor_good_only_from_skips": 118,
+  "pothole_band_hi_poor_only_from_skips": 118,
+  "pothole_band_with_pothole_specific_skip_upper": {
+   "Poor": 240,
+   "Poor–Good": 112,
+   "Good": 50,
+   "Fair–Good": 6
+  },
+  "audited_skips": {
+   "classified_audits": 161,
+   "distressed": {
+    "k": 13,
+    "n": 161,
+    "p": 0.0807,
+    "lo": 0.0478,
+    "hi": 0.1332
+   },
+   "with_pothole_label": {
+    "k": 9,
+    "n": 161,
+    "p": 0.0559,
+    "lo": 0.0297,
+    "hi": 0.1028
+   },
+   "note": "audit = segments the gate would have skipped, sent at random (10 %); Wilson 95 % intervals. The report's E_hi uses 13.3 %, the all-distress upper limit (paper §8.7); the pothole-specific upper limit is a sensitivity only"
+  },
+  "note": "blocks of each drive in k order (no routing, one pass), 100 m by centre distance, tail < 50 m merged; Table 5.3 (urban)"
+ }
+}
