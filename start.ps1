@@ -47,6 +47,7 @@ $ErrorActionPreference = "Stop"
 $ProjectRoot = $PSScriptRoot
 Set-Location $ProjectRoot
 
+Remove-Item 'C:\GeoAI\tmp\keepalive.off' -ErrorAction SilentlyContinue   # resume keepalive.ps1
 if ($Detach) {
     # Relaunch hidden with the same switches (minus -Detach) and all output in one log,
     # so the server outlives the terminal or agent session that started it.

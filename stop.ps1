@@ -22,6 +22,9 @@
 # ============================================================
 
 param([switch]$Force, [switch]$KeepDb, [switch]$StopTunnel, [int]$Port = 8000)
+# Pause keepalive.ps1 (scheduled task) so it does not start everything again; start.ps1 resumes it.
+New-Item -ItemType Directory -Force 'C:\GeoAI\tmp' | Out-Null
+Set-Content -Path 'C:\GeoAI\tmp\keepalive.off' -Value (Get-Date -Format o)
 
 $ErrorActionPreference = "Continue"
 $ProjectRoot = $PSScriptRoot
