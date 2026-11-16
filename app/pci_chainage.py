@@ -63,7 +63,9 @@ SAME_SESSION_MIN_DK = 12          # a same-drive revisit (loop / U-turn) must be
 FILL_DK = 3                       # holes of <= 3 segments inside an attached run are filled
 SECTION_M = 100.0
 TAIL_MERGE_M = 50.0
-ANNEX_MAX = 24
+ANNEX_MAX = 24            # pothole runs + worst sections
+ANNEX_PER_TYPE = 4        # + this many example frames of every distress type named on the stretch
+ANNEX_TOTAL_MAX = 60
 
 ACCURACY = ("Segment position ±10 m on surveyed runs (phone GNSS σ 4–6 m, receiver latency not corrected, 5 m "
             "segments); unknown extra error after each gap. A labelled distress may lie up to ~30 m ahead of the "
@@ -865,7 +867,7 @@ def build_report(g: Graph, req: Mapping, *, generated_at: Optional[datetime] = N
         kms.append(unit(m0, m1, [s for si in sis for s in chosen_segs[si]], sis[-1] == len(secs) - 1,
                         {"km": kmi, "part_km": (m1 - m0) < 1000.0 - 1e-6, "sections": sis}))
     for k in kms:
-        k["pci"]["estimate"] = estimate_mean(sections, (k["from_m"], k["to_m"]))
+        k["pci"]["estimate"] = estimate_mean(sections, (k["from_m"], k["to_m"]), cat, canon.get("surface"))
     stretch = unit(0.0, L, all_chosen, True, {"part_km": L < 1000.0 - 1e-6})
     stretch.pop("geometry", None)          # = the path geometry
     if L > 1000.0 + 1e-6 and (stretch.get("pci") or {}).get("pci"):
@@ -910,7 +912,7 @@ def build_report(g: Graph, req: Mapping, *, generated_at: Optional[datetime] = N
         "length_m": round(L, 1), "chainage_a": fmt_chainage(0), "chainage_b": fmt_chainage(L),
         "coverage": stretch["quantities"]["coverage"], "coverage_status": stretch["quantities"]["coverage_status"],
         "gap_m": round(sum(gp["straight_m"] for gp in path["gaps"]), 1), "gaps": len(path["gaps"]),
-        "pci_estimate": estimate_mean(sections, (0.0, L)),
+        "pci_estimate": estimate_mean(sections, (0.0, L), cat, canon.get("surface")),
         "pci": pci_mean(kms),
         "pci_sections": pci_mean(sections, "100 m sections"),
         "headline": sh.get("headline"), "final": (dict(sh["final"], note=final_note) if sh.get("final") else None),
@@ -1065,11 +1067,34 @@ def _run_impact(g: Graph, segment_ids) -> tuple:
     return bool(ratio > 1.0), round(ratio, 2)
 
 
-def estimate_mean(sections: list[dict], window: tuple) -> Optional[dict]:
-    """PCI estimate of a km row / the stretch = length-weighted mean of its 100 m sections' estimates (median, and
-    the 5 % / 95 % ends averaged the same way, i.e. section errors taken as fully correlated - conservative)."""
+def estimate_mean(sections: list[dict], window: tuple, road_class: Optional[str] = None,
+                  surface: Optional[str] = None) -> Optional[dict]:
+    """PCI estimate of a km row / the stretch = length-weighted mean of its 100 m sections, drawn jointly
+    (pci_irc2023.pci_estimate_joint): errors shared by the whole survey (scooter response, probe calibration,
+    rut-depth prior) stay fully correlated between sections; pass-to-pass scatter and per-section pothole
+    uncertainty average out. Gives the median, the central 50 % ("likely range") and the 90 % interval.
+    Without road_class: the old fully-correlated mean of the sections' own quantiles."""
     from app import pci_irc2023 as P23
     m0, m1 = window
+    if road_class is not None:
+        inside = [s for s in sections if s["from_m"] >= m0 - 1e-6 and s["to_m"] <= m1 + 1e-6]
+        use = [s for s in inside if ((s.get("pci") or {}).get("estimate") or {}).get("estimate")]
+        if not use:
+            return None
+        try:
+            e = P23.pci_estimate_joint(road_class, [{"weight": s["to_m"] - s["from_m"],
+                                                      "inputs": s["pci"]["estimate"]["inputs"]} for s in use], surface)
+        except P23.Unavailable:
+            e = None
+        if e is not None:
+            return {"median": round(e["median"], 1), "lo50": round(e["lo50"], 1), "hi50": round(e["hi50"], 1),
+                    "lo90": round(e["lo90"], 1), "hi90": round(e["hi90"], 1), "class": e["class"],
+                    "class_lo": e["class_lo"], "class_hi": e["class_hi"], "class_lo50": e["class_lo50"],
+                    "class_hi50": e["class_hi50"], "recommendation": e["recommendation"],
+                    "sections_used": len(use), "sections": len(inside),
+                    "length_m": round(sum(s["to_m"] - s["from_m"] for s in use), 1), "draws": e["draws"],
+                    "basis": "length-weighted mean of the 100 m sections drawn jointly: survey-wide errors shared, "
+                             "per-section errors independent (IRC:82-2023 §5.1 project level)"}
     use = [s for s in sections if s["from_m"] >= m0 - 1e-6 and s["to_m"] <= m1 + 1e-6
            and ((s.get("pci") or {}).get("estimate") or {}).get("estimate")]
     n_all = sum(1 for s in sections if s["from_m"] >= m0 - 1e-6 and s["to_m"] <= m1 + 1e-6)
@@ -1175,7 +1200,30 @@ def _annex(g: Graph, sections: list[dict], chosen_segs: list[list], run_lists: d
         # keep an even spread along the stretch, deterministic
         step = len(out) / ANNEX_MAX
         out = [out[int(i * step)] for i in range(ANNEX_MAX)]
-    return out
+    picks = {a["segment_id"]: a for a in out}
+    # every distress type named on the stretch gets example frames: the most confident ones, each from a different
+    # 100 m of road, so the reader sees what the model called e.g. "Ravelling" here (2026-11-16, owner's request)
+    by_type: dict[str, list] = {}
+    for x in used.values():
+        n = by_id.get(x["segment_id"])
+        if n is None or not n.props.get("has_image") or x.get("vlm_class") != "distress":
+            continue
+        for lab in n.props.get("final_labels") or []:
+            by_type.setdefault(lab, []).append(x)
+    for lab, xs in sorted(by_type.items(), key=lambda kv: (-len(kv[1]), kv[0])):
+        have = {int(a["measure_m"] // 100) for a in picks.values() if lab in a["labels"]}
+        quota = ANNEX_PER_TYPE - len(have)
+        for x in sorted(xs, key=lambda x: (-(x.get("confidence") or 0.0), x["measure_m"])):
+            if quota <= 0 or len(picks) >= ANNEX_TOTAL_MAX:
+                break
+            hm = int(x["measure_m"] // 100)
+            if hm in have or x["segment_id"] in picks:
+                continue
+            add(x["segment_id"], f"example of {lab} ({len(xs)} frame{'s' if len(xs) != 1 else ''} with this label on the stretch)")
+            if x["segment_id"] in picks:
+                have.add(hm)
+                quota -= 1
+    return sorted(picks.values(), key=lambda x: x["measure_m"])
 
 
 def _method_text(cat: str) -> list[str]:

@@ -161,7 +161,7 @@ def test_unit_full_inputs_and_rut_range():
     q, r = _unit([seg(k) for k in range(20)])
     assert r and r["estimate"] is not None, r
     assert r["inputs"]["rut_depth"]["dist"] == "range" and r["inputs"]["rut_depth"]["hi90"] == 25.0
-    assert r["inputs"]["potholes"] == {"point": 0.0, "lo90": 0.0, "hi90": 0.0}
+    assert r["inputs"]["potholes"] == {"point": 0.0, "lo90": 0.0, "hi90": 0.0, "rho": C.POTHOLE_RHO_SECTIONS}
     e = r["estimate"]
     assert e["lo90"] <= e["median"] <= e["hi90"] and e["range_params"] == ["rut_depth"]
 
@@ -218,6 +218,73 @@ def test_unit_insufficient():
     segs = [dict(seg(k), status="skip", vlm_class="not_sent", final_labels=[]) for k in range(20)]
     q, r = _unit(segs)
     assert r is None
+
+
+TESTS = [v for k, v in dict(globals()).items() if k.startswith("test_") and callable(v)]
+
+# ---------------------------------------------------------------- joint (stretch) estimate, 2026-11-16
+def _sec_inputs(rho_iri=1.0, rho_pot=1.0, rut="range"):
+    return {"iri": {"point": 5.0, "lo90": 2.5, "hi90": 12.0, "rho": rho_iri},
+            "potholes": {"point": 4.0, "lo90": 0.0, "hi90": 20.0, "rho": rho_pot},
+            "cracking": {"point": 3.0, "lo90": 0.1, "hi90": 12.0, "group": "image_extent"},
+            "ravelling": {"point": 0.5, "lo90": 0.0, "hi90": 4.0, "group": "image_extent"},
+            "patching": {"point": 1.0, "lo90": 0.0, "hi90": 4.0, "group": "image_extent"},
+            "rut_depth": {"point": 12.5, "lo90": 0.0, "hi90": 25.0, "dist": rut}}
+
+
+def test_joint_one_section_matches_single_estimate():
+    ins = _sec_inputs()
+    a = P.pci_estimate("urban", ins, n=4000)
+    b = P.pci_estimate_joint("urban", [{"weight": 100.0, "inputs": ins}], n=4000)
+    for k in ("median", "lo50", "hi50", "lo90", "hi90"):
+        assert abs(a[k] - b[k]) < 2.5, (k, a[k], b[k])
+    assert b["lo90"] <= b["lo50"] <= b["median"] <= b["hi50"] <= b["hi90"]
+    assert b == P.pci_estimate_joint("urban", [{"weight": 100.0, "inputs": ins}], n=4000)      # deterministic
+
+
+def test_joint_shared_errors_do_not_average_out():
+    """rho = 1 everywhere: 12 identical sections give the same interval as one section."""
+    one = P.pci_estimate_joint("urban", [{"weight": 100.0, "inputs": _sec_inputs()}], n=3000)
+    many = P.pci_estimate_joint("urban", [{"weight": 100.0, "inputs": _sec_inputs()} for _ in range(12)], n=3000)
+    for k in ("median", "lo90", "hi90"):
+        assert abs(one[k] - many[k]) < 2.5, (k, one[k], many[k])
+
+
+def test_joint_independent_errors_average_out_and_rho_orders_the_width():
+    def width(rho, k="90"):
+        e = P.pci_estimate_joint("urban", [{"weight": 100.0, "inputs": _sec_inputs(rho, rho, rut="uniform")}
+                                            for _ in range(12)], n=3000)
+        return e["hi" + k] - e["lo" + k]
+    w1, w05, w0 = width(1.0), width(0.5), width(0.0)
+    assert w1 > w05 > w0, (w1, w05, w0)
+    assert width(1.0, "50") > width(0.0, "50")
+
+
+def test_joint_range_parameter_keeps_both_ends():
+    secs = [{"weight": 100.0, "inputs": _sec_inputs(0.7, 0.5)} for _ in range(8)]
+    e = P.pci_estimate_joint("urban", secs, n=3000)
+    best = [{"weight": 100.0, "inputs": dict(s["inputs"], rut_depth={"point": 0.0, "lo90": 0.0, "hi90": 0.0})} for s in secs]
+    worst = [{"weight": 100.0, "inputs": dict(s["inputs"], rut_depth={"point": 25.0, "lo90": 25.0, "hi90": 25.0})} for s in secs]
+    assert abs(e["hi90"] - P.pci_estimate_joint("urban", best, n=3000)["hi90"]) < 1e-9
+    assert abs(e["lo90"] - P.pci_estimate_joint("urban", worst, n=3000)["lo90"]) < 1e-9
+    assert e["range_params"] == ["rut_depth"]
+
+
+def test_joint_weights_and_missing():
+    a, b = _sec_inputs(), dict(_sec_inputs(), iri={"point": 2.0, "lo90": 2.0, "hi90": 2.0})
+    heavy_b = P.pci_estimate_joint("urban", [{"weight": 10.0, "inputs": a}, {"weight": 990.0, "inputs": b}], n=1500)
+    heavy_a = P.pci_estimate_joint("urban", [{"weight": 990.0, "inputs": a}, {"weight": 10.0, "inputs": b}], n=1500)
+    assert heavy_b["median"] > heavy_a["median"] + 10
+    assert P.pci_estimate_joint("urban", []) is None
+    assert P.pci_estimate_joint("urban", [{"weight": 100.0, "inputs": {"iri": a["iri"]}}]) is None
+
+
+def test_iri_interval_reports_shared_share():
+    from app import pci_iri
+    iv = pci_iri.iri_interval({"rms_av": 1.2, "speed_mps": 6.0, "length_m": 100.0})
+    assert iv["basis"] == "uncalibrated_scooter" and 0.5 < iv["rho_sections"] < 0.9, iv
+    longer = pci_iri.iri_interval({"rms_av": 1.2, "speed_mps": 6.0, "length_m": 1000.0})
+    assert longer["rho_sections"] > iv["rho_sections"]         # scatter shrinks with length, the shared part does not
 
 
 TESTS = [v for k, v in dict(globals()).items() if k.startswith("test_") and callable(v)]

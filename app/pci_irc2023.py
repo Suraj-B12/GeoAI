@@ -365,6 +365,7 @@ def pci_estimate(road_class: str, inputs: Mapping[str, Mapping[str, float]], sur
     point = sum(WEIGHTS[p] * pci_param(road_class, p, inputs[p]["point"], surface) for p in PARAMS)
     med = draws[n // 2]
     lo, hi = draws[int(0.05 * n)], draws[int(0.95 * n) - 1]
+    lo50, hi50 = draws[int(0.25 * n)], draws[int(0.75 * n) - 1]
     if ranged:
         # "range" = a judgement range that is NOT a probability distribution (e.g. the rut-depth literature range,
         # app/pci_rut.py): the interval must hold wherever in the range the value lies, so it is the envelope of
@@ -386,10 +387,87 @@ def pci_estimate(road_class: str, inputs: Mapping[str, Mapping[str, float]], sur
             others[p] = x
             vals.append(sum(WEIGHTS[k] * pci_param(road_class, k, others[k], surface) for k in PARAMS))
         contrib[p] = abs(vals[0] - vals[1])
-    return {"point": point, "median": med, "lo90": lo, "hi90": hi, "class": pci_class(med),
+    return {"point": point, "median": med, "lo50": lo50, "hi50": hi50, "lo90": lo, "hi90": hi, "class": pci_class(med),
             "class_lo": pci_class(lo), "class_hi": pci_class(hi), "recommendation": RECOMMENDATION[pci_class(med)],
             "width_by_param": contrib, "draws": n, "range_params": ranged,
             "median_assumes": ([f"{PARAM_NAMES[p]} uniform over its range" for p in ranged] or None)}
+
+
+def _phi(z: float) -> float:
+    return 0.5 * (1.0 + math.erf(z / math.sqrt(2.0)))
+
+
+def pci_estimate_joint(road_class: str, sections: list, surface: Optional[str] = None, n: int = 3000,
+                       seed: int = 20261116) -> Optional[dict]:
+    """PCI of a stretch (km row, whole A->B) = length-weighted mean of its sections, with the sections drawn
+    JOINTLY: for each parameter a Gaussian copula with correlation `rho` between sections
+        u_section = Phi( sqrt(rho) z_shared + sqrt(1 - rho) z_section )
+    so the part of an input's error that is common to the whole survey (one scooter, one probe calibration, one
+    rut-depth prior) does NOT average out along the stretch, and the part that belongs to one section (pass-to-pass
+    scatter, which potholes happen to be there) does. `rho` is read from each input (key "rho", default 1.0 = fully
+    shared = the old, most conservative treatment); inputs with the same "group" share z_shared AND z_section.
+    sections: [{"weight": length_m, "inputs": {param: {...as pci_estimate...}}}]. "range" inputs (rut-depth prior):
+    the 5 %/95 % ends are the envelope of runs with the value fixed at each end for EVERY section, as pci_estimate.
+    Returns median, the central 50 % (lo50-hi50) and 90 % (lo90-hi90) of the stretch PCI. Deterministic."""
+    import random
+    secs = [s for s in sections if s.get("inputs") and all(p in s["inputs"] for p in PARAMS) and s.get("weight", 0) > 0]
+    if not secs:
+        return None
+    W = sum(s["weight"] for s in secs)
+    clean = []
+    for s in secs:
+        c = {}
+        for p in PARAMS:
+            q = dict(s["inputs"][p])
+            for k in ("point", "lo90", "hi90"):
+                q[k] = float(q[k])
+                if not math.isfinite(q[k]) or q[k] < 0:
+                    raise ValueError(f"{p}: {k} must be a finite number >= 0")
+            q["lo90"], q["hi90"] = min(q["lo90"], q["point"]), max(q["hi90"], q["point"])
+            q["rho"] = min(1.0, max(0.0, float(q.get("rho", 1.0))))
+            c[p] = q
+        clean.append((s["weight"] / W, c))
+    ranged = sorted({p for _, c in clean for p in PARAMS if c[p].get("dist") == "range"})
+
+    def run(end: Optional[str]) -> list:
+        rnd = random.Random(seed)
+        out = []
+        for _ in range(n):
+            zs = {p: rnd.gauss(0.0, 1.0) for p in PARAMS}             # shared along the stretch
+            gz: dict = {}
+            tot = 0.0
+            for w, c in clean:
+                local: dict = {}
+                for p in PARAMS:
+                    q = c[p]
+                    g = q.get("group")
+                    key = g if g is not None else p
+                    z_sh = gz.setdefault(key, zs[p])
+                    z_lo = rnd.gauss(0.0, 1.0)
+                    z_lo = local.setdefault(key, z_lo)
+                    u = _phi(math.sqrt(q["rho"]) * z_sh + math.sqrt(1.0 - q["rho"]) * z_lo)
+                    if end is not None and q.get("dist") == "range":
+                        a, b = sorted([q["lo90"], q["hi90"]], key=lambda x: pci_param(road_class, p, x, surface))
+                        x = a if end == "worst" else b
+                    elif q.get("dist") in ("uniform", "range"):
+                        x = q["lo90"] + u * (q["hi90"] - q["lo90"])
+                    else:
+                        x = _split_normal_quantile(u, q["lo90"], q["point"], q["hi90"])
+                    tot += w * WEIGHTS[p] * pci_param(road_class, p, x, surface)
+            out.append(tot)
+        out.sort()
+        return out
+
+    d = run(None)
+    qv = lambda dr, f: dr[min(n - 1, max(0, int(f * n)))]              # noqa: E731
+    med, lo50, hi50, lo, hi = qv(d, 0.5), qv(d, 0.25), qv(d, 0.75), qv(d, 0.05), qv(d, 0.95)
+    if ranged:
+        lo = min(lo, qv(run("worst"), 0.05))
+        hi = max(hi, qv(run("best"), 0.95))
+    return {"median": med, "lo50": lo50, "hi50": hi50, "lo90": lo, "hi90": hi, "class": pci_class(med),
+            "class_lo": pci_class(lo), "class_hi": pci_class(hi), "class_lo50": pci_class(lo50),
+            "class_hi50": pci_class(hi50), "recommendation": RECOMMENDATION[pci_class(med)], "draws": n,
+            "range_params": ranged, "sections_used": len(clean)}
 
 
 def potholes_number(area_m2: float) -> float:

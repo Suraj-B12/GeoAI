@@ -41,3 +41,68 @@ correlated image extents, rut depth as a range that must hold at both ends, IRI 
 quadrature, speed-matched jolt threshold, extents over imaged segments only. Final sample results (ids 49–56):
 50 (31–81), 50 (31–86), 47 (29–82), 50 (31–85), 50 (34–82), 54 (39–89), 50 (31–85), 55 (33–93) — all Fair.
 The earlier table above (52 (40–83) …) was before these corrections and is superseded.
+
+## Update 2026-11-16: joint stretch estimate, "likely range", distress photo examples
+
+Owner's request: the 90 % interval (about 50 points wide) is too wide to use; aim for 10-20 points. Photos of
+every distress type in the report.
+
+**What was changed (code: `pci_irc2023.pci_estimate_joint`, `pci_chainage.estimate_mean`, `pci_iri._rho_sys`,
+`pci_core.POTHOLE_RHO_SECTIONS`; tests `scripts/tests/test_pci_estimate.py`, 6 new):**
+
+1. Km rows and the stretch are no longer the mean of the sections' own 5 % / 95 % ends (= every error fully
+   shared between sections). The sections are drawn jointly, 3,000 draws, Gaussian copula per parameter:
+   - roughness: correlation between sections = variance of the scooter response ratio R over (R + pass-to-pass
+     scatter), 0.60-0.75 on the samples (R is one unknown for the whole survey; the scatter is per section);
+   - potholes: 0.5 (judgement: P(real) and recall constants are shared, which runs are real and how big each
+     pothole is are per section). Sensitivity 0.25 -> 1.0: median and likely range < 1 point, 5 % end up to 3.7;
+   - image extents (one probe calibration) and the rut-depth prior: 1.0, as before; the rut range still has to
+     hold at both ends for the 90 % interval.
+2. A **likely range** is reported beside the 90 % interval: the central 50 % of the draws (25-75 %). The true
+   PCI is as likely inside it as outside. This is the headline range in the PDF, CSV (`pci_est_lo50/hi50`),
+   saved-report list and WebGIS; the 90 % interval and the strict range stay next to it.
+3. Annex: besides one frame per pothole run and per worst section (<= 24), up to 4 example frames of every
+   distress type the model named on the stretch (most confident, each from a different 100 m; <= 60 in total).
+
+**Result (samples regenerated, ids 57-64; before: ids 49-56):**
+
+| Report | Length | Before: median (90 %) | Now: median, likely range (width), 90 % (width) |
+|---|---|---|---|
+| 57 | 8.31 km | 50 (31-81) | 50, 44-57 (13), 35-74 (39) |
+| 58 | 1.55 km | 50 (31-86) | 50, 44-58 (14), 34-79 (45) |
+| 59 | 1.00 km | 47 (29-82) | 47, 41-54 (13), 31-76 (45) |
+| 60 | 1.00 km | 50 (31-85) | 51, 44-59 (15), 34-79 (45) |
+| 61 | 1.00 km | 50 (34-82) | 51, 46-57 (11), 37-78 (41) |
+| 62 | 1.02 km | 54 (39-89) | 55, 49-61 (12), 41-82 (41) |
+| 63 | 1.00 km | 50 (31-85) | 51, 45-58 (13), 34-78 (44) |
+| 64 | 0.80 km | 55 (33-93) | 55, 48-65 (17), 36-88 (52) |
+
+The likely range is 11-17 points wide. The 90 % interval narrowed by 6-11 points (correct correlation), and is
+still 39-52 wide.
+
+**What was NOT done, and why (do not re-try without new data):**
+
+- A 90 % interval of 10-20 points is not reachable from the data we hold. Roughness has weight 0.40 and the
+  urban PCI_IRI curve falls from ~100 at IRI 2 to ~12 at IRI 5 m/km; the scooter's response ratio R is known
+  only to a factor ~4 (0.77-3.08). Even combining that physics prior with the published Bengaluru IRI values as
+  a second prior (8 road values, ln-sd 0.49; product ln-sd 0.32) leaves the median section's PCI_IRI between
+  ~6 and ~62 at 90 % (22 PCI points from roughness alone). The population prior was again NOT used: it is thin,
+  old (2011-2022) and would make the output mostly the prior (UNCERTAINTY.md §2).
+- Blind identification of the scooter from the acceleration spectra (to narrow R without a reference) was
+  explored (2,244 five-second windows, all drives, by speed bin). Findings: (a) 3-15 Hz is roughly flat,
+  consistent with road waviness w ~ 2; (b) below ~1.5 Hz the spectrum does not fall as a road-heave signal
+  should (flat instead of +20 dB/decade): that band is not road response (rider motion, pitch/gravity leakage)
+  and inflates the 0.5-15 Hz RMS on smooth roads; (c) a spectral peak moves with speed (about 1.6-2.5 Hz at
+  2-3.5 m/s, 3-4 Hz at 6.5-8 m/s, about 0.5-0.7 cycles/m), compatible with wheel rotation (circumference
+  ~1.5-1.9 m) or the wheelbase filter. No body-bounce resonance could be read off without a model that also
+  explains (b) and (c). Not usable as evidence yet; a lead for later (raising the band's lower edge to ~1.5 Hz
+  is the first thing to test once a reference IRI exists).
+
+**What makes the 90 % interval 10-20 points (cheapest first):**
+1. Reference IRI on 8-10 straight sites (>= 100 m each, smooth to rough), 3-5 scooter passes each ->
+   `pci_iri.fit_calibration` (or the survey: `pci_survey_compare.py fit`). Expected roughness interval x/÷ 1.4-1.7
+   instead of x/÷ ~3: about 15-20 PCI points at 90 %.
+2. Rut depth with a 2-3 m straight edge on the same sites (removes ~12 points of range).
+3. Two measurements of the scooter itself narrow R without any road reference: bounce frequency and damping
+   (push down on the seat with the rider on, record the phone for 10 s) and the phone's position along the
+   wheelbase. These are the 2nd and 3rd largest terms of R (body frequency 0.97-2.33, position 1.21-2.28).

@@ -320,6 +320,11 @@ REAL_IF_NO_JOLT = (0.0, 0.09, 0.33)
 #   code gives no size distribution and the images give no scale. REVIEW_estimate.md E1.
 RUN_RECALL_POINT, RUN_RECALL_LOW = 0.7, 0.5
 UNITS_PER_POTHOLE = (1.0, 2.0, 4.0)
+# Correlation of the pothole-number error between two sections of one stretch (pci_estimate_joint). Shared by all
+# sections: P(real | jolt), run recall (constants from one evidence set). Per section: which runs are real, how big
+# each pothole is, how many were missed. No data separates the two; 0.5 is a judgement (ESTIMATE.md, 2026-11-16:
+# between 0.25 and 1.0 the median and the likely range move by < 1 PCI point, the 5 % end by up to 3.7).
+POTHOLE_RHO_SECTIONS = 0.5
 
 
 def _poisson_q95(lam: float) -> int:
@@ -404,7 +409,8 @@ def pci_estimate_unit(segments: list[Mapping], q: Mapping, road_class: str, surf
     occ_pt = real_pt / RUN_RECALL_POINT
     occ_hi = real_hi / RUN_RECALL_LOW + _poisson_q95(lam)
     u_lo, u_pt, u_hi = UNITS_PER_POTHOLE
-    inputs["potholes"] = {"point": occ_pt * u_pt, "lo90": float(lo_conf) * u_lo, "hi90": max(occ_pt * u_pt, occ_hi * u_hi)}
+    inputs["potholes"] = {"point": occ_pt * u_pt, "lo90": float(lo_conf) * u_lo, "hi90": max(occ_pt * u_pt, occ_hi * u_hi),
+                          "rho": POTHOLE_RHO_SECTIONS}
     basis["potholes"] = (f"{n} run(s) of pothole frames, {conf} with a jolt; IRC units (0.1 m2) = real potholes x "
                          f"1-4 units each (assumed 0.1-0.4 m2). Real potholes: point {occ_pt:.1f} (a run is real with "
                          f"p 0.74 if the scooter felt a jolt, 0.09 if not; run recall 0.7), upper {occ_hi:.1f} "
@@ -423,6 +429,8 @@ def pci_estimate_unit(segments: list[Mapping], q: Mapping, road_class: str, surf
         iv = pci_iri.iri_interval(agg, calibration=iri_calibration())
         if iv.get("point") is not None:
             inputs["iri"] = {"point": iv["point"], "lo90": iv["lo90"], "hi90": iv["hi90"]}
+            if iv.get("rho_sections") is not None:      # uncalibrated: shared response ratio + own scatter
+                inputs["iri"]["rho"] = round(iv["rho_sections"], 4)
             basis["iri"] = f"{iv['basis']}: {iv.get('detail', '')}".strip()
     # rut depth
     stats = pci_rut.score_stats([(s.get("probe") or {}).get("Rutting") for s in segments])

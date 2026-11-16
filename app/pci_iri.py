@@ -765,6 +765,14 @@ def fit_calibration(rows: Sequence[Mapping], *, terms: Sequence[str] = ("log_rms
     return cal
 
 
+def _rho_sys(r05: float, r50: float, r95: float, k: float) -> float:
+    """Correlation between two sections' IRI errors (log scale): variance of the shared response ratio R over the
+    total (R + pass-to-pass scatter). R's sd from its 5-95 % span; the scatter's from k = exp(Z90 sigma)."""
+    s_sys = math.log(r95 / r05) / (2 * Z90)
+    s_ind = math.log(k) / Z90
+    return s_sys ** 2 / (s_sys ** 2 + s_ind ** 2)
+
+
 def _sens_at(v: float) -> tuple[float, float, float]:
     vs = sorted(SENS_R)
     v = min(max(float(v), vs[0]), vs[-1])
@@ -808,6 +816,9 @@ def iri_interval(agg: Mapping, calibration: Optional[Mapping] = None, p: Params 
     dn = math.sqrt(math.log(r95 / r50) ** 2 + math.log(k) ** 2)
     return {**base, "point": est / r50, "lo90": (est_nf / r50) * math.exp(-dn), "hi90": (est / r50) * math.exp(up),
             "basis": "uncalibrated_scooter", "iri_gc_uncal": est,
+            # share of the (log) error variance that is the scooter response ratio - the same for every section of
+            # the survey; the rest is pass-to-pass scatter, independent between sections (pci_estimate_joint)
+            "rho_sections": _rho_sys(r05, r50, r95, k),
             "detail": (f"Golden-Car-equivalent {est:.2f} divided by the scooter response ratio R "
                        f"(p05/p50/p95 = {r05:.2f}/{r50:.2f}/{r95:.2f} at {v:.1f} m/s), noise floor "
                        f"{NOISE_FLOOR_RMS} m/s2 at the low end, pass-to-pass scatter x/{k:.2f} (combined in quadrature). Not a measured "

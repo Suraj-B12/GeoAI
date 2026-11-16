@@ -1135,7 +1135,8 @@ def annex_block(rep, st, image_fetcher):
             except Exception:
                 img = None
         reason = (a["reason"].replace("segments)", "frames)").replace("segment)", "frame)")
-                  if a["reason"].startswith("pothole run") else "most distressed frame of its 100 m section")
+                  if a["reason"].startswith("pothole run") else escape(a["reason"])
+                  if a["reason"].startswith("example of") else "most distressed frame of its 100 m section")
         if a["reason"].startswith("pothole run") and felt.get(a["segment_id"]) is not None:
             reason += " · impact felt: " + ("<b>yes</b>" if felt[a["segment_id"]] else "no")
         note = a.get("note") or ""
@@ -1296,6 +1297,8 @@ def est_headline_block(rep, st, width):
     cls = e["class"]
     col = CLASS_COLORS[cls]
     left = [P(f'PCI ≈ <font color="{col}">{fnum(e["median"], 0)}</font>', st["big"]),
+            *([P(f'Likely range <b>{fnum(e["lo50"], 0)}–{fnum(e["hi50"], 0)}</b> (even odds)', st["bigsub"])]
+              if e.get("lo50") is not None else []),
             P(f'90 % interval {fnum(e["lo90"], 0)}–{fnum(e["hi90"], 0)}', st["bigsub"]),
             P(f'<font color="{col}">{escape(cls)}</font> (Table 5.5)', st["bigsub"])]
     span = (f"{e['class_lo']} to {e['class_hi']}" if e["class_lo"] != e["class_hi"] else e["class_lo"])
@@ -1350,7 +1353,9 @@ def est_param_table(rep, st, width):
                      P(escape(r.get("basis") or "–"), st["cell"])])
     e = rep["summary"]["pci_estimate"]
     data.append([P("<b>PCI = Σ weight × PCIᵢ</b>", st["cell"]), P("1.00", st["cellc"]),
-                 P(f"<b>{fnum(e['median'], 0)}</b> ({fnum(e['lo90'], 0)}–{fnum(e['hi90'], 0)})", st["cell"]),
+                 P(f"<b>{fnum(e['median'], 0)}</b> (" + (f"likely {fnum(e['lo50'], 0)}–{fnum(e['hi50'], 0)}; 90 %: "
+                                                     if e.get("lo50") is not None else "")
+                   + f"{fnum(e['lo90'], 0)}–{fnum(e['hi90'], 0)})", st["cell"]),
                  "", P("100 %", st["cellc"]), P(f"<b>{escape(e['class'])}</b> (median)", st["cell"])])
     cw = [31, 13, 42, 19, 16]
     cw.append(width / mm - sum(cw))
@@ -1535,7 +1540,12 @@ def est_maintenance_block(rep, st, width):
     e = rep["summary"]["pci_estimate"]
     cls = e["class"]
     out = [P(f"<b>Whole stretch: PCI ≈ {fnum(e['median'], 0)}, {escape(cls)} — "
-             f"{escape(T.class_recommendation(cls))}</b> (median estimate, dark shading). The 90 % interval reaches "
+             f"{escape(T.class_recommendation(cls))}</b> (median estimate, dark shading). "
+             + (f"The likely range (even odds) is {fnum(e['lo50'], 0)}–{fnum(e['hi50'], 0)}"
+                + (f", {escape(e['class_lo50'])}" if e.get("class_lo50") == e.get("class_hi50")
+                   else f", {escape(e['class_lo50'])} to {escape(e['class_hi50'])}") + ". "
+                if e.get("lo50") is not None else "") +
+             f"The 90 % interval reaches "
              f"{escape(e['class_hi'])} to {escape(e['class_lo'])} (light shading): confirm the roughness before "
              "committing to a treatment class.", st["body"])]
     a, b = T.CLASS_ORDER.index(e["class_hi"]), T.CLASS_ORDER.index(e["class_lo"])
@@ -1590,7 +1600,11 @@ def est_method_lines(rep) -> list[str]:
         "gets an <b>estimate</b>: every parameter is drawn 1,500 times from its 90 % interval (the three image-based "
         "extents together, as they share one calibration; rut depth's prior range must hold at both ends) and the "
         "median and 5–95 % of the PCI are reported. Km rows and the stretch = length-weighted "
-        "mean of the sections (§5.1 note: 100–1000 m).",
+        "mean of the sections (§5.1 note: 100–1000 m), drawn jointly: errors common to the whole survey (the "
+        "scooter's response, the image calibration, the rut-depth prior) are kept the same in every section, "
+        "errors that belong to one section (pass-to-pass scatter, which potholes are real) are independent. "
+        "<b>Likely range</b> = the middle half of the draws (25–75 %): the true PCI is as likely inside it as "
+        "outside. The 90 % interval is the 5–95 % range.",
         "<b>Inputs.</b> Cracking, ravelling, patching: % of road area from per-type image scores calibrated on the "
         "Attain dataset (ground-truth boxes). Potholes: runs of pothole frames; a run is real with probability 0.74 "
         "if the scooter's accelerometer felt a jolt there and 0.09 if not (label precision 0.43 and the measured jolt "
@@ -1748,8 +1762,17 @@ def render(rep: dict, image_fetcher: Optional[Callable[[str], Optional[bytes]]] 
     # annex
     story.append(PageBreak())
     story.append(P("Annex — Photographs", st["h2"]))
+    _types = {}
+    for _a in rep.get("annex") or []:
+        for _l in _a.get("labels") or []:
+            _types[_l] = _types.get(_l, 0) + 1
     story.append(P(f"{_plural(len(rep.get('annex') or []), 'frame')}: one per pothole run and per section with "
-                   "the worst distress (up to 24). Each shows the road AHEAD of the marked chainage.", st["note"]))
+                   "the worst distress (up to 24), plus up to 4 example frames of every distress type the model "
+                   "named on the stretch (its most confident frames, each from a different 100 m). Each shows the "
+                   "road AHEAD of the marked chainage."
+                   + (" Types pictured: " + ", ".join(f"{escape(k)} ({v})" for k, v in
+                                                       sorted(_types.items(), key=lambda kv: (-kv[1], kv[0]))) + "."
+                      if _types else ""), st["note"]))
     story.extend(annex_block(rep, st, image_fetcher))
     doc.build(story)
     return buf.getvalue()
