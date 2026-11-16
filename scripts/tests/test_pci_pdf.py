@@ -309,7 +309,7 @@ def test_estimate_state():
     other distresses with 2023 clauses, scooter wording."""
     rep = reports()["estimate"]
     e = rep["summary"].get("pci_estimate")
-    assert e and e["lo90"] <= e["median"] <= e["hi90"], e
+    assert e and e["lo90"] <= e["lo50"] <= e["median"] <= e["hi50"] <= e["hi90"], e
     rows = PDF.stretch_estimate_rows(rep)
     assert abs(sum(r["share"] for r in rows) - 100.0) < 0.5
     assert {r["param"] for r in rows if r.get("point") is not None} == set(P23.PARAMS)
@@ -318,10 +318,10 @@ def test_estimate_state():
     if not _need_fitz():
         return
     text = _text("estimate")
-    for s in (f"PCI ≈ {e['median']:.0f}", f"90 % interval {e['lo90']:.0f}–{e['hi90']:.0f}",
+    for s in (f"PCI ≈ {e['median']:.0f}", f"Likely range {e['lo50']:.0f}–{e['hi50']:.0f}",
               "Recommended for the median class (Table 5.5)", "The interval is mostly", "Worst case",
               "Share of interval", "literature prior 0–25 mm", "entered by requester (unverified)",
-              "PCI ≈ (90 % interval)", "Class (median)", "colour = median estimate", "Impact felt",
+              "PCI ≈ (likely range)", "Class (median)", "colour = median estimate", "Impact felt",
               "potholes the rider steered around show no jolt", "Other distresses seen (not part of the IRC PCI)",
               "Bleeding", "7.2.1.5", "Edge Breaking", "7.5.5.6", "scooter's handlebar", "An estimate, not a measurement"):
         assert s in text, s

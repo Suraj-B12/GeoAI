@@ -373,7 +373,8 @@
   // ---- PCI estimate with a 90 % interval (ESTIMATE.md): sections carry pci.estimate.estimate; summary.pci_estimate
   const hasEst = r => Boolean(summaryOf(r).pci_estimate && num(summaryOf(r).pci_estimate.median) !== null);
   const estOf = u => { const e = unitPci(u)?.estimate; return e && typeof e === 'object' && e.estimate && num(e.estimate.median) !== null ? e.estimate : null; };
-  const estMeasure = e => e ? { lo: num(e.lo90), hi: num(e.hi90), single: num(e.median), est: true } : null;
+  const estLo = e => num(e.lo50) ?? num(e.lo90), estHi = e => num(e.hi50) ?? num(e.hi90);   // likely range (central 50 %)
+  const estMeasure = e => e ? { lo: estLo(e), hi: estHi(e), single: num(e.median), est: true } : null;
   function pciMeasure(u, by = 'pci') {
     if (S.report && hasEst(S.report)) return estMeasure(estOf(u));     // colour = class of the median estimate
     const P = unitPci(u); if (!P?.rated || !P.pci) return null;
@@ -428,7 +429,7 @@
   }
   function pciLine(s) {
     const E = s?.pci_estimate;
-    if (E && num(E.median) !== null && num(s?.pci?.single) === null) return `PCI ≈ ${r0(E.median)} (${num(E.lo50) !== null ? `likely ${r0(E.lo50)}–${r0(E.hi50)}; 90 % ` : ''}${r0(E.lo90)}–${r0(E.hi90)}) · ${E.class || classOf(E.median)}`;
+    if (E && num(E.median) !== null && num(s?.pci?.single) === null) return `PCI ≈ ${r0(E.median)} (likely ${r0(estLo(E))}–${r0(estHi(E))}) · ${E.class || classOf(E.median)}`;
     const P = s?.pci; if (!P) return 'Saved before the PCI update — no PCI';
     const m = { lo: num(P.lo), hi: num(P.hi), single: num(P.single) };
     return `PCI ${measureText(m)} · ${colourText(colourOf(m))}`;
@@ -793,7 +794,7 @@
   function headlineEst(r, kpis, callout, flags) {
     const s = summaryOf(r), E = s.pci_estimate, P = s.pci || unitPci(r.stretch)?.pci || {};
     const m = estMeasure(E), cls = E.class || classOf(E.median), rec = E.recommendation || P23.rec[cls];
-    const cLo = E.class_lo || classOf(E.lo90), cHi = E.class_hi || classOf(E.hi90);
+    const cLo = classOf(estLo(E)), cHi = classOf(estHi(E));
     const cat = r.header?.category || r.input?.category || 'urban', surface = r.header?.surface || road(cat).def;
     const SI = stretchInputs(r), params = unitPci(r.stretch)?.params || [];
     const widest = Object.entries(SI.width).sort((a, b) => b[1] - a[1])[0];
@@ -808,9 +809,9 @@
       <div class="pci-score">
         <div class="pci-score-top"><div><span class="pci-score-label">PCI estimate · IRC:82-2023 (0–100)</span><strong class="pci-score-num">≈ ${esc(r0(E.median))}</strong></div>
           <span class="pci-chip">${swatches({ a: cls, b: null })}${esc(cls)}</span></div>
-        ${num(E.lo50) !== null ? `<p class="pci-interval">Likely range <strong>${esc(r0(E.lo50))}–${esc(r0(E.hi50))}</strong> (even odds that the true PCI is inside)</p>` : ''}<p class="pci-interval">90 % interval <strong>${esc(r0(E.lo90))}–${esc(r0(E.hi90))}</strong>${cLo && cHi && cLo !== cHi ? ` (${esc(cLo)} to ${esc(cHi)})` : ''}</p>
+        <p class="pci-interval">Likely range <strong>${esc(r0(estLo(E)))}–${esc(r0(estHi(E)))}</strong>${cLo && cHi && cLo !== cHi ? ` (${esc(cLo)} to ${esc(cHi)})` : ''} · even odds that the true PCI is inside</p>
         ${scaleBar(m)}
-        <p class="pci-rec"><span>Maintenance for the median class (Table 5.5)</span><strong>${esc(rec)}</strong>${cLo !== cHi ? '<em class="pci-rec-note">The interval spans more than one class: confirm on site before choosing a treatment.</em>' : ''}</p>
+        <p class="pci-rec"><span>Maintenance for the median class (Table 5.5)</span><strong>${esc(rec)}</strong>${cLo !== cHi ? '<em class="pci-rec-note">The likely range spans more than one class: confirm on site before choosing a treatment.</em>' : ''}</p>
         ${lead ? `<p class="pci-lead">${esc(lead)}</p>` : ''}
         <p class="pci-note pci-basis">${strict}${strict && used ? ' ' : ''}${esc(used)}</p>
       </div>
@@ -919,7 +920,7 @@
     for (const s of secs) { const c = colourOf(pciMeasure(s, S.colorBy)); if (c.b) two = true; if (!c.a) none = true; }
     const cls = [['fail', 'Fail ≤ 20'], ['poor', 'Poor'], ['fair', 'Fair'], ['satisfactory', 'Satisfactory'], ['good', 'Good'], ['excellent', 'Excellent > 90']];
     return `<div class="pci-legend" role="group" aria-label="Map legend">${cls.map(([k, t]) => `<span><i class="cls-${k}"></i>${t}</span>`).join('')}${none ? `<span><i class="cls-none"></i>${hasEst(S.report) ? 'No estimate' : 'No data'} (dashed)</span>` : ''}
-      ${hasEst(S.report) ? '<p class="pci-legend-rule">Colour = class of the median estimate; in the strip the grey bar is its 90 % interval.</p>' : ''}
+      ${hasEst(S.report) ? '<p class="pci-legend-rule">Colour = class of the median estimate; in the strip the grey bar is its likely range (even odds).</p>' : ''}
       ${two ? '<p class="pci-legend-rule"><i class="cls-poor"></i><i class="cls-excellent"></i>Two colours (striped on the map) = still a range: worst and best possible class.</p>' : ''}</div>`;
   }
   function sectionFacts(s) {
@@ -950,7 +951,7 @@
     const parts = [], P = unitPci(s), e = S.report && hasEst(S.report) ? estOf(s) : null;
     if (e) {
       const c = e.class || classOf(e.median), w = Object.entries(e.width_by_param || {}).sort((a, b) => b[1] - a[1])[0];
-      parts.push(`<p class="pci-note"><strong>PCI ≈ ${esc(r0(e.median))}</strong> · ${num(e.lo50) !== null ? `likely ${esc(r0(e.lo50))}–${esc(r0(e.hi50))} · ` : ''}90 % interval ${esc(r0(e.lo90))}–${esc(r0(e.hi90))} · ${esc(c)}: ${esc(e.recommendation || P23.rec[c])}${w ? ` · widest input: ${esc(paramDef(w[0]).name)}` : ''}${P?.pci ? ` · strict range ${esc(r0(P.pci.lo))}–${esc(r0(P.pci.hi))}` : ''}.</p>`);
+      parts.push(`<p class="pci-note"><strong>PCI ≈ ${esc(r0(e.median))}</strong> · likely ${esc(r0(estLo(e)))}–${esc(r0(estHi(e)))} · ${esc(c)}: ${esc(e.recommendation || P23.rec[c])}${w ? ` · widest input: ${esc(paramDef(w[0]).name)}` : ''}${P?.pci ? ` · strict range ${esc(r0(P.pci.lo))}–${esc(r0(P.pci.hi))}` : ''}.</p>`);
     } else if (S.report && hasEst(S.report)) {
       parts.push(`<p class="pci-note">No estimate for this section${(P?.estimate?.missing || []).length ? ` (no input for ${esc(P.estimate.missing.join(', '))})` : ''}.</p>`);
     } else if (P?.pci) {

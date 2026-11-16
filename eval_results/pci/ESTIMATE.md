@@ -106,3 +106,5 @@ still 39-52 wide.
 3. Two measurements of the scooter itself narrow R without any road reference: bounce frequency and damping
    (push down on the seat with the rider on, record the phone for 10 s) and the phone's position along the
    wheelbase. These are the 2nd and 3rd largest terms of R (body frequency 0.97-2.33, position 1.21-2.28).
+
+**Later the same day (owner's request):** the PDF, CSV, saved-report list and WebGIS show only the likely range for the PCI (CSV columns `pci_est_lo50/hi50`; `pci_est_lo90/hi90` removed). The 90 % interval is still computed and kept in the report JSON (`lo90`, `hi90`, `class_lo`, `class_hi`); per-parameter input ranges are still the inputs' 90 % ranges. Samples regenerated again: ids 65-72 (same numbers as 57-64 above).

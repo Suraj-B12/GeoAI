@@ -320,7 +320,7 @@ CSV_COLUMNS = (("unit", "index", "chainage_from", "chainage_to", "from_m", "to_m
                 "coverage_status")
                + tuple(c for p, n in CSV_PARAMS for c in (n, n + "_lo", n + "_hi", p + "_pci_i", p + "_source"))
                + ("pci_lo", "pci_hi", "pci_single", "pci_class", "recommendation_table_5_5", "missing_parameters")
-               + ("pci_est", "pci_est_lo50", "pci_est_hi50", "pci_est_lo90", "pci_est_hi90", "class_est", "recommendation_est")
+               + ("pci_est", "pci_est_lo50", "pci_est_hi50", "class_est", "recommendation_est")
                + tuple(c for p, _n in CSV_PARAMS for c in (p + "_est", p + "_est_lo90", p + "_est_hi90",
                                                            p + "_est_basis"))
                + ("pothole_frames", "impact_felt", "jolt"))
@@ -383,9 +383,10 @@ def report_csv(rep: dict) -> str:
                  ("length_m", s["length_m"]), ("survey_dates", ", ".join(h.get("survey_dates_ist") or [])),
                  ("data_as_of", rep.get("data_as_of")),
                  ("whole-stretch PCI estimate", "insufficient data" if not s.get("pci_estimate") else
-                  f"{s['pci_estimate']['median']:.1f} (likely range {s['pci_estimate'].get('lo50', float('nan')):.1f} to "
-                  f"{s['pci_estimate'].get('hi50', float('nan')):.1f}; 90 % interval {s['pci_estimate']['lo90']:.1f} to "
-                  f"{s['pci_estimate']['hi90']:.1f}), {s['pci_estimate']['class']} (median); an estimate, not a "
+                  f"{s['pci_estimate']['median']:.1f} (likely range "
+                  f"{s['pci_estimate'].get('lo50', s['pci_estimate']['lo90']):.1f} to "
+                  f"{s['pci_estimate'].get('hi50', s['pci_estimate']['hi90']):.1f}, even odds), "
+                  f"{s['pci_estimate']['class']} (median); an estimate, not a "
                   "measurement (eval_results/pci/ESTIMATE.md)"),
                  ("whole-stretch PCI worst case", head_pci),
                  ("note", "one lane imaged; cracking % = share of surveyed LENGTH (upper bound of % area); potholes "
@@ -438,10 +439,10 @@ def report_csv(rep: dict) -> str:
         eb = pb.get("estimate") or {}
         est = s.get("pci_estimate") if whole else (eb.get("estimate") if "inputs" in eb else (eb or None))
         if est:
-            vals += [est.get("median"), est.get("lo50"), est.get("hi50"), est.get("lo90"), est.get("hi90"),
+            vals += [est.get("median"), est.get("lo50", est.get("lo90")), est.get("hi50", est.get("hi90")),
                      est.get("class"), est.get("recommendation")]
         else:
-            vals += [None, None, None, None, None, None if not pc else "no estimate", None]
+            vals += [None, None, None, None if not pc else "no estimate", None]
         ins = _csv_est_inputs(rep, u["from_m"], u["to_m"]) if est else {}
         basis = (eb.get("basis") or {}) if kind == "100m" else {}
         for p, _n in CSV_PARAMS:
@@ -590,8 +591,8 @@ def headline_text(summary) -> str:
     s = summary or {}
     est = s.get("pci_estimate")
     if est:
-        likely = (f"likely {est['lo50']:.0f}–{est['hi50']:.0f}; " if est.get("lo50") is not None else "")
-        return (f"PCI ≈ {est['median']:.0f} ({likely}90 % {est['lo90']:.0f}–{est['hi90']:.0f}) · {est['class']} · "
+        lo, hi = ((est["lo50"], est["hi50"]) if est.get("lo50") is not None else (est["lo90"], est["hi90"]))
+        return (f"PCI ≈ {est['median']:.0f} (likely {lo:.0f}–{hi:.0f}) · {est['class']} · "
                 f"{'≥ ' if s.get('gaps') else ''}{s.get('length_m', 0):.0f} m")
     pci = s.get("pci")
     if pci:

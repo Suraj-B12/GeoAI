@@ -1181,11 +1181,19 @@ def _uest(u: dict) -> Optional[dict]:
     return e.get("estimate") if "inputs" in e else e
 
 
+def est_range(e: dict) -> tuple:
+    """(lo, hi, class_lo, class_hi) of the range shown for a PCI estimate: the likely range (central 50 % of the
+    draws). An estimate stored before 2026-11-16 has only the 90 % interval, which is then used."""
+    from app.pci_irc2023 import pci_class
+    lo, hi = (e["lo50"], e["hi50"]) if e.get("lo50") is not None else (e["lo90"], e["hi90"])
+    return lo, hi, pci_class(lo), pci_class(hi)
+
+
 def est_text(e: Optional[dict], nd=0) -> str:
     if not e:
         return "–"
     m = e.get("median", e.get("point"))
-    lo, hi = fnum(e["lo90"], nd), fnum(e["hi90"], nd)
+    lo, hi = (fnum(v, nd) for v in est_range(e)[:2])
     return f"{fnum(m, nd)} ({lo}–{hi})" if lo != hi else fnum(m, nd)
 
 
@@ -1297,19 +1305,19 @@ def est_headline_block(rep, st, width):
     cls = e["class"]
     col = CLASS_COLORS[cls]
     left = [P(f'PCI ≈ <font color="{col}">{fnum(e["median"], 0)}</font>', st["big"]),
-            *([P(f'Likely range <b>{fnum(e["lo50"], 0)}–{fnum(e["hi50"], 0)}</b> (even odds)', st["bigsub"])]
-              if e.get("lo50") is not None else []),
-            P(f'90 % interval {fnum(e["lo90"], 0)}–{fnum(e["hi90"], 0)}', st["bigsub"]),
+            P(f'Likely range <b>{fnum(est_range(e)[0], 0)}–{fnum(est_range(e)[1], 0)}</b> (even odds)',
+              st["bigsub"]),
             P(f'<font color="{col}">{escape(cls)}</font> (Table 5.5)', st["bigsub"])]
-    span = (f"{e['class_lo']} to {e['class_hi']}" if e["class_lo"] != e["class_hi"] else e["class_lo"])
+    _c_lo, _c_hi = est_range(e)[2:]
+    span = (f"{_c_lo} to {_c_hi}" if _c_lo != _c_hi else _c_lo)
     right = [P(f"<b>Recommended for the median class (Table 5.5):</b> "
                f"{escape(T.class_recommendation(cls) or '')}.", st["body"])]
     if e["median"] < 60:
         right.append(P("Below PCI 60: investigate the strengthening requirement before renewal (Table 10.1 "
                        "note).", st["body"]))
-    right += [P(f"The interval spans {escape(span)}. " + escape(_top_contributor_line(rep)), st["body"]),
-              P("An estimate, not a measurement: each parameter is replaced by its best evidence with a 90 % "
-                "interval (table below).", st["note"])]
+    right += [P(f"The likely range is in {escape(span)}. " + escape(_top_contributor_line(rep)), st["body"]),
+              P("An estimate, not a measurement: each parameter is replaced by its best evidence with its own "
+                "range (table below). Likely range = even odds that the true PCI is inside.", st["note"])]
     t = Table([[left, right]], colWidths=[60 * mm, width - 60 * mm], hAlign="LEFT")
     t.setStyle(TableStyle([("BOX", (0, 0), (-1, -1), 1.0, INK), ("LINEAFTER", (0, 0), (0, 0), 0.4, RULE),
                            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("LEFTPADDING", (0, 0), (-1, -1), 7),
@@ -1353,9 +1361,8 @@ def est_param_table(rep, st, width):
                      P(escape(r.get("basis") or "–"), st["cell"])])
     e = rep["summary"]["pci_estimate"]
     data.append([P("<b>PCI = Σ weight × PCIᵢ</b>", st["cell"]), P("1.00", st["cellc"]),
-                 P(f"<b>{fnum(e['median'], 0)}</b> (" + (f"likely {fnum(e['lo50'], 0)}–{fnum(e['hi50'], 0)}; 90 %: "
-                                                     if e.get("lo50") is not None else "")
-                   + f"{fnum(e['lo90'], 0)}–{fnum(e['hi90'], 0)})", st["cell"]),
+                 P(f"<b>{fnum(e['median'], 0)}</b> (likely {fnum(est_range(e)[0], 0)}–{fnum(est_range(e)[1], 0)})",
+                   st["cell"]),
                  "", P("100 %", st["cellc"]), P(f"<b>{escape(e['class'])}</b> (median)", st["cell"])])
     cw = [31, 13, 42, 19, 16]
     cw.append(width / mm - sum(cw))
@@ -1422,7 +1429,7 @@ def est_unit_table(rep, st, width, units, *, first_head="Chainage (from–to)", 
     """Rows: [swatch] chainage | imaged | potholes (runs / jolt) | cracking, ravelling, patching, IRI (point
     estimates) | PCI ≈ (90 %) | class (median)."""
     head = ([""] if swatch else []) + [first_head, "Imaged (%)", "Potholes (runs / jolt)"] + \
-        [h for _, h in EST_COLS] + ["PCI ≈ (90 % interval)", "Class (median)"]
+        [h for _, h in EST_COLS] + ["PCI ≈ (likely range)", "Class (median)"]
     lab_col = 1 if swatch else 0
     data = [[P(h, st["headc"] if i > lab_col else st["head"]) for i, h in enumerate(head)]]
     ext = []
@@ -1541,14 +1548,11 @@ def est_maintenance_block(rep, st, width):
     cls = e["class"]
     out = [P(f"<b>Whole stretch: PCI ≈ {fnum(e['median'], 0)}, {escape(cls)} — "
              f"{escape(T.class_recommendation(cls))}</b> (median estimate, dark shading). "
-             + (f"The likely range (even odds) is {fnum(e['lo50'], 0)}–{fnum(e['hi50'], 0)}"
-                + (f", {escape(e['class_lo50'])}" if e.get("class_lo50") == e.get("class_hi50")
-                   else f", {escape(e['class_lo50'])} to {escape(e['class_hi50'])}") + ". "
-                if e.get("lo50") is not None else "") +
-             f"The 90 % interval reaches "
-             f"{escape(e['class_hi'])} to {escape(e['class_lo'])} (light shading): confirm the roughness before "
-             "committing to a treatment class.", st["body"])]
-    a, b = T.CLASS_ORDER.index(e["class_hi"]), T.CLASS_ORDER.index(e["class_lo"])
+             f"The likely range (even odds) is {fnum(est_range(e)[0], 0)}–{fnum(est_range(e)[1], 0)}"
+             + (f", {escape(est_range(e)[2])}" if est_range(e)[2] == est_range(e)[3]
+                else f", {escape(est_range(e)[3])} to {escape(est_range(e)[2])} (light shading)")
+             + ": confirm the roughness before committing to a treatment class.", st["body"])]
+    a, b = T.CLASS_ORDER.index(est_range(e)[3]), T.CLASS_ORDER.index(est_range(e)[2])
     span = set(T.CLASS_ORDER[a:b + 1])
     data = [[P(h, st["head"]) for h in ("Class", "PCI", "Recommendation (Table 5.5)")]]
     ext = []
@@ -1599,12 +1603,12 @@ def est_method_lines(rep) -> list[str]:
         f"{escape(ROAD_CLASS_NAMES.get(rc, rc).lower())}s (Table {APPENDIX_TABLE.get(rc, '')}). Each 100 m section "
         "gets an <b>estimate</b>: every parameter is drawn 1,500 times from its 90 % interval (the three image-based "
         "extents together, as they share one calibration; rut depth's prior range must hold at both ends) and the "
-        "median and 5–95 % of the PCI are reported. Km rows and the stretch = length-weighted "
+        "median and the middle half of the PCI draws are reported. Km rows and the stretch = length-weighted "
         "mean of the sections (§5.1 note: 100–1000 m), drawn jointly: errors common to the whole survey (the "
         "scooter's response, the image calibration, the rut-depth prior) are kept the same in every section, "
         "errors that belong to one section (pass-to-pass scatter, which potholes are real) are independent. "
         "<b>Likely range</b> = the middle half of the draws (25–75 %): the true PCI is as likely inside it as "
-        "outside. The 90 % interval is the 5–95 % range.",
+        "outside.",
         "<b>Inputs.</b> Cracking, ravelling, patching: % of road area from per-type image scores calibrated on the "
         "Attain dataset (ground-truth boxes). Potholes: runs of pothole frames; a run is real with probability 0.74 "
         "if the scooter's accelerometer felt a jolt there and 0.09 if not (label precision 0.43 and the measured jolt "

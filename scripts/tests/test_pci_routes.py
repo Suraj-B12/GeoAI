@@ -197,14 +197,14 @@ def test_csv_irc2023_columns():
     st = next(x for x in rows if x["unit"] == "stretch")
     hp = rep["summary"]["pci"]
     assert abs(float(st["pci_lo"]) - hp["lo"]) < 0.01 and abs(float(st["pci_hi"]) - hp["hi"]) < 0.01
-    # PCI estimate columns (eval_results/pci/ESTIMATE.md): median inside its 90 % interval; per-parameter inputs
+    # PCI estimate columns (eval_results/pci/ESTIMATE.md): median inside its likely range; per-parameter inputs
     est = rep["summary"].get("pci_estimate")
     assert "whole-stretch PCI estimate" in meta
     if est:
         assert abs(float(st["pci_est"]) - est["median"]) < 0.01 and st["class_est"] == est["class"]
     for x in rows:
         if x["pci_est"]:
-            assert float(x["pci_est_lo90"]) - 1e-6 <= float(x["pci_est"]) <= float(x["pci_est_hi90"]) + 1e-6, x
+            assert float(x["pci_est_lo50"]) - 1e-6 <= float(x["pci_est"]) <= float(x["pci_est_hi50"]) + 1e-6, x
             assert x["iri_est"] != "" and x["potholes_est"] != "", x
             if x["unit"] == "100m":
                 assert x["iri_est_basis"], x
