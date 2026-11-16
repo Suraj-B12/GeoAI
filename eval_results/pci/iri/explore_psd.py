@@ -3,7 +3,7 @@ Usage: explore_psd.py OUT.npz ; then explore_psd_look.py OUT.npz"""
 import os, sys, glob
 from pathlib import Path
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
-sys.path.insert(0, r"C:\Users\PRO-LAB-3\Documents\Capstone"); sys.path.insert(0, r"C:\Users\PRO-LAB-3\Documents\Capstone\scripts")
+ROOT = Path(__file__).resolve().parents[3]; sys.path.insert(0, str(ROOT)); sys.path.insert(0, str(ROOT / "scripts"))
 import numpy as np
 from scipy import signal
 
